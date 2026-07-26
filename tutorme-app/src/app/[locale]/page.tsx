@@ -1757,12 +1757,14 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const [geoDetected, setGeoDetected] = useState(false)
   const [courses, setCourses] = useState<any[]>([])
   const [tutors, setTutors] = useState<any[]>([])
+  const [goLives, setGoLives] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const PAGE_SIZE = 5
   const [coursesPage, setCoursesPage] = useState(0)
   const [tutorsPage, setTutorsPage] = useState(0)
+  const [goLivesPage, setGoLivesPage] = useState(0)
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
   // Course whose full schedule list is open in the ScheduleViewModal.
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
@@ -1931,21 +1933,40 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       setLoadError(null)
       setCoursesPage(0)
       setTutorsPage(0)
+      setGoLivesPage(0)
       try {
-        const [coursesResults, tutorsResults] = await Promise.all([
+        const [coursesResults, tutorsResults, goLivesResults] = await Promise.all([
           fetchTiered('courses', q, selectedCountryCode),
           fetchTiered('tutors', q, selectedCountryCode),
+          fetchWithTimeout('/api/public/live-sessions?type=GO_LIVE_DEMO&status=active', {
+            signal: controller.signal,
+          })
+            .then(async res => {
+              if (!res.ok) return []
+              const json = await res.json()
+              return json.sessions || []
+            })
+            .catch(err => {
+              console.warn('[Landing] live-sessions fetch failed:', err)
+              return []
+            }),
         ])
         console.log('[Landing] Tiered fetch completed:', {
           coursesCount: coursesResults.length,
           tutorsCount: tutorsResults.length,
+          goLivesCount: goLivesResults.length,
         })
 
         if (!finished) {
           setCourses(coursesResults)
           setTutors(tutorsResults)
+          setGoLives(goLivesResults)
 
-          if (coursesResults.length === 0 && tutorsResults.length === 0) {
+          if (
+            coursesResults.length === 0 &&
+            tutorsResults.length === 0 &&
+            goLivesResults.length === 0
+          ) {
             setLoadError('Unable to load results.')
           }
         }
@@ -2117,6 +2138,67 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     </Link>
   )
 
+  const GoLiveSlot = ({ item }: { item: any }) => (
+    <Link
+      href={`/student/classroom?sessionId=${encodeURIComponent(item?.sessionId || item?.id || '')}`}
+      className="block h-full w-full"
+    >
+      <div
+        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        style={{
+          backgroundImage:
+            'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
+          transform: 'translateZ(0)',
+        }}
+      >
+        <div className="flex h-full flex-col p-4" style={{ transform: 'translateZ(0)' }}>
+          {/* Header: Title on left, live indicator + avatar on right */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="line-clamp-2 text-sm font-semibold text-slate-50">
+                {item?.title || 'Live Demo'}
+              </div>
+              <div className="mt-1 text-xs font-medium text-emerald-100/80">
+                @{item?.tutor?.username || 'tutor'}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-200 ring-1 ring-emerald-400/30">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                Live
+              </span>
+              <div className="h-[52px] w-[52px] overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                {item?.tutor?.avatarUrl ? (
+                  <img
+                    src={item.tutor.avatarUrl}
+                    alt={item?.tutor?.name || 'Tutor'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                    <User className="h-6 w-6 opacity-50" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Empty description area */}
+          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2" />
+
+          {/* Bottom row: country */}
+          <div className="mt-3 flex items-center justify-end text-xs font-semibold">
+            {item?.tutor?.country ? (
+              <span className="truncate text-emerald-100">
+                <CountryFlag countryName={item.tutor.country} size="xs" showLabel />
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+
   const TriangleArrow = ({
     direction,
     disabled,
@@ -2129,16 +2211,26 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     disabled: boolean
     onClick: () => void
     label: string
-    kind?: 'courses' | 'tutors'
+    kind?: 'courses' | 'tutors' | 'go-live'
     className?: string
   }) => {
-    const isCourses = kind === 'courses'
-    const bg = isCourses
-      ? 'linear-gradient(135deg, rgba(55,65,75,0.5) 0%, rgba(25,35,45,0.5) 100%)'
-      : 'linear-gradient(135deg, rgba(70,110,180,0.5) 0%, rgba(25,55,110,0.5) 100%)'
-    const outline = isCourses
-      ? 'drop-shadow(0 0 2px rgba(30,40,50,0.5)) drop-shadow(0 0 4px rgba(30,40,50,0.3))'
-      : 'drop-shadow(0 0 2px rgba(25,55,110,0.5)) drop-shadow(0 0 4px rgba(25,55,110,0.3))'
+    let bg: string
+    switch (kind) {
+      case 'courses':
+        bg = 'linear-gradient(135deg, rgba(55,65,75,0.5) 0%, rgba(25,35,45,0.5) 100%)'
+        break
+      case 'go-live':
+        bg = 'linear-gradient(135deg, rgba(16,185,129,0.5) 0%, rgba(5,80,60,0.5) 100%)'
+        break
+      default:
+        bg = 'linear-gradient(135deg, rgba(70,110,180,0.5) 0%, rgba(25,55,110,0.5) 100%)'
+    }
+    const outline =
+      kind === 'courses'
+        ? 'drop-shadow(0 0 2px rgba(30,40,50,0.5)) drop-shadow(0 0 4px rgba(30,40,50,0.3))'
+        : kind === 'go-live'
+          ? 'drop-shadow(0 0 2px rgba(5,80,60,0.5)) drop-shadow(0 0 4px rgba(5,80,60,0.3))'
+          : 'drop-shadow(0 0 2px rgba(25,55,110,0.5)) drop-shadow(0 0 4px rgba(25,55,110,0.3))'
     return (
       <button
         type="button"
@@ -2183,7 +2275,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     title: string
     icon: React.ReactNode
     items: any[]
-    kind: 'courses' | 'tutors'
+    kind: 'courses' | 'tutors' | 'go-live'
     page: number
     setPage: (next: number) => void
   }) => (
@@ -2236,7 +2328,11 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                     {item?.__skeleton ? (
                       <div
                         className={cn(
-                          kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]',
+                          kind === 'courses'
+                            ? 'h-[280px]'
+                            : kind === 'go-live'
+                              ? 'h-[clamp(220px,18vw,280px)]'
+                              : 'h-[clamp(220px,18vw,280px)]',
                           'w-[var(--card-width)] rounded-[22px] border border-dashed border-[rgba(255,255,255,0.20)] bg-[rgba(30,40,50,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)]'
                         )}
                       >
@@ -2249,6 +2345,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                       </div>
                     ) : kind === 'courses' ? (
                       <CourseSlot item={item} />
+                    ) : kind === 'go-live' ? (
+                      <GoLiveSlot item={item} />
                     ) : (
                       <TutorSlot item={item} />
                     )}
@@ -2258,7 +2356,11 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   <div
                     key={`placeholder-${kind}-${currentPage}-${i}`}
                     className={cn(
-                      kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]',
+                      kind === 'courses'
+                        ? 'h-[280px]'
+                        : kind === 'go-live'
+                          ? 'h-[clamp(220px,18vw,280px)]'
+                          : 'h-[clamp(220px,18vw,280px)]',
                       'w-[var(--card-width)]'
                     )}
                     aria-hidden="true"
@@ -2359,7 +2461,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </button>
         </div>
 
-        <div className="mt-8 min-h-0 flex-1 space-y-10 overflow-y-auto">
+        <div className="mt-6 min-h-0 flex-1 space-y-6 overflow-y-auto">
           <CarouselRow
             title="Courses"
             icon={<BookOpen className="h-4 w-4" />}
@@ -2367,6 +2469,14 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             kind="courses"
             page={coursesPage}
             setPage={setCoursesPage}
+          />
+          <CarouselRow
+            title="Demo Classes"
+            icon={<Play className="h-4 w-4" />}
+            items={goLives}
+            kind="go-live"
+            page={goLivesPage}
+            setPage={setGoLivesPage}
           />
           <CarouselRow
             title="Tutors"
