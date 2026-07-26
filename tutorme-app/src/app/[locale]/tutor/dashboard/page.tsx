@@ -504,6 +504,33 @@ function TutorDashboardContent() {
     }
   }, [])
 
+  const handleRemoveLiveDemo = useCallback(async (classId: string) => {
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrfData = await csrfRes.json().catch(() => ({}))
+      const csrfToken = csrfData?.token ?? null
+
+      const res = await fetch(`/api/tutor/classes/${classId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+        },
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        setLiveDemos(prev => prev.filter(c => c.id !== classId))
+        toast.success('Demo class removed successfully')
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Failed to remove demo class')
+      }
+    } catch {
+      toast.error('Failed to remove demo class')
+    }
+  }, [])
+
   const handleOneOnOneResponse = useCallback(
     async (requestId: string, action: 'accept' | 'reject') => {
       // Rejecting declines the student's request (and the whole series). Confirm
@@ -1217,6 +1244,15 @@ function TutorDashboardContent() {
                           >
                             <Video className="mr-1 h-3 w-3" />
                             Enter
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveLiveDemo(demo.id)}
+                            className="border-white/30 bg-white/10 text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-red-500"
+                            title="Delete demo class"
+                          >
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>
                       </div>
