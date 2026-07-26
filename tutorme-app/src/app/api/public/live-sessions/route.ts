@@ -37,13 +37,20 @@ export async function GET(request: NextRequest) {
       .select({
         sessionId: liveSession.sessionId,
         title: liveSession.title,
+        description: liveSession.description,
         status: liveSession.status,
         scheduledAt: liveSession.scheduledAt,
         startedAt: liveSession.startedAt,
         tutorId: liveSession.tutorId,
-        tutorUsername: profile.username,
-        tutorName: profile.name,
-        tutorAvatarUrl: profile.avatarUrl,
+        tutorUsername: sql<string>`coalesce(${profile.username}, ${user.handle})`.as(
+          'tutorUsername'
+        ),
+        tutorName: sql<string | null>`coalesce(${profile.name}, ${user.handle}, ${user.email})`.as(
+          'tutorName'
+        ),
+        tutorAvatarUrl: sql<string | null>`coalesce(${profile.avatarUrl}, ${user.image})`.as(
+          'tutorAvatarUrl'
+        ),
         tutorCountry: sql<
           string | null
         >`coalesce(${profile.countryOfResidence}, ${profile.nationality})`.as('tutorCountry'),
@@ -51,7 +58,7 @@ export async function GET(request: NextRequest) {
       })
       .from(liveSession)
       .innerJoin(user, eq(liveSession.tutorId, user.userId))
-      .innerJoin(profile, eq(liveSession.tutorId, profile.userId))
+      .leftJoin(profile, eq(liveSession.tutorId, profile.userId))
       .leftJoin(course, eq(liveSession.courseId, course.courseId))
       .where(
         and(
@@ -67,6 +74,7 @@ export async function GET(request: NextRequest) {
       id: row.sessionId,
       sessionId: row.sessionId,
       title: row.title || 'Live Demo',
+      description: row.description || null,
       status: row.status,
       scheduledAt: row.scheduledAt?.toISOString() ?? null,
       startedAt: row.startedAt?.toISOString() ?? null,
