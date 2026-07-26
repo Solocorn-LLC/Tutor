@@ -145,6 +145,9 @@ jobs:
           cache: 'npm'
           cache-dependency-path: tutorme-app/package-lock.json
 
+      - name: Update npm
+        run: npm install -g npm@11
+
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
