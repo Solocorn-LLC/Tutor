@@ -410,7 +410,7 @@ export function ModernHeroSection({
           <div className="flex flex-1 items-center justify-start gap-2">
             <Button
               size="sm"
-              className="border border-white bg-[#65A30D] text-white hover:translate-y-0 hover:bg-[#65A30D]/90"
+              className="border border-white bg-[#65A30D] text-white hover:border-[#65A30D] hover:bg-white hover:text-[#65A30D]"
               onClick={handleGoLiveClick}
               disabled={goLiveLoading}
             >
