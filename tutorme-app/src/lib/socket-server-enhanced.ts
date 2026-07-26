@@ -219,6 +219,64 @@ function toPublicTask(task: LiveTask): LiveTask {
   return rest
 }
 
+/**
+ * Build a LiveTask from a CourseLesson.builderData item (task/assessment/homework).
+ * Used when expanding a lesson folder into homework items and when syncing course
+ * content updates to already-deployed tasks.
+ */
+async function liveTaskFromBuilderItem(
+  raw: Record<string, unknown>,
+  opts: {
+    source: LiveTask['source']
+    lessonId?: string
+    sourceDocument?: LiveTaskSourceDocument
+  }
+): Promise<LiveTask> {
+  const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
+  const refreshedSourceDoc =
+    opts.sourceDocument ??
+    (rawSourceDoc
+      ? await ensureViewableSourceDocument({
+          fileName: (rawSourceDoc.fileName as string) || '',
+          fileUrl: (rawSourceDoc.fileUrl as string) || '',
+          fileKey: (rawSourceDoc.fileKey as string) || undefined,
+          mimeType: (rawSourceDoc.mimeType as string) || '',
+        })
+      : undefined)
+
+  return {
+    id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
+    title: (raw.title as string) || 'Untitled',
+    content: (raw.description as string) || (raw.taskContent as string) || '',
+    source: opts.source,
+    dmiItems: Array.isArray(raw.dmiItems)
+      ? (raw.dmiItems as Array<Record<string, unknown>>).map(
+          (d): LiveTaskDmiItem => ({
+            id: (d.id as string) || '',
+            questionNumber: (d.questionNumber as number) || 0,
+            questionLabel:
+              typeof d.questionLabel === 'string' ? (d.questionLabel as string) : undefined,
+            questionText: (d.questionText as string) || '',
+            marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
+            questionType: d.questionType as LiveTaskDmiItem['questionType'],
+            options: Array.isArray(d.options) ? (d.options as string[]) : undefined,
+            hotspotImageUrl: typeof d.hotspotImageUrl === 'string' ? d.hotspotImageUrl : undefined,
+            matchPrompts: Array.isArray(d.matchPrompts) ? (d.matchPrompts as string[]) : undefined,
+            matchBank: Array.isArray(d.matchBank) ? (d.matchBank as string[]) : undefined,
+            section: typeof d.section === 'string' ? d.section : undefined,
+          })
+        )
+      : undefined,
+    deployedAt: Date.now(),
+    polls: [],
+    questions: [],
+    sourceDocument: refreshedSourceDoc,
+    parentId: typeof raw.parentId === 'string' ? raw.parentId : undefined,
+    isExtension: raw.isExtension === true,
+    lessonId: opts.lessonId,
+  }
+}
+
 // Environment validation
 function validateEnv() {
   const required = ['NEXTAUTH_SECRET']
@@ -1447,6 +1505,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           sourceDocument: refreshedSourceDocument,
           parentId: task.parentId,
           isExtension: task.isExtension ?? false,
+          lessonId: task.lessonId,
         }
 
         const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)
@@ -1465,6 +1524,37 @@ export async function initEnhancedSocketServer(server: NetServer) {
         void persistRoomToRedis(roomId, room!)
         io.to(roomId).emit('task:deployed', normalizedTask)
         io.to(roomId).emit('task:updated', { task: normalizedTask })
+
+        // If this task was deployed from a lesson, expose the rest of that lesson's
+        // tasks and assessments as unrestricted homework items.
+        if (task.lessonId) {
+          try {
+            const [lesson] = await drizzleDb
+              .select({ builderData: courseLesson.builderData })
+              .from(courseLesson)
+              .where(eq(courseLesson.lessonId, task.lessonId))
+              .limit(1)
+            const bData = (lesson?.builderData ?? {}) as Record<string, unknown>
+            const lessonTasks = Array.isArray(bData.tasks) ? bData.tasks : []
+            const lessonAssessments = Array.isArray(bData.assessments) ? bData.assessments : []
+            const seenIds = new Set(room!.tasks.map(t => t.id))
+            for (const raw of [...lessonTasks, ...lessonAssessments]) {
+              const rawRecord = raw as Record<string, unknown>
+              const rawId = (rawRecord.id as string) || ''
+              if (!rawId || seenIds.has(rawId)) continue
+              const homeworkTask = await liveTaskFromBuilderItem(rawRecord, {
+                source: 'homework',
+                lessonId: task.lessonId,
+              })
+              room!.tasks.push(homeworkTask)
+              io.to(roomId).emit('task:deployed', homeworkTask)
+              seenIds.add(rawId)
+            }
+            void persistRoomToRedis(roomId, room!)
+          } catch (lessonErr) {
+            console.error('[task:deploy] Failed to emit lesson homework:', lessonErr)
+          }
+        }
 
         // Create persistent notifications for students in the room
         try {
