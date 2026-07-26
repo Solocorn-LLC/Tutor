@@ -141,12 +141,9 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: tutorme-app/package-lock.json
-
-      - name: Update npm
-        run: npm install -g npm@11
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
