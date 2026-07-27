@@ -91,6 +91,8 @@ interface GroupableTask {
   title: string
   parentId?: string | null
   isExtension?: boolean
+  source?: 'task' | 'assessment' | 'homework'
+  dmiItems?: LiveTaskDmiItem[]
 }
 function groupTasksByParent(tasks: GroupableTask[]) {
   const baseTasks: GroupableTask[] = []
@@ -967,6 +969,8 @@ function StudentFeedbackContent() {
   >('interactions')
   const [unseenTaskIds, setUnseenTaskIds] = useState<string[]>([])
   const [unseenHomeworkIds, setUnseenHomeworkIds] = useState<string[]>([])
+  // Base-task completion state for sequential unlocking in the Lessons panel.
+  const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set())
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
   const [chatInput, setChatInput] = useState('')
   const [viewerZoom, setViewerZoom] = useState(1)
@@ -1705,6 +1709,16 @@ function StudentFeedbackContent() {
       toast.success(`New homework assigned: ${hw.title}`)
     }
 
+    const handleTaskCompleted = (payload: {
+      taskId: string
+      studentId: string
+      completedAt?: number
+    }) => {
+      if (payload.studentId === session?.user?.id) {
+        setCompletedTaskIds(prev => new Set([...prev, payload.taskId]))
+      }
+    }
+
     const handleTutorWhiteboardUpdate = (board: {
       pages?: any[]
       pageIndex?: number
@@ -1740,6 +1754,7 @@ function StudentFeedbackContent() {
     socket.on('insight:receive', handleInsightReceived)
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
+    socket.on('task:completed', handleTaskCompleted)
     socket.on('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
     socket.on('whiteboard:state:response', handleWhiteboardStateResponse)
 
@@ -1752,6 +1767,7 @@ function StudentFeedbackContent() {
       socket.off('insight:receive', handleInsightReceived)
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
+      socket.off('task:completed', handleTaskCompleted)
       socket.off('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
       socket.off('whiteboard:state:response', handleWhiteboardStateResponse)
     }
@@ -2520,43 +2536,179 @@ function StudentFeedbackContent() {
               )}
             >
               {rightPanelTab === 'lessons' ? (
-                <div className="space-y-2">
-                  {tasks.length === 0 && (
+                <div className="space-y-4">
+                  {tasks.length === 0 && liveHomework.length === 0 && (
                     <p className="text-sm text-gray-500">No tasks deployed yet.</p>
                   )}
-                  {[...tasks].reverse().map(task => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => handleSelectTask(task.id)}
-                      onDoubleClick={() => {
-                        handleSelectTask(task.id)
-                        // Double-clicking an assessment (or any task that carries
-                        // DMI questions) jumps straight to its answer inputs in
-                        // the Assessment tab.
-                        if (task.source === 'assessment' || (task.dmiItems?.length ?? 0) > 0) {
-                          setRightPanelTab('dmi')
+
+                  {(() => {
+                    const ordered = [...tasks]
+                    const baseTasks = ordered.filter(t => !t.isExtension && t.source !== 'homework')
+                    const { extMap } = groupTasksByParent(ordered)
+                    return (
+                      <div className="space-y-2">
+                        {baseTasks.map((task, idx) => {
+                          const isUnlocked =
+                            idx === 0 || completedTaskIds.has(baseTasks[idx - 1].id)
+                          const isActive = activeTaskId === task.id
+                          const extensions = extMap.get(task.id) ?? []
+                          return (
+                            <div key={task.id} className="space-y-1">
+                              <button
+                                type="button"
+                                disabled={!isUnlocked}
+                                onClick={() => handleSelectTask(task.id)}
+                                onDoubleClick={() => {
+                                  handleSelectTask(task.id)
+                                  if (
+                                    task.source === 'assessment' ||
+                                    (task.dmiItems?.length ?? 0) > 0
+                                  ) {
+                                    setRightPanelTab('dmi')
+                                  }
+                                }}
+                                className={cn(
+                                  'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
+                                  !isUnlocked
+                                    ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                    : isActive
+                                      ? 'border-blue-200 bg-blue-50'
+                                      : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                                    isUnlocked
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-gray-200 text-gray-500'
+                                  )}
+                                >
+                                  {idx + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-sm font-medium">{task.title}</span>
+                                    {!isUnlocked ? (
+                                      <Lock className="h-4 w-4 shrink-0 text-gray-400" />
+                                    ) : (
+                                      unseenTaskIds.includes(task.id) && (
+                                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                          New
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              </button>
+
+                              {extensions.length > 0 && (
+                                <div className="relative ml-6 space-y-1 border-l-2 border-blue-100 pl-3">
+                                  {extensions.map(ext => {
+                                    const extUnlocked = completedTaskIds.has(task.id)
+                                    return (
+                                      <button
+                                        key={ext.id}
+                                        type="button"
+                                        disabled={!extUnlocked}
+                                        onClick={() => handleSelectTask(ext.id)}
+                                        onDoubleClick={() => {
+                                          handleSelectTask(ext.id)
+                                          if (
+                                            ext.source === 'assessment' ||
+                                            (ext.dmiItems?.length ?? 0) > 0
+                                          ) {
+                                            setRightPanelTab('dmi')
+                                          }
+                                        }}
+                                        className={cn(
+                                          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                          !extUnlocked
+                                            ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                            : activeTaskId === ext.id
+                                              ? 'border-blue-200 bg-blue-50'
+                                              : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                        )}
+                                      >
+                                        <span className="text-sm font-medium">{ext.title}</span>
+                                        {!extUnlocked ? (
+                                          <Lock className="ml-auto h-4 w-4 shrink-0 text-gray-400" />
+                                        ) : (
+                                          unseenTaskIds.includes(ext.id) && (
+                                            <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                              New
+                                            </span>
+                                          )
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+
+                  {liveHomework.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFoldersOpen(prev => ({ ...prev, homework: !prev.homework }))
                         }
-                      }}
-                      className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
-                        activeTaskId === task.id
-                          ? 'border-blue-200 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                        {unseenTaskIds.includes(task.id) && (
-                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                            New
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-gray-700 hover:bg-slate-100"
+                      >
+                        {foldersOpen.homework ? (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                        )}
+                        <Folder className="h-4 w-4 shrink-0 text-blue-400" fill="currentColor" />
+                        Homework
+                        {unseenHomeworkIds.length > 0 && (
+                          <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
+                            {unseenHomeworkIds.length}
                           </span>
                         )}
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        Deployed {new Date(task.deployedAt).toLocaleTimeString()}
-                      </span>
-                    </button>
-                  ))}
+                      </button>
+                      {foldersOpen.homework && (
+                        <div className="space-y-1">
+                          {liveHomework.map(hw => (
+                            <button
+                              key={hw.id}
+                              type="button"
+                              onClick={() => handleSelectTask(hw.id)}
+                              onDoubleClick={() => {
+                                handleSelectTask(hw.id)
+                                if (hw.source === 'assessment' || (hw.dmiItems?.length ?? 0) > 0) {
+                                  setRightPanelTab('dmi')
+                                }
+                              }}
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                activeTaskId === hw.id
+                                  ? 'border-blue-200 bg-blue-50'
+                                  : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                              )}
+                            >
+                              <span className="text-sm font-medium text-gray-900">{hw.title}</span>
+                              {unseenHomeworkIds.includes(hw.id) && (
+                                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                  New
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : rightPanelTab === 'dmi' ? (
                 <div className="space-y-4">

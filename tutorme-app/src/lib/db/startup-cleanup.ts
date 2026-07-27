@@ -23,6 +23,7 @@ const CLEANUP_SQL = sql.raw(`
 DELETE FROM "LiveSession"
 WHERE "courseId" IS NULL
   AND "status" IN ('scheduled', 'active', 'preparing', 'live', 'paused')
+  AND "sessionType" <> 'GO_LIVE_DEMO'
   AND NOT EXISTS (
     SELECT 1 FROM "CalendarEvent" ce WHERE ce."externalId" = "LiveSession"."id"
   );
