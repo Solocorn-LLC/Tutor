@@ -44,3 +44,10 @@ ts_errors.log
 *.tsbuildinfo
 next-env.d.ts
 server-production.js
+
+# Legacy Vite landing-page build output (copied to public by build-and-integrate-landing.sh).
+# The Next.js App Router landing page at src/app/[locale]/page.tsx is the source of truth.
+/public/index.html
+/public/assets/index-*.js
+/public/assets/index-*.css
+/public/landing-bg-video.mp4
