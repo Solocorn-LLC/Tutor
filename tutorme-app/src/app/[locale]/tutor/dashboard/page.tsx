@@ -1205,9 +1205,9 @@ function TutorDashboardContent() {
                     {liveDemos.map(demo => (
                       <div
                         key={demo.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-emerald-400/30 bg-emerald-500 p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                        className="flex h-40 items-stretch justify-between gap-4 rounded-lg border border-white/20 bg-[#65A30D] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
                       >
-                        <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex min-w-0 flex-1 flex-col justify-between">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold text-white">{demo.title}</p>
                             <Badge
@@ -1224,23 +1224,23 @@ function TutorDashboardContent() {
                               {demo.status}
                             </Badge>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-emerald-50">
+                          <div className="h-[72px] rounded-md bg-white px-3 py-2">
+                            <p className="line-clamp-4 text-xs text-gray-700">
+                              {demo.description || 'No description'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
                             <span>{demo.subject}</span>
                           </div>
-                          {demo.description && (
-                            <p className="truncate text-xs text-emerald-100/80">
-                              {demo.description}
-                            </p>
-                          )}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col items-center justify-center gap-2">
                           <Button
                             variant="outline"
                             size="sm"
                             onClick={() =>
                               router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
                             }
-                            className="border-transparent bg-white text-emerald-600 transition-all duration-200 hover:border-transparent hover:bg-emerald-50 hover:text-emerald-700"
+                            className="border-transparent bg-white text-[#65A30D] transition-all duration-200 hover:border-transparent hover:bg-white/90 hover:text-[#65A30D]"
                           >
                             <Video className="mr-1 h-3 w-3" />
                             Enter
