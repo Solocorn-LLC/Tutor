@@ -1224,7 +1224,7 @@ function TutorDashboardContent() {
                               {demo.status}
                             </Badge>
                           </div>
-                          <div className="bg-white rounded-md px-3 py-2 h-[72px]">
+                          <div className="h-[72px] rounded-md bg-white px-3 py-2">
                             <p className="line-clamp-4 text-xs text-gray-700">
                               {demo.description || 'No description'}
                             </p>
