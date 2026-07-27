@@ -77,8 +77,8 @@ export function GoLiveDialog({
 
         <div className="space-y-4 px-6 py-4">
           <div className="space-y-2">
-            <div className="text-base font-semibold text-gray-900">Create a demo class</div>
-            <div className="text-sm font-normal text-gray-600">
+            <div className="text-base font-semibold text-white">Create a demo class</div>
+            <div className="text-sm font-normal text-white/80">
               Create a demo lesson for your course.
             </div>
           </div>
@@ -86,9 +86,9 @@ export function GoLiveDialog({
           {unpublishedCourses && unpublishedCourses.length > 0 && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-gray-900">Select an unpublished course</Label>
+                <Label className="text-white">Select an unpublished course</Label>
                 <Select value={selectedCourseId} onValueChange={setSelectedCourseId}>
-                  <SelectTrigger>
+                  <SelectTrigger className="border-white/20 bg-white text-gray-700 data-[placeholder]:text-gray-500 [&>span]:text-gray-700">
                     <SelectValue placeholder="Choose a course" />
                   </SelectTrigger>
                   <SelectContent>
@@ -102,7 +102,7 @@ export function GoLiveDialog({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-gray-900">Description</Label>
+                <Label className="text-white">Description</Label>
                 <Textarea
                   value={description}
                   onChange={e => {
@@ -112,15 +112,15 @@ export function GoLiveDialog({
                   placeholder="Describe what this demo will cover"
                   rows={2}
                   maxLength={200}
-                  className="resize-none"
+                  className="resize-none border-white/20 bg-white text-gray-700 placeholder:text-gray-500"
                 />
-                <p className="text-right text-xs text-gray-500">{description.length}/200</p>
+                <p className="text-right text-xs text-white/70">{description.length}/200</p>
               </div>
             </div>
           )}
 
           {unpublishedCourses && unpublishedCourses.length === 0 && (
-            <div className="text-sm text-gray-500">No unpublished courses available.</div>
+            <div className="text-sm text-white/80">No unpublished courses available.</div>
           )}
         </div>
 
