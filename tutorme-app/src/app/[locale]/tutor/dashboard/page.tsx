@@ -1228,12 +1228,12 @@ function TutorDashboardContent() {
                             <span>{demo.subject}</span>
                           </div>
                         </div>
-                        <div className="h-14 w-full max-w-[420px] self-center rounded-md bg-white px-3 py-2">
-                          <p className="line-clamp-2 text-xs text-gray-700">
+                        <div className="h-20 w-[320px] self-center rounded-md bg-white px-3 py-2">
+                          <p className="line-clamp-4 text-xs text-gray-700">
                             {demo.description || 'No description'}
                           </p>
                         </div>
-                        <div className="flex flex-col items-end justify-center gap-2">
+                        <div className="flex flex-row items-center justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
