@@ -227,6 +227,8 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               title="Chat"
               icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              collapsible={false}
+              flush
               fillHeight
               className="flex-1"
             >
@@ -254,6 +256,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               title="Notifications"
               icon={<Bell className="h-5 w-5 text-slate-900" />}
               defaultOpen
+              collapsible={false}
               fillHeight
               className="flex-1"
             >

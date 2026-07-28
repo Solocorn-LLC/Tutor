@@ -10,6 +10,7 @@ export interface CollapsibleCardProps {
   description?: string
   icon?: React.ReactNode
   defaultOpen?: boolean
+  collapsible?: boolean
   className?: string
   contentClassName?: string
   flush?: boolean
@@ -22,6 +23,7 @@ export function CollapsibleCard({
   description,
   icon,
   defaultOpen = false,
+  collapsible = true,
   className,
   contentClassName,
   flush = false,
@@ -30,6 +32,9 @@ export function CollapsibleCard({
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const cardRef = useAutoScrollOnExpand(open, { delay: 400, margin: 16, block: 'start' })
+
+  const HeaderTag = collapsible ? 'button' : 'div'
+  const headerBaseClass = flush ? 'panel-header-metallic-flush' : 'panel-header-metallic'
 
   return (
     <div ref={cardRef} className={cn('flex flex-col', fillHeight && 'h-full')}>
@@ -46,12 +51,13 @@ export function CollapsibleCard({
       >
         {/* Inner wrapper with overflow hidden for animation */}
         <div className={cn('flex flex-col overflow-hidden p-0', fillHeight && 'h-full')}>
-          <button
-            type="button"
-            onClick={() => setOpen(o => !o)}
+          <HeaderTag
+            type={collapsible ? 'button' : undefined}
+            onClick={collapsible ? () => setOpen(o => !o) : undefined}
             className={cn(
               'panel-header w-full text-left',
-              flush ? 'panel-header-metallic-flush' : 'panel-header-metallic'
+              headerBaseClass,
+              !collapsible && 'panel-header-no-hover'
             )}
           >
             <div className="flex items-center justify-between gap-3">
@@ -62,15 +68,21 @@ export function CollapsibleCard({
                   {description && <span className="panel-header-subtext">{description}</span>}
                 </div>
               </div>
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-              </div>
+              {collapsible && (
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
+                  {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </div>
+              )}
             </div>
-          </button>
+          </HeaderTag>
           <div
             className={cn(
               'overflow-hidden transition-all duration-300 ease-in-out',
-              open ? 'flex-1 opacity-100' : 'h-0 flex-none opacity-0'
+              collapsible
+                ? open
+                  ? 'flex-1 opacity-100'
+                  : 'h-0 flex-none opacity-0'
+                : 'flex-1 opacity-100'
             )}
           >
             <div className={cn('h-full overflow-hidden', contentClassName)}>{children}</div>
