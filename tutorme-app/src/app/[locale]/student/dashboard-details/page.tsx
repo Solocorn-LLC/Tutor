@@ -201,7 +201,7 @@ export default function StudentDashboardDetails() {
               </Link>
             </div>
             <div className="flex items-center gap-4">
-              <NotificationBell />
+              <NotificationBell viewAllHref="/student/communications?tab=notifications" />
               <Link href="/student/settings">
                 <Button variant="ghost" size="icon">
                   <Settings className="h-5 w-5" />
