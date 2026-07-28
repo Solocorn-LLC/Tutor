@@ -51,6 +51,8 @@ export const GET = withAuth(
       maxStudents: s.maxStudents,
       enrolledStudents: s.participants.length,
       status: s.status,
+      sessionType: s.sessionType,
+      description: s.description,
     }))
 
     return NextResponse.json({ classes })

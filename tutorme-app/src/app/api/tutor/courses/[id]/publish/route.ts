@@ -138,6 +138,7 @@ interface CourseScheduleConfig {
 interface VariantConfig {
   category: string
   nationality: string
+  name?: string
   isPublished: boolean
   isFree?: boolean
   price: number | null
@@ -404,10 +405,7 @@ export const POST = withCsrf(
             // In schedules-only mode, only touch variants that are already
             // published; never create/publish anything new.
             if (schedulesOnly && (!existing || !existing.isPublished)) continue
-            const courseName =
-              v.nationality === 'Global'
-                ? templateCourse.name
-                : `${templateCourse.name} — ${v.nationality}`
+            const courseName = v.name && v.name.trim() ? v.name.trim() : templateCourse.name
             const isFree =
               typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
             const price = isFree ? 0 : typeof v.price === 'number' ? v.price : null
@@ -417,9 +415,9 @@ export const POST = withCsrf(
             if (existing) {
               // Update existing course row
               publishedCourseId = existing.publishedCourseId
-              // Skip the course-row update in schedules-only mode so publish
-              // state and details are left exactly as they are (we only sync the
-              // schedule rows below).
+              // In schedules-only mode we still allow the variant course name to
+              // be edited from the schedule dialog, but we leave all other
+              // publish details untouched.
               if (!schedulesOnly) {
                 await tx
                   .update(course)
@@ -436,7 +434,6 @@ export const POST = withCsrf(
                     isFree,
                   })
                   .where(eq(course.courseId, publishedCourseId))
-
                 // Propagate the template's lesson edits into this already-
                 // published variant. Publish previously copied lessons only when
                 // a variant was first created, so re-publishing never updated the
@@ -529,6 +526,11 @@ export const POST = withCsrf(
                       .where(inArray(courseLesson.lessonId, deletableIds))
                   }
                 }
+              } else if (v.name && v.name.trim()) {
+                await tx
+                  .update(course)
+                  .set({ name: courseName, updatedAt: now })
+                  .where(eq(course.courseId, publishedCourseId))
               }
 
               result.push({

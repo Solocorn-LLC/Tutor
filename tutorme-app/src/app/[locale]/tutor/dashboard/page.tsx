@@ -244,6 +244,8 @@ function TutorDashboardContent() {
     oneOnOneRequests: 0,
   })
   const [classes, setClasses] = useState<UpcomingClass[]>([])
+  const [liveDemos, setLiveDemos] = useState<UpcomingClass[]>([])
+  const [loadingLiveDemos, setLoadingLiveDemos] = useState(false)
   const [enrolledCourses, setEnrolledCourses] = useState<EnrolledCourse[]>([])
   const [allStudents, setAllStudents] = useState<
     Array<{ id: string; name: string; email: string; courseCount: number; classCount: number }>
@@ -386,6 +388,25 @@ function TutorDashboardContent() {
     }
   }, [session?.user?.id])
 
+  // Load live demos (including ended) whenever the My Live Demos tab is active.
+  const fetchLiveDemos = useCallback(async () => {
+    if (!session?.user?.id) return
+    setLoadingLiveDemos(true)
+    try {
+      const res = await fetch('/api/tutor/classes?includeEnded=1', { credentials: 'include' })
+      if (res.ok) {
+        const d = await res.json()
+        setLiveDemos(
+          (d.classes ?? []).filter((c: UpcomingClass) => c.sessionType === 'GO_LIVE_DEMO')
+        )
+      }
+    } catch {
+      // best-effort
+    } finally {
+      setLoadingLiveDemos(false)
+    }
+  }, [session?.user?.id])
+
   useEffect(() => {
     if (session?.user?.id) {
       setLoading(true)
@@ -417,6 +438,11 @@ function TutorDashboardContent() {
       document.removeEventListener('visibilitychange', refresh)
     }
   }, [session?.user?.id, refreshClasses])
+
+  // Load live demos whenever the tab becomes active.
+  useEffect(() => {
+    if (activeTab === 'liveDemos') fetchLiveDemos()
+  }, [activeTab, fetchLiveDemos])
 
   const handleClassCreated = useCallback(
     (classData?: { id: string; [key: string]: unknown }) => {
@@ -475,6 +501,33 @@ function TutorDashboardContent() {
       }
     } catch {
       toast.error('Failed to remove session')
+    }
+  }, [])
+
+  const handleRemoveLiveDemo = useCallback(async (classId: string) => {
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrfData = await csrfRes.json().catch(() => ({}))
+      const csrfToken = csrfData?.token ?? null
+
+      const res = await fetch(`/api/tutor/classes/${classId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+        },
+        credentials: 'include',
+      })
+
+      if (res.ok) {
+        setLiveDemos(prev => prev.filter(c => c.id !== classId))
+        toast.success('Demo class removed successfully')
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast.error(data.error || 'Failed to remove demo class')
+      }
+    } catch {
+      toast.error('Failed to remove demo class')
     }
   }, [])
 
@@ -768,6 +821,7 @@ function TutorDashboardContent() {
               { value: 'availability', label: 'My Availability' },
               { value: 'oneOnOne', label: '1-on-1 Requests' },
               { value: 'groupSessions', label: 'Group Sessions' },
+              { value: 'liveDemos', label: 'Classes' },
             ]}
             showCalendarControls={activeTab === 'calendar' || activeTab === 'availability'}
             calendarView={calendarView}
@@ -1123,6 +1177,89 @@ function TutorDashboardContent() {
               className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
             >
               <TutorGroupSessionsPanel embedded />
+            </TabsContent>
+
+            <TabsContent
+              value="liveDemos"
+              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <div className="h-full overflow-y-auto">
+                <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
+                  Classes
+                  <span className="text-muted-foreground text-sm font-normal">
+                    Demo classes you have created
+                  </span>
+                </CardTitle>
+                {loadingLiveDemos ? (
+                  <div className="space-y-3">
+                    {[1, 2].map(i => (
+                      <div key={i} className="bg-muted h-20 animate-pulse rounded-lg" />
+                    ))}
+                  </div>
+                ) : liveDemos.length === 0 ? (
+                  <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
+                    No classes yet. Click <strong>Create Class</strong> to start one.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {liveDemos.map(demo => (
+                      <div
+                        key={demo.id}
+                        className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-lg border border-white/20 bg-[#65A30D] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                      >
+                        <div className="flex min-w-0 flex-col justify-center gap-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-semibold text-white">{demo.title}</p>
+                            <Badge
+                              variant="outline"
+                              className={cn(
+                                'text-[10px] uppercase tracking-wide',
+                                demo.status === 'active'
+                                  ? 'border-white/40 bg-white/20 text-white'
+                                  : demo.status === 'ended'
+                                    ? 'border-black/20 bg-black/20 text-white/80'
+                                    : 'border-white/30 bg-white/15 text-white'
+                              )}
+                            >
+                              {demo.status}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
+                            <span>{demo.subject}</span>
+                          </div>
+                        </div>
+                        <div className="h-14 w-full max-w-[420px] self-center rounded-md bg-white px-3 py-2">
+                          <p className="line-clamp-2 text-xs text-gray-700">
+                            {demo.description || 'No description'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end justify-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
+                            }
+                            className="border-transparent bg-white text-[#65A30D] transition-all duration-200 hover:border-transparent hover:bg-white/90 hover:text-[#65A30D]"
+                          >
+                            <Video className="mr-1 h-3 w-3" />
+                            Enter
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveLiveDemo(demo.id)}
+                            className="border-white/30 bg-white/10 text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-red-500"
+                            title="Delete demo class"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </TabsContent>
           </SessionCalendarPanel>
         </div>

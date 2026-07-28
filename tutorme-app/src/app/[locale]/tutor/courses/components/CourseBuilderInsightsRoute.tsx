@@ -892,7 +892,7 @@ function CourseBuilderInsightsRouteInner({
                             // theme, so use a hardcoded dark text colour — the theme
                             // token text-foreground flips to white under dark themes
                             // and made the course name unreadable here.
-                            'h-9 min-w-[220px] max-w-[420px] border border-slate-300 bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'h-9 min-w-[300px] max-w-[540px] border border-slate-300 bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
                           )}
                         >
@@ -916,7 +916,7 @@ function CourseBuilderInsightsRouteInner({
                             })()}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[420px] border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
+                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[540px] border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
                           {courseStateFilter === 'unpublished' &&
                             courses &&
                             courses.filter(c => !c.isPublished).length > 0 && (
@@ -1091,23 +1091,29 @@ function CourseBuilderInsightsRouteInner({
                     value={courseStateFilter}
                     onValueChange={(val: CourseStateFilter) => handleCourseStateFilterChange(val)}
                   >
-                    <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium">
+                    <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium transition-none focus-visible:ring-0 focus-visible:ring-offset-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="unpublished" className="">
+                      <SelectItem
+                        value="unpublished"
+                        className="transition-none focus-visible:ring-0"
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-green-500" />
                           Unpublished
                         </div>
                       </SelectItem>
-                      <SelectItem value="published" className="">
+                      <SelectItem
+                        value="published"
+                        className="transition-none focus-visible:ring-0"
+                      >
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-blue-500" />
                           Published
                         </div>
                       </SelectItem>
-                      <SelectItem value="creating" className="">
+                      <SelectItem value="creating" className="transition-none focus-visible:ring-0">
                         <div className="flex items-center gap-2">
                           <div className="h-2 w-2 rounded-full bg-amber-500" />
                           Creating
@@ -1442,17 +1448,38 @@ function CourseBuilderInsightsRouteInner({
             <DialogTitle>Rename Course</DialogTitle>
             <DialogDescription>Enter a new name for this course.</DialogDescription>
           </DialogHeader>
-          <Input
-            value={renameValue}
-            onChange={e => setRenameValue(e.target.value)}
-            placeholder="Course name"
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                onCourseNameChange?.(renameValue)
-                setIsRenameDialogOpen(false)
-              }
-            }}
-          />
+          <div className="space-y-2">
+            <Input
+              value={renameValue}
+              onChange={e => {
+                const value = e.target.value
+                if (value.length <= 25) {
+                  setRenameValue(value)
+                }
+              }}
+              placeholder="Course name"
+              maxLength={25}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  onCourseNameChange?.(renameValue)
+                  setIsRenameDialogOpen(false)
+                }
+              }}
+            />
+            <div className="flex justify-end">
+              <span
+                className={`text-xs font-medium ${
+                  (renameValue?.length || 0) >= 25
+                    ? 'text-red-500'
+                    : (renameValue?.length || 0) >= 20
+                      ? 'text-orange-500'
+                      : 'text-gray-500'
+                }`}
+              >
+                {renameValue?.length || 0}/25
+              </span>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="modal-secondary-dark" onClick={() => setIsRenameDialogOpen(false)}>
               Cancel

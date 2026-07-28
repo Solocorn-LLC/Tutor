@@ -20,7 +20,7 @@ import { getPaymentGateway, type GatewayName } from '@/lib/payments'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 const patchCourseSchema = z.strictObject({
-  name: z.string().min(1).optional(),
+  name: z.string().min(1).max(25).optional(),
   description: z.string().max(200).optional(),
   languageOfInstruction: z.string().optional(),
   price: z.number().optional(),

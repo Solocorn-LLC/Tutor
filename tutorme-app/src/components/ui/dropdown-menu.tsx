@@ -10,7 +10,35 @@ const DropdownMenu = (props: React.ComponentPropsWithoutRef<typeof DropdownMenuP
   <DropdownMenuPrimitive.Root modal={false} {...props} />
 )
 
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
+const DropdownMenuTrigger = React.forwardRef<
+  React.ElementRef<typeof DropdownMenuPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Trigger>
+>(({ asChild, className, children, ...props }, ref) => {
+  const suppressFocusRing =
+    'focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:outline-none'
+
+  if (asChild && React.isValidElement(children)) {
+    const child = children as React.ReactElement<{ className?: string }>
+    const mergedClassName = cn(child.props.className, suppressFocusRing, className)
+    return (
+      <DropdownMenuPrimitive.Trigger ref={ref} asChild {...props}>
+        {React.cloneElement(child, { className: mergedClassName })}
+      </DropdownMenuPrimitive.Trigger>
+    )
+  }
+
+  return (
+    <DropdownMenuPrimitive.Trigger
+      ref={ref}
+      asChild={asChild}
+      className={cn(suppressFocusRing, className)}
+      {...props}
+    >
+      {children}
+    </DropdownMenuPrimitive.Trigger>
+  )
+})
+DropdownMenuTrigger.displayName = DropdownMenuPrimitive.Trigger.displayName
 
 const DropdownMenuGroup = DropdownMenuPrimitive.Group
 
