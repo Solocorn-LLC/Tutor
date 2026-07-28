@@ -151,6 +151,8 @@ export const RATE_LIMIT_PRESETS = {
   booking: { max: 20, windowMs: 60 * 1000 },
   /** AI generation/chat: 30 per minute per client identifier (per-user when authenticated) */
   aiGenerate: { max: 30, windowMs: 60 * 1000 },
+  /** Public contact/lead form: 5 submissions per 10 minutes per IP (anti-spam) */
+  contact: { max: 5, windowMs: 10 * 60 * 1000 },
 } as const
 
 /**

@@ -42,6 +42,7 @@ export const course = pgTable(
     currency: text('currency'),
     isFree: boolean('isFree').notNull().default(false),
     schedule: jsonb('schedule'),
+    folder: text('folder'),
     deletedAt: timestamp('deletedAt', { withTimezone: true }),
   },
   table => ({
@@ -51,7 +52,27 @@ export const course = pgTable(
       table.isPublished,
       table.creatorId
     ),
+    Course_folder_idx: index('Course_folder_idx').on(table.folder),
     Course_deletedAt_idx: index('Course_deletedAt_idx').on(table.deletedAt),
+  })
+)
+
+export const tutorCourseFolder = pgTable(
+  'TutorCourseFolder',
+  {
+    folderId: text('id').primaryKey().notNull(),
+    userId: text('userId')
+      .notNull()
+      .references(() => user.userId, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
+  },
+  table => ({
+    TutorCourseFolder_userId_idx: index('TutorCourseFolder_userId_idx').on(table.userId),
+    TutorCourseFolder_userId_name_key: uniqueIndex('TutorCourseFolder_userId_name_key').on(
+      table.userId,
+      table.name
+    ),
   })
 )
 

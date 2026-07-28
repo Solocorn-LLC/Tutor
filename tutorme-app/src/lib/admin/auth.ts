@@ -26,16 +26,29 @@ import { hasPermission, Permission, getRolePermissions } from './permissions'
 export const ADMIN_TOKEN_NAME = 'admin_session'
 export const ADMIN_TOKEN_EXPIRY = 60 * 60 * 8 // 8 hours in seconds
 
+let _warnedCoupledAdminSecret = false
 function getJwtSecret(): Uint8Array {
-  const configuredSecret = process.env.ADMIN_JWT_SECRET || process.env.NEXTAUTH_SECRET || ''
-  if (
-    process.env.NODE_ENV === 'production' &&
-    (!configuredSecret || configuredSecret === 'default-secret') &&
-    process.env.NEXT_PHASE !== 'phase-production-build'
-  ) {
-    console.error('CRITICAL: Missing secure ADMIN_JWT_SECRET or NEXTAUTH_SECRET in production')
+  const isProd = process.env.NODE_ENV === 'production'
+  const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+  const adminSecret = process.env.ADMIN_JWT_SECRET
+  const configuredSecret = adminSecret || process.env.NEXTAUTH_SECRET || ''
+
+  if (isProd && !isBuildPhase && (!configuredSecret || configuredSecret === 'default-secret')) {
+    // Fail closed: never sign or verify admin sessions with a dev fallback in production.
+    throw new Error(
+      'ADMIN_JWT_SECRET (or NEXTAUTH_SECRET) must be set in production — refusing to use a dev fallback for admin auth'
+    )
   }
-  // Dev/test fallback only; production must provide env secret above.
+  // If the admin system is riding on the shared NextAuth secret, a leak of one forges the
+  // other. Warn once and recommend a dedicated secret (see SECURITY_HARDENING.md).
+  if (isProd && !isBuildPhase && !adminSecret && !_warnedCoupledAdminSecret) {
+    _warnedCoupledAdminSecret = true
+    console.warn(
+      'SECURITY: ADMIN_JWT_SECRET is not set; admin sessions are signed with NEXTAUTH_SECRET. ' +
+        'Set a dedicated ADMIN_JWT_SECRET so admin tokens cannot be forged from the user-auth secret.'
+    )
+  }
+  // Dev/test fallback only; production is guaranteed to have a secret by the guard above.
   const secret = configuredSecret || 'dev-admin-secret'
   return new TextEncoder().encode(secret)
 }
