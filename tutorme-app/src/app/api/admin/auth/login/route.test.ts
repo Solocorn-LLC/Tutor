@@ -219,7 +219,8 @@ describe('POST /api/admin/auth/login', () => {
     expect(mocks.createAdminSession).not.toHaveBeenCalled()
   })
 
-  it('migrates legacy plaintext admin password on successful login', async () => {
+  it('rejects a plaintext-stored password by default (legacy migration path off)', async () => {
+    delete process.env.ALLOW_LEGACY_PLAINTEXT_LOGIN
     mocks.userByEmail = {
       id: 'admin-legacy',
       email: 'legacy@example.com',
@@ -237,9 +238,37 @@ describe('POST /api/admin/auth/login', () => {
     })
 
     const res = await POST(req as unknown as NextRequest)
-    expect(res.status).toBe(200)
-    expect(mocks.hashPassword).toHaveBeenCalledWith('LegacyPass123')
-    const { drizzleDb } = await import('@/lib/db/drizzle')
-    expect(drizzleDb.update).toHaveBeenCalled()
+    expect(res.status).toBe(401)
+    expect(mocks.hashPassword).not.toHaveBeenCalled()
+    expect(mocks.createAdminSession).not.toHaveBeenCalled()
+  })
+
+  it('migrates a legacy plaintext admin password only when ALLOW_LEGACY_PLAINTEXT_LOGIN=true', async () => {
+    process.env.ALLOW_LEGACY_PLAINTEXT_LOGIN = 'true'
+    try {
+      mocks.userByEmail = {
+        id: 'admin-legacy',
+        email: 'legacy@example.com',
+        password: 'LegacyPass123',
+        role: 'ADMIN',
+      }
+      mocks.profileByUserId = { name: 'Legacy Admin' }
+      mocks.assignmentRoles = [{ roleName: 'ADMIN' }]
+      mocks.verifyPassword.mockResolvedValue(false)
+
+      const req = new Request('http://localhost/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'legacy@example.com', password: 'LegacyPass123' }),
+      })
+
+      const res = await POST(req as unknown as NextRequest)
+      expect(res.status).toBe(200)
+      expect(mocks.hashPassword).toHaveBeenCalledWith('LegacyPass123')
+      const { drizzleDb } = await import('@/lib/db/drizzle')
+      expect(drizzleDb.update).toHaveBeenCalled()
+    } finally {
+      delete process.env.ALLOW_LEGACY_PLAINTEXT_LOGIN
+    }
   })
 })
