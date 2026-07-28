@@ -28,7 +28,9 @@ const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003
 const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; description: string }[]> = {
   Promo: [
     {
-      id: '_U8FwciBJxg',
+      // Previous id '_U8FwciBJxg' is no longer a live YouTube video. Put a real id here to
+      // surface the promo — placeholder ids stay hidden until then (see isRealVideo below).
+      id: 'PLACEHOLDER_PROMO',
       title: 'Promo',
       description: 'Watch the platform promo.',
     },
@@ -83,6 +85,18 @@ const HOW_IT_WORKS_DOCUMENTS = [
     filename: 'solocorn-course-builder-guide.pdf',
   },
 ];
+
+// Only surface entries that point at real, published assets. Placeholder YouTube ids and
+// unconfigured storage buckets are hidden so the "How It Works" panel never shows dead
+// cards — drop in real ids/URLs above and they appear automatically.
+const isRealVideo = (v: { id: string }) => !!v.id && !v.id.startsWith('PLACEHOLDER');
+const isRealDoc = (d: { url: string }) => !!d.url && !d.url.includes('YOUR_BUCKET');
+
+const VISIBLE_HOW_IT_WORKS_VIDEOS = Object.entries(HOW_IT_WORKS_VIDEOS)
+  .map(([section, videos]) => [section, videos.filter(isRealVideo)] as const)
+  .filter(([, videos]) => videos.length > 0);
+
+const VISIBLE_HOW_IT_WORKS_DOCUMENTS = HOW_IT_WORKS_DOCUMENTS.filter(isRealDoc);
 
 function HowItWorksVideoCard({ video }: { video: { id: string; title: string; description: string } }) {
   return (
@@ -449,26 +463,36 @@ export default function App() {
 
                   {/* Scrollable rows */}
                   <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1" style={{ overscrollBehaviorY: 'contain' }}>
-                    {Object.entries(HOW_IT_WORKS_VIDEOS).map(([section, videos], sectionIndex, sections) => (
-                      <div key={section}>
-                        <HowItWorksRow
-                          title={section}
-                          items={videos}
-                          renderItem={video => <HowItWorksVideoCard video={video} />}
-                        />
-                        {sectionIndex < sections.length - 1 && (
-                          <div className="mx-2 my-2 h-px bg-white/20" />
-                        )}
+                    {VISIBLE_HOW_IT_WORKS_VIDEOS.length === 0 &&
+                    VISIBLE_HOW_IT_WORKS_DOCUMENTS.length === 0 ? (
+                      <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-white/70">
+                        Walkthroughs and resources are coming soon.
                       </div>
-                    ))}
+                    ) : (
+                      <>
+                        {VISIBLE_HOW_IT_WORKS_VIDEOS.map(([section, videos], sectionIndex) => (
+                          <div key={section}>
+                            <HowItWorksRow
+                              title={section}
+                              items={videos}
+                              renderItem={video => <HowItWorksVideoCard video={video} />}
+                            />
+                            {(sectionIndex < VISIBLE_HOW_IT_WORKS_VIDEOS.length - 1 ||
+                              VISIBLE_HOW_IT_WORKS_DOCUMENTS.length > 0) && (
+                              <div className="mx-2 my-2 h-px bg-white/20" />
+                            )}
+                          </div>
+                        ))}
 
-                    <div className="mx-2 my-2 h-px bg-white/20" />
-
-                    <HowItWorksRow
-                      title="Documents"
-                      items={HOW_IT_WORKS_DOCUMENTS}
-                      renderItem={doc => <HowItWorksDocumentCard doc={doc} />}
-                    />
+                        {VISIBLE_HOW_IT_WORKS_DOCUMENTS.length > 0 && (
+                          <HowItWorksRow
+                            title="Documents"
+                            items={VISIBLE_HOW_IT_WORKS_DOCUMENTS}
+                            renderItem={doc => <HowItWorksDocumentCard doc={doc} />}
+                          />
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
               </motion.div>
