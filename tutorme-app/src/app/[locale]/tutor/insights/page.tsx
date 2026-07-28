@@ -36,6 +36,7 @@ interface CourseSummary {
   nationality?: string
   variantCategory?: string
   isVariant?: boolean
+  folder?: string | null
   schedule?: ScheduleItem[]
 }
 
@@ -1400,6 +1401,7 @@ function TutorInsightsPageInner() {
               isPublished: course.isPublished,
               nationality: course.nationality,
               variantCategory: course.variantCategory,
+              folder: course.folder,
             })),
             onCourseChange: value => {
               setCourseId(value)
