@@ -50,7 +50,13 @@ export function CollapsibleCard({
         )}
       >
         {/* Inner wrapper with overflow hidden for animation */}
-        <div className={cn('flex flex-col overflow-hidden p-0', fillHeight && 'h-full')}>
+        <div
+          className={cn(
+            'flex flex-col overflow-hidden p-0',
+            fillHeight && 'h-full',
+            flush ? 'rounded-b-[16px]' : 'rounded-[16px]'
+          )}
+        >
           <HeaderTag
             type={collapsible ? 'button' : undefined}
             onClick={collapsible ? () => setOpen(o => !o) : undefined}
