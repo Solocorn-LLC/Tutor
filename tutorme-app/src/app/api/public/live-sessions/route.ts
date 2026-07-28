@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, user, profile, course } from '@/lib/db/schema'
-import type { LiveSessionStatus } from '@/lib/db/schema/enums'
+import type { LiveSessionStatus, Role } from '@/lib/db/schema/enums'
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(liveSession.sessionType, sessionType),
           inArray(liveSession.status, statuses as LiveSessionStatus[]),
-          sql`LOWER(${user.role}) = 'tutor'`
+          eq(user.role, 'TUTOR' as Role)
         )
       )
       .orderBy(desc(liveSession.scheduledAt))

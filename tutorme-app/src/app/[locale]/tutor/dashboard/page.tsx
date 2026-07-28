@@ -1205,9 +1205,9 @@ function TutorDashboardContent() {
                     {liveDemos.map(demo => (
                       <div
                         key={demo.id}
-                        className="flex h-40 items-stretch justify-between gap-4 rounded-lg border border-white/20 bg-[#65A30D] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                        className="grid h-40 grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-lg border border-white/20 bg-[#65A30D] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
                       >
-                        <div className="flex min-w-0 flex-1 flex-col justify-between">
+                        <div className="flex min-w-0 flex-col justify-between self-stretch py-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold text-white">{demo.title}</p>
                             <Badge
@@ -1224,16 +1224,16 @@ function TutorDashboardContent() {
                               {demo.status}
                             </Badge>
                           </div>
-                          <div className="h-16 w-full max-w-sm self-center rounded-md bg-white px-3 py-2">
-                            <p className="line-clamp-3 text-xs text-gray-700">
-                              {demo.description || 'No description'}
-                            </p>
-                          </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
                             <span>{demo.subject}</span>
                           </div>
                         </div>
-                        <div className="flex flex-col items-center justify-center gap-2">
+                        <div className="h-16 w-full max-w-[420px] self-center rounded-md bg-white px-3 py-2">
+                          <p className="line-clamp-3 text-xs text-gray-700">
+                            {demo.description || 'No description'}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end justify-center gap-2 self-stretch">
                           <Button
                             variant="outline"
                             size="sm"
