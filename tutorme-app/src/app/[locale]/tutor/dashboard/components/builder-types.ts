@@ -379,10 +379,16 @@ export interface CourseBuilderInsightsProps {
   /** Enable the debounced course auto-save even in insights mode (used by the
    *  in-session Edit-course modal so edits persist without a Save click). */
   autoSave?: boolean
-  courses?: Array<{ id: string; name: string; categories?: string[]; isPublished?: boolean }>
+  courses?: Array<{
+    id: string
+    name: string
+    categories?: string[]
+    isPublished?: boolean
+    folder?: string | null
+  }>
   /** Local drafts (not yet published). Carries the category chosen at creation
    *  so the builder can resolve Board/Subject before the course is published. */
-  draftCourses?: Array<{ id: string; name: string; categories?: string[] }>
+  draftCourses?: Array<{ id: string; name: string; categories?: string[]; folder?: string | null }>
   onCourseChange?: (courseId: string) => void
   sessionId: string | null
   sessions: InsightsSessionOption[]
