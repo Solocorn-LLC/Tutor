@@ -1,0 +1,100 @@
+version: '3.8'
+
+# Self-contained local deployment for the Solocorn/TutorMekimi main app.
+# Usage:
+#   docker compose -f docker-compose.local.yml up --build
+#
+# Notes:
+# - ADK service is intentionally omitted; the app uses the direct Kimi path.
+# - The app container is built with Dockerfile (full custom server image).
+# - For active development, run only the db and redis services and use `npm run dev` locally.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tutorme-local-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tutorme
+      POSTGRES_PASSWORD: tutorme_password
+      POSTGRES_DB: tutorme
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tutorme -d tutorme"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tutorme-local-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_local_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Optional: Redis management UI (enable with --profile dev)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: tutorme-local-redis-commander
+    restart: unless-stopped
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    profiles:
+      - dev
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tutorme-local-app
+    restart: unless-stopped
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      HOSTNAME: 0.0.0.0
+      DATABASE_URL: postgresql://tutorme:tutorme_password@db:5432/tutorme
+      DIRECT_URL: postgresql://tutorme:tutorme_password@db:5432/tutorme
+      REDIS_URL: redis://redis:6379
+      NEXTAUTH_URL: http://localhost:3003
+      # Add KIMI_API_KEY, NEXTAUTH_SECRET, etc. via .env.local
+    env_file:
+      - .env.local
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3003/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+    profiles:
+      - prod
+
+volumes:
+  postgres_local_data:
+  redis_local_data:

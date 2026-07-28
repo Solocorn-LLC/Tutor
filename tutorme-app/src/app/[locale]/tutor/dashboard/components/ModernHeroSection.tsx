@@ -100,7 +100,7 @@ export function ModernHeroSection({
         (c: { isPublished?: boolean | null }) => c.isPublished !== true
       )
       if (courses.length === 0) {
-        toast.info('No unpublished courses available to go live with.')
+        toast.info('No unpublished courses available to create a demo with.')
         return
       }
       setUnpublishedCourses(
@@ -114,7 +114,7 @@ export function ModernHeroSection({
     }
   }
 
-  const handleConfirmTeachingUnpublished = async (courseId: string) => {
+  const handleConfirmTeachingUnpublished = async (courseId: string, description: string) => {
     const course = unpublishedCourses.find(c => c.id === courseId)
     if (!course) return
     try {
@@ -125,14 +125,15 @@ export function ModernHeroSection({
           type: 'teaching',
           courseId,
           title: `${course.name} - Live Session`,
+          description,
         }),
       })
       if (!res.ok) throw new Error('Failed to start session')
       const data = await res.json()
-      toast.success('Live session started!')
+      toast.success('Demo class started!')
       router.push(`/tutor/classroom?sessionId=${data.sessionId}`)
     } catch (_err) {
-      toast.error('Could not start live session.')
+      toast.error('Could not start demo class.')
     }
   }
 
@@ -409,12 +410,12 @@ export function ModernHeroSection({
           <div className="flex flex-1 items-center justify-start gap-2">
             <Button
               size="sm"
-              className="border border-white bg-[#65A30D] text-white hover:translate-y-0 hover:bg-[#65A30D]/90"
+              className="border border-white bg-[#65A30D] text-white hover:border-[#65A30D] hover:bg-white hover:text-[#65A30D]"
               onClick={handleGoLiveClick}
               disabled={goLiveLoading}
             >
               <Video className="mr-1 h-4 w-4" />
-              Go Live
+              Create Class
             </Button>
           </div>
           <div className="flex-none text-center">
