@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import { Loader2, MessageSquare, Bell, CalendarClock } from 'lucide-react'
 import { TabsContent } from '@/components/ui/tabs'
@@ -17,7 +18,9 @@ interface CommunicationsPageProps {
 }
 
 export default function CommunicationsPage({ role }: CommunicationsPageProps) {
-  const [activeTab, setActiveTab] = useState('messaging')
+  const searchParams = useSearchParams()
+  const initialTab = searchParams?.get('tab') === 'notifications' ? 'notifications' : 'messaging'
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [activeSection, setActiveSection] = useState<CommSection>('chats')
 
   // Notifications state
@@ -228,7 +231,6 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               icon={<MessageSquare className="h-5 w-5 text-slate-900" />}
               defaultOpen
               collapsible={false}
-              flush
               fillHeight
               className="flex-1"
             >
