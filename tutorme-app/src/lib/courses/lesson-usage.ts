@@ -64,5 +64,8 @@ export async function getLessonUsage(
     .from(deployedMaterial)
     .where(inArray(deployedMaterial.lessonId, uniqueIds))
 
-  return computeLessonUsage(uniqueIds, deployRows.map(r => r.lessonId))
+  return computeLessonUsage(
+    uniqueIds,
+    deployRows.map(r => r.lessonId)
+  )
 }
