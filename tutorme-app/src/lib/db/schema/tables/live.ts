@@ -44,6 +44,7 @@ export const liveSession = pgTable(
     startedAt: timestamp('startedAt', { withTimezone: true }),
     endedAt: timestamp('endedAt', { withTimezone: true }),
     status: enums.liveSessionStatusEnum('status').notNull(),
+    sessionType: text('sessionType').notNull().default('ADHOC'),
     roomId: text('roomId'),
     roomUrl: text('roomUrl'),
     recordingUrl: text('recordingUrl'),

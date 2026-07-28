@@ -73,6 +73,7 @@ import {
   DialogTitle,
   DialogPanel,
 } from '@/components/ui/dialog'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import './page.css'
@@ -1757,12 +1758,14 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const [geoDetected, setGeoDetected] = useState(false)
   const [courses, setCourses] = useState<any[]>([])
   const [tutors, setTutors] = useState<any[]>([])
+  const [goLives, setGoLives] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [hasLoaded, setHasLoaded] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const PAGE_SIZE = 5
   const [coursesPage, setCoursesPage] = useState(0)
   const [tutorsPage, setTutorsPage] = useState(0)
+  const [goLivesPage, setGoLivesPage] = useState(0)
   const [selectedCourse, setSelectedCourse] = useState<any | null>(null)
   // Course whose full schedule list is open in the ScheduleViewModal.
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
@@ -1931,21 +1934,49 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       setLoadError(null)
       setCoursesPage(0)
       setTutorsPage(0)
+      setGoLivesPage(0)
       try {
-        const [coursesResults, tutorsResults] = await Promise.all([
+        const [coursesResults, tutorsResults, goLivesResults] = await Promise.all([
           fetchTiered('courses', q, selectedCountryCode),
           fetchTiered('tutors', q, selectedCountryCode),
+          fetchWithTimeout(
+            `/api/public/live-sessions?type=GO_LIVE_DEMO&status=active,ended&_t=${Date.now()}`,
+            {
+              signal: controller.signal,
+              cache: 'no-store',
+            }
+          )
+            .then(async res => {
+              if (!res.ok) {
+                const body = await res.text().catch(() => '')
+                console.warn('[Landing] live-sessions API returned non-OK:', res.status, body)
+                return []
+              }
+              const json = await res.json()
+              console.log('[Landing] live-sessions received:', json.sessions?.length ?? 0)
+              return json.sessions || []
+            })
+            .catch(err => {
+              console.warn('[Landing] live-sessions fetch failed:', err)
+              return []
+            }),
         ])
         console.log('[Landing] Tiered fetch completed:', {
           coursesCount: coursesResults.length,
           tutorsCount: tutorsResults.length,
+          goLivesCount: goLivesResults.length,
         })
 
         if (!finished) {
           setCourses(coursesResults)
           setTutors(tutorsResults)
+          setGoLives(goLivesResults)
 
-          if (coursesResults.length === 0 && tutorsResults.length === 0) {
+          if (
+            coursesResults.length === 0 &&
+            tutorsResults.length === 0 &&
+            goLivesResults.length === 0
+          ) {
             setLoadError('Unable to load results.')
           }
         }
@@ -1994,6 +2025,29 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     return `Starts ${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear().toString().slice(-2)}`
   }
 
+  const ClampedDescription = ({
+    text,
+    children,
+    className,
+  }: {
+    text: string
+    children: React.ReactNode
+    className?: string
+  }) => (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={cn('h-full overflow-hidden', className)}>
+            <div className="line-clamp-4 leading-relaxed">{children}</div>
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-[220px]">
+          <p className="text-xs">{text}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  )
+
   const CourseSlot = ({ item }: { item: any }) => (
     <div
       role="button"
@@ -2006,7 +2060,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
       }}
     >
       <div
-        className="h-[280px] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[240px] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(55, 65, 75, 0.85), rgba(25, 35, 45, 0.95))',
@@ -2037,10 +2091,13 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </div>
           </div>
 
-          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-            <div className="line-clamp-6 text-[11px] leading-relaxed text-slate-200">
+          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <ClampedDescription
+              text={(item?.description || '').trim() || 'No course description provided yet.'}
+              className="text-[11px] text-slate-200"
+            >
               {(item?.description || '').trim() || 'No course description provided yet.'}
-            </div>
+            </ClampedDescription>
           </div>
           <div className="mt-3 flex items-center justify-between text-xs font-semibold">
             <div className="truncate text-slate-300">
@@ -2061,7 +2118,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const TutorSlot = ({ item }: { item: any }) => (
     <Link href={`/u/${encodeURIComponent(item?.username || '')}`} className="block h-full w-full">
       <div
-        className="h-[clamp(220px,18vw,280px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        className="h-[clamp(190px,16vw,240px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
         style={{
           backgroundImage:
             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(70, 110, 180, 0.75), rgba(25, 55, 110, 0.95))',
@@ -2094,11 +2151,16 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             </div>
           </div>
 
-          {/* Bio — expands to fill available space */}
-          <div className="mt-3 min-h-0 flex-1 rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-            <div className="line-clamp-6 text-[11px] leading-relaxed text-slate-100">
+          {/* Bio — fixed height with clamp + tooltip */}
+          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <ClampedDescription
+              text={
+                (item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'
+              }
+              className="text-[11px] text-slate-100"
+            >
               {(item?.bio || '').trim() || 'Experienced tutor ready to help you improve quickly.'}
-            </div>
+            </ClampedDescription>
           </div>
 
           {/* Bottom row: courses (left) | country name (right) */}
@@ -2109,6 +2171,91 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             {item?.country ? (
               <span className="truncate text-slate-200">
                 <CountryFlag countryName={item.country} size="xs" showLabel />
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
+
+  const GoLiveSlot = ({ item }: { item: any }) => (
+    <Link
+      href={`/student/classroom?sessionId=${encodeURIComponent(item?.sessionId || item?.id || '')}`}
+      className="block h-full w-full"
+    >
+      <div
+        className="h-[clamp(190px,16vw,240px)] w-[var(--card-width)] overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+        style={{
+          backgroundImage:
+            'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
+          transform: 'translateZ(0)',
+        }}
+      >
+        <div className="flex h-full flex-col p-4" style={{ transform: 'translateZ(0)' }}>
+          {/* Header: Title on left, live indicator + avatar on right */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="line-clamp-2 text-sm font-semibold text-slate-50">
+                {item?.title || 'Live Demo'}
+              </div>
+              <div className="mt-1 text-xs font-medium text-emerald-100/80">
+                @{item?.tutor?.username || 'tutor'}
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              {(() => {
+                const isActive = !item?.status || item.status !== 'ended'
+                return (
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                      isActive
+                        ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
+                        : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full',
+                        isActive ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
+                      )}
+                    />
+                    {isActive ? 'Live' : 'Ended'}
+                  </span>
+                )
+              })()}
+              <div className="h-[52px] w-[52px] overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                {item?.tutor?.avatarUrl ? (
+                  <img
+                    src={item.tutor.avatarUrl}
+                    alt={item?.tutor?.name || 'Tutor'}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                    <User className="h-6 w-6 opacity-50" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Description area */}
+          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+            <ClampedDescription
+              text={item?.description || 'Live demo class'}
+              className="text-xs text-emerald-50/80"
+            >
+              {item?.description || 'Live demo class'}
+            </ClampedDescription>
+          </div>
+
+          {/* Bottom row: country */}
+          <div className="mt-3 flex items-center justify-end text-xs font-semibold">
+            {item?.tutor?.country ? (
+              <span className="truncate text-emerald-100">
+                <CountryFlag countryName={item.tutor.country} size="xs" showLabel />
               </span>
             ) : null}
           </div>
@@ -2129,16 +2276,26 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     disabled: boolean
     onClick: () => void
     label: string
-    kind?: 'courses' | 'tutors'
+    kind?: 'courses' | 'tutors' | 'go-live'
     className?: string
   }) => {
-    const isCourses = kind === 'courses'
-    const bg = isCourses
-      ? 'linear-gradient(135deg, rgba(55,65,75,0.5) 0%, rgba(25,35,45,0.5) 100%)'
-      : 'linear-gradient(135deg, rgba(70,110,180,0.5) 0%, rgba(25,55,110,0.5) 100%)'
-    const outline = isCourses
-      ? 'drop-shadow(0 0 2px rgba(30,40,50,0.5)) drop-shadow(0 0 4px rgba(30,40,50,0.3))'
-      : 'drop-shadow(0 0 2px rgba(25,55,110,0.5)) drop-shadow(0 0 4px rgba(25,55,110,0.3))'
+    let bg: string
+    switch (kind) {
+      case 'courses':
+        bg = 'linear-gradient(135deg, rgba(55,65,75,0.5) 0%, rgba(25,35,45,0.5) 100%)'
+        break
+      case 'go-live':
+        bg = 'linear-gradient(135deg, rgba(16,185,129,0.5) 0%, rgba(5,80,60,0.5) 100%)'
+        break
+      default:
+        bg = 'linear-gradient(135deg, rgba(70,110,180,0.5) 0%, rgba(25,55,110,0.5) 100%)'
+    }
+    const outline =
+      kind === 'courses'
+        ? 'drop-shadow(0 0 2px rgba(30,40,50,0.5)) drop-shadow(0 0 4px rgba(30,40,50,0.3))'
+        : kind === 'go-live'
+          ? 'drop-shadow(0 0 2px rgba(5,80,60,0.5)) drop-shadow(0 0 4px rgba(5,80,60,0.3))'
+          : 'drop-shadow(0 0 2px rgba(25,55,110,0.5)) drop-shadow(0 0 4px rgba(25,55,110,0.3))'
     return (
       <button
         type="button"
@@ -2146,7 +2303,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         disabled={disabled}
         className={cn(
           'shrink-0 transition-all duration-300',
-          'h-[clamp(176px,14.4vw,224px)] w-[clamp(44px,3.6vw,56px)]',
+          'h-[clamp(152px,12.8vw,192px)] w-[clamp(44px,3.6vw,56px)]',
           'self-center',
           !disabled
             ? cn(
@@ -2183,12 +2340,12 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
     title: string
     icon: React.ReactNode
     items: any[]
-    kind: 'courses' | 'tutors'
+    kind: 'courses' | 'tutors' | 'go-live'
     page: number
     setPage: (next: number) => void
   }) => (
     <div className="w-full">
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-600">
+      <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600">
         <span className="text-slate-500">{icon}</span>
         <span>{title}</span>
       </div>
@@ -2236,7 +2393,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                     {item?.__skeleton ? (
                       <div
                         className={cn(
-                          kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]',
+                          kind === 'courses' ? 'h-[240px]' : 'h-[clamp(190px,16vw,240px)]',
                           'w-[var(--card-width)] rounded-[22px] border border-dashed border-[rgba(255,255,255,0.20)] bg-[rgba(30,40,50,0.35)] shadow-[inset_0_1px_0_rgba(255,255,255,0.10),0_10px_25px_rgba(0,0,0,0.25)]'
                         )}
                       >
@@ -2249,6 +2406,8 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                       </div>
                     ) : kind === 'courses' ? (
                       <CourseSlot item={item} />
+                    ) : kind === 'go-live' ? (
+                      <GoLiveSlot item={item} />
                     ) : (
                       <TutorSlot item={item} />
                     )}
@@ -2258,7 +2417,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
                   <div
                     key={`placeholder-${kind}-${currentPage}-${i}`}
                     className={cn(
-                      kind === 'courses' ? 'h-[280px]' : 'h-[clamp(220px,18vw,280px)]',
+                      kind === 'courses' ? 'h-[240px]' : 'h-[clamp(190px,16vw,240px)]',
                       'w-[var(--card-width)]'
                     )}
                     aria-hidden="true"
@@ -2284,7 +2443,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   return (
     <section
       id="panel-2-search-results"
-      className="snap-panel relative flex h-screen w-full snap-start flex-col justify-start overflow-hidden"
+      className="snap-panel relative flex h-auto min-h-screen w-full snap-start flex-col justify-start overflow-visible"
       style={{
         backgroundColor: '#D7DCE2',
         backgroundImage:
@@ -2292,7 +2451,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
         backgroundSize: '36px 36px',
       }}
     >
-      <div className="mx-auto flex h-full w-full max-w-[1536px] flex-col px-8 py-10">
+      <div className="mx-auto flex h-full w-full max-w-[1536px] flex-col px-8 py-8">
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Select
             value={selectedRegion}
@@ -2359,7 +2518,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           </button>
         </div>
 
-        <div className="mt-8 min-h-0 flex-1 space-y-10 overflow-y-auto">
+        <div className="mt-5 min-h-0 flex-1 space-y-5 overflow-visible pb-8">
           <CarouselRow
             title="Courses"
             icon={<BookOpen className="h-4 w-4" />}
@@ -2367,6 +2526,14 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
             kind="courses"
             page={coursesPage}
             setPage={setCoursesPage}
+          />
+          <CarouselRow
+            title="Demo Classes"
+            icon={<Play className="h-4 w-4" />}
+            items={goLives}
+            kind="go-live"
+            page={goLivesPage}
+            setPage={setGoLivesPage}
           />
           <CarouselRow
             title="Tutors"

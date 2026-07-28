@@ -37,6 +37,7 @@ import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { VariantScheduleEditor } from './VariantScheduleEditor'
 import type { ScheduleItem } from '../constants'
 import { REGIONS } from '@/lib/data/tutor-categories'
+import { getCategoryConfig } from '@/lib/data/category-tab-config'
 import { CountryFlag } from '@/components/country-flag'
 
 interface CourseScheduleConfig {
@@ -51,6 +52,7 @@ interface CourseScheduleConfig {
 interface VariantConfig {
   category: string
   nationality: string
+  name: string
   isPublished: boolean
   isFree: boolean
   price: number | null
@@ -209,6 +211,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             return {
               category: typeof v.category === 'string' ? v.category : '',
               nationality: typeof v.nationality === 'string' ? v.nationality : '',
+              name:
+                typeof v.name === 'string' && v.name.trim()
+                  ? v.name.trim()
+                  : (templateCourseName ?? ''),
               isPublished: typeof v.isPublished === 'boolean' ? v.isPublished : false,
               isFree: typeof v.isFree === 'boolean' ? v.isFree : false,
               price: typeof v.price === 'number' ? v.price : null,
@@ -226,7 +232,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       return () => {
         active = false
       }
-    }, [templateCourseId])
+    }, [templateCourseId, templateCourseName])
 
     // Sync global defaults from parent when they change meaningfully
     useEffect(() => {
@@ -288,6 +294,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             map.set(key, {
               category,
               nationality,
+              name: templateCourseName ?? '',
               isPublished: true,
               isFree: globalIsFree,
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
@@ -300,7 +307,11 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             // Backfill: the variant was created before the course schedule had
             // loaded (course fetch is async), so adopt the template schedule now
             // instead of leaving the scheduler showing only the "Add" button.
-            map.set(key, { ...existing, schedules: baselineSchedules })
+            map.set(key, {
+              ...existing,
+              name: existing.name || (templateCourseName ?? ''),
+              schedules: baselineSchedules,
+            })
             changed = true
           }
         }
@@ -327,7 +338,16 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       // variant this effect already added, and since `desiredKeys` never
       // changes again the scheduler would stay empty. Re-running here re-adds
       // the desired variant on top of whatever the fetch loaded.
-    }, [desiredKeys, globalPrice, globalCurrency, globalLanguage, defaultSchedule, loading])
+    }, [
+      desiredKeys,
+      globalPrice,
+      globalCurrency,
+      globalLanguage,
+      globalIsFree,
+      defaultSchedule,
+      loading,
+      templateCourseName,
+    ])
 
     const applyGlobalsToAll = useCallback(() => {
       const price = globalPrice ? parseFloat(globalPrice) : null
@@ -953,13 +973,23 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           >
             <div className="flex h-full flex-col p-5 sm:p-6">
               <DialogHeader className="p-0">
-                <DialogTitle>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
                   {dialogVariant && dialogSchedule ? (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      {`Configure ${dialogSchedule.name || `Schedule ${dialogSchedule.scheduleIndex}`} for `}
-                      {dialogVariant.category} —{' '}
-                      <CountryFlag countryName={dialogVariant.nationality} size="xs" showLabel />
-                    </span>
+                    <>
+                      <span>Edit schedule for</span>
+                      <Input
+                        value={dialogVariant.name}
+                        onChange={e =>
+                          scheduleDialogVariantIndex != null &&
+                          updateVariant(scheduleDialogVariantIndex, v => ({
+                            ...v,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder={templateCourseName}
+                        className="h-8 w-[260px] border-white/20 bg-white/10 px-2 py-1 text-sm font-medium text-white placeholder:text-gray-400 focus-visible:border-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </>
                   ) : (
                     'Configure schedule'
                   )}
@@ -1024,33 +1054,45 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                 </div>
               )}
 
-              <div className="mt-6 flex justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="modal-secondary-dark"
-                  disabled={savingSchedule}
-                  onClick={cancelScheduleDialog}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="modal-primary-dark"
-                  disabled={savingSchedule}
-                  onClick={async () => {
-                    // Persist immediately so "Save" actually saves — the schedule
-                    // edit is already in `variants` state via onScheduleChange.
-                    setSavingSchedule(true)
-                    const result = await handleSaveSchedules()
-                    setSavingSchedule(false)
-                    if (result?.ok && result.processed > 0 && result.skipped === 0) {
-                      toast.success('Schedule saved — sessions added to your calendar.')
-                    }
-                    closeScheduleDialog()
-                  }}
-                >
-                  {savingSchedule ? 'Saving…' : 'Save'}
-                </Button>
+              <div className="mt-6 flex items-center justify-between">
+                {dialogVariant && (
+                  <Badge
+                    className="border-0 px-2.5 py-1 text-xs font-semibold text-white"
+                    style={{
+                      backgroundColor: getCategoryConfig(dialogVariant.category).color,
+                    }}
+                  >
+                    {dialogVariant.category}
+                  </Badge>
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="modal-secondary-dark"
+                    disabled={savingSchedule}
+                    onClick={cancelScheduleDialog}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="modal-primary-dark"
+                    disabled={savingSchedule}
+                    onClick={async () => {
+                      // Persist immediately so "Save" actually saves — the schedule
+                      // edit is already in `variants` state via onScheduleChange.
+                      setSavingSchedule(true)
+                      const result = await handleSaveSchedules()
+                      setSavingSchedule(false)
+                      if (result?.ok && result.processed > 0 && result.skipped === 0) {
+                        toast.success('Schedule saved — sessions added to your calendar.')
+                      }
+                      closeScheduleDialog()
+                    }}
+                  >
+                    {savingSchedule ? 'Saving…' : 'Save'}
+                  </Button>
+                </div>
               </div>
             </div>
           </DialogContent>

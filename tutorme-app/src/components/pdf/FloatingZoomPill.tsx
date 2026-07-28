@@ -157,8 +157,8 @@ export function FloatingZoomPill({
       )}
       style={{
         transform: fixed ? undefined : `translate(${position.x}px, ${position.y}px)`,
-        right: '8px',
-        bottom: '8px',
+        right: '4px',
+        bottom: '4px',
       }}
     >
       {/* Zoom percentage with space above */}

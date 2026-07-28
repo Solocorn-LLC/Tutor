@@ -65,6 +65,8 @@ export function TestTaskChat({
   onAddAnswer,
   onAsk,
   onComplete,
+  onGrade,
+  taskId,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -93,6 +95,10 @@ export function TestTaskChat({
   onAsk?: (question: string) => void
   /** Called when the student clicks "Task complete" (Test mode only). */
   onComplete?: (answers: string[]) => void
+  /** Optional grading request handler. When provided, complete/ask POST through this instead of /api/tutor/task-chat-preview. */
+  onGrade?: (body: Record<string, unknown>) => Promise<Response>
+  /** Task id used by the default preview endpoint. Required when onGrade is not provided. */
+  taskId?: string
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
@@ -102,6 +108,18 @@ export function TestTaskChat({
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastIncomingLen = useRef(0)
   const isClassroom = mode === 'classroom'
+
+  // Re-initialize the chat whenever the parent provides a new initialState. This
+  // prevents a previous task's answers/AI feedback from surviving when the
+  // component remounts for a newly deployed task before the new task's history
+  // has loaded. The parent should clear initialState synchronously on task
+  // change so we reset to an empty state first, then to the fetched history.
+  useEffect(() => {
+    setMessages(initialState?.messages ?? [])
+    setDraft(initialState?.draft ?? '')
+    setCompleted(initialState?.completed ?? false)
+    lastIncomingLen.current = 0
+  }, [initialState])
 
   // In classroom mode, sync messages directly from incomingMessages.
   // This ensures messages persist when switching tabs (component remounts).
@@ -151,12 +169,14 @@ export function TestTaskChat({
     (!sourceDocument?.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument?.fileName || rawUrl))
   const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
 
-  const post = (extra: Record<string, unknown>) =>
-    fetchWithCsrf('/api/tutor/test-grade', {
+  const post = (extra: Record<string, unknown>) => {
+    if (onGrade) return onGrade(extra)
+    return fetchWithCsrf('/api/tutor/task-chat-preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pci, pciSpec, questionText, ...extra }),
+      body: JSON.stringify({ taskId, pci, pciSpec, questionText, ...extra }),
     })
+  }
 
   const addAnswer = () => {
     const a = draft.trim()
@@ -171,6 +191,7 @@ export function TestTaskChat({
       setMessages(nextMessages)
     }
     setDraft('')
+    setPdfPopupOpen(false)
     onPersist?.({ messages: nextMessages, draft: '', completed })
     onBroadcast?.(msg)
     onAddAnswer?.(a)
@@ -196,6 +217,7 @@ export function TestTaskChat({
         setMessages(nextMessages)
       }
       setDraft('')
+      setPdfPopupOpen(false)
       onPersist?.({ messages: nextMessages, draft: '', completed })
       onBroadcast?.(pendingMsg)
     }
@@ -207,20 +229,22 @@ export function TestTaskChat({
       if (!res.ok) throw new Error(data?.error || 'Failed to grade')
       const responses: Array<{
         answer: string
-        studentFeedback: string | null
-        tutorNote: string | null
-        score: number | null
-        hasBasis: boolean
+        studentFeedback?: string | null
+        response?: string | null
+        tutorNote?: string | null
+        score?: number | null
+        hasBasis?: boolean
       }> = Array.isArray(data.responses) ? data.responses : []
       const aiMsgs: ChatMsg[] = []
       responses.forEach(r => {
         if (r.tutorNote) {
           onTutorNote?.(r.tutorNote)
         }
-        if (r.studentFeedback) {
+        const feedback = r.studentFeedback || r.response
+        if (feedback) {
           aiMsgs.push({
             role: 'tutor' as const,
-            content: r.studentFeedback,
+            content: feedback,
             re: r.answer,
             timestamp: Date.now(),
           })

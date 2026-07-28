@@ -30,7 +30,7 @@ import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { normalizePciSpec } from '@/lib/assessment/pci-spec'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
-import type { PollState } from '@/lib/socket'
+import type { PollState, TaskChatMessagePayload } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
@@ -217,6 +217,64 @@ function toPublicTask(task: LiveTask): LiveTask {
   if (!task.responses) return task
   const { responses: _omit, ...rest } = task
   return rest
+}
+
+/**
+ * Build a LiveTask from a CourseLesson.builderData item (task/assessment/homework).
+ * Used when expanding a lesson folder into homework items and when syncing course
+ * content updates to already-deployed tasks.
+ */
+async function liveTaskFromBuilderItem(
+  raw: Record<string, unknown>,
+  opts: {
+    source: LiveTask['source']
+    lessonId?: string
+    sourceDocument?: LiveTaskSourceDocument
+  }
+): Promise<LiveTask> {
+  const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
+  const refreshedSourceDoc =
+    opts.sourceDocument ??
+    (rawSourceDoc
+      ? await ensureViewableSourceDocument({
+          fileName: (rawSourceDoc.fileName as string) || '',
+          fileUrl: (rawSourceDoc.fileUrl as string) || '',
+          fileKey: (rawSourceDoc.fileKey as string) || undefined,
+          mimeType: (rawSourceDoc.mimeType as string) || '',
+        })
+      : undefined)
+
+  return {
+    id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
+    title: (raw.title as string) || 'Untitled',
+    content: (raw.description as string) || (raw.taskContent as string) || '',
+    source: opts.source,
+    dmiItems: Array.isArray(raw.dmiItems)
+      ? (raw.dmiItems as Array<Record<string, unknown>>).map(
+          (d): LiveTaskDmiItem => ({
+            id: (d.id as string) || '',
+            questionNumber: (d.questionNumber as number) || 0,
+            questionLabel:
+              typeof d.questionLabel === 'string' ? (d.questionLabel as string) : undefined,
+            questionText: (d.questionText as string) || '',
+            marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
+            questionType: d.questionType as LiveTaskDmiItem['questionType'],
+            options: Array.isArray(d.options) ? (d.options as string[]) : undefined,
+            hotspotImageUrl: typeof d.hotspotImageUrl === 'string' ? d.hotspotImageUrl : undefined,
+            matchPrompts: Array.isArray(d.matchPrompts) ? (d.matchPrompts as string[]) : undefined,
+            matchBank: Array.isArray(d.matchBank) ? (d.matchBank as string[]) : undefined,
+            section: typeof d.section === 'string' ? d.section : undefined,
+          })
+        )
+      : undefined,
+    deployedAt: Date.now(),
+    polls: [],
+    questions: [],
+    sourceDocument: refreshedSourceDoc,
+    parentId: typeof raw.parentId === 'string' ? raw.parentId : undefined,
+    isExtension: raw.isExtension === true,
+    lessonId: opts.lessonId,
+  }
 }
 
 // Environment validation
@@ -890,6 +948,44 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     })
 
+    // Task-scoped chat messages (chat-task flow). Distinct from the general
+    // chat_message so a live task's answer/comment stream can be rendered inside
+    // TestTaskChat on both tutor and student sides without mixing with the
+    // general room chat.
+    socket.on('task:chat_message', (data: TaskChatMessagePayload & { roomId?: string }) => {
+      const { taskId, role, content } = data
+      if (!taskId || typeof taskId !== 'string') return
+      if (!content || typeof content !== 'string' || !content.trim()) return
+      if (role !== 'tutor' && role !== 'student') return
+
+      const targetRoomId = data.roomId || socket.data.roomId
+      if (!targetRoomId) return
+
+      const room = activeRooms.get(targetRoomId)
+      if (!room) return
+
+      const userId = socket.data.userId
+      if (!userId) return
+
+      const isTutor = room.tutorId === userId
+      const isStudent = room.students.has(userId)
+      if (!isTutor && !isStudent) return
+      if (role === 'tutor' && !isTutor) return
+      if (role === 'student' && !isStudent) return
+
+      const message: TaskChatMessagePayload = {
+        taskId,
+        role,
+        content: content.trim().slice(0, 3000),
+        name: data.name || (isTutor ? 'Tutor' : room.students.get(userId)?.name || 'Student'),
+        re: data.re,
+        timestamp: data.timestamp || Date.now(),
+        userId,
+      }
+
+      io.to(targetRoomId).emit('task:chat_message', message)
+    })
+
     // --- Live poll (ephemeral, one active per room) ---
     // Tutor launches a quick poll; students vote; everyone sees the live tally.
     socket.on('poll:launch', (data: { roomId: string; question?: string; options?: string[] }) => {
@@ -1407,6 +1503,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
           polls: Array.isArray(task.polls) ? task.polls : [],
           questions: Array.isArray(task.questions) ? task.questions : [],
           sourceDocument: refreshedSourceDocument,
+          parentId: task.parentId,
+          isExtension: task.isExtension ?? false,
+          lessonId: task.lessonId,
         }
 
         const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)
@@ -1425,6 +1524,37 @@ export async function initEnhancedSocketServer(server: NetServer) {
         void persistRoomToRedis(roomId, room!)
         io.to(roomId).emit('task:deployed', normalizedTask)
         io.to(roomId).emit('task:updated', { task: normalizedTask })
+
+        // If this task was deployed from a lesson, expose the rest of that lesson's
+        // tasks and assessments as unrestricted homework items.
+        if (task.lessonId) {
+          try {
+            const [lesson] = await drizzleDb
+              .select({ builderData: courseLesson.builderData })
+              .from(courseLesson)
+              .where(eq(courseLesson.lessonId, task.lessonId))
+              .limit(1)
+            const bData = (lesson?.builderData ?? {}) as Record<string, unknown>
+            const lessonTasks = Array.isArray(bData.tasks) ? bData.tasks : []
+            const lessonAssessments = Array.isArray(bData.assessments) ? bData.assessments : []
+            const seenIds = new Set(room!.tasks.map(t => t.id))
+            for (const raw of [...lessonTasks, ...lessonAssessments]) {
+              const rawRecord = raw as Record<string, unknown>
+              const rawId = (rawRecord.id as string) || ''
+              if (!rawId || seenIds.has(rawId)) continue
+              const homeworkTask = await liveTaskFromBuilderItem(rawRecord, {
+                source: 'homework',
+                lessonId: task.lessonId,
+              })
+              room!.tasks.push(homeworkTask)
+              io.to(roomId).emit('task:deployed', homeworkTask)
+              seenIds.add(rawId)
+            }
+            void persistRoomToRedis(roomId, room!)
+          } catch (lessonErr) {
+            console.error('[task:deploy] Failed to emit lesson homework:', lessonErr)
+          }
+        }
 
         // Create persistent notifications for students in the room
         try {

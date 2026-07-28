@@ -99,7 +99,10 @@ export interface LiveTaskSourceDocument {
  * - 'hidden'         — never reveal answers; show the score only.
  * - 'student_choice' — post-class self-study: the student picks practice (see
  *                      answers as they go) or test (hide until submit).
- * Chosen by the tutor at deploy time.
+ *
+ * For tasks, this is derived from the task PCI (free-text instructions or the
+ * answerRevealPolicy field). For assessments and homework, it is chosen by the tutor
+ * at deploy time via the answer-reveal dialog.
  */
 export type AnswerReveal = 'instant' | 'after_submit' | 'hidden' | 'student_choice'
 
@@ -138,6 +141,16 @@ export interface LiveTask {
   parentId?: string
   isExtension?: boolean
   completedBy?: string[]
+}
+
+export interface TaskChatMessagePayload {
+  taskId: string
+  role: 'tutor' | 'student'
+  content: string
+  name?: string
+  re?: string
+  timestamp?: number
+  userId?: string
 }
 
 export interface ClassRoom {

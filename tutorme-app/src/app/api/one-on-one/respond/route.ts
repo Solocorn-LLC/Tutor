@@ -204,13 +204,13 @@ export async function PATCH(request: NextRequest) {
               tutorNotes: validated.tutorNotes || p.req.tutorNotes,
               tutorResponseAt: new Date(),
               paymentDueAt: isFree ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
-              calendarEventId: newEvent.eventId,
+              calendarEventId: newEvent!.eventId,
               updatedAt: new Date(),
             })
             .where(eq(oneOnOneBookingRequest.requestId, p.req.requestId))
             .returning(CORE_BOOKING_RETURNING)
 
-          out.push({ updatedRequest, newEvent })
+          out.push({ updatedRequest, newEvent: newEvent! })
         }
         return out
       })

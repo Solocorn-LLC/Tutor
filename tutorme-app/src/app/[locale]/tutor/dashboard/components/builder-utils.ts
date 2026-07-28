@@ -62,6 +62,7 @@ import {
   type Content,
   type ImportedLearningResource,
 } from './builder-types'
+import { isSlideHtml, sanitizeSlideHtml } from './sanitize-slide-html'
 
 export const generateId = () => crypto.randomUUID()
 
@@ -492,7 +493,7 @@ export function isTaskSlideOverflowing(content: string): boolean {
  * generated snapshot format changes so existing auto-generated PDFs are
  * invalidated and regenerated.
  */
-export const TASK_TEXT_SNAPSHOT_VERSION = 7
+export const TASK_TEXT_SNAPSHOT_VERSION = 8
 
 /**
  * Generate a simple PDF from a task's typed content so that text-only
@@ -544,14 +545,20 @@ export async function generateTaskTextPDF(
   viewport.style.border = '1px solid #E5E7EB'
   viewport.style.fontFamily =
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif'
-  viewport.style.fontSize = '20px'
+  viewport.style.fontSize = '18px'
   viewport.style.lineHeight = '1.6'
   viewport.style.whiteSpace = 'pre-wrap'
   viewport.style.wordBreak = 'break-word'
   viewport.style.boxSizing = 'border-box'
   viewport.style.overflow = 'hidden'
   viewport.setAttribute('dir', 'auto')
-  viewport.textContent = content.trim()
+
+  const trimmed = content.trim()
+  if (isSlideHtml(trimmed)) {
+    viewport.innerHTML = sanitizeSlideHtml(trimmed)
+  } else {
+    viewport.textContent = trimmed
+  }
 
   wrapper.appendChild(viewport)
   document.body.appendChild(wrapper)

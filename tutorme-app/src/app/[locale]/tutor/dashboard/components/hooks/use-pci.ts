@@ -16,6 +16,7 @@ import {
 interface PciSourceDoc {
   fileName: string
   fileUrl?: string
+  fileKey?: string
   mimeType?: string
   /** Full OCR/extracted text of the uploaded PDF, if available. */
   extractedText?: string
@@ -78,7 +79,7 @@ interface UsePciDeps {
   lessonContext?: string
   autoCreateTask: () => { id?: string } | null | undefined
   autoCreateAssessment: () => { id?: string } | null | undefined
-  renderPdfToImages: (pdfUrl: string, maxPages?: number) => Promise<string[]>
+  renderPdfToImages: (pdfUrl: string, maxPages?: number, fileKey?: string) => Promise<string[]>
   pdfPageCache: Map<string, string[]>
 }
 
@@ -302,13 +303,12 @@ export function usePci(deps: UsePciDeps) {
           }
         : undefined
 
-      // Render an attached PDF's pages (cached) so the model can SEE the
-      // document — first turn only (see isFirstTurn above).
-      // When we already have extracted text, one page is enough as a layout aid;
+      // Render an attached PDF's pages (cached) so the model can SEE the document on
+      // every turn. When we already have extracted text, one page is enough as a layout aid;
       // otherwise render a few pages so the model has some visual signal.
       let pdfPages: string[] | undefined
-      if (isFirstTurn && sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
-        const cacheKey = sourceDocData.fileUrl
+      if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
+        const cacheKey = `${sourceDocData.fileUrl}:${sourceDocData.fileKey ?? ''}`
         const cached = deps.pdfPageCache.get(cacheKey)
         const hasExtractedText = !!(sourceDocData.extractedText || '').trim()
         const pageLimit = hasExtractedText ? 1 : 3
@@ -316,13 +316,22 @@ export function usePci(deps: UsePciDeps) {
           pdfPages = cached.slice(0, pageLimit)
         } else {
           try {
-            const rendered = await deps.renderPdfToImages(sourceDocData.fileUrl, pageLimit)
+            const rendered = await deps.renderPdfToImages(
+              sourceDocData.fileUrl,
+              pageLimit,
+              sourceDocData.fileKey
+            )
             if (rendered.length > 0) {
               pdfPages = rendered
               deps.pdfPageCache.set(cacheKey, rendered)
             }
-          } catch {
-            // Vision is best-effort; fall back to text-only on render failure.
+          } catch (error) {
+            // Vision is best-effort; text-only fallback, but let the tutor know so
+            // they aren't silently wondering why the AI can't see the PDF.
+            console.error('PDF vision render failed:', error)
+            toast.error(
+              `Could not render the PDF for the AI (${error instanceof Error ? error.message : 'unknown error'}). Continuing with text only.`
+            )
           }
         }
       }

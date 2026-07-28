@@ -608,10 +608,6 @@ export const DELETE = withAuth(
         )
       }
 
-      if (liveSessionRow.status === 'ended') {
-        return NextResponse.json({ error: 'Cannot delete a completed class' }, { status: 400 })
-      }
-
       // Best-effort: tear down the Daily room so it doesn't leak (roomId is the room name).
       if (liveSessionRow.roomId) {
         try {
