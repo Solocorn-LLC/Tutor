@@ -92,8 +92,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!isValidPassword && passwordCandidates.includes(foundUser.password)) {
+    // Legacy safety net: some very old accounts may still have a plaintext password stored.
+    // Accepting a plaintext-equality match is a security hole, so it is OFF by default and must
+    // be explicitly enabled (ALLOW_LEGACY_PLAINTEXT_LOGIN=true) for a one-time migration window.
+    // When it fires it upgrades the row to a bcrypt hash so the account never matches this way again.
+    if (
+      !isValidPassword &&
+      process.env.ALLOW_LEGACY_PLAINTEXT_LOGIN === 'true' &&
+      passwordCandidates.includes(foundUser.password)
+    ) {
       isValidPassword = true
+      console.warn(
+        `SECURITY: migrated a legacy plaintext password to a hash for user ${foundUser.userId}. ` +
+          'Disable ALLOW_LEGACY_PLAINTEXT_LOGIN once no plaintext passwords remain.'
+      )
       const migratedHash = await hashPassword(password)
       await drizzleDb
         .update(user)
