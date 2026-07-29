@@ -24,14 +24,18 @@ async function main() {
     .where(like(user.email, DELETED_EMAIL))
 
   const withHandle = deletedUsers.filter(u => u.handle)
-  console.log(`Deleted accounts: ${deletedUsers.length} (with a handle still set: ${withHandle.length})`)
+  console.log(
+    `Deleted accounts: ${deletedUsers.length} (with a handle still set: ${withHandle.length})`
+  )
 
   if (withHandle.length > 0) {
     await drizzleDb
       .update(user)
       .set({ handle: null })
       .where(and(like(user.email, DELETED_EMAIL), isNotNull(user.handle)))
-    console.log(`  ✓ released user.handle for ${withHandle.length} account(s): ${withHandle.map(u => u.handle).join(', ')}`)
+    console.log(
+      `  ✓ released user.handle for ${withHandle.length} account(s): ${withHandle.map(u => u.handle).join(', ')}`
+    )
   }
 
   const deletedIds = deletedUsers.map(u => u.userId)
@@ -45,7 +49,9 @@ async function main() {
         .update(profile)
         .set({ username: null })
         .where(and(inArray(profile.userId, deletedIds), isNotNull(profile.username)))
-      console.log(`  ✓ released profile.username for ${staleProfiles.length} profile(s): ${staleProfiles.map(p => p.username).join(', ')}`)
+      console.log(
+        `  ✓ released profile.username for ${staleProfiles.length} profile(s): ${staleProfiles.map(p => p.username).join(', ')}`
+      )
     }
   }
 
