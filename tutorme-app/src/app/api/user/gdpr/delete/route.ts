@@ -47,6 +47,9 @@ export const POST = withCsrf(
           password: null,
           image: null,
           emailVerified: null,
+          // Release the handle (queried by the username-availability check) so the
+          // username can be reused by a new account after deletion.
+          handle: null,
         })
         .where(eq(user.userId, userId))
 
@@ -64,6 +67,8 @@ export const POST = withCsrf(
             bio: null,
             avatarUrl: null,
             dateOfBirth: null,
+            // Release the unique profile username so it can be reused.
+            username: null,
           })
           .where(eq(profile.userId, userId))
       }
