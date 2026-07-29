@@ -25,6 +25,7 @@ import {
   type VerifiedStudent,
 } from '@/lib/security/parent-child-queries'
 import type { StudentLinkingInput } from '@/lib/validation/parent-child-security'
+import { sendEmailVerification } from '@/lib/auth/email-verification'
 import {
   HANDLE_REGEX,
   assertValidHandle,
@@ -595,11 +596,16 @@ export async function performRegistration(
     studentUniqueId = prof?.studentUniqueId ?? undefined
   }
 
+  // Send the email-verification link. Best-effort — never blocks registration
+  // (the helper swallows mail errors); the user can request a resend later.
+  const { sent: emailVerificationSent } = await sendEmailVerification(newUser.email, name)
+
   return {
     status: 201,
     body: {
       success: true,
       message: 'User registered successfully',
+      emailVerificationSent,
       user: {
         id: newUser.id,
         name,
