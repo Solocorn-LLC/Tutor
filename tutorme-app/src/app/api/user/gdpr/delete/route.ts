@@ -20,8 +20,11 @@ import {
   userActivityLog,
   securityEvent,
   payment,
+  liveSession,
+  sessionParticipant,
+  sessionReplayArtifact,
 } from '@/lib/db/schema'
-import { eq, or, sql } from 'drizzle-orm'
+import { eq, or, and, inArray, sql } from 'drizzle-orm'
 import { logAudit, AUDIT_ACTIONS } from '@/lib/security/audit'
 
 export const POST = withCsrf(
@@ -44,6 +47,9 @@ export const POST = withCsrf(
           password: null,
           image: null,
           emailVerified: null,
+          // Release the handle (queried by the username-availability check) so the
+          // username can be reused by a new account after deletion.
+          handle: null,
         })
         .where(eq(user.userId, userId))
 
@@ -61,6 +67,8 @@ export const POST = withCsrf(
             bio: null,
             avatarUrl: null,
             dateOfBirth: null,
+            // Release the unique profile username so it can be reused.
+            username: null,
           })
           .where(eq(profile.userId, userId))
       }
@@ -122,6 +130,36 @@ export const POST = withCsrf(
             sql`(${payment.metadata}->>'payerId') = ${userId}`
           )
         )
+
+      // 10. Purge recording pointers for the user's PRIVATE 1-on-1 sessions. These are
+      //     two-party (tutor + one student), so removing the recording when either party
+      //     deletes their account is safe. Shared group/course recordings are intentionally
+      //     retained — other enrolled students have a right to those replays, and purging a
+      //     shared recording because one participant left would erase their data too.
+      //     NOTE: this removes our references so the video is no longer served. Permanently
+      //     deleting the underlying Daily.co asset needs the recording id (only the URL is
+      //     stored today) and is tracked as a follow-up in SECURITY_HARDENING.md.
+      const oneOnOne = await tx
+        .select({ sessionId: liveSession.sessionId })
+        .from(liveSession)
+        .leftJoin(sessionParticipant, eq(sessionParticipant.sessionId, liveSession.sessionId))
+        .where(
+          and(
+            eq(liveSession.sessionType, 'ONE_ON_ONE'),
+            or(eq(liveSession.tutorId, userId), eq(sessionParticipant.studentId, userId))
+          )
+        )
+      const oneOnOneSessionIds = [...new Set(oneOnOne.map(s => s.sessionId))]
+      if (oneOnOneSessionIds.length > 0) {
+        await tx
+          .update(liveSession)
+          .set({ recordingUrl: null, recordingAvailableAt: null })
+          .where(inArray(liveSession.sessionId, oneOnOneSessionIds))
+        await tx
+          .update(sessionReplayArtifact)
+          .set({ recordingUrl: null })
+          .where(inArray(sessionReplayArtifact.sessionId, oneOnOneSessionIds))
+      }
     })
 
     return NextResponse.json({

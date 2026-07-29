@@ -19,7 +19,10 @@ export const RegistrationPage = ({ onSubmit }: { onSubmit: (data: any) => void }
     setIsSubmitting(true);
     setErrorMsg('');
     try {
-      const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003';
+      // Empty default → same-origin relative URL. In production the landing is served by
+      // the main app, so `/api/landing/signup` reaches it directly. For a separate local
+      // dev server (vite on :3000), set VITE_MAIN_APP_URL=http://localhost:3003.
+      const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || '';
       const res = await fetch(`${MAIN_APP_URL}/api/landing/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
