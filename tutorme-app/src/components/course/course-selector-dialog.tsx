@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
 import { cn } from '@/lib/utils'
@@ -17,12 +17,13 @@ import {
   Edit3,
   FolderOpen,
   Pencil,
+  Play,
   Plus,
   Trash2,
   X,
 } from 'lucide-react'
 
-type CourseState = 'published' | 'unpublished' | 'creating'
+type CourseState = 'published' | 'unpublished' | 'creating' | 'demo-classes'
 
 interface CourseItem {
   id: string
@@ -33,6 +34,17 @@ interface CourseItem {
   isVariant?: boolean
   categories?: string[]
   folder?: string | null
+}
+
+interface DemoClassItem {
+  id: string
+  title: string
+  subject: string
+  description?: string | null
+  createdAt?: string | null
+  courseId?: string | null
+  categories?: string[]
+  nationality?: string | null
 }
 
 interface FolderItem {
@@ -47,7 +59,15 @@ interface CourseSelectorDialogProps {
   draftCourses: CourseItem[]
   currentCourseId?: string | null
   onSelectCourse: (courseId: string) => void
+  onSelectDemoClass?: (sessionId: string) => void
 }
+
+const SELECTOR_MODES: { value: CourseState; label: string }[] = [
+  { value: 'published', label: 'Published' },
+  { value: 'unpublished', label: 'Unpublished' },
+  { value: 'creating', label: 'Creating' },
+  { value: 'demo-classes', label: 'Demo Classes' },
+]
 
 export function CourseSelectorDialog({
   open,
@@ -56,6 +76,7 @@ export function CourseSelectorDialog({
   draftCourses,
   currentCourseId,
   onSelectCourse,
+  onSelectDemoClass,
 }: CourseSelectorDialogProps) {
   const [tab, setTab] = useState<CourseState>('unpublished')
   const [selectedFolder, setSelectedFolder] = useState<string>('All')
@@ -65,6 +86,11 @@ export function CourseSelectorDialog({
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
   const [editingFolder, setEditingFolder] = useState<string | null>(null)
   const [editFolderName, setEditFolderName] = useState('')
+  const [demoClasses, setDemoClasses] = useState<DemoClassItem[]>([])
+  const [loadingDemoClasses, setLoadingDemoClasses] = useState(false)
+  const router = useRouter()
+  const selectorListRef = useRef<HTMLDivElement>(null)
+  const [selectorPill, setSelectorPill] = useState({ left: 0, width: 0 })
 
   const courseCategories = useMemo(() => {
     const set = new Set<string>()
@@ -76,8 +102,12 @@ export function CourseSelectorDialog({
       const cat = c.categories?.[0]
       if (cat) set.add(cat)
     }
+    for (const d of demoClasses) {
+      const cat = d.categories?.[0] || d.subject
+      if (cat) set.add(cat)
+    }
     return Array.from(set).sort()
-  }, [courses, draftCourses])
+  }, [courses, draftCourses, demoClasses])
 
   const folders = useMemo(() => {
     const custom = customFolders.map(f => f.name)
@@ -89,19 +119,32 @@ export function CourseSelectorDialog({
     })
   }, [customFolders, courseCategories])
 
+  const isDemoMode = tab === 'demo-classes'
+
   const coursesInTab = useMemo(() => {
+    if (isDemoMode) return []
     if (tab === 'creating') return draftCourses
     return courses.filter(c => (tab === 'published' ? c.isPublished : !c.isPublished))
-  }, [tab, courses, draftCourses])
+  }, [tab, isDemoMode, courses, draftCourses])
 
   const filteredCourses = useMemo(() => {
+    if (isDemoMode) return []
     if (selectedFolder === 'All') return coursesInTab
     return coursesInTab.filter(c => {
       if (c.folder === selectedFolder) return true
       const category = c.categories?.[0]
       return category === selectedFolder
     })
-  }, [coursesInTab, selectedFolder])
+  }, [isDemoMode, coursesInTab, selectedFolder])
+
+  const filteredDemoClasses = useMemo(() => {
+    if (!isDemoMode) return []
+    if (selectedFolder === 'All') return demoClasses
+    return demoClasses.filter(d => {
+      const category = d.categories?.[0] || d.subject
+      return category === selectedFolder
+    })
+  }, [isDemoMode, demoClasses, selectedFolder])
 
   const loadFolders = async () => {
     if (!open) return
@@ -119,15 +162,86 @@ export function CourseSelectorDialog({
     }
   }
 
+  const loadDemoClasses = useCallback(async () => {
+    if (!open || !isDemoMode) return
+    setLoadingDemoClasses(true)
+    try {
+      const res = await fetch('/api/tutor/classes?includeEnded=1', { credentials: 'include' })
+      if (!res.ok) throw new Error('Failed to load demo classes')
+      const data = await res.json()
+      const classes: DemoClassItem[] = ((data.classes ?? []) as any[])
+        .filter((c: any) => c.sessionType === 'GO_LIVE_DEMO')
+        .map((c: any) => ({
+          id: c.id,
+          title: c.title || 'Demo Class',
+          subject: c.subject || 'General',
+          description: c.description || '',
+          createdAt: c.createdAt,
+          courseId: c.courseId || null,
+          categories: c.categories?.length ? c.categories : c.subject ? [c.subject] : [],
+          nationality: c.nationality || null,
+        }))
+      setDemoClasses(classes)
+    } catch (err) {
+      console.error('Failed to load demo classes:', err)
+      toast.error('Failed to load demo classes')
+    } finally {
+      setLoadingDemoClasses(false)
+    }
+  }, [open, isDemoMode])
+
   useEffect(() => {
     loadFolders()
   }, [open])
+
+  useEffect(() => {
+    loadDemoClasses()
+  }, [loadDemoClasses])
 
   useEffect(() => {
     if (!folders.includes(selectedFolder)) {
       setSelectedFolder('All')
     }
   }, [folders, selectedFolder])
+
+  const updateSelectorPill = useCallback(() => {
+    const list = selectorListRef.current
+    if (!list) return
+    const buttons = Array.from(list.querySelectorAll('button[data-mode]'))
+    const active = buttons.find(b => b.getAttribute('data-state') === 'active')
+    if (!active) return
+    const rect = active.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    setSelectorPill({
+      left: rect.left - listRect.left,
+      width: rect.width,
+    })
+  }, [])
+
+  useEffect(() => {
+    const id = requestAnimationFrame(() => updateSelectorPill())
+    return () => cancelAnimationFrame(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab])
+
+  useEffect(() => {
+    const id = setTimeout(updateSelectorPill, 100)
+    return () => clearTimeout(id)
+  }, [updateSelectorPill])
+
+  useEffect(() => {
+    const handleResize = () => updateSelectorPill()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [updateSelectorPill])
+
+  useEffect(() => {
+    const list = selectorListRef.current
+    if (!list) return
+    const ro = new ResizeObserver(() => updateSelectorPill())
+    ro.observe(list)
+    return () => ro.disconnect()
+  }, [updateSelectorPill])
 
   const handleCreateFolder = async () => {
     const trimmed = newFolderName.trim()
@@ -226,7 +340,23 @@ export function CourseSelectorDialog({
     onOpenChange(false)
   }
 
+  const handleSelectDemoClass = (sessionId: string) => {
+    if (onSelectDemoClass) {
+      onSelectDemoClass(sessionId)
+    } else {
+      router.push(`/tutor/insights?sessionId=${sessionId}`)
+    }
+    onOpenChange(false)
+  }
+
   const folderCount = (folder: string) => {
+    if (isDemoMode) {
+      if (folder === 'All') return filteredDemoClasses.length
+      return demoClasses.filter(d => {
+        const category = d.categories?.[0] || d.subject
+        return category === folder
+      }).length
+    }
     if (folder === 'All') return coursesInTab.length
     return coursesInTab.filter(c => {
       if (c.folder === folder) return true
@@ -266,7 +396,7 @@ export function CourseSelectorDialog({
                   />
                   <Button
                     size="sm"
-                    className="h-9 rounded-full bg-emerald-500 px-3 text-white hover:bg-emerald-600"
+                    className="h-9 rounded-full bg-blue-600 px-3 text-white hover:bg-blue-700"
                     onClick={handleCreateFolder}
                   >
                     <Check className="h-4 w-4" />
@@ -287,36 +417,41 @@ export function CourseSelectorDialog({
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full gap-1 rounded-full border-0 bg-emerald-500 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-white hover:text-emerald-600"
+                  className="w-full gap-1 rounded-full border-0 bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
                   onClick={() => setIsCreatingFolder(true)}
                 >
                   <Plus className="h-4 w-4" /> Folder
                 </Button>
               )}
             </div>
-            <div className="flex flex-1 justify-end">
-              <Tabs value={tab} onValueChange={v => setTab(v as CourseState)}>
-                <TabsList className="grid h-9 grid-cols-3 gap-1 rounded-full bg-white p-1 shadow-sm">
-                  <TabsTrigger
-                    value="published"
-                    className="rounded-full text-xs font-medium data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
+            <div className="flex flex-1">
+              <div
+                ref={selectorListRef}
+                className="relative flex h-10 w-full flex-1 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5 shadow-sm"
+              >
+                {SELECTOR_MODES.map(mode => (
+                  <button
+                    key={mode.value}
+                    data-mode={mode.value}
+                    data-state={tab === mode.value ? 'active' : 'inactive'}
+                    onClick={() => setTab(mode.value)}
+                    className={cn(
+                      'relative z-10 flex flex-1 items-center justify-center rounded-full px-2 text-xs font-medium transition-colors hover:text-white',
+                      tab === mode.value ? 'text-blue-600' : 'text-white/80'
+                    )}
                   >
-                    Published
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="unpublished"
-                    className="rounded-full text-xs font-medium data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
-                  >
-                    Unpublished
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="creating"
-                    className="rounded-full text-xs font-medium data-[state=active]:bg-emerald-500 data-[state=active]:text-white"
-                  >
-                    Creating
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+                    {mode.label}
+                  </button>
+                ))}
+                <div
+                  className="absolute bottom-1.5 top-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ease-out"
+                  style={{
+                    left: selectorPill.left,
+                    width: selectorPill.width,
+                    transitionProperty: 'left, width',
+                  }}
+                />
+              </div>
             </div>
           </div>
 
@@ -428,11 +563,67 @@ export function CourseSelectorDialog({
               </ScrollArea>
             </div>
 
-            {/* Course list */}
+            {/* Course / demo class list */}
             <div className="flex flex-1 flex-col rounded-xl bg-white p-4 shadow-sm">
               <ScrollArea className="flex-1">
                 <div className="space-y-2">
-                  {filteredCourses.length === 0 ? (
+                  {isDemoMode ? (
+                    loadingDemoClasses ? (
+                      <p className="py-8 text-center text-sm text-gray-600">
+                        Loading demo classes…
+                      </p>
+                    ) : filteredDemoClasses.length === 0 ? (
+                      <p className="py-8 text-center text-sm text-gray-600">
+                        No demo classes in this folder.
+                      </p>
+                    ) : (
+                      filteredDemoClasses.map(demo => {
+                        const category = demo.categories?.[0] || demo.subject
+                        return (
+                          <div
+                            key={demo.id}
+                            className="flex items-center justify-between rounded-xl bg-blue-500/50 px-4 py-3 transition-colors hover:bg-blue-500/60"
+                          >
+                            <div className="mr-3 flex flex-1 items-center gap-3 overflow-hidden">
+                              <Play className="h-5 w-5 shrink-0 text-white" />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-white">
+                                  {demo.title}
+                                </p>
+                                <p className="text-[11px] text-white/80">
+                                  {category || 'Uncategorized'}
+                                  {demo.nationality && demo.nationality !== 'Global' && (
+                                    <span className="ml-2 inline-flex items-center gap-1">
+                                      <CountryFlag
+                                        countryName={demo.nationality}
+                                        size="xs"
+                                        showLabel
+                                      />
+                                    </span>
+                                  )}
+                                </p>
+                                {demo.description && (
+                                  <p className="mt-0.5 truncate text-[11px] text-white/70">
+                                    {demo.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <Button
+                                size="sm"
+                                className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-blue-600 hover:bg-white/90"
+                                onClick={() => handleSelectDemoClass(demo.id)}
+                              >
+                                <Edit3 className="h-3 w-3" />
+                                Edit
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )
+                  ) : filteredCourses.length === 0 ? (
                     <p className="py-8 text-center text-sm text-gray-600">
                       No courses in this folder.
                     </p>
