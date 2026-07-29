@@ -38,6 +38,13 @@ import {
 import { BackButton } from '@/components/navigation/BackButton'
 import { CourseCategoryPicker } from './CourseCategoryPicker'
 import { getCategoryBoard } from '@/lib/data/category-board'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 import { CourseSelectorDialog } from '@/components/course/course-selector-dialog'
 import { useSearchParams, usePathname } from 'next/navigation'
@@ -828,6 +835,15 @@ function CourseBuilderInsightsRouteInner({
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
 
+  type CourseStateIndicator = 'creating' | 'unpublished' | 'published'
+  const currentCourseState = useMemo((): CourseStateIndicator => {
+    if (!courseId) return 'creating'
+    if (draftCourses?.some(c => c.id === courseId)) return 'creating'
+    const dbCourse = courses?.find(c => c.id === courseId)
+    if (dbCourse?.isPublished) return 'published'
+    return 'unpublished'
+  }, [courseId, courses, draftCourses])
+
   return (
     <div
       className="text-foreground flex h-full w-full flex-col items-stretch overflow-hidden bg-[#fafafc]"
@@ -960,6 +976,39 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Course state indicator (read-only). Reuses the previous course-state
+                  dropdown styling but is disabled because the state is derived from
+                  the selected course, not chosen by the tutor. */}
+              {activeMainTab !== 'test-pci' && courseId && (
+                <Select value={currentCourseState} disabled>
+                  <SelectTrigger className="h-9 w-[190px] cursor-default border-slate-200 bg-white text-sm font-medium transition-none focus-visible:ring-0 focus-visible:ring-offset-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      value="unpublished"
+                      className="transition-none focus-visible:ring-0"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500" />
+                        Unpublished
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="published" className="transition-none focus-visible:ring-0">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-blue-500" />
+                        Published
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="creating" className="transition-none focus-visible:ring-0">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-amber-500" />
+                        Creating
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               {/* Reflect the real socket connection: emerald when connected,
                   red when a session is live but the socket has dropped, amber
                   when idle (no active session). */}
