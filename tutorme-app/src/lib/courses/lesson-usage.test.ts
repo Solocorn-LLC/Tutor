@@ -2,70 +2,53 @@ import { describe, it, expect } from 'vitest'
 import { computeLessonUsage } from './lesson-usage'
 
 /**
- * These cover the subtle part of the delete guard: a lesson edited in the
- * builder (a template lesson id) must be considered "in use" when material was
- * deployed against a *published copy* of it. Published copies get fresh ids at
- * publish time and correlate to the template lesson only by their `order`.
+ * The delete guard blocks deletion of a lesson only when material was deployed
+ * from that exact lesson id. A published copy of a lesson is a separate row
+ * with its own id, so deployments from a published variant do not block
+ * deletion of the corresponding template lesson.
  */
 describe('computeLessonUsage', () => {
-  // Template lesson t2 (order 1) has two published copies: p2a and p2b.
-  const family = [
-    { lessonId: 't1', order: 0 },
-    { lessonId: 't2', order: 1 },
-    { lessonId: 't3', order: 2 },
-    { lessonId: 'p2a', order: 1 }, // published copy of t2 (variant A)
-    { lessonId: 'p2b', order: 1 }, // published copy of t2 (variant B)
-    { lessonId: 'p1a', order: 0 }, // published copy of t1
-  ]
-
   it('returns empty for no targets', () => {
-    expect(computeLessonUsage([], family, ['p2a'])).toEqual({})
+    expect(computeLessonUsage([], ['p2a'])).toEqual({})
   })
 
   it('marks a lesson with no deployments as deletable', () => {
-    const usage = computeLessonUsage(['t3'], family, ['p2a', 'p1a'])
+    const usage = computeLessonUsage(['t3'], ['p2a', 'p1a'])
     expect(usage.t3).toEqual({ lessonId: 't3', deployedCount: 0, hasDeployments: false })
   })
 
-  it('blocks when material is deployed against the template id directly', () => {
-    const usage = computeLessonUsage(['t2'], family, ['t2'])
+  it('blocks when material is deployed against the exact lesson id', () => {
+    const usage = computeLessonUsage(['t2'], ['t2'])
     expect(usage.t2.hasDeployments).toBe(true)
     expect(usage.t2.deployedCount).toBe(1)
   })
 
-  it('blocks when material is deployed against a published copy (order-correlated)', () => {
-    // Deploy stamped the variant-A published lesson id, not the template id.
-    const usage = computeLessonUsage(['t2'], family, ['p2a'])
-    expect(usage.t2.hasDeployments).toBe(true)
-    expect(usage.t2.deployedCount).toBe(1)
+  it('does not block a template lesson when a different id is deployed', () => {
+    // A published copy (p2a) is no longer considered the same as the template (t2).
+    const usage = computeLessonUsage(['t2'], ['p2a'])
+    expect(usage.t2.hasDeployments).toBe(false)
+    expect(usage.t2.deployedCount).toBe(0)
   })
 
-  it('sums deployments across all correlated copies', () => {
-    const usage = computeLessonUsage(['t2'], family, ['p2a', 'p2a', 'p2b'])
+  it('sums multiple deployments against the same lesson id', () => {
+    const usage = computeLessonUsage(['t2'], ['t2', 't2', 't2'])
     expect(usage.t2.deployedCount).toBe(3)
   })
 
-  it('does not count deployments from a different order', () => {
-    // p1a is order 0; asking about t2 (order 1) must not pick it up.
-    const usage = computeLessonUsage(['t2'], family, ['p1a'])
-    expect(usage.t2).toEqual({ lessonId: 't2', deployedCount: 0, hasDeployments: false })
-  })
-
   it('handles multiple targets independently', () => {
-    const usage = computeLessonUsage(['t1', 't2', 't3'], family, ['p1a', 'p2b'])
-    expect(usage.t1.hasDeployments).toBe(true) // via p1a (order 0)
-    expect(usage.t2.hasDeployments).toBe(true) // via p2b (order 1)
+    const usage = computeLessonUsage(['t1', 't2', 't3'], ['t1', 't2'])
+    expect(usage.t1.hasDeployments).toBe(true)
+    expect(usage.t2.hasDeployments).toBe(true)
     expect(usage.t3.hasDeployments).toBe(false)
   })
 
   it('ignores null/undefined deployed ids', () => {
-    const usage = computeLessonUsage(['t2'], family, [null, undefined, 'p2a'])
+    const usage = computeLessonUsage(['t2'], [null, undefined, 't2'])
     expect(usage.t2.deployedCount).toBe(1)
   })
 
-  it('counts a target not present in the family only by its own id', () => {
-    // A not-yet-persisted lesson id with no family order still matches direct deploys.
-    const usage = computeLessonUsage(['brand-new'], family, ['brand-new'])
+  it('counts a target id that only has direct deployments', () => {
+    const usage = computeLessonUsage(['brand-new'], ['brand-new'])
     expect(usage['brand-new'].hasDeployments).toBe(true)
   })
 })
