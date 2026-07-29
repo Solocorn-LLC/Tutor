@@ -11,6 +11,11 @@ import { AISecurityManager } from '@/lib/security/ai-sanitization'
 import { generateWithKimi, generateWithKimiVision } from '@/lib/ai/kimi'
 import { stripCodeFences } from '@/lib/ai/llm-response'
 import {
+  buildAnswerKeySearchQuery,
+  formatSearchResultsForPrompt,
+  searchAnswerKey,
+} from '@/lib/search/serper'
+import {
   DMI_QUESTION_TYPES,
   DMI_QUESTION_TYPE_LABELS,
   normalizeDmiQuestionType,
@@ -65,13 +70,15 @@ const GenerateDmiRequestSchema = z.object({
 
 const SYSTEM_PROMPT = `You build a DMI: a list of ANSWER INPUT FIELDS for a question paper. The student
 reads the real questions from the deployed document, so for a question paper you must NOT reproduce
-the question wording or any answers — you only output a short reference LABEL per answerable part.
+the question wording in the public label — you only output a short reference LABEL per answerable part.
+However, you MUST also include a hidden "answer" and "rubric" field on every field for the tutor's
+evaluation layer; these are never shown to students.
 
 Return ONLY a JSON object (no prose, no markdown, no code fences) with EXACTLY this shape:
 {
   "documentKind": "question_paper" | "study_material" | "uncertain",
   "fields": [
-    { "label": "Question 1(a)", "type": "short", "marks": 2 },
+    { "label": "Question 1(a)", "type": "short", "marks": 2, "answer": "7", "rubric": "Award 1 mark for method, 1 mark for correct final answer." },
     { "label": "Question 2", "type": "mcq", "options": ["A", "B", "C", "D", "E"], "answer": "C", "marks": 1 }
   ]
 }
@@ -135,29 +142,39 @@ Rules:
   EXACTLY as labelled on the paper (e.g. ["Figure 2"], ["Passage A", "Table 1"], ["the data in
   Question 1"]). Include only materials this specific part references; OMIT entirely when the part is
   self-contained. Never invent a reference that isn't on the paper.
-- "answer" and "rubric": ONLY for study_material (you wrote the questions, so you know the key).
-  "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
-  for short/fill_blank the expected answer; for long a concise model answer. "rubric" = one short
-  sentence of marking guidance for open-ended (short/long) items. For a question_paper you MUST
-  NOT output "answer" or "rubric" — never fabricate answers to the student's real exam.
+- "answer" and "rubric": EVERY field MUST include an "answer". Add a "rubric" for every open-ended
+  (short/long) item and for any item where useful marking guidance exists. These fields are hidden from
+  students and are used only by the tutor's evaluation layer; the student sees only the question reference.
+  - For a question_paper, do NOT put the answer or rubric in the "label" or "questionText"; those fields
+    must remain student-facing references only. The hidden "answer" and "rubric" fields are where the
+    correct answer and marking guidance live.
+  - If the request includes an "Answer-key research results" block from a web search, use it as the primary
+    source for answers and rubrics when it is trustworthy. Match questions by number/reference and fill
+    in the corresponding "answer" field.
+  - If no answer key is found, use your own analysis and reasoning to produce a best-effort answer and
+    concise marking guidance.
+  - For study_material, you authored the questions so you know the key.
+  - "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
+    for short/fill_blank the expected answer; for long a concise model answer.
+  - "rubric" = one short sentence of marking guidance for open-ended (short/long) items.
 
 EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b). Correct JSON:
 {"documentKind":"question_paper","fields":[
-{"label":"Question 1(a)","type":"short"},
-{"label":"Question 1(b)(i)","type":"short"},
-{"label":"Question 1(b)(ii)","type":"short"},
-{"label":"Question 1(c)","type":"long"},
-{"label":"Question 2(a)","type":"short"},
-{"label":"Question 2(b)","type":"long"}
+{"label":"Question 1(a)","type":"short","answer":"3.14","rubric":"Accept 3.14 or 22/7; 1 mark for correct value.","marks":2},
+{"label":"Question 1(b)(i)","type":"short","answer":"x = 2","rubric":"1 mark for isolating x; 1 mark for x = 2.","marks":2},
+{"label":"Question 1(b)(ii)","type":"short","answer":"y = -1","rubric":"1 mark for correct sign and value.","marks":1},
+{"label":"Question 1(c)","type":"long","answer":"Explain using Newton's first law and net force.","rubric":"1 mark for identifying the law; 1 mark for applying it to the scenario; 1 mark for conclusion.","marks":3},
+{"label":"Question 2(a)","type":"short","answer":"photosynthesis","rubric":"Accept either word; no credit for definitions.","marks":1},
+{"label":"Question 2(b)","type":"long","answer":"Compare cell structure and function in plant and animal cells.","rubric":"1 mark per valid comparison up to 3 marks.","marks":3}
 ]}
 
 EXAMPLE — a MIXED paper with sections: "Section A" is multiple-choice (Q1-Q2, five options each),
 "Section B" is a data-response question (Q3 with parts (a),(b)) that refers to a chart. Correct JSON:
 {"documentKind":"question_paper","fields":[
-{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"],"section":"Section A","responseType":"single letter"},
-{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"],"section":"Section A","responseType":"single letter"},
-{"label":"Question 3(a)","type":"short","section":"Section B","responseType":"numeric","sourceDependencies":["Figure 1"]},
-{"label":"Question 3(b)","type":"long","section":"Section B","responseType":"short explanation","sourceDependencies":["Figure 1"]}
+{"label":"Question 1","type":"mcq","options":["A","B","C","D","E"],"answer":"B","section":"Section A","responseType":"single letter"},
+{"label":"Question 2","type":"mcq","options":["A","B","C","D","E"],"answer":"D","section":"Section A","responseType":"single letter"},
+{"label":"Question 3(a)","type":"short","answer":"1450","section":"Section B","responseType":"numeric","sourceDependencies":["Figure 1"],"rubric":"1 mark for correct value read from chart."},
+{"label":"Question 3(b)","type":"long","answer":"The trend increases because...","section":"Section B","responseType":"short explanation","sourceDependencies":["Figure 1"],"rubric":"1 mark for identifying trend; 1 mark for explanation linked to data."}
 ]}
 Output the JSON object and nothing else.`
 
@@ -178,8 +195,9 @@ interface ParsedDmiQuestion {
   section?: string
   /** Expected answer format, distinct from the input `questionType` (ASMT-4). */
   responseType?: string
-  /** Source materials this part depends on (figures/passages/tables), ASMT-4. */
-  sourceDependencies?: string[]
+  /** Source of the answer: 'llm_inferred' when generated by the AI, or
+   *  'marking_scheme' / 'tutor_edited' when supplied otherwise. */
+  answerProvenance?: string
 }
 
 interface ParsedDmiResponse {
@@ -241,11 +259,6 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           ? 'question_paper'
           : null
 
-    // Answer keys & rubrics are trusted ONLY for study material the model itself
-    // authored. For an extracted question paper we never keep a model-supplied
-    // answer (it would be a fabricated key to the student's real exam).
-    const allowAnswerKey = documentKind === 'study_material'
-
     const questions: ParsedDmiQuestion[] = obj.fields
       .map((f, i) => {
         const label = String(f.label ?? '').trim()
@@ -267,11 +280,11 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           ? f.sourceDependencies.map(s => String(s).trim()).filter(Boolean)
           : undefined
         const qType = normalizeTypeToken(typeof f.type === 'string' ? f.type : undefined)
-        const rawAnswer = allowAnswerKey ? String(f.answer ?? '').trim() : ''
+        const rawAnswer = String(f.answer ?? '').trim()
         // For mcq the student submits an option LETTER (A–E), so store the key as
         // a clean letter even if the model returned "C) Paris" or the option text.
         const answerStr = qType === 'mcq' ? normalizeMcqAnswer(rawAnswer, options) : rawAnswer
-        const rubricStr = allowAnswerKey ? String(f.rubric ?? '').trim() : ''
+        const rubricStr = String(f.rubric ?? '').trim()
         return {
           questionNumber: i + 1,
           questionLabel: extractQuestionRef(label),
@@ -531,6 +544,17 @@ export async function POST(request: NextRequest) {
             )} — follow that board's conventions where relevant, but do NOT change question wording or invent marks/answers that the source doesn't support.`
         : ''
 
+    // Web search: try to find a readily accessible answer key / mark scheme for
+    // assessments before asking the model to prepopulate answers. Search is best-
+    // effort and fully optional; missing key or empty results just fall back to the
+    // model's own reasoning.
+    let researchBlock = ''
+    if (type === 'assessment' && (title || examBody || subject)) {
+      const searchQuery = buildAnswerKeySearchQuery(title ?? '', examBody, subject)
+      const searchResults = await searchAnswerKey(searchQuery)
+      researchBlock = formatSearchResultsForPrompt(searchResults)
+    }
+
     let aiResponse: string
 
     if (pdfPages && pdfPages.length > 0) {
@@ -547,7 +571,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
+          text: `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
         },
         ...(hasSourceText
           ? [
@@ -570,7 +594,7 @@ export async function POST(request: NextRequest) {
         timeoutMs: 60000,
       })
     } else {
-      const prompt = `Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}:${specInstruction}${overrideInstruction}${examContextInstruction}\n\n${content}`
+      const prompt = `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}:${specInstruction}${overrideInstruction}${examContextInstruction}\n\n${content}`
       aiResponse = await generateWithKimi(prompt, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
@@ -590,8 +614,15 @@ export async function POST(request: NextRequest) {
 
     // Prefer the strict-JSON output; fall back to the legacy line parser if the
     // model didn't return usable JSON.
-    const { documentKind: modelKind, questions } =
-      parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
+    const parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
+    const { documentKind: modelKind, questions } = parsedResult
+
+    // Tag AI-generated answers so the builder can distinguish them from tutor-edited
+    // or uploaded-marking-scheme answers.
+    const questionsWithProvenance = questions.map(q => ({
+      ...q,
+      answerProvenance: q.answer ? (q.answerProvenance ?? 'llm_inferred') : q.answerProvenance,
+    }))
 
     // A settled kind (tutor override, or a strong code-level paper signal) wins;
     // otherwise use the model's classification.
@@ -611,13 +642,13 @@ export async function POST(request: NextRequest) {
     // surfaced to the tutor.
     const confidence =
       type === 'assessment' && documentKind === 'question_paper'
-        ? scoreDocumentConfidence(questions, content)
+        ? scoreDocumentConfidence(questionsWithProvenance, content)
         : null
 
     let guardrailWarnings: GuardrailViolation[] = []
     if (type === 'assessment') {
       guardrailWarnings = runAssessmentGuardrails(
-        { title, questions: questions.map(q => ({ questionText: q.questionText })) },
+        { title, questions: questionsWithProvenance.map(q => ({ questionText: q.questionText })) },
         { sourceContent: content, confidence: confidence?.level }
       ).violations
 
@@ -663,7 +694,7 @@ export async function POST(request: NextRequest) {
       // True when the source is study material and the tutor hasn't yet chosen
       // the question types/counts — the builder should prompt before deploying.
       needsQuestionSpec: documentKind === 'study_material' && !questionSpec,
-      questions,
+      questions: questionsWithProvenance,
       guardrailWarnings,
       // ASMT-2 document confidence (null for study material). Low → the builder
       // warns the tutor to verify before proceeding.

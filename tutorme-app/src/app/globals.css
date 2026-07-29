@@ -75,6 +75,12 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
+  .panel-header-no-hover,
+  .panel-header-no-hover:hover {
+    transform: none !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+  }
+
   .course-top-header {
     border-radius: 16px;
   }
@@ -733,6 +739,17 @@
   [data-radix-select-content] [data-highlighted] {
     outline: none !important;
     box-shadow: none !important;
+  }
+
+  /* Belt-and-suspenders: suppress the focus-visible ring on the dropdown trigger itself.
+     The shared DropdownMenuTrigger component also injects these utilities; this rule
+     catches any edge cases where the component-level merge is bypassed. */
+  [data-radix-dropdown-menu-trigger]:focus,
+  [data-radix-dropdown-menu-trigger]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    --tw-ring-offset-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 #0000 !important;
   }
 
   /* Typography Hierarchy - Fira Code for headings */

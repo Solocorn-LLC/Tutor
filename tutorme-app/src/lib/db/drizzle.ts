@@ -31,9 +31,19 @@ export function getPool(): Pool {
   }
 
   const isPgBouncer = connectionString.includes('pgbouncer') || process.env.PGBOUNCER === 'true'
+  // Per-instance pool cap. Override with DB_POOL_MAX so total connections across N app
+  // instances (N × max) can be kept under the managed Postgres connection limit (e.g. Neon ~100)
+  // without a code change.
+  const poolMaxEnv = Number(process.env.DB_POOL_MAX)
+  const poolMax =
+    Number.isFinite(poolMaxEnv) && poolMaxEnv > 0
+      ? poolMaxEnv
+      : process.env.NODE_ENV === 'production'
+        ? 50
+        : 5
   const pool = new Pool({
     connectionString,
-    max: process.env.NODE_ENV === 'production' ? 50 : 5,
+    max: poolMax,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
     allowExitOnIdle: true,

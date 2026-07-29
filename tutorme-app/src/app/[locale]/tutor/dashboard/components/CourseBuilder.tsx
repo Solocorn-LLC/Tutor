@@ -217,17 +217,20 @@ import {
   mergeLoadedWithPendingEdits,
 } from '@/lib/courses/course-builder-guards'
 import { resolvePciComposition, inferDocumentKindFromProvenance } from '@/lib/ai/guardrails'
+import { buildClassroomSummaryRequest } from '@/lib/ai/session-tutor-summary'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
-import { getThread, type PciTarget } from './hooks/pci-reducer'
-import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
+import { getThread, type PciTarget, type PciThread } from './hooks/pci-reducer'
+import { type PciMessage, type PciAuditRecord } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
 import { TestTaskChat, type TestTaskChatState, type TestTaskChatMsg } from './TestTaskChat'
+import type { TaskChatMessagePayload } from '@/lib/socket'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
 import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
+import { type AutoGradeResult } from '@/lib/grading/auto-grade'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -320,6 +323,8 @@ import {
   PreviewCard,
 } from './builder-components'
 import { LessonSelectorDialog, NEW_LESSON_VALUE } from './LessonSelectorDialog'
+import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTextEditor'
+import { TaskSlideFontEditor } from './TaskSlideFontEditor'
 import {
   AssessmentBuilderModal,
   TaskBuilderModal,
@@ -348,6 +353,7 @@ import {
   CONTENT_TEMPLATES,
   generateQuestionPaperPDF,
   generateTaskTextPDF,
+  isTaskSlideOverflowing,
   TASK_TEXT_SNAPSHOT_VERSION,
   resolveSelectedItem,
   stringToColor,
@@ -471,7 +477,6 @@ import {
   X,
   Lightbulb,
   Sparkles,
-  History,
   RotateCcw,
   Check,
   Zap,
@@ -507,7 +512,6 @@ import {
   ClipboardList,
   RefreshCw,
   Type,
-  ListChecks,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -620,6 +624,7 @@ function writeDmiFormatPref(courseKey: string, value: DmiFormat): void {
 
 function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   const noun = kind === 'assessment' ? 'assessment' : 'task'
+  const policyWord = kind === 'task' ? 'policy' : 'rubric'
   return (
     <details
       data-pci-anchor="guidance"
@@ -635,9 +640,9 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
         <p>
           <b>PCI is your marking instruction</b> for this {noun} — <i>how</i> you want answers
           marked, not the questions themselves. Chat your rules below; the assistant turns them into
-          a finalized <b>rubric</b>. Save it under <b>Current marking policy</b> (use <b>Edit</b> to
-          paste or refine) — it then guides the AI grading suggestions and how an uploaded marking
-          scheme is read.
+          a finalized <b>{policyWord}</b>. Save it under <b>Current marking policy</b> (use{' '}
+          <b>Edit</b> to paste or refine) — it then guides the AI grading suggestions and how an
+          uploaded marking scheme is read.
         </p>
         <p className="font-semibold">Things worth telling it:</p>
         <ul className="list-disc space-y-0.5 pl-4">
@@ -650,7 +655,7 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
           <li>&ldquo;One mark per valid point, maximum 4.&rdquo;</li>
         </ul>
         <p className="text-blue-700/80">
-          Flow: chat &rarr; the assistant proposes a rubric &rarr; set it as your{' '}
+          Flow: chat &rarr; the assistant proposes a {policyWord} &rarr; set it as your{' '}
           <b>Current marking policy</b> &rarr; it&rsquo;s saved and used when grading. The answer
           key itself comes from the DMI / an uploaded marking scheme — PCI is the <i>policy</i> on
           top.
@@ -741,6 +746,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Loading state shown while generating a text-only task's PDF snapshot
     // before entering Test/Live so the preview has a real sourceDocument.
     const [preparingTestPreview, setPreparingTestPreview] = useState(false)
+    // React-visible mirror of generatingTaskDocRef so the Test Mode task chat
+    // can render a loading state instead of falling back to plain text while the
+    // snapshot is being created.
+    const [isGeneratingTaskTextDoc, setIsGeneratingTaskTextDoc] = useState(false)
 
     // Global styles for hiding Radix modals during drag
     useEffect(() => {
@@ -1202,8 +1211,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Builder state for Task and Assessment
     // Task content is always preserved. Extensions have their own content.
-    // When activeExtensionId is null, we show/edit taskContent/taskPci
-    // When activeExtensionId is set, we show/edit that extension's content
+    // The PCI (marking policy) is shared: it always lives on the base task and is
+    // inherited by every extension. Only content changes when an extension is active.
     const [taskBuilder, setTaskBuilder] = useState<{
       title: string
       taskContent: string
@@ -1211,6 +1220,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       details: string
       /** Append-only PCI approval audit log (TASK-18). */
       pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+      /** Full persisted PCI assistant conversation for the base task (TASK-18+). */
+      pciThread?: PciThread
       /** Current approved structured PCI spec (TASK-6). */
       pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
       sourceDocument?: {
@@ -1228,6 +1239,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         content: string
         pci: string
         sourceDocument?: any
+        /** Full persisted PCI assistant conversation for this extension. */
+        pciThread?: PciThread
       }[]
       activeExtensionId: string | null
     }>({
@@ -1247,6 +1260,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // Current approved structured PCI spec (TASK-6) — persisted at deploy to
       // BuilderTask.pciSpec, mirroring tasks, so the grader gets it too.
       pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
+      /** Append-only PCI approval audit log (TASK-18). */
+      pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+      /** Full persisted PCI assistant conversation for the assessment (TASK-18+). */
+      pciThread?: PciThread
       details: string
       sourceDocument?: {
         fileName: string
@@ -1288,8 +1305,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Which source's guided PCI questionnaire is open ('task' | 'assessment' | null).
     const [pciFormSource, setPciFormSource] = useState<'task' | 'assessment' | null>(null)
     // Directly set the saved PCI (the marking policy used by grading) for the
-    // active context — the active task extension, the base task, or the
-    // assessment. Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
+    // active context. For tasks, the policy is always stored on the base task so
+    // the base task and every extension share one PCI. Assessments keep their own.
+    // Mirrors where applyTaskPciDraft / applyAssessmentPciDraft write.
     const setCurrentPci = (
       source: 'task' | 'assessment',
       text: string,
@@ -1297,14 +1315,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     ) => {
       if (source === 'task') {
         setTaskBuilder(prev => {
-          const base = prev.activeExtensionId
-            ? {
-                ...prev,
-                extensions: prev.extensions.map(ext =>
-                  ext.id === prev.activeExtensionId ? { ...ext, pci: text } : ext
-                ),
-              }
-            : { ...prev, taskPci: text }
+          const base = { ...prev, taskPci: text }
           // TASK-18: record the approval (transcript + approved text) on a real
           // "Apply to PCI" — not on a manual edit/clear (which pass no audit).
           // TASK-6: `pciSpec` holds the current approved structured spec.
@@ -1313,13 +1324,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             : base
         })
       } else {
-        // TASK-6: persist the structured spec on a real "Apply to PCI" (audit
-        // present); a manual edit/clear passes no audit and leaves it as-is.
-        setAssessmentBuilder(prev =>
-          audit ? { ...prev, taskPci: text, pciSpec: audit.spec } : { ...prev, taskPci: text }
-        )
+        // TASK-18: assessments get the same audit log + structured spec parity as tasks.
+        setAssessmentBuilder(prev => {
+          const base = { ...prev, taskPci: text }
+          return audit
+            ? { ...base, pciHistory: [...(prev.pciHistory ?? []), audit], pciSpec: audit.spec }
+            : base
+        })
       }
     }
+
+    const handlePciThreadChange = useCallback((target: PciTarget, thread: PciThread) => {
+      if (target.kind === 'task') {
+        setTaskBuilder(prev => ({ ...prev, pciThread: thread }))
+      } else if (target.kind === 'taskExtension' && target.id) {
+        setTaskBuilder(prev => ({
+          ...prev,
+          extensions: prev.extensions.map(ext =>
+            ext.id === target.id ? { ...ext, pciThread: thread } : ext
+          ),
+        }))
+      } else if (target.kind === 'assessment' && target.id) {
+        setAssessmentBuilder(prev => ({ ...prev, pciThread: thread }))
+      }
+    }, [])
 
     // AI Assist Agent state - separate for task and assessment
     const [aiAssistOpen, setAiAssistOpen] = useState(false)
@@ -1464,6 +1492,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [classroomMessages])
 
+    // Shared state for the LIVE classroom chat stream. Keyed by live task id.
+    const [liveClassroomMessages, setLiveClassroomMessages] = useState<
+      Record<string, TestTaskChatMsg[]>
+    >({})
+
+    // Append a tutor-facing SAI message to the live classroom chat stream.
+    const appendLiveClassroomAiMessage = (taskId: string, content: string, name = 'SAI') => {
+      setLiveClassroomMessages(prev => ({
+        ...prev,
+        [taskId]: [
+          ...(prev[taskId] ?? []),
+          { role: 'ai' as const, name, content, timestamp: Date.now() },
+        ],
+      }))
+    }
+
+    // Accumulator for test-student answers per extension, used to build a class-level
+    // SAI summary when a student clicks "Task Complete".
+    const classroomStudentAnswers = useRef<
+      Record<string, Array<{ studentName: string; answers: string[] }>>
+    >({})
+
     // Current extension key for the Test/Classroom chat preview.
     const getCurrentExtKey = () => {
       const previewExt = taskBuilder.activeExtensionId
@@ -1485,14 +1535,84 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Emit student-interaction events that the tutor-facing classroom AI may use to
-    // generate automated reports. New event types intentionally no-op until guardrails
-    // are defined for them.
-    const emitClassroomAiEvent = (
+    // generate automated reports. On 'task-complete' we ask the Session AI to summarize
+    // the class's responses; individual per-student feedback is not shown in the
+    // classroom stream (that is handled privately in each student tab).
+    const emitClassroomAiEvent = async (
       eventType: 'student-answer' | 'student-ask' | 'task-complete',
       payload: Record<string, unknown>
     ) => {
-      void eventType
-      void payload
+      const key = (payload.extensionId as string) || getCurrentExtKey()
+      const studentName = (payload.studentName as string) || 'Student'
+      const ext = taskBuilder.activeExtensionId
+        ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)
+        : null
+
+      if (eventType === 'student-answer') {
+        const answer = payload.answer as string
+        if (!answer) return
+        const bucket = classroomStudentAnswers.current[key] ?? []
+        const idx = bucket.findIndex(s => s.studentName === studentName)
+        if (idx >= 0) {
+          bucket[idx].answers.push(answer)
+        } else {
+          bucket.push({ studentName, answers: [answer] })
+        }
+        classroomStudentAnswers.current[key] = bucket
+        return
+      }
+
+      if (eventType === 'task-complete') {
+        const answers = Array.isArray(payload.answers) ? (payload.answers as string[]) : []
+        if (answers.length === 0) return
+        const bucket = classroomStudentAnswers.current[key] ?? []
+        const idx = bucket.findIndex(s => s.studentName === studentName)
+        if (idx >= 0) {
+          bucket[idx].answers = answers
+        } else {
+          bucket.push({ studentName, answers })
+        }
+        classroomStudentAnswers.current[key] = bucket
+
+        const totalStudents = testPciTabs.filter(t => t.id.startsWith('student')).length || 2
+        const { message: summaryRequest, context: summaryContext } = buildClassroomSummaryRequest(
+          bucket,
+          {
+            taskId: loadedTaskId || undefined,
+            taskName: ext ? ext.name : taskBuilder.title,
+            courseName,
+            taskContent: ext ? ext.content : taskBuilder.taskContent,
+            taskPci: taskBuilder.taskPci,
+            taskPciSpec: taskBuilder.pciSpec,
+            extensionName: ext?.name ?? null,
+            enrolledStudents: totalStudents,
+            currentDate: new Date().toLocaleDateString(),
+            sessionNumber: 1,
+            attendance: totalStudents > 0 ? '100%' : '0%',
+          }
+        )
+
+        try {
+          const res = await fetchWithCsrf('/api/ai/session-tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: summaryRequest,
+              context: summaryContext,
+              history: [],
+            }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || 'Failed to summarize')
+          appendClassroomAiMessage(data.response || 'Students submitted their answers.', 'SAI')
+        } catch (e) {
+          console.warn('[emitClassroomAiEvent] summary failed:', e)
+          appendClassroomAiMessage(
+            `${bucket.length} student(s) submitted ${bucket.reduce((n, s) => n + s.answers.length, 0)} answer(s).`,
+            'SAI'
+          )
+        }
+      }
     }
 
     // Generate the session AI's initial summary whenever a task is loaded into Test mode.
@@ -1523,6 +1643,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       courseName,
       classroomMessages,
     ])
+
     // Test-tab-only DEBUG control: grade against all available bases (default) or
     // isolate one (PCI / rubric / model answer) to see its effect alone. Never
     // affects student/production grading — only the tutor's test-grade requests.
@@ -1533,6 +1654,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [testDmiAnswers, setTestDmiAnswers] = useState<Record<string, string>>({})
     const [testDmiResults, setTestDmiResults] = useState<
       Record<string, { loading?: boolean; score?: number | null; feedback?: string }>
+    >({})
+    // Deterministic live-style auto-grade preview for DMI answers.
+    const [testDmiAutoResults, setTestDmiAutoResults] = useState<
+      Record<string, AutoGradeResult & { loading?: boolean }>
     >({})
     // How the last-generated DMI was classified (per source). Lets the tutor
     // override a confidently-wrong call — e.g. numbered study notes read as a
@@ -1583,13 +1708,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       type: 'task' | 'assessment'
       signal: 'strong' | 'weak' | 'none' | null
     } | null>(null)
-    // Assessment response-format chooser + MCQ configuration. For a multiple-
-    // choice paper we skip the AI entirely (no tokens spent reading it): the
-    // tutor configures the sections + question counts and the DMI is built
-    // locally, then they click the correct option for each question.
-    const [dmiFormatDialog, setDmiFormatDialog] = useState<{
-      type: 'task' | 'assessment'
-    } | null>(null)
     // Content-source chooser: shown when a PDF is attached AND the text box was
     // edited away from the document's own extraction (the two sources disagree).
     const [dmiSourceDialog, setDmiSourceDialog] = useState<{
@@ -1602,14 +1720,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // endless loop. So we hold it in a ref and reset it only when a fresh,
     // user-initiated generate begins.
     const dmiContentSourceRef = useRef<'document' | 'text' | null>(null)
-    const [mcqConfigDialog, setMcqConfigDialog] = useState<{
-      type: 'task' | 'assessment'
-    } | null>(null)
-    const [mcqSections, setMcqSections] = useState<Array<{ name: string; count: number }>>([
-      { name: '', count: 10 },
-    ])
-    const [mcqChoices, setMcqChoices] = useState(4)
-    const [mcqMarks, setMcqMarks] = useState(1)
+    // Identity (fileKey/fileUrl) of an assessment document the tutor JUST
+    // uploaded and for which the DMI should auto-generate. Set by the upload
+    // handlers only — so opening an existing assessment (hydration) never
+    // triggers a regeneration. Consumed + cleared by the auto-generate effect.
+    const pendingAutoGenDmiRef = useRef<string | null>(null)
     // "Edit marks & answers" review modal — lets the tutor set per-question marks
     // and vet/approve the AI-generated answers before deploying.
     const [dmiEditor, setDmiEditor] = useState<{ source: 'task' | 'assessment' } | null>(null)
@@ -1618,16 +1733,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Tutor's answer-reveal policy applied to deploys: when students may see the
     // correct answers. Default 'instant' preserves the existing live-feedback
     // behaviour; the tutor can switch to reveal-after-submit or hidden.
+    //
+    // Tasks: answer-reveal is derived from the task PCI (free-text instructions or
+    // the structured answerRevealPolicy). We skip the dialog and deploy immediately.
+    // Assessments and homework still show the dialog so the tutor can choose.
     const [deployAnswerReveal, setDeployAnswerReveal] = useState<
       'instant' | 'after_submit' | 'hidden' | 'student_choice'
     >('instant')
-    // When the tutor clicks Deploy, a dialog first asks how/when students see
-    // answers, then runs the actual deploy with the chosen mode.
+    // Dialog state for assessments and homework: the tutor picks the reveal mode
+    // before the actual deploy runs.
     const [deployDialog, setDeployDialog] = useState<{
       run: (reveal: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => void
     } | null>(null)
-    // Any Deploy action routes through this: it opens the answer-reveal dialog,
-    // then runs the real deploy with the chosen mode applied to the payload.
+    // Any Deploy action routes through this. Tasks deploy immediately using the PCI.
+    // Assessments and homework open the answer-reveal dialog first.
     const deployTaskWithDialog = useCallback(
       (payload: LiveTask) => {
         // Attach the tutor's PCI (free-text `instructions` + finalized structured
@@ -1655,10 +1774,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
           if (srcLessonId) break
         }
-        // Deploy-safety: strip the answer key out of the student-facing dmiItems
-        // and carry it separately as `answerKey` (server-only, for grading). Every
-        // deploy path routes through here, so this is the single guarantee that
-        // answers/rubrics never reach students. Block if anything still leaks.
 
         // ASMT-12 gradability gate (assessment-only): the assessment must be
         // internally consistent and fully gradable before deploy — no duplicate
@@ -1679,34 +1794,117 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
         }
 
+        // Deploy-safety: strip the answer key out of the student-facing dmiItems
+        // and carry it separately as `answerKey` (server-only, for grading). Every
+        // deploy path routes through here, so this is the single guarantee that
+        // answers/rubrics never reach students. Block if anything still leaks.
+        const runSafety = (dmiItems?: LiveTask['dmiItems'], providedKey?: LiveTask['answerKey']) =>
+          buildStudentDeployPayload(
+            dmiItems as unknown as RawDeployDmiItem[] | undefined,
+            providedKey
+          )
+
+        const basePci =
+          payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined)
+        const basePciSpec = payload.pciSpec ?? src?.pciSpec
+        const baseLessonId = payload.lessonId ?? srcLessonId
+
+        // For tasks the answer-reveal mode is derived from the PCI, not chosen in
+        // a dialog. Fall back to 'instant' to preserve existing behavior.
+        const deriveTaskAnswerReveal = (
+          pci?: string | null,
+          pciSpec?: import('@/lib/assessment/pci-spec').PciSpec | null
+        ): 'instant' | 'after_submit' | 'hidden' | 'student_choice' =>
+          revealPolicyToDeployMode(pci ?? undefined) ??
+          revealPolicyToDeployMode(pciSpec?.answerRevealPolicy ?? undefined) ??
+          'instant'
+
+        // Legacy single-extension path, or task with no extensions: deploy as a single item.
+        const extensions = src?.extensions ?? []
+        if (payload.source !== 'task' || payload.isExtension || extensions.length === 0) {
+          const {
+            dmiItems: safeDmiItems,
+            answerKey,
+            leaks,
+          } = runSafety(payload.dmiItems, payload.answerKey)
+          if (leaks.length > 0) {
+            console.error('[deploy] evaluation-layer leak blocked:', leaks)
+            toast.error('Answer data was present in the student view. Deploy blocked.')
+            return
+          }
+          const enriched: LiveTask = {
+            ...payload,
+            dmiItems: safeDmiItems,
+            answerKey,
+            pci: basePci,
+            pciSpec: basePciSpec,
+            lessonId: baseLessonId,
+            isExtension: payload.isExtension ?? false,
+          }
+          // Tasks deploy immediately using the PCI-derived reveal mode.
+          if (payload.source === 'task') {
+            insightsProps?.onDeployTask?.({
+              ...enriched,
+              answerReveal: deriveTaskAnswerReveal(basePci, basePciSpec),
+            })
+            return
+          }
+          // Assessments and homework still show the answer-reveal dialog.
+          setDeployDialog({
+            run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
+          })
+          return
+        }
+
+        // Base task + extensions are deployed as a linked set. The base task's PCI
+        // (policy) is inherited by every extension; each extension keeps its own
+        // content and document.
         const {
           dmiItems: safeDmiItems,
           answerKey,
           leaks,
-        } = buildStudentDeployPayload(
-          payload.dmiItems as unknown as RawDeployDmiItem[] | undefined,
-          payload.answerKey
-        )
+        } = runSafety(payload.dmiItems, payload.answerKey)
         if (leaks.length > 0) {
           console.error('[deploy] evaluation-layer leak blocked:', leaks)
           toast.error('Answer data was present in the student view. Deploy blocked.')
           return
         }
 
-        const enriched: LiveTask = {
+        const taskAnswerReveal = deriveTaskAnswerReveal(basePci, basePciSpec)
+
+        const baseTask: LiveTask = {
           ...payload,
           dmiItems: safeDmiItems,
           answerKey,
-          pci:
-            payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined),
-          pciSpec: payload.pciSpec ?? src?.pciSpec,
-          // The lesson this material was deployed from, so the server tags it with
-          // the real lesson (not "Lesson 1").
-          lessonId: payload.lessonId ?? srcLessonId,
+          pci: basePci,
+          pciSpec: basePciSpec,
+          lessonId: baseLessonId,
+          parentId: undefined,
+          isExtension: false,
+          answerReveal: taskAnswerReveal,
         }
-        setDeployDialog({
-          run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
-        })
+
+        const extensionTasks: LiveTask[] = extensions.map(ext => ({
+          id: ext.id,
+          title: ext.name,
+          content: ext.content || ext.description || ext.name,
+          source: 'task',
+          parentId: payload.id,
+          isExtension: true,
+          sourceDocument: ext.sourceDocument,
+          dmiItems: [],
+          answerKey: [],
+          polls: [],
+          questions: [],
+          deployedAt: Date.now(),
+          pci: basePci,
+          pciSpec: basePciSpec,
+          lessonId: baseLessonId,
+          answerReveal: taskAnswerReveal,
+        }))
+
+        const deploySet = [baseTask, ...extensionTasks]
+        deploySet.forEach(task => insightsProps?.onDeployTask?.(task))
       },
       [insightsProps, nodes]
     )
@@ -1834,6 +2032,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       languageOfInstruction: string | null
       roomUrl: string | null
       token: string | null
+      // 1-on-1 (<=2 seats): both sides transmit, so the tutor's video renders the
+      // other participant's camera (see DailyVideoFrame twoWay).
+      twoWay: boolean
     } | null>(null)
     // Student roster is maintained upstream in insights/page.tsx (socket handlers)
     // and passed via insightsProps.students so it survives remounts.
@@ -1877,6 +2078,123 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Track currently loaded item for saving back
     const [loadedTaskId, setLoadedTaskId] = useState<string | null>(null)
     const [loadedAssessmentId, setLoadedAssessmentId] = useState<string | null>(null)
+
+    // Build a class-level SAI summary for a live chat task after a student submits.
+    const summarizeLiveClassroom = useCallback(
+      async (taskId: string, studentName: string, answers: string[]) => {
+        const task = insightsProps?.liveTasks?.find(t => t.id === taskId)
+        if (!task) return
+        const enrolledStudents = insightsProps?.students?.length ?? 0
+        const { message: summaryRequest, context: summaryContext } = buildClassroomSummaryRequest(
+          [{ studentName, answers }],
+          {
+            taskId,
+            taskName: task.title?.trim() || 'Untitled task',
+            courseName,
+            taskContent: task.content || '',
+            taskPci: task.pci,
+            taskPciSpec: task.pciSpec,
+            extensionName: null,
+            enrolledStudents,
+            currentDate: new Date().toLocaleDateString(),
+            sessionNumber: 1,
+            attendance: enrolledStudents > 0 ? '100%' : '0%',
+          }
+        )
+        try {
+          const res = await fetchWithCsrf('/api/ai/session-tutor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: summaryRequest,
+              context: summaryContext,
+              history: [],
+            }),
+          })
+          const data = await res.json().catch(() => ({}))
+          if (!res.ok) throw new Error(data?.error || 'Failed to summarize')
+          appendLiveClassroomAiMessage(
+            taskId,
+            data.response || 'Students submitted their answers.',
+            'SAI'
+          )
+        } catch (e) {
+          console.warn('[summarizeLiveClassroom] summary failed:', e)
+          appendLiveClassroomAiMessage(
+            taskId,
+            `${studentName || 'A student'} submitted ${answers.length} answer(s).`,
+            'SAI'
+          )
+        }
+      },
+      [courseName, insightsProps?.liveTasks, insightsProps?.students]
+    )
+
+    // Seed the live classroom "Session ready." greeting when a chat task is selected.
+    useEffect(() => {
+      if (mainTab !== 'live' || testPciSource !== 'task') return
+      const task = insightsProps?.liveTasks?.find(t => t.id === loadedTaskId)
+      if (!task) return
+      if (task.source !== 'task' || (Array.isArray(task.dmiItems) && task.dmiItems.length > 0))
+        return
+      if (
+        liveClassroomMessages[task.id]?.some(
+          m => m.role === 'ai' && m.content.startsWith('Session ready.')
+        )
+      )
+        return
+      const enrolledStudents = insightsProps?.students?.length ?? 0
+      const summary = [
+        'Session ready.',
+        '',
+        `Task: ${task.title?.trim() || 'Untitled task'}`,
+        `Course: ${courseName?.trim() || 'Live Course'}`,
+        `Enrolled Students: ${enrolledStudents}`,
+        `Date: ${new Date().toLocaleDateString()}`,
+        'Session Number: 1',
+        `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
+      ].join('\n')
+      appendLiveClassroomAiMessage(task.id, summary, 'SAI')
+    }, [
+      mainTab,
+      testPciSource,
+      loadedTaskId,
+      insightsProps?.liveTasks,
+      insightsProps?.students,
+      courseName,
+      liveClassroomMessages,
+    ])
+
+    // Listen for live task-chat messages and completions, and update the tutor
+    // classroom stream accordingly.
+    useEffect(() => {
+      if (!insightsProps?.socket || !insightsProps?.sessionId || !loadedTaskId) return
+      const socket = insightsProps.socket
+      const handleTaskChatMessage = (msg: TaskChatMessagePayload) => {
+        if (msg.taskId !== loadedTaskId) return
+        setLiveClassroomMessages(prev => ({
+          ...prev,
+          [msg.taskId]: [...(prev[msg.taskId] ?? []), msg],
+        }))
+      }
+      const handleTaskCompleted = (payload: {
+        taskId: string
+        studentId: string
+        studentName?: string
+        answers?: Record<string, string>
+      }) => {
+        if (payload.taskId !== loadedTaskId) return
+        const answers = Object.values(payload.answers ?? {})
+        if (answers.length === 0) return
+        void summarizeLiveClassroom(payload.taskId, payload.studentName || 'A student', answers)
+      }
+      socket.on('task:chat_message', handleTaskChatMessage)
+      socket.on('task:completed', handleTaskCompleted)
+      return () => {
+        socket.off('task:chat_message', handleTaskChatMessage)
+        socket.off('task:completed', handleTaskCompleted)
+      }
+    }, [insightsProps?.socket, insightsProps?.sessionId, loadedTaskId, summarizeLiveClassroom])
 
     const canMirrorToStudents = !!(
       insightsProps?.sessionId &&
@@ -1938,6 +2256,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const setExtractedTextFontSize = (val: number) => {
       if (activeItemId) setExtractedTextFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
     }
+
+    const taskSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
+    const [slideFontSizeMap, setSlideFontSizeMap] = useState<Record<string, number>>({})
+    const [slideTextColorMap, setSlideTextColorMap] = useState<Record<string, string>>({})
+    const slideFontSize = activeItemId ? (slideFontSizeMap[activeItemId] ?? 18) : 18
+    const slideTextColor = activeItemId ? (slideTextColorMap[activeItemId] ?? '#000000') : '#000000'
+    const setSlideFontSize = (val: number) => {
+      if (activeItemId) setSlideFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
+    }
+    const setSlideTextColor = (val: string) => {
+      if (activeItemId) setSlideTextColorMap(prev => ({ ...prev, [activeItemId]: val }))
+    }
     // In the LIVE view the poll/question composer targets this task. When no
     // task is loaded in the builder (the common case — the tutor is just running
     // the live session), fall back to the most-recently-deployed live task so the
@@ -1998,8 +2328,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }, [insightsProps?.students])
 
     const activeLiveTask = useMemo(
-      () => (insightsProps?.liveTasks ?? []).find(t => t.id === currentInsightsId) ?? null,
-      [insightsProps?.liveTasks, currentInsightsId]
+      () => (insightsProps?.liveTasks ?? []).find(t => t.id === activeInsightsTaskId) ?? null,
+      [insightsProps?.liveTasks, activeInsightsTaskId]
     )
 
     // Tutor closes a poll/question: server locks it and no more answers land.
@@ -2123,6 +2453,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     const resolvePollOptions = (): string[] | undefined => {
+      // '1-10' is the DEFAULT mode; without this case it returned undefined and
+      // the server fell back to A–E, so students saw the wrong options.
+      if (pollOptionMode === '1-10') return Array.from({ length: 10 }, (_, i) => String(i + 1))
       if (pollOptionMode === 'tf') return ['True', 'False']
       if (pollOptionMode === 'yn') return ['Yes', 'No']
       if (pollOptionMode === 'likert') {
@@ -2263,6 +2596,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           details: task.shortDescription || '',
           // TASK-18: carry the PCI approval audit log so saves preserve/extend it.
           pciHistory: task.pciHistory,
+          // Full persisted PCI conversation thread for the base task.
+          pciThread: task.pciThread,
           // TASK-6: carry the current approved structured spec.
           pciSpec: task.pciSpec,
           sourceDocument: task.sourceDocument,
@@ -2270,6 +2605,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             ...ext,
             description: ext.description || '',
             sourceDocument: ext.sourceDocument,
+            // Full persisted PCI conversation thread for this extension.
+            pciThread: ext.pciThread,
           })),
           activeExtensionId,
         })
@@ -2299,13 +2636,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         } else {
           setTestPciViewMode('pdf')
         }
-        loadPciMessagesRef.current({ kind: 'task' }, parsePciTranscript(task.instructions || ''))
-        for (const ext of task.extensions || []) {
-          loadPciMessagesRef.current(
-            { kind: 'taskExtension', id: ext.id },
-            parsePciTranscript(ext.pci || '')
-          )
-        }
         setLoadedTaskId(task.id)
         setTaskUploadedFiles(
           task.sourceDocument ? [{ id: 'source', name: task.sourceDocument.fileName }] : []
@@ -2324,6 +2654,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         taskContent: content,
         taskPci: assessment.instructions || '',
         pciSpec: assessment.pciSpec,
+        pciHistory: assessment.pciHistory,
+        pciThread: assessment.pciThread,
         details: '',
         sourceDocument: assessment.sourceDocument,
         extensions: [],
@@ -2416,6 +2748,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             languageOfInstruction: data?.session?.languageOfInstruction ?? null,
             roomUrl: data?.session?.roomUrl ?? null,
             token: data?.session?.token ?? null,
+            twoWay: (data?.session?.maxStudents ?? 0) <= 2,
           })
           // Student roster maintained upstream in insights/page.tsx
         } catch {
@@ -2512,6 +2845,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   task.shortDescription === taskBuilder.details &&
                   task.description === taskBuilder.taskContent &&
                   task.instructions === taskBuilder.taskPci &&
+                  task.pciHistory === taskBuilder.pciHistory &&
+                  task.pciSpec === taskBuilder.pciSpec &&
+                  task.pciThread === taskBuilder.pciThread &&
                   task.extensions === taskBuilder.extensions &&
                   task.dmiItems === taskDmiItems &&
                   task.documentKind === (dmiDocumentKind.task ?? task.documentKind) &&
@@ -2532,6 +2868,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   pciHistory: taskBuilder.pciHistory,
                   // TASK-6: persist the current approved structured spec.
                   pciSpec: taskBuilder.pciSpec,
+                  // Full PCI conversation thread (messages, draft, specSoFar) so it
+                  // survives reloads and device changes.
+                  pciThread: taskBuilder.pciThread,
                   extensions: taskBuilder.extensions,
                   dmiItems: taskDmiItems,
                   // Preserve the persisted kind when the session hasn't set one.
@@ -2553,6 +2892,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.details,
       taskBuilder.taskContent,
       taskBuilder.taskPci,
+      taskBuilder.pciHistory,
+      taskBuilder.pciSpec,
+      taskBuilder.pciThread,
       taskBuilder.extensions,
       taskBuilder.sourceDocument,
       taskDmiItems,
@@ -2589,7 +2931,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   hw.title === assessmentBuilder.title &&
                   hw.description === assessmentBuilder.taskContent &&
                   hw.instructions === assessmentBuilder.taskPci &&
+                  hw.pciHistory === assessmentBuilder.pciHistory &&
                   hw.pciSpec === assessmentBuilder.pciSpec &&
+                  hw.pciThread === assessmentBuilder.pciThread &&
                   hw.dmiItems === assessmentDmiItems &&
                   hw.documentKind === (dmiDocumentKind.assessment ?? hw.documentKind) &&
                   hw.dmiVersions === assessmentDmiVersions &&
@@ -2604,7 +2948,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   title: assessmentBuilder.title,
                   description: assessmentBuilder.taskContent,
                   instructions: assessmentBuilder.taskPci,
+                  pciHistory: assessmentBuilder.pciHistory,
                   pciSpec: assessmentBuilder.pciSpec,
+                  pciThread: assessmentBuilder.pciThread,
                   dmiItems: assessmentDmiItems,
                   // Preserve the persisted kind when the session hasn't set one.
                   documentKind: dmiDocumentKind.assessment ?? hw.documentKind,
@@ -2624,7 +2970,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.title,
       assessmentBuilder.taskContent,
       assessmentBuilder.taskPci,
+      assessmentBuilder.pciHistory,
       assessmentBuilder.pciSpec,
+      assessmentBuilder.pciThread,
       assessmentBuilder.sourceDocument,
       assessmentDmiItems,
       assessmentDmiVersions,
@@ -2859,6 +3207,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             token: sessionContext.token,
             autoRecord: !isStudentView,
             isTutor: true,
+            twoWay: sessionContext.twoWay,
           })
         },
         triggerSync: () => {
@@ -3220,6 +3569,63 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }
 
+    // Live-style deterministic auto-grade preview for a single DMI answer.
+    // This matches the socket `task:complete` grading path used in live sessions.
+    const autoGradeTestDmiItem = async (item: DMIQuestion) => {
+      const key = `${testPciActiveTab}:${item.id}`
+      const answer = (testDmiAnswers[key] || '').trim()
+      if (!answer) return
+      setTestDmiAutoResults(prev => ({
+        ...prev,
+        [key]: {
+          loading: true,
+          score: null,
+          questionResults: null,
+          gradable: 0,
+          correct: 0,
+          needsReview: 0,
+          pointsPossible: 0,
+          pointsEarned: 0,
+        },
+      }))
+      try {
+        const res = await fetchWithCsrf('/api/tutor/auto-grade-preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            items: [
+              {
+                id: String(item.id),
+                answer: item.answer || '',
+                marks: item.marks,
+                questionText: item.questionText,
+              },
+            ],
+            answers: { [String(item.id)]: answer },
+          }),
+        })
+        const data = (await res.json().catch(() => ({}))) as AutoGradeResult
+        if (!res.ok)
+          throw new Error((data as unknown as { error?: string }).error || 'Failed to auto-grade')
+        setTestDmiAutoResults(prev => ({ ...prev, [key]: { ...data, loading: false } }))
+      } catch (e) {
+        setTestDmiAutoResults(prev => ({
+          ...prev,
+          [key]: {
+            loading: false,
+            score: null,
+            questionResults: null,
+            gradable: 0,
+            correct: 0,
+            needsReview: 0,
+            pointsPossible: 0,
+            pointsEarned: 0,
+          },
+        }))
+        toast.error(e instanceof Error ? e.message : 'Failed to auto-grade')
+      }
+    }
+
     // Handle Test PCI answer submission with AI scoring
     const handleTestPciSubmit = async () => {
       const currentInput = testPciInputs[testPciActiveTab] || ''
@@ -3229,14 +3635,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setTestPciInputs(prev => ({ ...prev, [testPciActiveTab]: '' }))
       setTestPciLoading(true)
 
-      // Get PCI content from the active item — an active extension uses its own
-      // PCI (empty for a fresh extension), never the parent task's.
-      const pciContent =
-        testPciSource === 'task'
-          ? taskBuilder.activeExtensionId
-            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci || ''
-            : taskBuilder.taskPci
-          : assessmentBuilder.taskPci
+      // Get PCI content from the active task. Extensions share the base task's
+      // marking policy, so always read from the base task's PCI.
+      const pciContent = testPciSource === 'task' ? taskBuilder.taskPci : assessmentBuilder.taskPci
 
       // Determine which tabs to update
       const tabsToUpdate: string[] = []
@@ -3677,7 +4078,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         : currentAssessmentDocument
 
       const hasContent = content.trim().length > 0
-      const hasPdf = sourceDoc?.mimeType === 'application/pdf' && sourceDoc.fileUrl
+      // Accept a fileKey-only PDF (assets stored by storage key with an empty
+      // fileUrl): the extractor/renderer below already fall back to the by-key
+      // proxy. Requiring fileUrl here silently skipped PDF reading for
+      // asset-library uploads, so auto-generation produced nothing.
+      const hasPdf =
+        sourceDoc?.mimeType === 'application/pdf' && !!(sourceDoc.fileUrl || sourceDoc.fileKey)
 
       if (!hasContent && !hasPdf) {
         toast.error('Please add Assessment content or load a PDF first')
@@ -3714,10 +4120,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         contentSource,
         sourcesDisagree,
       })
-      if (dmiGate === 'format') {
-        setDmiFormatDialog({ type })
-        return
-      }
       if (dmiGate === 'source') {
         setDmiSourceDialog({ type })
         return
@@ -4007,9 +4409,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
 
-        // Study material: the AI also drafted answers — open the review modal so
-        // the tutor can set marks and vet/approve the answers before deploying.
-        if (isStudyMaterial) {
+        // Open the DMI editor so the tutor can review and edit the AI-prepopulated
+        // answers/rubrics. For study material this also vets the generated questions;
+        // for question papers it vets the inferred answer key before deployment.
+        if (type === 'assessment') {
           setDmiEditor({ source: isTask ? 'task' : 'assessment' })
         }
       } catch (error) {
@@ -4047,94 +4450,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setDmiSourceDialog(null)
       dmiContentSourceRef.current = 'text'
       if (type) void handleGenerateDMI(type, undefined, undefined, true, 'text')
-    }
-
-    // Response-format choice → free-response runs the AI flow; multiple-choice
-    // opens the MCQ configuration dialog (no AI).
-    const handleChooseFreeResponse = () => {
-      const type = dmiFormatDialog?.type
-      setDmiFormatDialog(null)
-      if (type) void handleGenerateDMI(type, undefined, undefined, true)
-    }
-    const handleChooseMultipleChoice = () => {
-      const type = dmiFormatDialog?.type
-      setDmiFormatDialog(null)
-      if (!type) return
-      setMcqSections([{ name: '', count: 10 }])
-      setMcqChoices(4)
-      setMcqMarks(1)
-      setMcqConfigDialog({ type })
-    }
-
-    // Build the MCQ DMI locally from the tutor's configuration — no LLM call.
-    // Each question is a blank `mcq` with N lettered choices; the tutor then
-    // clicks the correct option (which fills the answer key). Grouped by the
-    // named sections, numbered continuously across the paper.
-    const generateMcqDmi = () => {
-      const type = mcqConfigDialog?.type
-      if (!type) return
-      const sections = mcqSections
-        .map(s => ({ name: s.name.trim(), count: Math.max(0, Math.round(s.count) || 0) }))
-        .filter(s => s.count > 0)
-      if (sections.length === 0) {
-        toast.error('Add at least one section with a question count above zero.')
-        return
-      }
-      const choices = Math.max(2, Math.min(8, Math.round(mcqChoices) || 4))
-      const marks = Math.max(1, Math.round(mcqMarks) || 1)
-      const items: DMIQuestion[] = []
-      let n = 0
-      for (const sec of sections) {
-        for (let i = 0; i < sec.count; i++) {
-          n++
-          items.push({
-            id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-            questionNumber: n,
-            questionLabel: String(n),
-            questionText: '',
-            answer: '',
-            marks,
-            questionType: 'mcq',
-            options: Array(choices).fill(''),
-            section: sec.name || undefined,
-          })
-        }
-      }
-      if (items.length > 200) {
-        toast.error('That is over 200 questions — please split it up.')
-        return
-      }
-      const isTask = type === 'task'
-      const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
-      const nextVersionNumber = existingVersions.length + 1
-      const newVersion: DMIVersion = {
-        id: `dmi-version-${Date.now()}`,
-        versionNumber: nextVersionNumber,
-        items,
-        createdAt: Date.now(),
-        taskId: isTask ? loadedTaskId || undefined : undefined,
-        assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
-        sections: deriveSections(items),
-        totalMarks: deriveTotalMarks(items),
-      }
-      setDmiDocumentKind(prev => ({ ...prev, [type]: 'question_paper' }))
-      if (isTask) {
-        setTaskDmiItems(items)
-        setTaskDmiVersions(prev => [...prev, newVersion])
-        setTestPciSource('task')
-        setTestPciViewMode(`dmi_${newVersion.id}`)
-      } else {
-        setAssessmentDmiItems(items)
-        setAssessmentDmiVersions(prev => [...prev, newVersion])
-        setTestPciSource('assessment')
-        setTestPciViewMode(`dmi_${newVersion.id}`)
-      }
-      setMcqConfigDialog(null)
-      toast.success(
-        `DMI created with ${items.length} multiple-choice question${items.length !== 1 ? 's' : ''} — click the correct option for each.`
-      )
-      // Open the editor so the tutor can immediately mark the correct answers.
-      setDmiEditor({ source: type })
     }
 
     // Load a specific DMI version
@@ -4424,6 +4739,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstTask) ensureSectionExpanded(nodeId, 'task')
       setEditingData(newTask)
+      revealCurriculumItem('task', newTask.id)
       setActiveModal({ type: 'task', isOpen: true, nodeId, lessonId })
     }
 
@@ -4465,6 +4781,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.push(newAssessment)
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstAssessment) ensureSectionExpanded(nodeId, 'assessment')
+      revealCurriculumItem('homework', newAssessment.id)
       // Just add to list without opening modal - same as addTask behavior
       toast.success('Assessment added')
     }
@@ -4628,6 +4945,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return
 
       generatingTaskDocRef.current = true
+      setIsGeneratingTaskTextDoc(true)
       try {
         const { blob, fileName, snapshotVersion } = await generateTaskTextPDF(
           taskBuilder.title || 'Task',
@@ -4697,6 +5015,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         toast.error(err instanceof Error ? err.message : 'Failed to convert text to PDF')
       } finally {
         generatingTaskDocRef.current = false
+        setIsGeneratingTaskTextDoc(false)
       }
     }, [
       loadedTaskId,
@@ -5217,6 +5536,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       } else {
         // Add new task if not found
         newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].tasks.push(data)
+        revealCurriculumItem('task', data.id)
       }
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'task', isOpen: false })
@@ -5264,6 +5584,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       } else {
         // Add new homework/assessment if not found
         newCourseBuilderNodes[nodeIndex].lessons[lessonIndex].homework.push(data)
+        revealCurriculumItem('homework', data.id)
       }
       setCourseBuilderNodes(newCourseBuilderNodes)
       setActiveModal({ type: 'homework', isOpen: false })
@@ -5620,6 +5941,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ]
       setCourseBuilderNodes(newCourseBuilderNodes)
       setSelectedItem({ type: 'task', id: copy.id })
+      revealCurriculumItem('task', copy.id)
       toast.success('Task duplicated')
     }
 
@@ -5641,6 +5963,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ]
       setCourseBuilderNodes(newCourseBuilderNodes)
       setSelectedItem({ type: 'homework', id: copy.id })
+      revealCurriculumItem('homework', copy.id)
       toast.success('Assessment duplicated')
     }
 
@@ -6014,9 +6337,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 }))
               )
               toast.success(`Loaded '${asset.name}' into Assessment`)
-              // DMI-first: auto-generate the DMI now (the PCI chat stays locked
-              // until it's ready). Kind detection asks the tutor if unsure.
-              setTimeout(() => handleGenerateDMI('assessment'), 500)
+              // DMI-first: auto-generate the DMI once the new document commits to
+              // state (handled by the auto-generate effect, which reads fresh
+              // state instead of a stale setTimeout closure).
+              pendingAutoGenDmiRef.current = newDoc.fileKey || newDoc.fileUrl || null
             } else {
               // For tasks, load document and text
               if (!asset.url && !asset.fileKey) {
@@ -6203,6 +6527,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }))
           )
           toast.success(`Loaded '${newAsset.name}' into Assessment`)
+          // Auto-generate the DMI from the freshly uploaded document.
+          pendingAutoGenDmiRef.current = newDoc.fileKey || newDoc.fileUrl || null
           return
         }
 
@@ -6519,13 +6845,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setLoadAsModalOpen(false)
       setAssetToLoad(null)
 
-      // DMI-first: generate the DMI (questions + answers/marks)
-      // right away. The marking-policy (PCI) chat stays locked
-      // until the DMI is ready. handleGenerateDMI detects the
-      // document kind and asks the tutor to confirm if unsure.
-      setTimeout(() => {
-        handleGenerateDMI('assessment')
-      }, 500)
+      // DMI-first: auto-generate the DMI once the loaded assessment commits.
+      // Flag it for the auto-generate effect (which reads FRESH state) rather
+      // than a stale-closure setTimeout that read the previously-open
+      // assessment's state — that was why loading a paper from the asset library
+      // never generated anything.
+      pendingAutoGenDmiRef.current = asset.fileKey || asset.url || null
     }
 
     const handleLoadAsset = (
@@ -7755,8 +8080,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ? activeTaskExtension.sourceDocument
       : taskSourceDocument || taskBuilder.sourceDocument
     const hasTaskDocument = !!currentTaskDocument
+    const hasUploadedTaskDocument = !!currentTaskDocument && !currentTaskDocument.generatedFromText
 
     const currentAssessmentDocument = assessmentSourceDocument || assessmentBuilder.sourceDocument
+
+    // Auto-generate the DMI the moment a freshly uploaded assessment document
+    // commits to state. Gated on `pendingAutoGenDmiRef` (set only by the upload
+    // handlers) so opening an EXISTING assessment never triggers it, and it reads
+    // fresh state (unlike the old stale-closure setTimeout).
+    //
+    // Crucially: only CLEAR the flag when we actually fire (or the doc can never
+    // qualify). A transient `!canEdit` / `dmiGenerating` on the first render must
+    // NOT consume the flag — otherwise the auto-generate is silently cancelled
+    // before conditions settle. That was the bug that stopped it firing at all.
+    useEffect(() => {
+      const doc = currentAssessmentDocument
+      const docId = doc?.fileKey || doc?.fileUrl || null
+      if (!docId || pendingAutoGenDmiRef.current !== docId) return
+      // Non-PDF can't be auto-read — retire the flag and bail (no retry).
+      if (doc?.mimeType !== 'application/pdf') {
+        pendingAutoGenDmiRef.current = null
+        return
+      }
+      // Wait WITHOUT clearing until editing is allowed and nothing is generating,
+      // so a transient state doesn't cancel the pending auto-generate.
+      if (!canEdit || dmiGenerating) return
+      pendingAutoGenDmiRef.current = null
+      void handleGenerateDMI('assessment')
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentAssessmentDocument, dmiGenerating, canEdit])
 
     // An image scan or an Office file (Word / PowerPoint, modern or legacy) —
     // documents whose figures text/OCR extraction drops, but that we can turn
@@ -7844,6 +8196,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       autoCreateAssessment,
       renderPdfToImages,
       pdfPageCache,
+      // Persisted server-side threads live in the lesson JSON and survive reloads.
+      initialTaskThread: taskBuilder.pciThread,
+      initialExtensionThreads: Object.fromEntries(
+        taskBuilder.extensions
+          .filter(ext => ext.pciThread)
+          .map(ext => [ext.id, ext.pciThread as PciThread])
+      ),
+      initialAssessmentThread: assessmentBuilder.pciThread,
+      onThreadChange: handlePciThreadChange,
       // DMI digest (marks + rubric, no answers) so the policy chat sees the
       // actual questions/marks/rubrics.
       assessmentMarkingScheme: assessmentDmiItems
@@ -7911,10 +8272,43 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
 
     const activeTaskPciMessages = activeTaskThread.messages
-    // The saved PCI (marking policy) for the active context — what grading uses.
-    const activeTaskPci = taskBuilder.activeExtensionId
-      ? (taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ?? '')
-      : taskBuilder.taskPci
+    // The saved PCI (marking policy) for tasks. Extensions share the base task's
+    // policy, so always read from the base task.
+    const activeTaskPci = taskBuilder.taskPci
+    // Small status badge showing whether the PCI is empty, finalized, or has a
+    // draft conversation in progress. Helps tutors know the state at a glance
+    // when they reopen a task after leaving the course.
+    const PciStatusBadge = ({
+      value,
+      history,
+      thread,
+    }: {
+      value: string
+      history?: PciAuditRecord[]
+      thread?: PciThread
+    }) => {
+      const hasFinalized = value.trim().length > 0 && (history?.length ?? 0) > 0
+      const hasDraft = (thread?.messages?.length ?? 0) > 0 || !!thread?.draft
+      let label = 'No PCI set'
+      let className = 'bg-slate-100 text-slate-600'
+      if (hasFinalized) {
+        label = 'PCI finalized'
+        className = 'bg-emerald-100 text-emerald-700'
+      } else if (hasDraft) {
+        label = 'PCI draft in progress'
+        className = 'bg-amber-100 text-amber-700'
+      } else if (value.trim()) {
+        label = 'PCI set (manual)'
+        className = 'bg-blue-100 text-blue-700'
+      }
+      return (
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+        >
+          {label}
+        </span>
+      )
+    }
     // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
     const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
       <div
@@ -7922,7 +8316,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold text-slate-700">Current marking policy (PCI)</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-700">Current marking policy (PCI)</span>
+            <PciStatusBadge
+              value={value}
+              history={source === 'task' ? taskBuilder.pciHistory : assessmentBuilder.pciHistory}
+              thread={
+                source === 'task'
+                  ? activeTaskThread
+                  : loadedAssessmentId
+                    ? pci.assessments[loadedAssessmentId]
+                    : undefined
+              }
+            />
+          </div>
           <div className="flex items-center gap-2">
             {value.trim() && canEdit && (
               <button
@@ -8071,7 +8478,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // editor so a stale view preference can't strand the tutor — lives in the
     // tested resolveDocPaneVisibility helper.
     const taskView = resolveDocPaneVisibility({
-      hasDocument: hasTaskDocument,
+      hasDocument: hasUploadedTaskDocument,
       savedTextVisible: loadedTaskId ? taskTextVisibleMap[loadedTaskId] : undefined,
       savedPdfVisible: loadedTaskId ? taskPdfVisibleMap[loadedTaskId] : undefined,
     })
@@ -8105,25 +8512,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setAssessmentPdfVisibleMap(prev => ({ ...prev, [loadedAssessmentId]: val }))
     }
 
-    // Auto-switch task panels based on document presence
+    // Auto-switch task panels based on whether there is an uploaded document.
+    // Generated-from-text snapshots are intentionally treated as "no document"
+    // in the Slide builder so the tutor only sees the editable slide canvas there.
     useEffect(() => {
       if (loadedTaskId) {
         setTaskTextVisibleMap(prev => {
-          const expected = !hasTaskDocument
+          const expected = !hasUploadedTaskDocument
           if (prev[loadedTaskId] === expected) return prev
           return { ...prev, [loadedTaskId]: expected }
         })
         setTaskPdfVisibleMap(prev => {
-          const expected = hasTaskDocument
+          const expected = hasUploadedTaskDocument
           if (prev[loadedTaskId] === expected) return prev
           return { ...prev, [loadedTaskId]: expected }
         })
       }
-    }, [loadedTaskId, hasTaskDocument])
+    }, [loadedTaskId, hasUploadedTaskDocument])
 
     // DMI-first kickoff: once the assessment's DMI is ready (chat unlocked) and
-    // the marking-policy chat has no messages yet, auto-start the guided flow —
-    // the agent first summarizes the assessment (using the DMI it already has)
+    // the marking-policy chat has no user messages yet, auto-start the guided flow
+    // — the agent first summarizes the assessment (using the DMI it already has)
     // for the tutor to confirm, then walks the general marking policy. Fires
     // once per assessment.
     const pciKickoffRef = useRef<Set<string>>(new Set())
@@ -8131,39 +8540,49 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const id = loadedAssessmentId
       if (!id || !assessmentDmiReady || !canEdit) return
       const thread = getThread(pci, { kind: 'assessment', id })
-      if (thread.messages.length > 0 || thread.loading) return
+      const hasUserMessage = thread.messages.some(m => m.role === 'user')
+      if (hasUserMessage || thread.loading) return
       if (pciKickoffRef.current.has(id)) return
       pciKickoffRef.current.add(id)
-      const t = setTimeout(() => {
+      // Defer to the next microtask so the render finishes and the once-per-target
+      // guard survives React Strict Mode's double effect run. With setTimeout, the
+      // first cleanup would clear the pending timeout and the second run would see
+      // the id already in the ref, so the kickoff would never fire in dev.
+      queueMicrotask(() => {
         handlePciSend(
           'assessment',
           'You already have the questions, sections, and marks (the DMI), so do not ask me about the questions, types, sections, or marks. First give me a brief summary of this assessment — what it covers, its sections / question types, and the total marks — so I can confirm you have understood it, then guide me through the GENERAL marking policy for the whole assessment one simple question at a time (how marks are awarded — method vs final answer, partial credit — how to handle wrong / partial / no answers, and tone), in clear, simple language with a small example each time. Only ask about a specific question if its marking differs from the general rule.'
         )
-      }, 300)
-      return () => clearTimeout(t)
+      })
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadedAssessmentId, assessmentDmiReady, canEdit])
 
     // Task PCI first-open kickoff: when the tutor opens the PCI tab for a task
-    // (or task extension) and the chat is empty, auto-request the grounded summary
-    // so the tutor does not have to type a first message. Fires once per target.
+    // (or task extension) and no user message has been sent yet, auto-request the
+    // grounded summary so the tutor does not have to type a first message. Saved
+    // assistant-only policy is ignored because it is not a conversation turn.
+    // Fires once per target.
     useEffect(() => {
       if (taskBuilderActiveTab !== 'pci') return
       const taskId = loadedTaskId
       if (!taskId) return
       const extId = taskBuilder.activeExtensionId
       const targetId = extId ? `ext:${extId}` : `task:${taskId}`
-      if (activeTaskThread.messages.length > 0 || activeTaskThread.loading) return
+      const hasUserMessage = activeTaskThread.messages.some(m => m.role === 'user')
+      if (hasUserMessage || activeTaskThread.loading) return
       if (pciKickoffRef.current.has(targetId)) return
       pciKickoffRef.current.add(targetId)
-      const t = setTimeout(() => {
+      // Defer to the next microtask so the render finishes and the once-per-target
+      // guard survives React Strict Mode's double effect run. With setTimeout, the
+      // first cleanup would clear the pending timeout and the second run would see
+      // the target already in the ref, so the kickoff would never fire in dev.
+      queueMicrotask(() => {
         handlePciSend(
           'task',
           'Please summarize this task based on the provided context, including its role in the lesson and course.',
           true
         )
-      }, 300)
-      return () => clearTimeout(t)
+      })
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [taskBuilderActiveTab, loadedTaskId, taskBuilder.activeExtensionId])
 
@@ -9248,36 +9667,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                         </Button>
                                                                       </DropdownMenuTrigger>
                                                                       <DropdownMenuContent align="end">
-                                                                        {insightsProps?.onDeployTask && (
-                                                                          <DropdownMenuItem
-                                                                            className="font-medium text-emerald-600 focus:text-emerald-600"
-                                                                            onClick={e => {
-                                                                              e.stopPropagation()
-                                                                              deployTaskWithDialog({
-                                                                                id: ext.id,
-                                                                                title: ext.name,
-                                                                                content:
-                                                                                  ext.description ||
-                                                                                  ext.name,
-                                                                                source: 'task',
-                                                                                parentId: task.id,
-                                                                                isExtension: true,
-                                                                                // Carry the extension's OWN document so the
-                                                                                // live session shows its content, not the
-                                                                                // parent task's.
-                                                                                sourceDocument:
-                                                                                  ext.sourceDocument,
-                                                                                deployedAt:
-                                                                                  Date.now(),
-                                                                                polls: [],
-                                                                                questions: [],
-                                                                              })
-                                                                            }}
-                                                                          >
-                                                                            <Send className="mr-2 h-4 w-4" />
-                                                                            Deploy
-                                                                          </DropdownMenuItem>
-                                                                        )}
                                                                         <DropdownMenuItem
                                                                           className="text-red-500"
                                                                           onClick={(e: any) => {
@@ -9288,11 +9677,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                               )
                                                                             )
                                                                               return
-                                                                            // The deleted
-                                                                            // extension's PCI
-                                                                            // thread becomes
-                                                                            // unreachable; no
-                                                                            // explicit prune
+                                                                            // The extension is
+                                                                            // removed from the
+                                                                            // directory; its PCI
+                                                                            // was shared with the
+                                                                            // base task, so no
+                                                                            // separate cleanup is
                                                                             // needed.
                                                                             setTaskBuilder(
                                                                               prev => ({
@@ -10563,7 +10953,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         return
                                                       const opts = resolvePollOptions()
                                                       insightsProps.onSendPoll({
-                                                        taskId: currentInsightsId,
+                                                        taskId: activeInsightsTaskId,
                                                         question: pollPrompt,
                                                         options: opts,
                                                       })
@@ -10688,7 +11078,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       )
                                                         return
                                                       insightsProps.onSendQuestion({
-                                                        taskId: currentInsightsId,
+                                                        taskId: activeInsightsTaskId,
                                                         prompt: questionPrompt,
                                                       })
                                                       setQuestionPrompt('')
@@ -10961,17 +11351,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   ? 'Test Student 2'
                                                   : 'Student'
 
+                                            const isTextOnlyTaskWithoutDoc =
+                                              !previewExt?.sourceDocument &&
+                                              !currentTaskDocument &&
+                                              (previewExt
+                                                ? previewExt.content
+                                                : taskBuilder.taskContent
+                                              ).trim().length > 0
+                                            const isPreparingTaskDoc =
+                                              isTextOnlyTaskWithoutDoc &&
+                                              (preparingTestPreview || isGeneratingTaskTextDoc)
+
+                                            if (isPreparingTaskDoc) {
+                                              return (
+                                                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-slate-500">
+                                                  <Loader2 className="h-5 w-5 animate-spin" />
+                                                  <span className="text-sm">
+                                                    Preparing task document…
+                                                  </span>
+                                                </div>
+                                              )
+                                            }
+
                                             return (
                                               <div className="h-full min-h-0 w-full">
                                                 <TestTaskChat
-                                                  pci={
-                                                    (previewExt
-                                                      ? previewExt.pci
-                                                      : taskBuilder.taskPci) || ''
-                                                  }
-                                                  pciSpec={
-                                                    previewExt ? undefined : taskBuilder.pciSpec
-                                                  }
+                                                  taskId={loadedTaskId || undefined}
+                                                  pci={taskBuilder.taskPci || ''}
+                                                  pciSpec={taskBuilder.pciSpec}
                                                   questionText={
                                                     loadedTaskId
                                                       ? `${taskBuilder.title}\n\n${previewExt ? previewExt.content : taskBuilder.taskContent}`
@@ -11033,18 +11440,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ],
                                                       }))
                                                     } else {
-                                                      // Student message → add to classroom view with student name
-                                                      const studentMsg = {
-                                                        ...msg,
-                                                        name: studentTabName,
+                                                      // Only relay actual student messages to the classroom view.
+                                                      // AI/tutor feedback generated for an individual student is
+                                                      // not shown to the tutor, otherwise large classes would
+                                                      // flood the classroom stream with per-student responses.
+                                                      if (msg.role === 'student') {
+                                                        const studentMsg = {
+                                                          ...msg,
+                                                          name: studentTabName,
+                                                        }
+                                                        setClassroomMessages(prev => ({
+                                                          ...prev,
+                                                          [extKey]: [
+                                                            ...(prev[extKey] ?? []),
+                                                            studentMsg,
+                                                          ],
+                                                        }))
                                                       }
-                                                      setClassroomMessages(prev => ({
-                                                        ...prev,
-                                                        [extKey]: [
-                                                          ...(prev[extKey] ?? []),
-                                                          studentMsg,
-                                                        ],
-                                                      }))
                                                     }
                                                   }}
                                                   onReset={() => {
@@ -11072,6 +11484,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     delete testTaskChatStore.current[
                                                       `${extKey}:classroom`
                                                     ]
+                                                    // 4. Clear accumulated student answers used for SAI summaries
+                                                    delete classroomStudentAnswers.current[extKey]
                                                     try {
                                                       localStorage.setItem(
                                                         'tutor-test-chat-store-v1',
@@ -11127,6 +11541,69 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             extensionId: extKey,
                                                             studentName: studentTabName,
                                                           })
+                                                  }
+                                                />
+                                              </div>
+                                            )
+                                          }
+
+                                          // Live classroom chat task: use the same TestTaskChat
+                                          // component as Test mode so the tutor sees identical
+                                          // document popup / avatars / SAI summary behavior.
+                                          const activeLiveChatTask =
+                                            insightsProps?.liveTasks?.find(
+                                              t => t.id === loadedTaskId
+                                            ) ?? null
+                                          if (
+                                            mainTab === 'live' &&
+                                            testPciSource === 'task' &&
+                                            tab.id === 'classroom' &&
+                                            activeLiveChatTask &&
+                                            activeLiveChatTask.source === 'task' &&
+                                            !(
+                                              Array.isArray(activeLiveChatTask.dmiItems) &&
+                                              activeLiveChatTask.dmiItems.length > 0
+                                            )
+                                          ) {
+                                            const taskId = activeLiveChatTask.id
+                                            return (
+                                              <div className="h-full min-h-0 w-full">
+                                                <TestTaskChat
+                                                  taskId={taskId}
+                                                  mode="classroom"
+                                                  pci={activeLiveChatTask.pci}
+                                                  pciSpec={activeLiveChatTask.pciSpec}
+                                                  questionText={`${activeLiveChatTask.title}\n\n${activeLiveChatTask.content}`}
+                                                  sourceDocument={activeLiveChatTask.sourceDocument}
+                                                  incomingMessages={liveClassroomMessages[taskId]}
+                                                  tutorAvatarUrl={tutorAvatarUrl}
+                                                  onBroadcast={msg => {
+                                                    if (
+                                                      !insightsProps?.socket ||
+                                                      !insightsProps?.sessionId
+                                                    )
+                                                      return
+                                                    insightsProps.socket.emit('task:chat_message', {
+                                                      roomId: insightsProps.sessionId,
+                                                      taskId,
+                                                      role: 'tutor',
+                                                      content: msg.content,
+                                                      name: 'Tutor',
+                                                      timestamp: Date.now(),
+                                                    })
+                                                  }}
+                                                  onTutorNote={note =>
+                                                    appendLiveClassroomAiMessage(
+                                                      taskId,
+                                                      note,
+                                                      'SAI'
+                                                    )
+                                                  }
+                                                  onReset={() =>
+                                                    setLiveClassroomMessages(prev => ({
+                                                      ...prev,
+                                                      [taskId]: [],
+                                                    }))
                                                   }
                                                 />
                                               </div>
@@ -11336,11 +11813,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           </p>
                                                         )}
                                                         {mainTab === 'test-pci' &&
-                                                          testPciSource === 'assessment' &&
                                                           canEdit &&
                                                           (() => {
                                                             const ak = `${testPciActiveTab}:${item.id}`
-                                                            const result = testDmiResults[ak]
+                                                            const answer = (
+                                                              testDmiAnswers[ak] || ''
+                                                            ).trim()
+                                                            const autoResult =
+                                                              testDmiAutoResults[ak]
+                                                            const llmResult = testDmiResults[ak]
                                                             return (
                                                               <div className="mt-2 border-t border-gray-200 pt-2">
                                                                 <textarea
@@ -11356,39 +11837,105 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   aria-label={`Test answer for question ${item.questionLabel ?? item.questionNumber}`}
                                                                   className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
                                                                 />
-                                                                <div className="mt-1 flex items-center gap-2">
+                                                                <div className="mt-1 flex flex-wrap items-center gap-2">
                                                                   <button
                                                                     type="button"
                                                                     disabled={
-                                                                      result?.loading ||
-                                                                      !(
-                                                                        testDmiAnswers[ak] || ''
-                                                                      ).trim()
+                                                                      autoResult?.loading || !answer
                                                                     }
                                                                     onClick={() =>
-                                                                      gradeTestDmiItem(item)
+                                                                      autoGradeTestDmiItem(item)
                                                                     }
-                                                                    aria-label={`Grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                    className="rounded-md bg-violet-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                                                                    aria-label={`Auto-grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                                                                   >
-                                                                    {result?.loading
-                                                                      ? 'Grading…'
-                                                                      : 'Grade'}
+                                                                    {autoResult?.loading
+                                                                      ? 'Auto-grading…'
+                                                                      : 'Auto-grade'}
                                                                   </button>
-                                                                  {result &&
-                                                                    !result.loading &&
-                                                                    typeof result.score ===
-                                                                      'number' && (
-                                                                      <span className="text-xs font-semibold text-violet-700">
-                                                                        Score: {result.score}%
+                                                                  {testPciSource ===
+                                                                    'assessment' && (
+                                                                    <button
+                                                                      type="button"
+                                                                      disabled={
+                                                                        llmResult?.loading ||
+                                                                        !answer
+                                                                      }
+                                                                      onClick={() =>
+                                                                        gradeTestDmiItem(item)
+                                                                      }
+                                                                      aria-label={`Debug LLM grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                      className="rounded-md bg-slate-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                                                                    >
+                                                                      {llmResult?.loading
+                                                                        ? 'Grading…'
+                                                                        : 'Debug LLM grade'}
+                                                                    </button>
+                                                                  )}
+                                                                  {autoResult &&
+                                                                    !autoResult.loading &&
+                                                                    autoResult.score !== null && (
+                                                                      <span className="text-xs font-semibold text-emerald-700">
+                                                                        Score: {autoResult.score}%
                                                                       </span>
                                                                     )}
                                                                 </div>
-                                                                {result &&
-                                                                  !result.loading &&
-                                                                  result.feedback && (
+                                                                {autoResult &&
+                                                                  !autoResult.loading &&
+                                                                  Array.isArray(
+                                                                    autoResult.questionResults
+                                                                  ) &&
+                                                                  autoResult.questionResults
+                                                                    .length > 0 && (
+                                                                    <div className="mt-1 space-y-1">
+                                                                      {autoResult.questionResults.map(
+                                                                        r => (
+                                                                          <div
+                                                                            key={r.questionId}
+                                                                            className="flex items-center gap-2 text-xs"
+                                                                          >
+                                                                            {r.correct ? (
+                                                                              <span className="font-medium text-emerald-700">
+                                                                                Correct
+                                                                              </span>
+                                                                            ) : r.needsReview ? (
+                                                                              <span className="font-medium text-amber-700">
+                                                                                Needs review
+                                                                              </span>
+                                                                            ) : (
+                                                                              <span className="font-medium text-red-700">
+                                                                                Incorrect
+                                                                              </span>
+                                                                            )}
+                                                                            {typeof r.pointsEarned ===
+                                                                              'number' &&
+                                                                              typeof r.pointsMax ===
+                                                                                'number' &&
+                                                                              r.pointsMax > 0 && (
+                                                                                <span className="text-slate-600">
+                                                                                  {r.pointsEarned}/
+                                                                                  {r.pointsMax}
+                                                                                </span>
+                                                                              )}
+                                                                          </div>
+                                                                        )
+                                                                      )}
+                                                                    </div>
+                                                                  )}
+                                                                {llmResult &&
+                                                                  !llmResult.loading &&
+                                                                  typeof llmResult.score ===
+                                                                    'number' && (
+                                                                    <span className="mt-1 block text-xs font-semibold text-violet-700">
+                                                                      Debug LLM score:{' '}
+                                                                      {llmResult.score}%
+                                                                    </span>
+                                                                  )}
+                                                                {llmResult &&
+                                                                  !llmResult.loading &&
+                                                                  llmResult.feedback && (
                                                                     <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
-                                                                      {result.feedback}
+                                                                      {llmResult.feedback}
                                                                     </p>
                                                                   )}
                                                               </div>
@@ -11442,14 +11989,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             </Tabs>
                             {testPciActiveTab !== 'insights' &&
                               testPciActiveTab !== 'student-monitor' &&
+                              testPciActiveTab !== 'classroom' &&
                               !(mainTab === 'live' && testPciActiveTab === 'student1') &&
-                              // For a TASK in the Test tab, preview the new chat-based
-                              // flow students get (chat → Task complete → per-answer
-                              // responses → follow-up); assessments keep the composer.
-                              (mainTab === 'test-pci' && testPciSource === 'task' ? (
-                                // A task is previewed via the chat flow rendered in the panel
-                                // above (the document collapses into the chat), so nothing
-                                // extra is needed here.
+                              // For a TASK in the Test tab's Classroom view, keep the tutor
+                              // composer available. For Test Student views, the chat flow in the
+                              // panel above handles input; the composer is hidden so it doesn't
+                              // duplicate the student input. Assessments keep the helper message.
+                              (mainTab === 'test-pci' &&
+                              testPciSource === 'task' &&
+                              testPciActiveTab !== 'classroom' ? (
                                 <></>
                               ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
                                 // Assessments are answered in the DMI: test-grade per question
@@ -11481,17 +12029,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               e => e.id === taskBuilder.activeExtensionId
                                             )
                                           : null
+                                      // The task PCI is shared with every extension.
                                       const pci = (
-                                        activeExt
-                                          ? activeExt.pci
-                                          : isTask
-                                            ? taskBuilder.taskPci
-                                            : assessmentBuilder.taskPci
+                                        isTask ? taskBuilder.taskPci : assessmentBuilder.taskPci
                                       ) as string | undefined
                                       const spec = isTask
-                                        ? activeExt
-                                          ? undefined
-                                          : taskBuilder.pciSpec
+                                        ? taskBuilder.pciSpec
                                         : assessmentBuilder.pciSpec
                                       const testDmi = isTask ? taskDmiItems : assessmentDmiItems
                                       const idOf = (d: DMIQuestion) =>
@@ -11814,8 +12357,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       {/* View controls: switch between the text
                                           editor (left) and the document (right),
                                           or show both side by side. Only relevant
-                                          once a document is present. */}
-                                      {hasTaskDocument && (
+                                          once an uploaded document is present. */}
+                                      {hasUploadedTaskDocument && (
                                         <div className="mb-2 flex shrink-0 flex-wrap items-center gap-3">
                                           <div className="flex items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
                                             {[
@@ -11888,249 +12431,316 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         </div>
                                       )}
                                       <div
-                                        className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
+                                        className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
                                         onDrop={(e: any) => {
                                           if (!canEdit) return
                                           handleDragFiles(
                                             e,
                                             text => {
+                                              const activeExt = taskBuilder.activeExtensionId
+                                              const currentContent = activeExt
+                                                ? taskBuilder.extensions.find(
+                                                    ext => ext.id === activeExt
+                                                  )?.content || ''
+                                                : taskBuilder.taskContent
+                                              const combined =
+                                                currentContent +
+                                                (currentContent ? '\n\n' : '') +
+                                                text
+                                              if (isTaskSlideOverflowing(combined)) {
+                                                toast.error(
+                                                  'Dropped text would exceed the slide area'
+                                                )
+                                                return
+                                              }
                                               setTaskBuilder(prev => {
                                                 if (prev.activeExtensionId) {
-                                                  const ext = prev.extensions.find(
-                                                    x => x.id === prev.activeExtensionId
-                                                  )
-                                                  const combined = ext
-                                                    ? ext.content +
-                                                      (ext.content ? '\n\n' : '') +
-                                                      text
-                                                    : text
                                                   return {
                                                     ...prev,
-                                                    extensions: prev.extensions.map(x =>
-                                                      x.id === prev.activeExtensionId
-                                                        ? { ...x, content: combined }
-                                                        : x
+                                                    extensions: prev.extensions.map(ext =>
+                                                      ext.id === prev.activeExtensionId
+                                                        ? { ...ext, content: combined }
+                                                        : ext
                                                     ),
                                                   }
-                                                } else {
-                                                  return {
-                                                    ...prev,
-                                                    taskContent:
-                                                      prev.taskContent +
-                                                      (prev.taskContent ? '\n\n' : '') +
-                                                      text,
-                                                  }
                                                 }
+                                                return { ...prev, taskContent: combined }
                                               })
                                             },
                                             'task'
                                           )
                                         }}
                                       >
-                                        {/* Centered Pill for Test button */}
-
-                                        {/* Left Panel (Text) */}
-                                        {taskTextVisible && (
-                                          <div
-                                            className={cn(
-                                              'relative flex h-full flex-col bg-[#FBFCFD]',
-                                              taskPdfVisible ? 'w-1/2 border-r' : 'w-full'
-                                            )}
-                                          >
-                                            <AutoTextarea
-                                              className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                              style={{ fontSize: `${extractedTextFontSize}px` }}
-                                              disableAutoResize
-                                              readOnly={!canEdit}
-                                              placeholder="Type the task content here — or load a document above to work from it."
-                                              onDrop={(e: any) =>
-                                                handleDragFiles(
-                                                  e,
-                                                  text => {
-                                                    setTaskBuilder(prev => {
-                                                      if (prev.activeExtensionId) {
-                                                        const ext = prev.extensions.find(
-                                                          x => x.id === prev.activeExtensionId
-                                                        )
-                                                        const combined = ext
-                                                          ? ext.content +
-                                                            (ext.content ? '\n\n' : '') +
-                                                            text
-                                                          : text
-                                                        return {
-                                                          ...prev,
-                                                          extensions: prev.extensions.map(x =>
-                                                            x.id === prev.activeExtensionId
-                                                              ? { ...x, content: combined }
-                                                              : x
-                                                          ),
-                                                        }
-                                                      } else {
-                                                        const combined =
-                                                          prev.taskContent +
-                                                          (prev.taskContent ? '\n\n' : '') +
-                                                          text
-                                                        return {
-                                                          ...prev,
-                                                          taskContent: combined,
-                                                        }
-                                                      }
-                                                    })
-                                                  },
-                                                  'task'
-                                                )
-                                              }
-                                              value={
-                                                taskBuilder.activeExtensionId
-                                                  ? taskBuilder.extensions.find(
-                                                      e => e.id === taskBuilder.activeExtensionId
-                                                    )?.content || ''
-                                                  : taskBuilder.taskContent
-                                              }
-                                              onChange={(e: any) => {
-                                                const newContent = e.target.value
-                                                if (
-                                                  !loadedTaskId &&
-                                                  !taskBuilder.activeExtensionId
-                                                ) {
-                                                  autoCreateTask()
+                                        {!hasUploadedTaskDocument ? (
+                                          // Text-only task: locked 1100 x 620 slide canvas.
+                                          // No PDF preview here; the snapshot is generated only when entering Test/Live.
+                                          <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
+                                            <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                              <TaskSlideTextEditor
+                                                ref={taskSlideEditorRef}
+                                                html={
+                                                  taskBuilder.activeExtensionId
+                                                    ? taskBuilder.extensions.find(
+                                                        e => e.id === taskBuilder.activeExtensionId
+                                                      )?.content || ''
+                                                    : taskBuilder.taskContent
                                                 }
-                                                if (taskBuilder.activeExtensionId) {
-                                                  setTaskBuilder(prev => {
-                                                    return {
+                                                onHtmlChange={(newContent: string) => {
+                                                  if (
+                                                    !loadedTaskId &&
+                                                    !taskBuilder.activeExtensionId
+                                                  ) {
+                                                    autoCreateTask()
+                                                  }
+                                                  if (taskBuilder.activeExtensionId) {
+                                                    setTaskBuilder(prev => ({
                                                       ...prev,
                                                       extensions: prev.extensions.map(ext =>
                                                         ext.id === prev.activeExtensionId
                                                           ? { ...ext, content: newContent }
                                                           : ext
                                                       ),
-                                                    }
-                                                  })
-                                                } else {
-                                                  setTaskBuilder(prev => ({
-                                                    ...prev,
-                                                    taskContent: newContent,
-                                                  }))
-                                                }
-                                              }}
-                                              onBlur={() => ensureTaskTextDocument()}
-                                            />
-                                            {/* Floating font size control */}
-                                            <div
-                                              className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
-                                              style={{
-                                                background: 'rgba(40,40,40,0.78)',
-                                                backdropFilter: 'blur(8px)',
-                                              }}
-                                            >
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  setExtractedTextFontSize(
-                                                    Math.max(10, extractedTextFontSize - 2)
-                                                  )
-                                                }
-                                                className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                              >
-                                                -
-                                              </button>
-                                              <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
-                                                {extractedTextFontSize}px
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  setExtractedTextFontSize(
-                                                    Math.min(32, extractedTextFontSize + 2)
-                                                  )
-                                                }
-                                                className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                              >
-                                                +
-                                              </button>
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Right Panel (Preview) */}
-                                        {taskPdfVisible && (
-                                          <div
-                                            className={cn(
-                                              'relative flex h-full flex-col bg-[#FBFCFD]',
-                                              taskTextVisible ? 'w-1/2' : 'w-full'
-                                            )}
-                                          >
-                                            <div className="relative min-h-0 flex-1 overflow-hidden">
-                                              {currentTaskDocument?.mimeType ===
-                                                'application/pdf' ||
-                                              (currentTaskDocument?.fileKey &&
-                                                (!currentTaskDocument?.mimeType ||
-                                                  currentTaskDocument?.mimeType ===
-                                                    'application/pdf')) ? (
-                                                <PDFViewer
-                                                  key={
-                                                    currentTaskDocument.fileUrl ||
-                                                    currentTaskDocument.fileKey ||
-                                                    'task-doc'
+                                                    }))
+                                                  } else {
+                                                    setTaskBuilder(prev => ({
+                                                      ...prev,
+                                                      taskContent: newContent,
+                                                    }))
                                                   }
-                                                  fileUrl={currentTaskDocument.fileUrl || ''}
-                                                  fileKey={currentTaskDocument.fileKey}
-                                                  className="absolute inset-0 h-full w-full"
-                                                  fitToScreen
-                                                  onHidePreview={() => {
-                                                    if (!taskTextVisible) setTaskTextVisible(true)
-                                                    setTaskPdfVisible(false)
+                                                }}
+                                                readOnly={!canEdit}
+                                                placeholder="Type the task content here — or load a document above to work from it."
+                                                className="h-full w-full"
+                                                style={{
+                                                  fontSize: `${slideFontSize}px`,
+                                                  color: slideTextColor,
+                                                }}
+                                              />
+                                            </div>
+                                            <TaskSlideFontEditor
+                                              fontSize={slideFontSize}
+                                              onFontSizeChange={(size: number) => {
+                                                setSlideFontSize(size)
+                                                taskSlideEditorRef.current?.applyFormat({
+                                                  fontSize: size,
+                                                })
+                                              }}
+                                              color={slideTextColor}
+                                              onColorChange={(color: string) => {
+                                                setSlideTextColor(color)
+                                                taskSlideEditorRef.current?.applyFormat({
+                                                  color,
+                                                })
+                                              }}
+                                              className="absolute bottom-6 right-6"
+                                            />
+                                          </div>
+                                        ) : (
+                                          <div className="flex h-full w-full flex-row">
+                                            {taskTextVisible && (
+                                              <div
+                                                className={cn(
+                                                  'relative flex h-full flex-col bg-[#FBFCFD]',
+                                                  taskPdfVisible ? 'w-1/2 border-r' : 'w-full'
+                                                )}
+                                              >
+                                                <AutoTextarea
+                                                  className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                  style={{ fontSize: `${extractedTextFontSize}px` }}
+                                                  disableAutoResize
+                                                  readOnly={!canEdit}
+                                                  placeholder="Type the task content here — or load a document above to work from it."
+                                                  onDrop={(e: any) =>
+                                                    handleDragFiles(
+                                                      e,
+                                                      text => {
+                                                        setTaskBuilder(prev => {
+                                                          if (prev.activeExtensionId) {
+                                                            const ext = prev.extensions.find(
+                                                              x => x.id === prev.activeExtensionId
+                                                            )
+                                                            const combined = ext
+                                                              ? ext.content +
+                                                                (ext.content ? '\n\n' : '') +
+                                                                text
+                                                              : text
+                                                            return {
+                                                              ...prev,
+                                                              extensions: prev.extensions.map(x =>
+                                                                x.id === prev.activeExtensionId
+                                                                  ? { ...x, content: combined }
+                                                                  : x
+                                                              ),
+                                                            }
+                                                          } else {
+                                                            return {
+                                                              ...prev,
+                                                              taskContent:
+                                                                prev.taskContent +
+                                                                (prev.taskContent ? '\n\n' : '') +
+                                                                text,
+                                                            }
+                                                          }
+                                                        })
+                                                      },
+                                                      'task'
+                                                    )
+                                                  }
+                                                  value={
+                                                    taskBuilder.activeExtensionId
+                                                      ? taskBuilder.extensions.find(
+                                                          e =>
+                                                            e.id === taskBuilder.activeExtensionId
+                                                        )?.content || ''
+                                                      : taskBuilder.taskContent
+                                                  }
+                                                  onChange={(e: any) => {
+                                                    const newContent = e.target.value
+                                                    if (
+                                                      !loadedTaskId &&
+                                                      !taskBuilder.activeExtensionId
+                                                    ) {
+                                                      autoCreateTask()
+                                                    }
+                                                    if (taskBuilder.activeExtensionId) {
+                                                      setTaskBuilder(prev => {
+                                                        return {
+                                                          ...prev,
+                                                          extensions: prev.extensions.map(ext =>
+                                                            ext.id === prev.activeExtensionId
+                                                              ? { ...ext, content: newContent }
+                                                              : ext
+                                                          ),
+                                                        }
+                                                      })
+                                                    } else {
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        taskContent: newContent,
+                                                      }))
+                                                    }
                                                   }}
                                                 />
-                                              ) : currentTaskDocument &&
-                                                currentTaskDocument.mimeType !==
-                                                  'application/pdf' &&
-                                                currentTaskDocument.mimeType?.startsWith(
-                                                  'image/'
-                                                ) ? (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
-                                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                  <img
-                                                    src={
-                                                      currentTaskDocument.fileKey
-                                                        ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
-                                                        : currentTaskDocument.fileUrl
+                                                {/* Floating font size control */}
+                                                <div
+                                                  className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
+                                                  style={{
+                                                    background: 'rgba(40,40,40,0.78)',
+                                                    backdropFilter: 'blur(8px)',
+                                                  }}
+                                                >
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      setExtractedTextFontSize(
+                                                        Math.max(10, extractedTextFontSize - 2)
+                                                      )
                                                     }
-                                                    alt={currentTaskDocument.fileName}
-                                                    className="max-h-full max-w-full object-contain"
-                                                  />
-                                                </div>
-                                              ) : currentTaskDocument &&
-                                                currentTaskDocument.mimeType !==
-                                                  'application/pdf' &&
-                                                !currentTaskDocument.mimeType?.startsWith(
-                                                  'image/'
-                                                ) ? (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
-                                                  <FileText className="mb-4 h-16 w-16 text-blue-500" />
-                                                  <a
-                                                    href={
-                                                      currentTaskDocument.fileKey
-                                                        ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
-                                                        : currentTaskDocument.fileUrl
-                                                    }
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-center text-sm font-medium text-blue-600 hover:underline"
+                                                    className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
                                                   >
-                                                    Open {currentTaskDocument.fileName} in new tab
-                                                  </a>
+                                                    -
+                                                  </button>
+                                                  <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
+                                                    {extractedTextFontSize}px
+                                                  </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                      setExtractedTextFontSize(
+                                                        Math.min(32, extractedTextFontSize + 2)
+                                                      )
+                                                    }
+                                                    className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
+                                                  >
+                                                    +
+                                                  </button>
                                                 </div>
-                                              ) : (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
-                                                  <FileText className="mb-4 h-16 w-16 text-gray-300" />
-                                                  <p className="text-lg font-medium text-gray-500">
-                                                    No document selected
-                                                  </p>
+                                              </div>
+                                            )}
+
+                                            {/* Right Panel (Preview) */}
+                                            {taskPdfVisible && (
+                                              <div
+                                                className={cn(
+                                                  'relative flex h-full flex-col bg-[#FBFCFD]',
+                                                  taskTextVisible ? 'w-1/2' : 'w-full'
+                                                )}
+                                              >
+                                                <div className="relative min-h-0 flex-1 overflow-hidden">
+                                                  {currentTaskDocument?.mimeType ===
+                                                    'application/pdf' ||
+                                                  (currentTaskDocument?.fileKey &&
+                                                    (!currentTaskDocument?.mimeType ||
+                                                      currentTaskDocument?.mimeType ===
+                                                        'application/pdf')) ? (
+                                                    <PDFViewer
+                                                      key={
+                                                        currentTaskDocument.fileUrl ||
+                                                        currentTaskDocument.fileKey ||
+                                                        'task-doc'
+                                                      }
+                                                      fileUrl={currentTaskDocument.fileUrl || ''}
+                                                      fileKey={currentTaskDocument.fileKey}
+                                                      className="absolute inset-0 h-full w-full"
+                                                      fitToScreen
+                                                      onHidePreview={() => {
+                                                        if (!taskTextVisible)
+                                                          setTaskTextVisible(true)
+                                                        setTaskPdfVisible(false)
+                                                      }}
+                                                    />
+                                                  ) : currentTaskDocument &&
+                                                    currentTaskDocument.mimeType !==
+                                                      'application/pdf' &&
+                                                    currentTaskDocument.mimeType?.startsWith(
+                                                      'image/'
+                                                    ) ? (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
+                                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                      <img
+                                                        src={
+                                                          currentTaskDocument.fileKey
+                                                            ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
+                                                            : currentTaskDocument.fileUrl
+                                                        }
+                                                        alt={currentTaskDocument.fileName}
+                                                        className="max-h-full max-w-full object-contain"
+                                                      />
+                                                    </div>
+                                                  ) : currentTaskDocument &&
+                                                    currentTaskDocument.mimeType !==
+                                                      'application/pdf' &&
+                                                    !currentTaskDocument.mimeType?.startsWith(
+                                                      'image/'
+                                                    ) ? (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
+                                                      <FileText className="mb-4 h-16 w-16 text-blue-500" />
+                                                      <a
+                                                        href={
+                                                          currentTaskDocument.fileKey
+                                                            ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
+                                                            : currentTaskDocument.fileUrl
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-center text-sm font-medium text-blue-600 hover:underline"
+                                                      >
+                                                        Open {currentTaskDocument.fileName} in new
+                                                        tab
+                                                      </a>
+                                                    </div>
+                                                  ) : (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
+                                                      <FileText className="mb-4 h-16 w-16 text-gray-300" />
+                                                      <p className="text-lg font-medium text-gray-500">
+                                                        No document selected
+                                                      </p>
+                                                    </div>
+                                                  )}
                                                 </div>
-                                              )}
-                                            </div>
+                                              </div>
+                                            )}
                                           </div>
                                         )}
                                       </div>
@@ -12150,6 +12760,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           ref={taskPciScrollRef}
                                           className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
                                         >
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-semibold text-slate-700">
+                                              PCI assistant
+                                            </span>
+                                            <PciStatusBadge
+                                              value={activeTaskPci}
+                                              history={taskBuilder.pciHistory}
+                                              thread={activeTaskThread}
+                                            />
+                                          </div>
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
                                               Start a PCI chat to build instructions with the
@@ -12189,7 +12809,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           {taskPciDraft && (
                                             <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
                                               <span>
-                                                Rubric ready — click Apply to save it as your
+                                                Policy ready — click Apply to save it as your
                                                 marking policy.
                                               </span>
                                               <Button
@@ -12589,32 +13209,43 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               (
                                             </span>
 
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              data-pci-anchor="generate-dmi"
-                                              className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                              disabled={dmiGenerating || !canEdit}
-                                              onClick={() => {
-                                                if (!canEdit) return
-                                                const content = assessmentBuilder.taskContent
-                                                const hasPdf =
-                                                  currentAssessmentDocument?.mimeType ===
-                                                  'application/pdf'
-                                                if (!content.trim() && !hasPdf) {
-                                                  toast.error(
-                                                    'Please add content to the Assessment tab or load a PDF first'
-                                                  )
-                                                  return
-                                                }
-                                                handleGenerateDMI('assessment')
-                                              }}
-                                            >
-                                              {dmiGenerating ? (
+                                            {/* DMI generation is automatic once a document is
+                                                loaded, so there's no manual "Generate" then. A
+                                                text-only assessment keeps a manual Generate; a
+                                                Regenerate appears only after a DMI exists. */}
+                                            {dmiGenerating ? (
+                                              <span className="flex h-6 items-center px-2 text-xs font-medium text-gray-500">
                                                 <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                              ) : null}
-                                              Generate DMI
-                                            </Button>
+                                                Generating…
+                                              </span>
+                                            ) : assessmentDmiItems.length > 0 ||
+                                              !currentAssessmentDocument ? (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                data-pci-anchor="generate-dmi"
+                                                className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
+                                                disabled={!canEdit}
+                                                onClick={() => {
+                                                  if (!canEdit) return
+                                                  const content = assessmentBuilder.taskContent
+                                                  const hasPdf =
+                                                    currentAssessmentDocument?.mimeType ===
+                                                    'application/pdf'
+                                                  if (!content.trim() && !hasPdf) {
+                                                    toast.error(
+                                                      'Please add content to the Assessment tab or load a PDF first'
+                                                    )
+                                                    return
+                                                  }
+                                                  handleGenerateDMI('assessment')
+                                                }}
+                                              >
+                                                {assessmentDmiItems.length > 0
+                                                  ? 'Regenerate DMI'
+                                                  : 'Generate DMI'}
+                                              </Button>
+                                            ) : null}
 
                                             {assessmentDmiItems.length > 0 && (
                                               <>
@@ -12644,7 +13275,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               onClick={() => setShowDmiVersionList(true)}
                                               title="View DMI Versions"
                                             >
-                                              <History className="h-3 w-3" />
+                                              DMI
                                               {assessmentDmiVersions.length > 0 && (
                                                 <span className="ml-1">
                                                   ({assessmentDmiVersions.length})
@@ -12673,7 +13304,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 The marking-policy chat unlocks once your DMI has
                                                 questions, marks, and an answer key or rubric.{' '}
                                                 {assessmentDmiItems.length === 0
-                                                  ? 'Generate the DMI from your document to begin.'
+                                                  ? currentAssessmentDocument
+                                                    ? 'Your DMI generates automatically from the loaded document.'
+                                                    : 'Generate the DMI to begin.'
                                                   : assessmentDmiTotalMarks === 0
                                                     ? 'Open “Edit marks & answers” to set the marks.'
                                                     : 'Open “Edit marks & answers” to add the answer key / rubric.'}
@@ -12681,18 +13314,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               {canEdit && (
                                                 <div className="mt-2 flex gap-2">
                                                   {assessmentDmiItems.length === 0 ? (
-                                                    <button
-                                                      type="button"
-                                                      disabled={dmiGenerating}
-                                                      onClick={() =>
-                                                        handleGenerateDMI('assessment')
-                                                      }
-                                                      className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
-                                                    >
-                                                      {dmiGenerating
-                                                        ? 'Generating…'
-                                                        : 'Generate DMI'}
-                                                    </button>
+                                                    dmiGenerating ? (
+                                                      <span className="inline-flex items-center rounded-md bg-amber-600/80 px-2.5 py-1 font-semibold text-white">
+                                                        Generating…
+                                                      </span>
+                                                    ) : !currentAssessmentDocument ? (
+                                                      // Manual generate only when there's no document
+                                                      // to auto-generate from (text-only assessment).
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          handleGenerateDMI('assessment')
+                                                        }
+                                                        className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
+                                                      >
+                                                        Generate DMI
+                                                      </button>
+                                                    ) : null
                                                   ) : (
                                                     <button
                                                       type="button"
@@ -13202,7 +13840,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   return
                                                 const opts = resolvePollOptions()
                                                 insightsProps.onSendPoll({
-                                                  taskId: currentInsightsId,
+                                                  taskId: activeInsightsTaskId,
                                                   question: pollPrompt,
                                                   options: opts,
                                                 })
@@ -13309,7 +13947,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 )
                                                   return
                                                 insightsProps.onSendQuestion({
-                                                  taskId: currentInsightsId,
+                                                  taskId: activeInsightsTaskId,
                                                   prompt: questionPrompt,
                                                 })
                                                 setQuestionPrompt('')
@@ -13455,14 +14093,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 : taskBuilder.taskContent
               : assessmentBuilder.taskContent
           }
-          pci={
-            aiAssistContext === 'task'
-              ? taskBuilder.activeExtensionId
-                ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.pci ||
-                  ''
-                : taskBuilder.taskPci
-              : assessmentBuilder.taskPci
-          }
+          pci={aiAssistContext === 'task' ? taskBuilder.taskPci : assessmentBuilder.taskPci}
           title={aiAssistContext === 'task' ? taskBuilder.title : assessmentBuilder.title}
           messages={aiAssistContext === 'task' ? taskAiMessages : assessmentAiMessages}
           setMessages={aiAssistContext === 'task' ? setTaskAiMessages : setAssessmentAiMessages}
@@ -13486,16 +14117,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }}
           onApplyPci={pci => {
             if (aiAssistContext === 'task') {
-              if (taskBuilder.activeExtensionId) {
-                setTaskBuilder(prev => ({
-                  ...prev,
-                  extensions: prev.extensions.map(ext =>
-                    ext.id === prev.activeExtensionId ? { ...ext, pci } : ext
-                  ),
-                }))
-              } else {
-                setTaskBuilder(prev => ({ ...prev, taskPci: pci }))
-              }
+              // Apply the marking policy to the base task so every extension shares it.
+              setTaskBuilder(prev => ({ ...prev, taskPci: pci }))
             } else {
               setAssessmentBuilder(prev => ({ ...prev, taskPci: pci }))
             }
@@ -14454,55 +15077,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           </DialogContent>
         </Dialog>
 
-        {/* Response-format chooser — free-response (AI reads the paper) vs
-            multiple-choice (configure locally, no tokens). */}
-        <Dialog
-          open={!!dmiFormatDialog}
-          onOpenChange={open => {
-            if (!open) setDmiFormatDialog(null)
-          }}
-        >
-          <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
-            <DialogHeader className="text-center">
-              <DialogTitle className="mx-auto text-center text-white">
-                How are the questions answered?
-              </DialogTitle>
-              <DialogDescription className="text-white/80">
-                Choose the response format. Multiple-choice papers are configured directly — no need
-                to spend AI reading the paper.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-3 px-6 py-4">
-              <button
-                type="button"
-                onClick={handleChooseMultipleChoice}
-                className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
-              >
-                <span className="flex items-center gap-2 font-semibold text-slate-900">
-                  <ListChecks className="h-4 w-4 text-indigo-600" /> Multiple choice
-                </span>
-                <span className="text-xs text-slate-500">
-                  Set the sections and how many questions each has, then click the correct option
-                  per question. No AI used.
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={handleChooseFreeResponse}
-                className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/40"
-              >
-                <span className="flex items-center gap-2 font-semibold text-slate-900">
-                  <FileText className="h-4 w-4 text-indigo-600" /> Free response
-                </span>
-                <span className="text-xs text-slate-500">
-                  The AI reads the paper and drafts the questions, marks, and answer key for you to
-                  review.
-                </span>
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         {/* Content-source chooser — shown when a PDF is attached but the text box
             was edited to differ from the doc's extraction. */}
         <Dialog
@@ -14549,131 +15123,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 </span>
               </button>
             </div>
-          </DialogContent>
-        </Dialog>
-
-        {/* MCQ configuration — named sections + question counts, choices per
-            question, and marks. Generates the DMI locally (no AI). */}
-        <Dialog
-          open={!!mcqConfigDialog}
-          onOpenChange={open => {
-            if (!open) setMcqConfigDialog(null)
-          }}
-        >
-          <DialogContent className="max-w-lg border border-slate-200 shadow-2xl">
-            <DialogHeader className="text-center">
-              <DialogTitle className="mx-auto text-center text-white">
-                Configure multiple-choice questions
-              </DialogTitle>
-              <DialogDescription className="text-white/80">
-                Name each section and set how many questions it has. Leave the section name blank if
-                the paper isn&rsquo;t divided into sections.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 px-6 py-4">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">
-                  <span className="flex-1">Section name</span>
-                  <span className="w-24 text-center">Questions</span>
-                  <span className="w-9" />
-                </div>
-                {mcqSections.map((sec, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <Input
-                      value={sec.name}
-                      placeholder={`Section ${idx + 1} (optional)`}
-                      onChange={e =>
-                        setMcqSections(prev =>
-                          prev.map((s, i) => (i === idx ? { ...s, name: e.target.value } : s))
-                        )
-                      }
-                      className="h-10 flex-1 rounded-[10px] border border-gray-200 bg-white text-sm text-gray-900"
-                    />
-                    <Input
-                      type="number"
-                      min={1}
-                      max={200}
-                      value={sec.count}
-                      onChange={e =>
-                        setMcqSections(prev =>
-                          prev.map((s, i) =>
-                            i === idx
-                              ? {
-                                  ...s,
-                                  count: Math.max(1, Math.min(200, Number(e.target.value) || 1)),
-                                }
-                              : s
-                          )
-                        )
-                      }
-                      className="h-10 w-24 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 shrink-0 text-slate-600 hover:text-red-500"
-                      disabled={mcqSections.length <= 1}
-                      onClick={() => setMcqSections(prev => prev.filter((_, i) => i !== idx))}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-10 rounded-[10px] border border-white bg-[#22C55E] px-6 text-sm font-medium text-white hover:border-[#22C55E] hover:bg-white hover:text-[#22C55E]"
-                  onClick={() => setMcqSections(prev => [...prev, { name: '', count: 10 }])}
-                >
-                  <Plus className="mr-1 h-4 w-4" /> Add section
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap gap-4 border-t border-slate-100 pt-3">
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
-                  Choices per question
-                  <Input
-                    type="number"
-                    min={2}
-                    max={8}
-                    value={mcqChoices}
-                    onChange={e =>
-                      setMcqChoices(Math.max(2, Math.min(8, Number(e.target.value) || 4)))
-                    }
-                    className="h-9 w-16 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
-                  />
-                </label>
-                <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
-                  Marks per question
-                  <Input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={mcqMarks}
-                    onChange={e =>
-                      setMcqMarks(Math.max(1, Math.min(20, Number(e.target.value) || 1)))
-                    }
-                    className="h-9 w-16 rounded-[10px] border border-gray-200 bg-white text-center text-sm font-medium text-gray-900"
-                  />
-                </label>
-              </div>
-              <p className="text-[11px] text-gray-500">
-                {mcqSections.reduce((sum, s) => sum + (Math.round(s.count) || 0), 0)} question(s) in
-                total. You&rsquo;ll click the correct option for each after they&rsquo;re created.
-              </p>
-            </div>
-
-            <DialogFooter className="gap-3">
-              <Button variant="modal-secondary-dark" onClick={() => setMcqConfigDialog(null)}>
-                Cancel
-              </Button>
-              <Button variant="modal-primary-dark" onClick={generateMcqDmi}>
-                Generate DMI
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 

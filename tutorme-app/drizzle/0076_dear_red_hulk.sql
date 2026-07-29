@@ -1,0 +1,2 @@
+ALTER TABLE "LiveSession" ADD COLUMN "createdAt" timestamp with time zone DEFAULT now() NOT NULL;--> statement-breakpoint
+CREATE INDEX "LiveSession_createdAt_idx" ON "LiveSession" USING btree ("createdAt");

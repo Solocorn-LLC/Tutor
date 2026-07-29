@@ -43,7 +43,9 @@ export const liveSession = pgTable(
     scheduledAt: timestamp('scheduledAt', { withTimezone: true }),
     startedAt: timestamp('startedAt', { withTimezone: true }),
     endedAt: timestamp('endedAt', { withTimezone: true }),
+    createdAt: timestamp('createdAt', { withTimezone: true }).notNull().defaultNow(),
     status: enums.liveSessionStatusEnum('status').notNull(),
+    sessionType: text('sessionType').notNull().default('ADHOC'),
     roomId: text('roomId'),
     roomUrl: text('roomUrl'),
     recordingUrl: text('recordingUrl'),
@@ -60,6 +62,7 @@ export const liveSession = pgTable(
     LiveSession_scheduleId_idx: index('LiveSession_scheduleId_idx').on(table.scheduleId),
     LiveSession_status_idx: index('LiveSession_status_idx').on(table.status),
     LiveSession_scheduledAt_idx: index('LiveSession_scheduledAt_idx').on(table.scheduledAt),
+    LiveSession_createdAt_idx: index('LiveSession_createdAt_idx').on(table.createdAt),
     LiveSession_roomId_idx: index('LiveSession_roomId_idx').on(table.roomId),
   })
 )

@@ -16,12 +16,12 @@ import type { LiveSessionStatus } from '@/lib/db/schema/enums'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@/lib/db/schema'
 
-export type SessionType = 'COURSE' | 'ADHOC' | 'ONE_ON_ONE' | 'CLINIC'
+export type SessionType = 'COURSE' | 'ADHOC' | 'ONE_ON_ONE' | 'CLINIC' | 'GO_LIVE_DEMO'
 
 export interface CreateSessionInput {
   tutorId: string
   title: string
-  scheduledAt: Date
+  scheduledAt?: Date | null
   durationMinutes: number
   category: string
   type: SessionType
@@ -34,7 +34,7 @@ export interface CreateSessionInput {
   maxStudents?: number
   description?: string
   status?: LiveSessionStatus
-  startedAt?: Date
+  startedAt?: Date | null
   /** Defaults to 'Asia/Shanghai' */
   timezone?: string
   /** Optional: pass an existing Daily.co room if already created externally */
@@ -43,7 +43,10 @@ export interface CreateSessionInput {
 
 type DbClient = NodePgDatabase<typeof schema>
 
-const TYPE_TO_EVENT_TYPE: Record<SessionType, 'LESSON' | 'CONSULTATION' | 'CLINIC' | 'OTHER'> = {
+const TYPE_TO_EVENT_TYPE: Record<
+  Exclude<SessionType, 'GO_LIVE_DEMO'>,
+  'LESSON' | 'CONSULTATION' | 'CLINIC' | 'OTHER'
+> = {
   COURSE: 'LESSON',
   ADHOC: 'OTHER',
   ONE_ON_ONE: 'CONSULTATION',
@@ -58,7 +61,9 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
   const db = tx ?? drizzleDb
   const sessionId = crypto.randomUUID()
   const now = new Date()
-  const endTime = new Date(input.scheduledAt.getTime() + input.durationMinutes * 60_000)
+  const endTime = input.scheduledAt
+    ? new Date(input.scheduledAt.getTime() + input.durationMinutes * 60_000)
+    : null
   const timezone = input.timezone || 'Asia/Shanghai'
 
   // 1. Create Daily.co room
@@ -85,9 +90,10 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
       title: input.title,
       category: input.category,
       description: input.description ?? null,
-      scheduledAt: input.scheduledAt,
+      scheduledAt: input.scheduledAt ?? null,
       startedAt: input.startedAt ?? null,
       status: input.status ?? 'scheduled',
+      sessionType: input.type,
       roomId: room.id,
       roomUrl: room.url,
       maxStudents: input.maxStudents ?? 50,
@@ -95,35 +101,40 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
     })
     .returning()
 
-  // 3. Upsert CalendarEvent (read-only projection)
-  const [calendarEventRow] = await db
-    .insert(calendarEvent)
-    .values({
-      eventId: crypto.randomUUID(),
-      tutorId: input.tutorId,
-      title: input.title,
-      description: input.description ?? null,
-      type: TYPE_TO_EVENT_TYPE[input.type],
-      status: 'CONFIRMED',
-      startTime: input.scheduledAt,
-      endTime,
-      timezone,
-      isAllDay: false,
-      isRecurring: false,
-      isVirtual: true,
-      meetingUrl: room.url,
-      courseId: input.courseId ?? null,
-      studentId: input.studentId ?? null,
-      attendees: input.studentId ? [input.studentId] : [],
-      maxAttendees: input.maxStudents ?? 50,
-      reminders: [15, 60],
-      createdBy: input.tutorId,
-      externalId: sessionId,
-      isCancelled: false,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning()
+  // 3. Upsert CalendarEvent (read-only projection) — skip for schedule-less demo
+  // rooms so Go Live sessions do not block the tutor's calendar.
+  let calendarEventRow: typeof calendarEvent.$inferSelect | undefined
+  if (input.type !== 'GO_LIVE_DEMO' && input.scheduledAt && endTime) {
+    const [ce] = await db
+      .insert(calendarEvent)
+      .values({
+        eventId: crypto.randomUUID(),
+        tutorId: input.tutorId,
+        title: input.title,
+        description: input.description ?? null,
+        type: TYPE_TO_EVENT_TYPE[input.type],
+        status: 'CONFIRMED',
+        startTime: input.scheduledAt,
+        endTime,
+        timezone,
+        isAllDay: false,
+        isRecurring: false,
+        isVirtual: true,
+        meetingUrl: room.url,
+        courseId: input.courseId ?? null,
+        studentId: input.studentId ?? null,
+        attendees: input.studentId ? [input.studentId] : [],
+        maxAttendees: input.maxStudents ?? 50,
+        reminders: [15, 60],
+        createdBy: input.tutorId,
+        externalId: sessionId,
+        isCancelled: false,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning()
+    calendarEventRow = ce
+  }
 
   return { liveSession: liveSessionRow, calendarEvent: calendarEventRow }
 }
@@ -150,10 +161,17 @@ export async function backfillCalendarEventsForLiveSessions(
       roomUrl: liveSession.roomUrl,
       maxStudents: liveSession.maxStudents,
       status: liveSession.status,
+      sessionType: liveSession.sessionType,
     })
     .from(liveSession)
     .leftJoin(calendarEvent, eq(calendarEvent.externalId, liveSession.sessionId))
-    .where(and(isNull(calendarEvent.eventId), not(eq(liveSession.status, 'ended'))))
+    .where(
+      and(
+        isNull(calendarEvent.eventId),
+        not(eq(liveSession.status, 'ended')),
+        not(eq(liveSession.sessionType, 'GO_LIVE_DEMO'))
+      )
+    )
     .limit(limit)
 
   const results: Array<{ sessionId: string; eventId: string; dryRun: boolean }> = []

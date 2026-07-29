@@ -30,7 +30,7 @@ import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { normalizePciSpec } from '@/lib/assessment/pci-spec'
 import { initFeedbackHandlers, initPollHandlers } from './socket-server'
 import { activePolls, sessionPolls, cleanupStaleSocketState } from '@/lib/socket'
-import type { PollState } from '@/lib/socket'
+import type { PollState, TaskChatMessagePayload } from '@/lib/socket'
 import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
@@ -79,6 +79,10 @@ export interface ClassRoom {
   tasks: LiveTask[]
   polls?: any[]
   activePoll?: LivePoll | null
+  /** What the tutor is currently presenting (whiteboard vs a task) — so a late-
+   *  joining student hydrates the "follow" target from room_state, not just the
+   *  live tutor:state_sync broadcast (which could arrive before they're listening). */
+  presentedView?: { activeTab?: string; activeTaskId?: string | null } | null
   codeEditorContent?: string
   codeLanguage?: string
   createdAt: Date
@@ -213,6 +217,64 @@ function toPublicTask(task: LiveTask): LiveTask {
   if (!task.responses) return task
   const { responses: _omit, ...rest } = task
   return rest
+}
+
+/**
+ * Build a LiveTask from a CourseLesson.builderData item (task/assessment/homework).
+ * Used when expanding a lesson folder into homework items and when syncing course
+ * content updates to already-deployed tasks.
+ */
+async function liveTaskFromBuilderItem(
+  raw: Record<string, unknown>,
+  opts: {
+    source: LiveTask['source']
+    lessonId?: string
+    sourceDocument?: LiveTaskSourceDocument
+  }
+): Promise<LiveTask> {
+  const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
+  const refreshedSourceDoc =
+    opts.sourceDocument ??
+    (rawSourceDoc
+      ? await ensureViewableSourceDocument({
+          fileName: (rawSourceDoc.fileName as string) || '',
+          fileUrl: (rawSourceDoc.fileUrl as string) || '',
+          fileKey: (rawSourceDoc.fileKey as string) || undefined,
+          mimeType: (rawSourceDoc.mimeType as string) || '',
+        })
+      : undefined)
+
+  return {
+    id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
+    title: (raw.title as string) || 'Untitled',
+    content: (raw.description as string) || (raw.taskContent as string) || '',
+    source: opts.source,
+    dmiItems: Array.isArray(raw.dmiItems)
+      ? (raw.dmiItems as Array<Record<string, unknown>>).map(
+          (d): LiveTaskDmiItem => ({
+            id: (d.id as string) || '',
+            questionNumber: (d.questionNumber as number) || 0,
+            questionLabel:
+              typeof d.questionLabel === 'string' ? (d.questionLabel as string) : undefined,
+            questionText: (d.questionText as string) || '',
+            marks: typeof d.marks === 'number' ? (d.marks as number) : undefined,
+            questionType: d.questionType as LiveTaskDmiItem['questionType'],
+            options: Array.isArray(d.options) ? (d.options as string[]) : undefined,
+            hotspotImageUrl: typeof d.hotspotImageUrl === 'string' ? d.hotspotImageUrl : undefined,
+            matchPrompts: Array.isArray(d.matchPrompts) ? (d.matchPrompts as string[]) : undefined,
+            matchBank: Array.isArray(d.matchBank) ? (d.matchBank as string[]) : undefined,
+            section: typeof d.section === 'string' ? d.section : undefined,
+          })
+        )
+      : undefined,
+    deployedAt: Date.now(),
+    polls: [],
+    questions: [],
+    sourceDocument: refreshedSourceDoc,
+    parentId: typeof raw.parentId === 'string' ? raw.parentId : undefined,
+    isExtension: raw.isExtension === true,
+    lessonId: opts.lessonId,
+  }
 }
 
 // Environment validation
@@ -886,6 +948,44 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     })
 
+    // Task-scoped chat messages (chat-task flow). Distinct from the general
+    // chat_message so a live task's answer/comment stream can be rendered inside
+    // TestTaskChat on both tutor and student sides without mixing with the
+    // general room chat.
+    socket.on('task:chat_message', (data: TaskChatMessagePayload & { roomId?: string }) => {
+      const { taskId, role, content } = data
+      if (!taskId || typeof taskId !== 'string') return
+      if (!content || typeof content !== 'string' || !content.trim()) return
+      if (role !== 'tutor' && role !== 'student') return
+
+      const targetRoomId = data.roomId || socket.data.roomId
+      if (!targetRoomId) return
+
+      const room = activeRooms.get(targetRoomId)
+      if (!room) return
+
+      const userId = socket.data.userId
+      if (!userId) return
+
+      const isTutor = room.tutorId === userId
+      const isStudent = room.students.has(userId)
+      if (!isTutor && !isStudent) return
+      if (role === 'tutor' && !isTutor) return
+      if (role === 'student' && !isStudent) return
+
+      const message: TaskChatMessagePayload = {
+        taskId,
+        role,
+        content: content.trim().slice(0, 3000),
+        name: data.name || (isTutor ? 'Tutor' : room.students.get(userId)?.name || 'Student'),
+        re: data.re,
+        timestamp: data.timestamp || Date.now(),
+        userId,
+      }
+
+      io.to(targetRoomId).emit('task:chat_message', message)
+    })
+
     // --- Live poll (ephemeral, one active per room) ---
     // Tutor launches a quick poll; students vote; everyone sees the live tally.
     socket.on('poll:launch', (data: { roomId: string; question?: string; options?: string[] }) => {
@@ -1341,302 +1441,344 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     }
 
-    socket.on('task:deploy', async (data: { roomId: string; task: LiveTask }) => {
-      if (socket.data.role !== 'tutor') {
-        socket.emit('task:deploy:error', { error: 'Only tutors can deploy tasks' })
-        return
-      }
-      const { roomId, task } = data
-      if (!roomId || !task?.id) {
-        socket.emit('task:deploy:error', { error: 'Invalid deploy data' })
-        return
-      }
-      let room = activeRooms.get(roomId)
-      if (!room) {
-        // Room may have been cleaned up — recreate it on demand
-        room = {
-          id: roomId,
-          tutorId: socket.data.userId || '',
-          students: new Map(),
-          chatHistory: [],
-          tasks: [],
-          polls: [],
-          whiteboardData: undefined,
-          codeEditorContent: '',
-          codeLanguage: 'javascript',
-          createdAt: new Date(),
-          lastActivity: Date.now(),
+    socket.on(
+      'task:deploy',
+      async (data: { roomId: string; task: LiveTask; courseId?: string }) => {
+        if (socket.data.role !== 'tutor') {
+          socket.emit('task:deploy:error', { error: 'Only tutors can deploy tasks' })
+          return
         }
-        activeRooms.set(roomId, room)
-        console.log(`[task:deploy] Recreated room ${roomId} on demand`)
-      }
-
-      const deployCheck = await canDeployToSession(roomId, task.source, socket.data.userId)
-      if (!deployCheck.ok) {
-        socket.emit('task:deploy:error', { error: deployCheck.reason })
-        return
-      }
-
-      // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
-      // students get a live URL rather than a possibly-expired one, and render a
-      // raw Office document to PDF so students get an inline viewer rather than a
-      // download-only link. Never let this block the deploy — on failure it falls
-      // back to the original document.
-      let refreshedSourceDocument = task.sourceDocument
-      if (task.sourceDocument) {
-        try {
-          refreshedSourceDocument = await ensureViewableSourceDocument(task.sourceDocument)
-        } catch (err) {
-          console.warn('[task:deploy] source-document prep failed:', err)
+        const { roomId, task, courseId: payloadCourseId } = data
+        if (!roomId || !task?.id) {
+          socket.emit('task:deploy:error', { error: 'Invalid deploy data' })
+          return
         }
-      }
-
-      const normalizedTask: LiveTask = {
-        id: task.id,
-        title: task.title,
-        content: task.content,
-        source: task.source || 'task',
-        dmiItems: task.dmiItems,
-        deployedAt: task.deployedAt || Date.now(),
-        polls: Array.isArray(task.polls) ? task.polls : [],
-        questions: Array.isArray(task.questions) ? task.questions : [],
-        sourceDocument: refreshedSourceDocument,
-      }
-
-      const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)
-      if (existingIndex >= 0) {
-        room!.tasks[existingIndex] = {
-          ...room!.tasks[existingIndex],
-          ...normalizedTask,
-          polls: room!.tasks[existingIndex].polls,
-          questions: room!.tasks[existingIndex].questions,
-        }
-      } else {
-        room!.tasks.push(normalizedTask)
-      }
-
-      room!.lastActivity = Date.now()
-      void persistRoomToRedis(roomId, room!)
-      io.to(roomId).emit('task:deployed', normalizedTask)
-      io.to(roomId).emit('task:updated', { task: normalizedTask })
-
-      // Create persistent notifications for students in the room
-      try {
-        const studentIds = Array.from(room!.students.keys())
-        if (studentIds.length > 0) {
-          void notifyMany({
-            userIds: studentIds,
-            type: 'assignment',
-            title: `New ${normalizedTask.source === 'assessment' ? 'Assessment' : 'Task'}: ${normalizedTask.title}`,
-            message: `Your tutor deployed "${normalizedTask.title}" in the live session.`,
-            data: { deployType: normalizedTask.source, taskId: normalizedTask.id, roomId },
-            actionUrl: `/student/feedback?sessionId=${roomId}`,
-          })
-        }
-      } catch (notifyErr) {
-        console.error('Failed to create task deployment notifications:', notifyErr)
-      }
-
-      // Persist to Database for Student Directory and Replays
-      try {
-        const { drizzleDb } = await import('./db/drizzle')
-        const { liveSession, deployedMaterial } = await import('./db/schema')
-        const { eq } = await import('drizzle-orm')
-
-        const sessionRec = await drizzleDb.query.liveSession.findFirst({
-          where: eq(liveSession.sessionId, roomId),
-          columns: { courseId: true, sessionId: true },
-        })
-
-        // Course-less sessions (1-on-1 / group) persist under a hidden ad-hoc
-        // anchor course — mirroring the task:complete handler — so their deploys
-        // are recorded and gradable instead of silently dropped.
-        const effectiveCourseId = sessionRec?.courseId || (await ensureAdhocAnchorCourseId())
-        if (effectiveCourseId) {
-          // Sequence orders a deploy within its course's sessions; an ad-hoc
-          // session has no course to order within, so it is always 1.
-          let sessionSequence = 1
-          if (sessionRec?.courseId) {
-            const courseSessions = await drizzleDb.query.liveSession.findMany({
-              where: eq(liveSession.courseId, sessionRec.courseId),
-              orderBy: (sessions, { asc }) => [asc(sessions.scheduledAt)],
-            })
-            const sessionIndex = courseSessions.findIndex(s => s.sessionId === roomId)
-            sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
+        let room = activeRooms.get(roomId)
+        if (!room) {
+          // Room may have been cleaned up — recreate it on demand
+          room = {
+            id: roomId,
+            tutorId: socket.data.userId || '',
+            students: new Map(),
+            chatHistory: [],
+            tasks: [],
+            polls: [],
+            whiteboardData: undefined,
+            codeEditorContent: '',
+            codeLanguage: 'javascript',
+            createdAt: new Date(),
+            lastActivity: Date.now(),
           }
+          activeRooms.set(roomId, room)
+          console.log(`[task:deploy] Recreated room ${roomId} on demand`)
+        }
 
-          await drizzleDb.insert(deployedMaterial).values({
-            sessionId: roomId,
-            courseId: effectiveCourseId,
-            type: normalizedTask.source,
-            itemId: normalizedTask.id,
-            title: normalizedTask.title,
-            content: normalizedTask as unknown as Record<string, unknown>,
-            sessionSequence,
-            // Source lesson (deploy-only), so the Desk groups this under the real
-            // lesson instead of always "Lesson 1".
-            lessonId: typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
-            deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
-          })
+        const deployCheck = await canDeployToSession(roomId, task.source, socket.data.userId)
+        if (!deployCheck.ok) {
+          socket.emit('task:deploy:error', { error: deployCheck.reason })
+          return
+        }
 
-          // We notify clients of the session sequence so they can append "(s1, s2)" etc.
-          io.to(roomId).emit('task:deployed:sequence', {
-            taskId: normalizedTask.id,
-            sequence: sessionSequence,
-          })
-
-          // Auto-create a BuilderTask row for this deployed task (if one doesn't
-          // already exist) so student completions can be persisted to
-          // TaskSubmission — whose taskId FK requires a builderTask. This makes
-          // EVERY deployed task gradable (even ad-hoc/unsaved ones) and ensures
-          // submissions reach the Grading page. Idempotent on the PK so a real
-          // saved task is never overwritten.
+        // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
+        // students get a live URL rather than a possibly-expired one, and render a
+        // raw Office document to PDF so students get an inline viewer rather than a
+        // download-only link. Never let this block the deploy — on failure it falls
+        // back to the original document.
+        let refreshedSourceDocument = task.sourceDocument
+        if (task.sourceDocument) {
           try {
-            const tutorId = socket.data.userId
-            if (tutorId) {
-              // builderTask.lessonId is a NOT NULL FK. Prefer the lesson the task
-              // was actually deployed FROM (task.lessonId, sent on the deploy
-              // payload) so submissions group under the real lesson instead of
-              // always "Lesson 1". Fall back to the course's first lesson, then a
-              // placeholder (a course published with only a schedule has none).
-              let lesson: { lessonId: string } | undefined
-              if (typeof task.lessonId === 'string' && task.lessonId) {
-                const [preferred] = await drizzleDb
-                  .select({ lessonId: courseLesson.lessonId })
-                  .from(courseLesson)
-                  .where(
-                    and(
-                      eq(courseLesson.lessonId, task.lessonId),
-                      eq(courseLesson.courseId, effectiveCourseId)
-                    )
-                  )
-                  .limit(1)
-                if (preferred?.lessonId) lesson = preferred
-              }
-              if (!lesson) {
-                const [first] = await drizzleDb
-                  .select({ lessonId: courseLesson.lessonId })
-                  .from(courseLesson)
-                  .where(eq(courseLesson.courseId, effectiveCourseId))
-                  .orderBy(courseLesson.order)
-                  .limit(1)
-                lesson = first
-              }
-              // NOTE: set createdAt/updatedAt explicitly. These columns are
-              // declared notNull().defaultNow() in the schema, but the prod DB
-              // has drifted and lacks the column DEFAULT, so relying on the
-              // default inserts NULL and violates the not-null constraint
-              // (this is exactly what was silently breaking grading). $onUpdate
-              // does not apply to inserts, so it can't cover this either.
-              const now = new Date()
-              if (!lesson?.lessonId) {
-                const newLessonId = crypto.randomUUID()
-                await drizzleDb.insert(courseLesson).values({
-                  lessonId: newLessonId,
-                  courseId: effectiveCourseId,
-                  title: 'Live Session',
-                  order: 0,
-                  createdAt: now,
-                  updatedAt: now,
-                })
-                lesson = { lessonId: newLessonId }
-              }
-              // Tutor's marking basis, carried on the deploy payload (never in
-              // the student broadcast). Refreshed on each deploy so the live
-              // tutor + grader see the latest PCI; only these columns are
-              // updated on conflict, so a saved task's title/content is kept.
-              const taskPci = typeof task.pci === 'string' ? task.pci.slice(0, 20000) : ''
-              const taskPciSpec = normalizePciSpec(task.pciSpec)
-              await drizzleDb
-                .insert(builderTask)
-                .values({
-                  taskId: normalizedTask.id,
-                  courseId: effectiveCourseId,
-                  lessonId: lesson.lessonId,
-                  tutorId,
-                  title: normalizedTask.title || 'Untitled',
-                  content: normalizedTask.content || '',
-                  pci: taskPci,
-                  pciSpec: taskPciSpec,
-                  type: normalizedTask.source,
-                  status: 'published',
-                  publishedAt: now,
-                  createdAt: now,
-                  updatedAt: now,
-                })
-                .onConflictDoUpdate({
-                  target: builderTask.taskId,
-                  set: { pci: taskPci, pciSpec: taskPciSpec, updatedAt: now },
-                })
-
-              // Persist the answer key + marks server-side so live submissions
-              // auto-grade against it. Carried on the deploy payload's
-              // `answerKey` (never in the student broadcast). One row per task,
-              // refreshed on each deploy; the grader reads the latest by taskId.
-              const answerKey = Array.isArray(task.answerKey) ? task.answerKey : []
-              const gradableKey = answerKey.filter(
-                k => k && typeof k.id === 'string' && (k.answer ?? '').toString().trim().length > 0
-              )
-              if (gradableKey.length > 0) {
-                try {
-                  await drizzleDb
-                    .insert(builderTaskDmi)
-                    .values({
-                      dmiId: `dmi-${normalizedTask.id}`,
-                      taskId: normalizedTask.id,
-                      type: normalizedTask.source === 'assessment' ? 'assessment' : 'task',
-                      items: gradableKey,
-                      createdAt: now,
-                      updatedAt: now,
-                    })
-                    .onConflictDoUpdate({
-                      target: builderTaskDmi.dmiId,
-                      set: { items: gradableKey, updatedAt: now },
-                    })
-                } catch (dmiErr) {
-                  console.warn(
-                    '[task:deploy] BuilderTaskDmi answer-key persist failed (non-critical):',
-                    dmiErr
-                  )
-                }
-              }
-
-              // Persist the tutor's answer-reveal policy onto the task metadata
-              // so the async assignment GET/submit routes honor it. Merged into
-              // existing metadata so other keys are preserved.
-              const reveal = task.answerReveal
-              if (
-                reveal === 'instant' ||
-                reveal === 'after_submit' ||
-                reveal === 'hidden' ||
-                reveal === 'student_choice'
-              ) {
-                try {
-                  const { sql } = await import('drizzle-orm')
-                  await drizzleDb
-                    .update(builderTask)
-                    .set({
-                      metadata: sql`COALESCE(${builderTask.metadata}, '{}'::jsonb) || ${JSON.stringify(
-                        { answerReveal: reveal }
-                      )}::jsonb`,
-                    })
-                    .where(eq(builderTask.taskId, normalizedTask.id))
-                } catch (revealErr) {
-                  console.warn(
-                    '[task:deploy] answerReveal persist failed (non-critical):',
-                    revealErr
-                  )
-                }
-              }
-            }
-          } catch (btErr) {
-            console.warn('[task:deploy] BuilderTask auto-create failed (non-critical):', btErr)
+            refreshedSourceDocument = await ensureViewableSourceDocument(task.sourceDocument)
+          } catch (err) {
+            console.warn('[task:deploy] source-document prep failed:', err)
           }
         }
-      } catch (err) {
-        console.error('Failed to persist deployed material to DB:', err)
+
+        const normalizedTask: LiveTask = {
+          id: task.id,
+          title: task.title,
+          content: task.content,
+          source: task.source || 'task',
+          dmiItems: task.dmiItems,
+          deployedAt: task.deployedAt || Date.now(),
+          polls: Array.isArray(task.polls) ? task.polls : [],
+          questions: Array.isArray(task.questions) ? task.questions : [],
+          sourceDocument: refreshedSourceDocument,
+          parentId: task.parentId,
+          isExtension: task.isExtension ?? false,
+          lessonId: task.lessonId,
+        }
+
+        const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)
+        if (existingIndex >= 0) {
+          room!.tasks[existingIndex] = {
+            ...room!.tasks[existingIndex],
+            ...normalizedTask,
+            polls: room!.tasks[existingIndex].polls,
+            questions: room!.tasks[existingIndex].questions,
+          }
+        } else {
+          room!.tasks.push(normalizedTask)
+        }
+
+        room!.lastActivity = Date.now()
+        void persistRoomToRedis(roomId, room!)
+        io.to(roomId).emit('task:deployed', normalizedTask)
+        io.to(roomId).emit('task:updated', { task: normalizedTask })
+
+        // If this task was deployed from a lesson, expose the rest of that lesson's
+        // tasks and assessments as unrestricted homework items.
+        if (task.lessonId) {
+          try {
+            const [lesson] = await drizzleDb
+              .select({ builderData: courseLesson.builderData })
+              .from(courseLesson)
+              .where(eq(courseLesson.lessonId, task.lessonId))
+              .limit(1)
+            const bData = (lesson?.builderData ?? {}) as Record<string, unknown>
+            const lessonTasks = Array.isArray(bData.tasks) ? bData.tasks : []
+            const lessonAssessments = Array.isArray(bData.assessments) ? bData.assessments : []
+            const seenIds = new Set(room!.tasks.map(t => t.id))
+            for (const raw of [...lessonTasks, ...lessonAssessments]) {
+              const rawRecord = raw as Record<string, unknown>
+              const rawId = (rawRecord.id as string) || ''
+              if (!rawId || seenIds.has(rawId)) continue
+              const homeworkTask = await liveTaskFromBuilderItem(rawRecord, {
+                source: 'homework',
+                lessonId: task.lessonId,
+              })
+              room!.tasks.push(homeworkTask)
+              io.to(roomId).emit('task:deployed', homeworkTask)
+              seenIds.add(rawId)
+            }
+            void persistRoomToRedis(roomId, room!)
+          } catch (lessonErr) {
+            console.error('[task:deploy] Failed to emit lesson homework:', lessonErr)
+          }
+        }
+
+        // Create persistent notifications for students in the room
+        try {
+          const studentIds = Array.from(room!.students.keys())
+          if (studentIds.length > 0) {
+            void notifyMany({
+              userIds: studentIds,
+              type: 'assignment',
+              title: `New ${normalizedTask.source === 'assessment' ? 'Assessment' : 'Task'}: ${normalizedTask.title}`,
+              message: `Your tutor deployed "${normalizedTask.title}" in the live session.`,
+              data: { deployType: normalizedTask.source, taskId: normalizedTask.id, roomId },
+              actionUrl: `/student/feedback?sessionId=${roomId}`,
+            })
+          }
+        } catch (notifyErr) {
+          console.error('Failed to create task deployment notifications:', notifyErr)
+        }
+
+        // Persist to Database for Student Directory and Replays
+        try {
+          const { drizzleDb } = await import('./db/drizzle')
+          const { liveSession, deployedMaterial } = await import('./db/schema')
+          const { eq } = await import('drizzle-orm')
+
+          const sessionRec = await drizzleDb.query.liveSession.findFirst({
+            where: eq(liveSession.sessionId, roomId),
+            columns: { courseId: true, sessionId: true },
+          })
+
+          // Prefer the session's own course, then the course the deploy panel was
+          // scoped to (carried on the payload) — so a course-scoped session whose
+          // liveSession.courseId is unset still records under the real course
+          // instead of the hidden ad-hoc anchor, which the deployables tree filters
+          // out (making the task vanish from the tree after deploy). Course-less
+          // sessions still fall back to the ad-hoc anchor so deploys stay gradable.
+          const effectiveCourseId =
+            sessionRec?.courseId || payloadCourseId || (await ensureAdhocAnchorCourseId())
+          if (effectiveCourseId) {
+            // Sequence orders a deploy within its course's sessions; an ad-hoc
+            // session has no course to order within, so it is always 1.
+            let sessionSequence = 1
+            if (sessionRec?.courseId) {
+              const courseSessions = await drizzleDb.query.liveSession.findMany({
+                where: eq(liveSession.courseId, sessionRec.courseId),
+                orderBy: (sessions, { asc }) => [asc(sessions.scheduledAt)],
+              })
+              const sessionIndex = courseSessions.findIndex(s => s.sessionId === roomId)
+              sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
+            }
+
+            await drizzleDb.insert(deployedMaterial).values({
+              sessionId: roomId,
+              courseId: effectiveCourseId,
+              type: normalizedTask.source,
+              itemId: normalizedTask.id,
+              title: normalizedTask.title,
+              content: normalizedTask as unknown as Record<string, unknown>,
+              sessionSequence,
+              // Source lesson (deploy-only), so the Desk groups this under the real
+              // lesson instead of always "Lesson 1".
+              lessonId: typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
+              deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
+            })
+
+            // We notify clients of the session sequence so they can append "(s1, s2)" etc.
+            io.to(roomId).emit('task:deployed:sequence', {
+              taskId: normalizedTask.id,
+              sequence: sessionSequence,
+            })
+
+            // Auto-create a BuilderTask row for this deployed task (if one doesn't
+            // already exist) so student completions can be persisted to
+            // TaskSubmission — whose taskId FK requires a builderTask. This makes
+            // EVERY deployed task gradable (even ad-hoc/unsaved ones) and ensures
+            // submissions reach the Grading page. Idempotent on the PK so a real
+            // saved task is never overwritten.
+            try {
+              const tutorId = socket.data.userId
+              if (tutorId) {
+                // builderTask.lessonId is a NOT NULL FK. Prefer the lesson the task
+                // was actually deployed FROM (task.lessonId, sent on the deploy
+                // payload) so submissions group under the real lesson instead of
+                // always "Lesson 1". Fall back to the course's first lesson, then a
+                // placeholder (a course published with only a schedule has none).
+                let lesson: { lessonId: string } | undefined
+                if (typeof task.lessonId === 'string' && task.lessonId) {
+                  const [preferred] = await drizzleDb
+                    .select({ lessonId: courseLesson.lessonId })
+                    .from(courseLesson)
+                    .where(
+                      and(
+                        eq(courseLesson.lessonId, task.lessonId),
+                        eq(courseLesson.courseId, effectiveCourseId)
+                      )
+                    )
+                    .limit(1)
+                  if (preferred?.lessonId) lesson = preferred
+                }
+                if (!lesson) {
+                  const [first] = await drizzleDb
+                    .select({ lessonId: courseLesson.lessonId })
+                    .from(courseLesson)
+                    .where(eq(courseLesson.courseId, effectiveCourseId))
+                    .orderBy(courseLesson.order)
+                    .limit(1)
+                  lesson = first
+                }
+                // NOTE: set createdAt/updatedAt explicitly. These columns are
+                // declared notNull().defaultNow() in the schema, but the prod DB
+                // has drifted and lacks the column DEFAULT, so relying on the
+                // default inserts NULL and violates the not-null constraint
+                // (this is exactly what was silently breaking grading). $onUpdate
+                // does not apply to inserts, so it can't cover this either.
+                const now = new Date()
+                if (!lesson?.lessonId) {
+                  const newLessonId = crypto.randomUUID()
+                  await drizzleDb.insert(courseLesson).values({
+                    lessonId: newLessonId,
+                    courseId: effectiveCourseId,
+                    title: 'Live Session',
+                    order: 0,
+                    createdAt: now,
+                    updatedAt: now,
+                  })
+                  lesson = { lessonId: newLessonId }
+                }
+                // Tutor's marking basis, carried on the deploy payload (never in
+                // the student broadcast). Refreshed on each deploy so the live
+                // tutor + grader see the latest PCI; only these columns are
+                // updated on conflict, so a saved task's title/content is kept.
+                const taskPci = typeof task.pci === 'string' ? task.pci.slice(0, 20000) : ''
+                const taskPciSpec = normalizePciSpec(task.pciSpec)
+                await drizzleDb
+                  .insert(builderTask)
+                  .values({
+                    taskId: normalizedTask.id,
+                    courseId: effectiveCourseId,
+                    lessonId: lesson.lessonId,
+                    tutorId,
+                    title: normalizedTask.title || 'Untitled',
+                    content: normalizedTask.content || '',
+                    pci: taskPci,
+                    pciSpec: taskPciSpec,
+                    type: normalizedTask.source,
+                    status: 'published',
+                    publishedAt: now,
+                    createdAt: now,
+                    updatedAt: now,
+                  })
+                  .onConflictDoUpdate({
+                    target: builderTask.taskId,
+                    set: { pci: taskPci, pciSpec: taskPciSpec, updatedAt: now },
+                  })
+
+                // Persist the answer key + marks server-side so live submissions
+                // auto-grade against it. Carried on the deploy payload's
+                // `answerKey` (never in the student broadcast). One row per task,
+                // refreshed on each deploy; the grader reads the latest by taskId.
+                const answerKey = Array.isArray(task.answerKey) ? task.answerKey : []
+                const gradableKey = answerKey.filter(
+                  k =>
+                    k && typeof k.id === 'string' && (k.answer ?? '').toString().trim().length > 0
+                )
+                if (gradableKey.length > 0) {
+                  try {
+                    await drizzleDb
+                      .insert(builderTaskDmi)
+                      .values({
+                        dmiId: `dmi-${normalizedTask.id}`,
+                        taskId: normalizedTask.id,
+                        type: normalizedTask.source === 'assessment' ? 'assessment' : 'task',
+                        items: gradableKey,
+                        createdAt: now,
+                        updatedAt: now,
+                      })
+                      .onConflictDoUpdate({
+                        target: builderTaskDmi.dmiId,
+                        set: { items: gradableKey, updatedAt: now },
+                      })
+                  } catch (dmiErr) {
+                    console.warn(
+                      '[task:deploy] BuilderTaskDmi answer-key persist failed (non-critical):',
+                      dmiErr
+                    )
+                  }
+                }
+
+                // Persist the tutor's answer-reveal policy onto the task metadata
+                // so the async assignment GET/submit routes honor it. Merged into
+                // existing metadata so other keys are preserved.
+                const reveal = task.answerReveal
+                if (
+                  reveal === 'instant' ||
+                  reveal === 'after_submit' ||
+                  reveal === 'hidden' ||
+                  reveal === 'student_choice'
+                ) {
+                  try {
+                    const { sql } = await import('drizzle-orm')
+                    await drizzleDb
+                      .update(builderTask)
+                      .set({
+                        metadata: sql`COALESCE(${builderTask.metadata}, '{}'::jsonb) || ${JSON.stringify(
+                          { answerReveal: reveal }
+                        )}::jsonb`,
+                      })
+                      .where(eq(builderTask.taskId, normalizedTask.id))
+                  } catch (revealErr) {
+                    console.warn(
+                      '[task:deploy] answerReveal persist failed (non-critical):',
+                      revealErr
+                    )
+                  }
+                }
+              }
+            } catch (btErr) {
+              console.warn('[task:deploy] BuilderTask auto-create failed (non-critical):', btErr)
+            }
+          }
+        } catch (err) {
+          console.error('Failed to persist deployed material to DB:', err)
+        }
       }
-    })
+    )
 
     // Tutor requests course content sync to live session
     socket.on('course:sync', async (data: { roomId: string; courseId: string }) => {
@@ -2320,8 +2462,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // require the sender to be a member — so without this check a crafted
     // `roomId = "<session>:board:<victim>"` could write to a board the sender was
     // rejected from. Base (non-board) rooms keep their existing behaviour.
-    const canWriteRoom = (roomId: string): boolean =>
-      !roomId.includes(':board:') || socket.rooms.has(roomId)
+    const canWriteRoom = (roomId: string): boolean => {
+      const boardIdx = roomId.indexOf(':board:')
+      if (boardIdx < 0) return true // base session room — existing behaviour
+      if (!socket.rooms.has(roomId)) return false
+      // A per-person board sub-room is writable ONLY by its owner. A viewer (the
+      // tutor watching a student's board) is joined so they can watch, but must
+      // not draw on it — enforced here, not just in the UI.
+      const ownerId = roomId.slice(boardIdx + ':board:'.length)
+      return socket.data.userId === ownerId
+    }
 
     // Incremental whiteboard delta sync handlers
     socket.on(
@@ -2512,6 +2662,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
         if (!roomId) return
 
         if (type === 'tutor:state_sync') {
+          // Remember the presented view so late joiners hydrate it from room_state.
+          const room = activeRooms.get(roomId)
+          if (room)
+            room.presentedView = (payload ?? null) as {
+              activeTab?: string
+              activeTaskId?: string | null
+            } | null
           io.to(roomId).emit('insight:receive', { type, payload })
           return
         }
@@ -2571,12 +2728,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
 
         if (type === 'poll') {
-          // Tutor-chosen labels (True/False, Yes/No, custom); fall back to A–E.
-          // Sanitized: trimmed, non-empty, deduped-by-position, capped at 8.
+          // Tutor-chosen labels (True/False, Yes/No, 1–10, custom); fall back to
+          // A–E. Sanitized: trimmed, non-empty, capped at 10 (a 1–10 scale is the
+          // default option set, so the cap must fit all ten).
           const rawLabels = Array.isArray(data.options)
             ? data.options.map(o => String(o ?? '').trim()).filter(Boolean)
             : []
-          const labels = rawLabels.length >= 2 ? rawLabels.slice(0, 8) : ['A', 'B', 'C', 'D', 'E']
+          const labels = rawLabels.length >= 2 ? rawLabels.slice(0, 10) : ['A', 'B', 'C', 'D', 'E']
           const poll: LiveTaskPoll = {
             id: `poll-${taskId}-${Date.now()}`,
             taskId,
@@ -2894,6 +3052,7 @@ async function addStudentToRoom(socket: Socket, room: ClassRoom) {
     whiteboardData: room.whiteboardData,
     tasks: refreshedTasks,
     activePoll: room.activePoll ? formatActivePoll(room.activePoll, socket.data.userId) : null,
+    presentedView: room.presentedView ?? null,
   })
 }
 
@@ -2915,6 +3074,7 @@ async function addTutorToRoom(socket: Socket, room: ClassRoom) {
     whiteboardData: room.whiteboardData,
     tasks: refreshedTasks,
     activePoll: room.activePoll ? formatActivePoll(room.activePoll, socket.data.userId) : null,
+    presentedView: room.presentedView ?? null,
   })
 }
 

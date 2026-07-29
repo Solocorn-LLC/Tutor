@@ -35,12 +35,15 @@ export interface UpcomingClass {
   title: string
   subject: string
   scheduledAt: string
+  createdAt?: string | null
   duration: number
   maxStudents: number
   enrolledStudents: number
   status: string
   sessionNo?: number
   totalSessions?: number
+  sessionType?: string
+  description?: string | null
 }
 
 interface UpcomingClassesCardProps {

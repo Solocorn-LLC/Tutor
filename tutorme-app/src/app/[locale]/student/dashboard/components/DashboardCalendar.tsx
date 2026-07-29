@@ -11,6 +11,7 @@ import {
   type CalendarView,
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
+import { StudentGroupSessionsPanel } from '@/components/group-session/student-group-sessions-panel'
 import { Badge } from '@/components/ui/badge'
 import {
   CalendarDays,
@@ -408,6 +409,7 @@ export function DashboardCalendar({
           { value: 'classes', label: 'Sessions' },
           { value: 'calendar', label: 'Calendar' },
           { value: 'bookings', label: 'Bookings' },
+          { value: 'groupSessions', label: 'Group Sessions' },
         ]}
         showCalendarControls={activeTab === 'calendar'}
         calendarView={calendarView}
@@ -751,7 +753,7 @@ export function DashboardCalendar({
                             ) : s.pendingPayment ? (
                               <button
                                 type="button"
-                                onClick={() => router.push(`/${locale}/student/group-sessions`)}
+                                onClick={() => setActiveTab('groupSessions')}
                                 className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
                                 title="Seat held — complete payment to confirm and unlock the room."
                               >
@@ -903,6 +905,14 @@ export function DashboardCalendar({
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* Group Sessions Tab */}
+        <TabsContent
+          value="groupSessions"
+          className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <StudentGroupSessionsPanel embedded />
         </TabsContent>
       </SessionCalendarPanel>
       {reviewRequestId && (

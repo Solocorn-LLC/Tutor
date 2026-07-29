@@ -34,6 +34,7 @@ import {
   BookOpen,
   User,
   Users,
+  ChevronLeft,
 } from 'lucide-react'
 import { StudentHeroSection } from '@/app/[locale]/student/dashboard/components/StudentHeroSection'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
@@ -647,8 +648,8 @@ function CoursePageInner() {
         >
           <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-4">
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {[1, 2, 3].map(i => (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[1, 2, 3, 4].map(i => (
                   <Card key={i} className="animate-pulse">
                     <CardHeader className="h-48 bg-gray-200" />
                   </Card>
@@ -915,16 +916,29 @@ function CourseSection({
   onUnregister?: (c: Course) => void
   unregisteringId?: string | null
 }) {
+  const ITEMS_PER_PAGE = 4
+  const [currentPage, setCurrentPage] = useState(1)
+  const totalPages = Math.max(1, Math.ceil(courses.length / ITEMS_PER_PAGE))
+  const paginatedCourses = courses.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
+  // Reset to first page whenever the course list changes (tab switch, filter, etc.)
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [courses.length])
+
   return (
-    <section>
+    <section className="mx-auto w-full">
       <div className="mb-6">
         <div className="min-w-0">
           <h2 className="text-xl font-bold text-gray-900">{title}</h2>
           {description && <p className="mt-1 text-sm text-gray-500">{description}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {courses.map(course => (
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {paginatedCourses.map(course => (
           <CourseCard
             key={course.id}
             course={course}
@@ -939,6 +953,52 @@ function CourseSection({
           />
         ))}
       </div>
+
+      {courses.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-center gap-2 pt-6">
+          <button
+            type="button"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors',
+              currentPage === 1
+                ? 'cursor-not-allowed text-slate-300'
+                : 'text-slate-600 hover:bg-slate-100'
+            )}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            <button
+              key={page}
+              type="button"
+              onClick={() => setCurrentPage(page)}
+              className={cn(
+                'flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors',
+                page === currentPage
+                  ? 'bg-[#2563EB] text-white'
+                  : 'text-slate-600 hover:bg-slate-100'
+              )}
+            >
+              {page}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            className={cn(
+              'flex h-8 w-8 items-center justify-center rounded-lg text-sm transition-colors',
+              currentPage === totalPages
+                ? 'cursor-not-allowed text-slate-300'
+                : 'text-slate-600 hover:bg-slate-100'
+            )}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </section>
   )
 }

@@ -34,7 +34,7 @@ still a free-text rubric, not the seven-field spec (evaluation logic, retry poli
 `"unspecified"` for undefined fields. That refactor spans the generation prompt, a schema, storage,
 and execution and is tracked separately.
 
-## The 20 guardrails
+## The 21 guardrails
 
 1. **Core Role** — Interpret → summarize → verify → spec → execute. Tutor intent is supreme.
 2. **Content** — Imported lesson content is authoritative. Extract/summarize/classify only; never silently rewrite, change meaning, invent missing content, or alter difficulty without approval. Surface parsing uncertainty.
@@ -55,7 +55,7 @@ and execution and is tracked separately.
 17. **Universal Applicability** — Works across all domains; focus on instructional logic, not domain assumptions.
 18. **Data Capture** — Outputs storable as structured records distinguishing tutor input vs interpretation vs approved behaviour (auditability/versioning).
 19. **Safe Failure** — If a valid PCI can't be confidently produced, fail safely: don't activate uncertain PCI, don't present guesses as confirmed, don't hide ambiguity.
-20. **Final Authority** — Approved PCI is the binding contract. Tutor supreme during setup; approved PCI supreme during execution.
+21. **Language Preference Check** — Immediately after the initial task summary, ask the tutor whether they would like to continue the PCI setup in the current language or switch to a different language. The PCI policy can be completed in any language the tutor chooses; confirm the preference before asking marking or policy questions.
 
 ## What the validator currently checks (warn-only)
 

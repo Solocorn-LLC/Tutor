@@ -62,6 +62,7 @@ import {
   type Content,
   type ImportedLearningResource,
 } from './builder-types'
+import { isSlideHtml, sanitizeSlideHtml } from './sanitize-slide-html'
 
 export const generateId = () => crypto.randomUUID()
 
@@ -456,11 +457,43 @@ export async function generateQuestionPaperPDF(
 }
 
 /**
+ * Check whether the given task content would overflow the locked 1100 x 620 slide
+ * viewport when rendered at the fixed editor font size (20px, 1.6 line height).
+ * Used to reject keystrokes or drops that would exceed the slide canvas.
+ */
+export function isTaskSlideOverflowing(content: string): boolean {
+  if (typeof document === 'undefined') return false
+  const el = document.createElement('div')
+  el.style.position = 'absolute'
+  el.style.left = '-9999px'
+  el.style.top = '0'
+  el.style.width = '1100px'
+  el.style.height = '620px'
+  el.style.padding = '48px'
+  el.style.fontFamily =
+    'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif'
+  el.style.fontSize = '20px'
+  el.style.lineHeight = '1.6'
+  el.style.whiteSpace = 'pre-wrap'
+  el.style.wordBreak = 'break-word'
+  el.style.boxSizing = 'border-box'
+  el.style.overflow = 'hidden'
+  el.setAttribute('dir', 'auto')
+  el.textContent = content.trim()
+  document.body.appendChild(el)
+  try {
+    return el.scrollHeight > el.clientHeight
+  } finally {
+    document.body.removeChild(el)
+  }
+}
+
+/**
  * Version of the text-only task snapshot renderer. Bump this whenever the
  * generated snapshot format changes so existing auto-generated PDFs are
  * invalidated and regenerated.
  */
-export const TASK_TEXT_SNAPSHOT_VERSION = 2
+export const TASK_TEXT_SNAPSHOT_VERSION = 8
 
 /**
  * Generate a simple PDF from a task's typed content so that text-only
@@ -470,10 +503,11 @@ export const TASK_TEXT_SNAPSHOT_VERSION = 2
  * font/encoding limitations and gives us full browser language support (CJK,
  * Arabic, Devanagari, emojis, etc.) without bundling huge font files.
  *
- * The PDF page is a landscape snapshot of the Task Slide viewport: a plain white
- * document showing the task content as it appears in the slide. It does not
- * include the task number/title card or the purple branding. The height expands
- * only if the content exceeds the default viewport height.
+ * The PDF page is a locked landscape snapshot of the Task Slide viewport: a plain
+ * white document showing the task content as it appears in the slide. It does not
+ * include the task number/title card or the purple branding. The viewport is fixed
+ * at 1100 x 620 px; any overflow is clipped because the in-editor textarea prevents
+ * input beyond this area.
  */
 export async function generateTaskTextPDF(
   title: string,
@@ -489,9 +523,11 @@ export async function generateTaskTextPDF(
   const VIEWPORT_WIDTH = 1100
   const VIEWPORT_MIN_HEIGHT = 620
 
-  // Off-screen landscape slide viewport that mirrors the Task Slide display area.
-  // Use absolute positioning inside a sized wrapper so html2canvas gets a
-  // reliable 1100px width and the PDF page stays landscape by default.
+  // Off-screen slide viewport that mirrors the Task Slide display area. The
+  // wrapper is fixed to the 1100px width so html2canvas renders reliably, but
+  // its height is left to grow: long content expands the page (correct aspect
+  // ratio) instead of being clipped, while short content still fills the
+  // landscape minimum.
   const wrapper = document.createElement('div')
   wrapper.style.position = 'absolute'
   wrapper.style.left = '-9999px'
@@ -509,14 +545,20 @@ export async function generateTaskTextPDF(
   viewport.style.border = '1px solid #E5E7EB'
   viewport.style.fontFamily =
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif'
-  viewport.style.fontSize = '20px'
+  viewport.style.fontSize = '18px'
   viewport.style.lineHeight = '1.6'
   viewport.style.whiteSpace = 'pre-wrap'
   viewport.style.wordBreak = 'break-word'
   viewport.style.boxSizing = 'border-box'
   viewport.style.overflow = 'visible'
   viewport.setAttribute('dir', 'auto')
-  viewport.textContent = content.trim()
+
+  const trimmed = content.trim()
+  if (isSlideHtml(trimmed)) {
+    viewport.innerHTML = sanitizeSlideHtml(trimmed)
+  } else {
+    viewport.textContent = trimmed
+  }
 
   wrapper.appendChild(viewport)
   document.body.appendChild(wrapper)
@@ -539,11 +581,12 @@ export async function generateTaskTextPDF(
       logging: false,
     })
 
-    // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
+    // 1 CSS px = 0.75 pt (72 pt / 96 dpi). Use the measured size so a page that
+    // grew for long content keeps the right aspect ratio.
     const ptWidth = viewportCssWidth * 0.75
     const ptHeight = viewportCssHeight * 0.75
 
-    const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight] })
+    const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight], orientation: 'landscape' })
     const imgData = canvas.toDataURL('image/png')
     doc.addImage(imgData, 'PNG', 0, 0, ptWidth, ptHeight)
 

@@ -21,9 +21,9 @@ export interface PciThread {
   input: string
   loading: boolean
   errorHint: string
-  /** Finalized rubric awaiting "Apply to PCI" (empty until the model finalizes). */
+  /** Finalized policy awaiting "Apply to PCI" (empty until the model finalizes). */
   draft: string
-  /** Structured form of the finalized rubric (TASK-6), when the model emitted one. */
+  /** Structured form of the finalized policy (TASK-6), when the model emitted one. */
   draftSpec?: import('@/lib/assessment/pci-spec').PciSpec
   /**
    * Partial structured policy the assistant has captured SO FAR this
@@ -72,6 +72,7 @@ export type PciTarget =
 export type PciAction =
   | { type: 'setInput'; target: PciTarget; input: string }
   | { type: 'loadMessages'; target: PciTarget; messages: PciMessage[] }
+  | { type: 'loadThread'; target: PciTarget; thread: Partial<PciThread> }
   | { type: 'sendStart'; target: PciTarget; userMessage: string }
   | { type: 'sendStartSilent'; target: PciTarget }
   | {
@@ -120,6 +121,17 @@ export function pciReducer(state: PciState, action: PciAction): PciState {
 
     case 'loadMessages':
       return patch(state, action.target, { messages: action.messages })
+
+    case 'loadThread':
+      // Restore a previously persisted thread (messages + draft state) without
+      // losing fields that were not saved.
+      return setThread(state, action.target, {
+        ...emptyThread(),
+        ...getThread(state, action.target),
+        ...action.thread,
+        loading: false,
+        errorHint: '',
+      })
 
     case 'sendStart':
       // Append the user's message and start loading. The input box is cleared

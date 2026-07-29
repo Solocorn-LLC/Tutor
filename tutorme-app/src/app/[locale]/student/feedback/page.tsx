@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -31,6 +32,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSocket } from '@/hooks/use-socket'
 import { toast } from 'sonner'
 import { cn, resolvePublicUrl } from '@/lib/utils'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import {
   MessageSquare,
   Send,
@@ -75,8 +77,37 @@ import type {
 } from '@/lib/socket'
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
 import { TaskAiHelper } from './TaskAiHelper'
-import { TaskChatPanel } from './TaskChatPanel'
+import {
+  TestTaskChat,
+  type TestTaskChatState,
+  type TestTaskChatMsg,
+} from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
+
+/** Group deployed task directory items into base tasks and their extensions. */
+interface GroupableTask {
+  id: string
+  itemId?: string
+  title: string
+  parentId?: string | null
+  isExtension?: boolean
+  source?: 'task' | 'assessment' | 'homework'
+  dmiItems?: LiveTaskDmiItem[]
+}
+function groupTasksByParent(tasks: GroupableTask[]) {
+  const baseTasks: GroupableTask[] = []
+  const extMap = new Map<string, GroupableTask[]>()
+  for (const t of tasks) {
+    if (t.parentId && t.isExtension) {
+      const arr = extMap.get(t.parentId) || []
+      arr.push(t)
+      extMap.set(t.parentId, arr)
+    } else {
+      baseTasks.push(t)
+    }
+  }
+  return { baseTasks, extMap }
+}
 
 type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
 type WhiteboardPage = WhiteboardPages[number]
@@ -938,10 +969,24 @@ function StudentFeedbackContent() {
   >('interactions')
   const [unseenTaskIds, setUnseenTaskIds] = useState<string[]>([])
   const [unseenHomeworkIds, setUnseenHomeworkIds] = useState<string[]>([])
+  // Base-task completion state for sequential unlocking in the Lessons panel.
+  const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set())
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
   const [chatInput, setChatInput] = useState('')
   const [viewerZoom, setViewerZoom] = useState(1)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  // Restored state + tutor messages for the live chat-task flow (mirrors Test mode).
+  const [taskChatInitial, setTaskChatInitial] = useState<TestTaskChatState | undefined>(undefined)
+
+  // Clear restored chat state synchronously when the active task changes so the
+  // TestTaskChat component remounts with a blank slate while the new task's
+  // prior submission is being fetched. Without this, the previous task's messages
+  // can survive into the newly deployed task because TestTaskChat only uses its
+  // initialState prop on first mount.
+  useLayoutEffect(() => {
+    setTaskChatInitial(undefined)
+  }, [activeTaskId])
+  const [taskChatIncoming, setTaskChatIncoming] = useState<TestTaskChatMsg[]>([])
   const [sessionContext, setSessionContext] = useState<{
     topic: string | null
     objectives: string[] | null
@@ -1204,6 +1249,8 @@ function StudentFeedbackContent() {
     setTutorBoardPages(createDefaultWhiteboardPages())
     setTutorBoardPageIndex(0)
     setChatMessages([])
+    setTaskChatInitial(undefined)
+    setTaskChatIncoming([])
   }, [selectedSessionId])
 
   // Refs to track notification IDs for tasks/homework so we can mark them as read
@@ -1548,7 +1595,13 @@ function StudentFeedbackContent() {
     }
 
     const handleTaskUpdated = (payload: { task: LiveTask }) => {
-      setTasks(prev => prev.map(item => (item.id === payload.task.id ? payload.task : item)))
+      setTasks(prev => {
+        const exists = prev.some(item => item.id === payload.task.id)
+        if (exists) {
+          return prev.map(item => (item.id === payload.task.id ? payload.task : item))
+        }
+        return [...prev, payload.task]
+      })
     }
 
     const handleTaskSequence = (payload: { taskId: string; sequence: number }) => {
@@ -1560,6 +1613,57 @@ function StudentFeedbackContent() {
           return item
         })
       )
+    }
+
+    // Polls and questions are attached to a deployed task. The server emits both
+    // `task:updated` and `insight:sent`; we listen to both so a missed `task:updated`
+    // (or a task that arrived without the latest insight) still surfaces the new poll
+    // in the student's Interact panel.
+    const handleInsightSent = (payload: {
+      taskId: string
+      type: 'poll' | 'question'
+      item: LiveTaskPoll | LiveTaskQuestion
+    }) => {
+      setTasks(prev => {
+        const taskIndex = prev.findIndex(item => item.id === payload.taskId)
+        if (taskIndex < 0) return prev
+        const task = prev[taskIndex]
+        if (payload.type === 'poll') {
+          const poll = payload.item as LiveTaskPoll
+          const exists = task.polls?.some(p => p.id === poll.id)
+          if (exists) return prev
+          const updatedTask = { ...task, polls: [...(task.polls ?? []), poll] }
+          return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+        }
+        const question = payload.item as LiveTaskQuestion
+        const exists = task.questions?.some(q => q.id === question.id)
+        if (exists) return prev
+        const updatedTask = { ...task, questions: [...(task.questions ?? []), question] }
+        return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+      })
+    }
+
+    const handleInsightResponse = (payload: {
+      taskId: string
+      type: 'poll' | 'question'
+      item: LiveTaskPoll | LiveTaskQuestion
+    }) => {
+      setTasks(prev => {
+        const taskIndex = prev.findIndex(item => item.id === payload.taskId)
+        if (taskIndex < 0) return prev
+        const task = prev[taskIndex]
+        if (payload.type === 'poll') {
+          const poll = payload.item as LiveTaskPoll
+          const updatedPolls = task.polls?.map(p => (p.id === poll.id ? poll : p)) ?? []
+          const updatedTask = { ...task, polls: updatedPolls }
+          return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+        }
+        const question = payload.item as LiveTaskQuestion
+        const updatedQuestions =
+          task.questions?.map(q => (q.id === question.id ? question : q)) ?? []
+        const updatedTask = { ...task, questions: updatedQuestions }
+        return [...prev.slice(0, taskIndex), updatedTask, ...prev.slice(taskIndex + 1)]
+      })
     }
 
     const handleInsightReceived = (payload: {
@@ -1605,6 +1709,16 @@ function StudentFeedbackContent() {
       toast.success(`New homework assigned: ${hw.title}`)
     }
 
+    const handleTaskCompleted = (payload: {
+      taskId: string
+      studentId: string
+      completedAt?: number
+    }) => {
+      if (payload.studentId === session?.user?.id) {
+        setCompletedTaskIds(prev => new Set([...prev, payload.taskId]))
+      }
+    }
+
     const handleTutorWhiteboardUpdate = (board: {
       pages?: any[]
       pageIndex?: number
@@ -1635,9 +1749,12 @@ function StudentFeedbackContent() {
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
+    socket.on('insight:sent', handleInsightSent)
+    socket.on('insight:response', handleInsightResponse)
     socket.on('insight:receive', handleInsightReceived)
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
+    socket.on('task:completed', handleTaskCompleted)
     socket.on('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
     socket.on('whiteboard:state:response', handleWhiteboardStateResponse)
 
@@ -1645,9 +1762,12 @@ function StudentFeedbackContent() {
       socket.off('task:deployed', handleTaskDeployed)
       socket.off('task:updated', handleTaskUpdated)
       socket.off('task:deployed:sequence', handleTaskSequence)
+      socket.off('insight:sent', handleInsightSent)
+      socket.off('insight:response', handleInsightResponse)
       socket.off('insight:receive', handleInsightReceived)
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
+      socket.off('task:completed', handleTaskCompleted)
       socket.off('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
       socket.off('whiteboard:state:response', handleWhiteboardStateResponse)
     }
@@ -1669,6 +1789,81 @@ function StudentFeedbackContent() {
     !!activeTask &&
     activeTask.source === 'task' &&
     !(Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0)
+
+  // Restore a prior chat-task submission so a returning student sees their answers,
+  // the AI feedback, and any follow-ups — then they can continue asking questions.
+  useEffect(() => {
+    if (!activeTaskId || !isChatTask) {
+      setTaskChatInitial(undefined)
+      return
+    }
+    let active = true
+    fetch(`/api/student/assignments/${activeTaskId}`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(data => {
+        if (!active) return
+        if (data?.alreadySubmitted) {
+          const answersObj =
+            data.existingAnswers && typeof data.existingAnswers === 'object'
+              ? (data.existingAnswers as Record<string, string>)
+              : {}
+          const answers = Object.keys(answersObj)
+            .sort((a, b) => Number(a) - Number(b))
+            .map(k => String(answersObj[k]))
+          const aiItems: Array<{ explanation?: string }> = data.existingAiFeedback?.items ?? []
+          const followUps: Array<{ question?: string; answer?: string }> = Array.isArray(
+            data.existingFollowUps
+          )
+            ? data.existingFollowUps
+            : []
+          const restored: TestTaskChatMsg[] = []
+          answers.forEach(a =>
+            restored.push({ role: 'student', content: a, timestamp: Date.now() })
+          )
+          aiItems.forEach((it, i) =>
+            restored.push({
+              role: 'ai',
+              content: it.explanation ?? '',
+              re: answers[i],
+              timestamp: Date.now(),
+            })
+          )
+          followUps.forEach(f => {
+            if (f.question)
+              restored.push({ role: 'student', content: f.question, timestamp: Date.now() })
+            if (f.answer) restored.push({ role: 'ai', content: f.answer, timestamp: Date.now() })
+          })
+          setTaskChatInitial({ messages: restored, draft: '', completed: restored.length > 0 })
+        } else {
+          setTaskChatInitial({ messages: [], draft: '', completed: false })
+        }
+      })
+      .catch(() => {
+        if (active) setTaskChatInitial({ messages: [], draft: '', completed: false })
+      })
+    return () => {
+      active = false
+    }
+  }, [activeTaskId, isChatTask])
+
+  // Listen for tutor task-chat messages and inject them into the student's chat.
+  useEffect(() => {
+    if (!socket || !activeTaskId) return
+    const handleTaskChatMessage = (msg: TestTaskChatMsg & { taskId?: string }) => {
+      if (msg.taskId && msg.taskId !== activeTaskId) return
+      setTaskChatIncoming(prev => [...prev, msg])
+    }
+    socket.on('task:chat_message', handleTaskChatMessage)
+    return () => {
+      socket.off('task:chat_message', handleTaskChatMessage)
+    }
+  }, [socket, activeTaskId])
+
+  // Clear cross-task message relay when the active chat task changes.
+  useEffect(() => {
+    setTaskChatIncoming([])
+  }, [activeTaskId])
+
   const currentSession = sessions.find(s => s.id === selectedSessionId) || null
   const isScheduled = currentSession?.status === 'scheduled'
   const isPassedSession =
@@ -1683,8 +1878,18 @@ function StudentFeedbackContent() {
   const isSessionLive =
     !!activeCourseId && sessionContext?.status !== 'ended' && !sessionContext?.endedAt
 
-  const feedbackPolls = activeTask?.polls ?? []
-  const feedbackQuestions = activeTask?.questions ?? []
+  // The Interact tab should show every poll/question pushed by the tutor for
+  // this session, regardless of which task is currently selected in the main
+  // viewer. This mirrors the original "insight feed" behaviour and prevents a
+  // poll sent for a non-active task from disappearing.
+  const feedbackPolls = useMemo(
+    () => tasks.flatMap(t => t.polls ?? []).sort((a, b) => b.createdAt - a.createdAt),
+    [tasks]
+  )
+  const feedbackQuestions = useMemo(
+    () => tasks.flatMap(t => t.questions ?? []).sort((a, b) => b.createdAt - a.createdAt),
+    [tasks]
+  )
 
   // Count polls/questions this student hasn't answered yet (and that are still
   // open), so the Interact tab can badge how many need a response. A closed
@@ -1820,10 +2025,10 @@ function StudentFeedbackContent() {
   }
 
   const handlePollVote = (poll: LiveTaskPoll, value: number) => {
-    if (!socket || !selectedSessionId || !activeTask) return
+    if (!socket || !selectedSessionId) return
     socket.emit('insight:respond', {
       roomId: selectedSessionId,
-      taskId: activeTask.id,
+      taskId: poll.taskId,
       type: 'poll',
       insightId: poll.id,
       value,
@@ -1832,10 +2037,10 @@ function StudentFeedbackContent() {
 
   const handleQuestionSend = (question: LiveTaskQuestion) => {
     const draft = questionDrafts[question.id]?.trim()
-    if (!draft || !socket || !selectedSessionId || !activeTask) return
+    if (!draft || !socket || !selectedSessionId) return
     socket.emit('insight:respond', {
       roomId: selectedSessionId,
-      taskId: activeTask.id,
+      taskId: question.taskId,
       type: 'question',
       insightId: question.id,
       answer: draft,
@@ -1991,95 +2196,110 @@ function StudentFeedbackContent() {
 
                   <div className="flex-1 overflow-hidden p-4 pt-6">
                     {activeTask ? (
-                      <div
-                        className="h-full w-full overflow-y-auto"
-                        style={{ zoom: viewerZoom } as React.CSSProperties}
-                      >
-                        <h3 className="mb-3 text-base font-semibold text-gray-900">
-                          {activeTask.title}
-                        </h3>
+                      isChatTask && activeTaskId ? (
+                        <div className="h-full w-full">
+                          <TestTaskChat
+                            key={activeTaskId}
+                            mode="test-student"
+                            questionText={`${activeTask.title}\n\n${activeTask.content}`}
+                            sourceDocument={activeTask.sourceDocument}
+                            initialState={taskChatInitial}
+                            incomingMessages={taskChatIncoming}
+                            studentAvatarUrl={session?.user?.image}
+                            onGrade={body =>
+                              fetchWithCsrf(`/api/student/assignments/${activeTaskId}/task-chat`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(body),
+                              })
+                            }
+                            onBroadcast={msg => {
+                              if (!socket || !selectedSessionId) return
+                              socket.emit('task:chat_message', {
+                                roomId: selectedSessionId,
+                                taskId: activeTaskId,
+                                role: 'student',
+                                content: msg.content,
+                                name: session?.user?.name || 'Student',
+                                timestamp: Date.now(),
+                              })
+                            }}
+                            onComplete={answers => {
+                              if (!socket || !selectedSessionId || !activeTaskId) return
+                              const record: Record<string, string> = {}
+                              answers.forEach((a, i) => {
+                                record[String(i + 1)] = a
+                              })
+                              socket.emit('task:complete', {
+                                roomId: selectedSessionId,
+                                taskId: activeTaskId,
+                                answers: record,
+                                aiHandled: true,
+                              })
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="h-full w-full overflow-y-auto"
+                          style={{ zoom: viewerZoom } as React.CSSProperties}
+                        >
+                          <h3 className="mb-3 text-base font-semibold text-gray-900">
+                            {activeTask.title}
+                          </h3>
 
-                        {activeTask.content && (
-                          <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
-                            {activeTask.content}
-                          </div>
-                        )}
-
-                        {/* For a chat task the document lives inside the chat panel
-                            (it collapses into a pinned card after the first message),
-                            so only render the standalone viewer for non-chat tasks. */}
-                        {!isChatTask && activeTask.sourceDocument && (
-                          // Same renderer the chat flow uses (via TaskDocumentCard),
-                          // in its non-collapsible mode — one code path for the PDF/
-                          // image viewer and the "document unavailable" fallback.
-                          <div className="mb-4 h-[55vh] w-full">
-                            <TaskDocumentCard
-                              sourceDocument={activeTask.sourceDocument}
-                              alwaysOpen
-                            />
-                          </div>
-                        )}
-
-                        {/* The questions + answer inputs live in the right-hand
-                            Assessment tab (single source of truth). Here we just
-                            point the student to it so a question-only task isn't
-                            blank. */}
-                        {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setRightPanelTab('dmi')}
-                            className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
-                          >
-                            <span>
-                              {activeTask.dmiItems.length} question
-                              {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
-                              Assessment tab
-                            </span>
-                            <ChevronRight className="h-4 w-4 shrink-0" />
-                          </button>
-                        )}
-
-                        {/* Chat-based task: the student answers by chatting, then
-                            "Task complete" → the AI responds to each answer per the
-                            PCI, then they can ask about what they got wrong. */}
-                        {isChatTask && activeTaskId && (
-                          <div className="mt-2 h-[78vh] max-h-[calc(100vh-160px)] min-h-[420px]">
-                            <TaskChatPanel
-                              taskId={activeTaskId}
-                              taskTitle={activeTask.title}
-                              sourceDocument={activeTask.sourceDocument}
-                              onCompleted={answers => {
-                                // Broadcast the live "completed" tick to the tutor.
-                                // aiHandled=true → the server only marks completion
-                                // and does NOT re-write the DB (the task-chat route
-                                // already persisted the answers + AI responses).
-                                if (!socket || !selectedSessionId || !activeTaskId) return
-                                const record: Record<string, string> = {}
-                                answers.forEach((a, i) => {
-                                  record[String(i + 1)] = a
-                                })
-                                socket.emit('task:complete', {
-                                  roomId: selectedSessionId,
-                                  taskId: activeTaskId,
-                                  answers: record,
-                                  aiHandled: true,
-                                })
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {!isChatTask &&
-                          !activeTask.content &&
-                          !activeTask.sourceDocument &&
-                          !(
-                            Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
-                          ) && (
-                            <p className="text-sm text-gray-500">
-                              This task has no content to display.
-                            </p>
+                          {activeTask.content && (
+                            <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
+                              {activeTask.content}
+                            </div>
                           )}
-                      </div>
+
+                          {/* For a chat task the document lives inside the chat panel
+                              (it collapses into a pinned card after the first message),
+                              so only render the standalone viewer for non-chat tasks. */}
+                          {!isChatTask && activeTask.sourceDocument && (
+                            // Same renderer the chat flow uses (via TaskDocumentCard),
+                            // in its non-collapsible mode — one code path for the PDF/
+                            // image viewer and the "document unavailable" fallback.
+                            <div className="mb-4 h-[55vh] w-full">
+                              <TaskDocumentCard
+                                sourceDocument={activeTask.sourceDocument}
+                                alwaysOpen
+                              />
+                            </div>
+                          )}
+
+                          {/* The questions + answer inputs live in the right-hand
+                              Assessment tab (single source of truth). Here we just
+                              point the student to it so a question-only task isn't
+                              blank. */}
+                          {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setRightPanelTab('dmi')}
+                              className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
+                            >
+                              <span>
+                                {activeTask.dmiItems.length} question
+                                {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
+                                Assessment tab
+                              </span>
+                              <ChevronRight className="h-4 w-4 shrink-0" />
+                            </button>
+                          )}
+
+                          {!isChatTask &&
+                            !activeTask.content &&
+                            !activeTask.sourceDocument &&
+                            !(
+                              Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
+                            ) && (
+                              <p className="text-sm text-gray-500">
+                                This task has no content to display.
+                              </p>
+                            )}
+                        </div>
+                      )
                     ) : (
                       <div className="flex h-full items-center justify-center text-sm text-gray-400">
                         Select a task from the Lessons tab to open it.
@@ -2088,7 +2308,7 @@ function StudentFeedbackContent() {
                   </div>
 
                   {/* Floating zoom controls */}
-                  <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
+                  <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -2109,7 +2329,7 @@ function StudentFeedbackContent() {
                 </div>
 
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
-                    chat tasks, which use the in-viewer TaskChatPanel instead. */}
+                    chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
                   <div className="mt-3 flex items-center gap-3">
                     <div className="relative flex-1">
@@ -2326,43 +2546,179 @@ function StudentFeedbackContent() {
               )}
             >
               {rightPanelTab === 'lessons' ? (
-                <div className="space-y-2">
-                  {tasks.length === 0 && (
+                <div className="space-y-4">
+                  {tasks.length === 0 && liveHomework.length === 0 && (
                     <p className="text-sm text-gray-500">No tasks deployed yet.</p>
                   )}
-                  {[...tasks].reverse().map(task => (
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() => handleSelectTask(task.id)}
-                      onDoubleClick={() => {
-                        handleSelectTask(task.id)
-                        // Double-clicking an assessment (or any task that carries
-                        // DMI questions) jumps straight to its answer inputs in
-                        // the Assessment tab.
-                        if (task.source === 'assessment' || (task.dmiItems?.length ?? 0) > 0) {
-                          setRightPanelTab('dmi')
+
+                  {(() => {
+                    const ordered = [...tasks]
+                    const baseTasks = ordered.filter(t => !t.isExtension && t.source !== 'homework')
+                    const { extMap } = groupTasksByParent(ordered)
+                    return (
+                      <div className="space-y-2">
+                        {baseTasks.map((task, idx) => {
+                          const isUnlocked =
+                            idx === 0 || completedTaskIds.has(baseTasks[idx - 1].id)
+                          const isActive = activeTaskId === task.id
+                          const extensions = extMap.get(task.id) ?? []
+                          return (
+                            <div key={task.id} className="space-y-1">
+                              <button
+                                type="button"
+                                disabled={!isUnlocked}
+                                onClick={() => handleSelectTask(task.id)}
+                                onDoubleClick={() => {
+                                  handleSelectTask(task.id)
+                                  if (
+                                    task.source === 'assessment' ||
+                                    (task.dmiItems?.length ?? 0) > 0
+                                  ) {
+                                    setRightPanelTab('dmi')
+                                  }
+                                }}
+                                className={cn(
+                                  'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
+                                  !isUnlocked
+                                    ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                    : isActive
+                                      ? 'border-blue-200 bg-blue-50'
+                                      : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                                    isUnlocked
+                                      ? 'bg-blue-100 text-blue-700'
+                                      : 'bg-gray-200 text-gray-500'
+                                  )}
+                                >
+                                  {idx + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <span className="text-sm font-medium">{task.title}</span>
+                                    {!isUnlocked ? (
+                                      <Lock className="h-4 w-4 shrink-0 text-gray-400" />
+                                    ) : (
+                                      unseenTaskIds.includes(task.id) && (
+                                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                          New
+                                        </span>
+                                      )
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-gray-500">
+                                    Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                              </button>
+
+                              {extensions.length > 0 && (
+                                <div className="relative ml-6 space-y-1 border-l-2 border-blue-100 pl-3">
+                                  {extensions.map(ext => {
+                                    const extUnlocked = completedTaskIds.has(task.id)
+                                    return (
+                                      <button
+                                        key={ext.id}
+                                        type="button"
+                                        disabled={!extUnlocked}
+                                        onClick={() => handleSelectTask(ext.id)}
+                                        onDoubleClick={() => {
+                                          handleSelectTask(ext.id)
+                                          if (
+                                            ext.source === 'assessment' ||
+                                            (ext.dmiItems?.length ?? 0) > 0
+                                          ) {
+                                            setRightPanelTab('dmi')
+                                          }
+                                        }}
+                                        className={cn(
+                                          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                          !extUnlocked
+                                            ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                            : activeTaskId === ext.id
+                                              ? 'border-blue-200 bg-blue-50'
+                                              : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                        )}
+                                      >
+                                        <span className="text-sm font-medium">{ext.title}</span>
+                                        {!extUnlocked ? (
+                                          <Lock className="ml-auto h-4 w-4 shrink-0 text-gray-400" />
+                                        ) : (
+                                          unseenTaskIds.includes(ext.id) && (
+                                            <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                              New
+                                            </span>
+                                          )
+                                        )}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })()}
+
+                  {liveHomework.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setFoldersOpen(prev => ({ ...prev, homework: !prev.homework }))
                         }
-                      }}
-                      className={`flex w-full flex-col gap-1 rounded-lg border px-3 py-2 text-left transition-colors ${
-                        activeTaskId === task.id
-                          ? 'border-blue-200 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                        {unseenTaskIds.includes(task.id) && (
-                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                            New
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-gray-700 hover:bg-slate-100"
+                      >
+                        {foldersOpen.homework ? (
+                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                        )}
+                        <Folder className="h-4 w-4 shrink-0 text-blue-400" fill="currentColor" />
+                        Homework
+                        {unseenHomeworkIds.length > 0 && (
+                          <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
+                            {unseenHomeworkIds.length}
                           </span>
                         )}
-                      </div>
-                      <span className="text-xs text-gray-500">
-                        Deployed {new Date(task.deployedAt).toLocaleTimeString()}
-                      </span>
-                    </button>
-                  ))}
+                      </button>
+                      {foldersOpen.homework && (
+                        <div className="space-y-1">
+                          {liveHomework.map(hw => (
+                            <button
+                              key={hw.id}
+                              type="button"
+                              onClick={() => handleSelectTask(hw.id)}
+                              onDoubleClick={() => {
+                                handleSelectTask(hw.id)
+                                if (hw.source === 'assessment' || (hw.dmiItems?.length ?? 0) > 0) {
+                                  setRightPanelTab('dmi')
+                                }
+                              }}
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                activeTaskId === hw.id
+                                  ? 'border-blue-200 bg-blue-50'
+                                  : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                              )}
+                            >
+                              <span className="text-sm font-medium text-gray-900">{hw.title}</span>
+                              {unseenHomeworkIds.includes(hw.id) && (
+                                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                  New
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : rightPanelTab === 'dmi' ? (
                 <div className="space-y-4">
@@ -2456,10 +2812,10 @@ function StudentFeedbackContent() {
                   <div className="mb-2 border-b border-gray-100 pb-2">
                     <h2 className="text-base font-bold text-gray-900">{interactionsTitle}</h2>
                   </div>
-                  {!activeTask && (
+                  {tasks.length === 0 && (
                     <p className="text-sm text-gray-500">Select a task to see feedback prompts.</p>
                   )}
-                  {activeTask && (
+                  {tasks.length > 0 && (
                     <div className="space-y-6">
                       {feedbackPolls.length > 0 && (
                         <div className="space-y-3">
@@ -2714,35 +3070,76 @@ function StudentFeedbackContent() {
                                             </button>
                                             {foldersOpen.tasks && (
                                               <div className="mt-1 flex flex-col gap-0.5 pl-6">
-                                                {(!courseData.tasks ||
-                                                  courseData.tasks.length === 0) && (
-                                                  <span className="px-2 py-1 text-xs text-slate-500">
-                                                    Empty folder
-                                                  </span>
-                                                )}
-                                                {courseData.tasks &&
-                                                  [...courseData.tasks].reverse().map(task => (
-                                                    <button
-                                                      key={task.id}
-                                                      onClick={() =>
-                                                        handleSelectDirectoryItem(task)
-                                                      }
-                                                      className={cn(
-                                                        'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
-                                                        activeTaskId === (task.itemId || task.id)
-                                                          ? 'bg-blue-50 font-medium text-blue-700'
-                                                          : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
-                                                      )}
-                                                    >
-                                                      <FileText className="h-3.5 w-3.5 shrink-0" />
-                                                      <span className="truncate">{task.title}</span>
-                                                      {unseenTaskIds.includes(
-                                                        task.itemId || task.id
-                                                      ) && (
-                                                        <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
-                                                      )}
-                                                    </button>
-                                                  ))}
+                                                {(() => {
+                                                  const { baseTasks, extMap } = groupTasksByParent(
+                                                    courseData.tasks || []
+                                                  )
+                                                  if (baseTasks.length === 0) {
+                                                    return (
+                                                      <span className="px-2 py-1 text-xs text-slate-500">
+                                                        Empty folder
+                                                      </span>
+                                                    )
+                                                  }
+                                                  return baseTasks
+                                                    .slice()
+                                                    .reverse()
+                                                    .map(task => (
+                                                      <Fragment key={task.id}>
+                                                        <button
+                                                          onClick={() =>
+                                                            handleSelectDirectoryItem(task)
+                                                          }
+                                                          className={cn(
+                                                            'group flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                                                            activeTaskId ===
+                                                              (task.itemId || task.id)
+                                                              ? 'bg-blue-50 font-medium text-blue-700'
+                                                              : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                          )}
+                                                        >
+                                                          <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                          <span className="truncate">
+                                                            {task.title}
+                                                          </span>
+                                                          {unseenTaskIds.includes(
+                                                            task.itemId || task.id
+                                                          ) && (
+                                                            <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                                                          )}
+                                                        </button>
+                                                        {extMap
+                                                          .get(task.itemId || task.id)
+                                                          ?.slice()
+                                                          .reverse()
+                                                          .map(ext => (
+                                                            <button
+                                                              key={ext.id}
+                                                              onClick={() =>
+                                                                handleSelectDirectoryItem(ext)
+                                                              }
+                                                              className={cn(
+                                                                'group flex items-center gap-2 rounded-md py-1.5 pl-6 pr-2 text-left text-sm transition-colors',
+                                                                activeTaskId ===
+                                                                  (ext.itemId || ext.id)
+                                                                  ? 'bg-blue-50 font-medium text-blue-700'
+                                                                  : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06)]'
+                                                              )}
+                                                            >
+                                                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                              <span className="truncate">
+                                                                {ext.title}
+                                                              </span>
+                                                              {unseenTaskIds.includes(
+                                                                ext.itemId || ext.id
+                                                              ) && (
+                                                                <div className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-blue-500" />
+                                                              )}
+                                                            </button>
+                                                          ))}
+                                                      </Fragment>
+                                                    ))
+                                                })()}
                                               </div>
                                             )}
                                           </div>

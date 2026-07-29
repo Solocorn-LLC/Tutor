@@ -1,20 +1,23 @@
 'use client'
 
-import { useReducer } from 'react'
+import { useReducer, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import type { PciMessage, PciAuditRecord } from '@/lib/assessment/pci'
 import {
   pciReducer,
   initialPciState,
   getThread,
+  emptyThread,
   type PciState,
   type PciTarget,
   type PciGuardrailWarning,
+  type PciThread,
 } from './pci-reducer'
 
 interface PciSourceDoc {
   fileName: string
   fileUrl?: string
+  fileKey?: string
   mimeType?: string
   /** Full OCR/extracted text of the uploaded PDF, if available. */
   extractedText?: string
@@ -65,8 +68,28 @@ interface UsePciDeps {
   taskPciVariant?: {
     documentKind?: 'question_paper' | 'study_material'
   }
-  /** Writes the finalized rubric to the active task/assessment PCI field. */
+  /** Writes the finalized policy to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
+  /**
+   * Persisted server-side PCI thread for the base task. If present, it is loaded
+   * on mount and overrides any localStorage draft. Reported back via onThreadChange
+   * so the parent can auto-save it into the lesson JSON.
+   */
+  initialTaskThread?: PciThread
+  /**
+   * Persisted server-side PCI threads for task extensions, keyed by extension id.
+   * Each extension keeps its own conversation thread separate from the base task.
+   */
+  initialExtensionThreads?: Record<string, PciThread>
+  /**
+   * Persisted server-side PCI thread for the current assessment.
+   */
+  initialAssessmentThread?: PciThread
+  /**
+   * Called whenever a thread changes so the parent can persist it to the lesson
+   * JSON. The target identifies which thread changed (task, extension, assessment).
+   */
+  onThreadChange?: (target: PciTarget, thread: PciThread) => void
   taskSourceDocument?: PciSourceDoc
   currentAssessmentDocument?: PciSourceDoc
   /**
@@ -77,7 +100,7 @@ interface UsePciDeps {
   lessonContext?: string
   autoCreateTask: () => { id?: string } | null | undefined
   autoCreateAssessment: () => { id?: string } | null | undefined
-  renderPdfToImages: (pdfUrl: string, maxPages?: number) => Promise<string[]>
+  renderPdfToImages: (pdfUrl: string, maxPages?: number, fileKey?: string) => Promise<string[]>
   pdfPageCache: Map<string, string[]>
 }
 
@@ -94,7 +117,175 @@ export function usePci(deps: UsePciDeps) {
     dispatch({ type: 'setInput', target, input })
   const loadPciMessages = (target: PciTarget, messages: PciMessage[]) =>
     dispatch({ type: 'loadMessages', target, messages })
+  const loadPciThread = (target: PciTarget, thread: Partial<PciThread>) =>
+    dispatch({ type: 'loadThread', target, thread })
   const resetPci = () => dispatch({ type: 'reset' })
+
+  // Persist task PCI conversations to localStorage so a tutor doesn't lose a
+  // draft chat when switching tabs, items, or reloading the page. Stored per
+  // task / extension so each item keeps its own conversation history.
+  const taskStorageKey = (target: PciTarget) => {
+    if (target.kind === 'task') return `tutor-pci-thread:task:${deps.loadedTaskId}`
+    if (target.kind === 'taskExtension') {
+      return `tutor-pci-thread:task-ext:${deps.loadedTaskId}:${target.id}`
+    }
+    return `tutor-pci-thread:assessment:${deps.loadedAssessmentId}`
+  }
+
+  function loadStoredThread(target: PciTarget) {
+    const key = taskStorageKey(target)
+    if (!key || typeof window === 'undefined') return
+    try {
+      const raw = window.localStorage.getItem(key)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as Partial<PciThread>
+      if (Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+        loadPciThread(target, parsed)
+      }
+    } catch {
+      // Ignore corrupt or unavailable storage.
+    }
+  }
+
+  function saveStoredThread(target: PciTarget, thread: PciThread) {
+    const key = taskStorageKey(target)
+    if (!key || typeof window === 'undefined') return
+    try {
+      if (thread.messages.length > 0) {
+        window.localStorage.setItem(key, JSON.stringify(thread))
+      } else {
+        window.localStorage.removeItem(key)
+      }
+    } catch {
+      // Ignore storage failures (private mode / quota).
+    }
+  }
+
+  function removeStoredThread(target: PciTarget) {
+    const key = taskStorageKey(target)
+    if (!key || typeof window === 'undefined') return
+    try {
+      window.localStorage.removeItem(key)
+    } catch {
+      // ignore
+    }
+  }
+
+  // Load any previously persisted conversations when the item becomes known.
+  // Always start from a clean thread for the new task/assessment, then load the
+  // server-side thread if present; otherwise fall back to the localStorage draft.
+  useEffect(() => {
+    if (!deps.loadedTaskId) return
+    loadPciThread({ kind: 'task' }, emptyThread())
+    if (deps.initialTaskThread) {
+      loadPciThread({ kind: 'task' }, deps.initialTaskThread)
+    } else {
+      loadStoredThread({ kind: 'task' })
+    }
+    for (const ext of deps.taskBuilder.extensions) {
+      loadPciThread({ kind: 'taskExtension', id: ext.id }, emptyThread())
+      const initial = deps.initialExtensionThreads?.[ext.id]
+      if (initial) {
+        loadPciThread({ kind: 'taskExtension', id: ext.id }, initial)
+      } else {
+        loadStoredThread({ kind: 'taskExtension', id: ext.id })
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deps.loadedTaskId])
+
+  useEffect(() => {
+    if (!deps.loadedAssessmentId) return
+    loadPciThread({ kind: 'assessment', id: deps.loadedAssessmentId }, emptyThread())
+    if (deps.initialAssessmentThread) {
+      loadPciThread(
+        { kind: 'assessment', id: deps.loadedAssessmentId },
+        deps.initialAssessmentThread
+      )
+    } else {
+      loadStoredThread({ kind: 'assessment', id: deps.loadedAssessmentId })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deps.loadedAssessmentId])
+
+  // Report thread changes to the parent so they can be persisted in the lesson
+  // JSON. We compare JSON snapshots to avoid redundant callbacks and reset the
+  // tracker whenever the loaded task/assessment changes.
+  const lastReportedRef = useRef<Record<string, string>>({})
+  const lastReportedTaskIdRef = useRef<string | null>(null)
+  const lastReportedAssessmentIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const onThreadChange = deps.onThreadChange
+    if (!onThreadChange) return
+    if (lastReportedTaskIdRef.current !== deps.loadedTaskId) {
+      lastReportedRef.current = {}
+      lastReportedTaskIdRef.current = deps.loadedTaskId
+    }
+    if (lastReportedAssessmentIdRef.current !== deps.loadedAssessmentId) {
+      lastReportedRef.current = {}
+      lastReportedAssessmentIdRef.current = deps.loadedAssessmentId
+    }
+
+    const targetKey = (target: PciTarget): string => {
+      if (target.kind === 'task') return 'task'
+      if (target.kind === 'taskExtension') return `ext:${target.id}`
+      return `assessment:${target.id}`
+    }
+
+    const reportIfChanged = (target: PciTarget, thread?: PciThread) => {
+      if (!thread) return
+      const key = targetKey(target)
+      const serialized = JSON.stringify(thread)
+      const isEmpty =
+        thread.messages.length === 0 && !thread.draft && !thread.specSoFar && !thread.errorHint
+      // Skip empty threads we have never reported before; report once we have
+      // so the parent can clear a saved thread when the conversation ends.
+      if (isEmpty && !lastReportedRef.current[key]) return
+      if (lastReportedRef.current[key] === serialized) return
+      lastReportedRef.current[key] = serialized
+      onThreadChange(target, thread)
+    }
+
+    if (deps.loadedTaskId) {
+      reportIfChanged({ kind: 'task' }, pci.task)
+      for (const ext of deps.taskBuilder.extensions) {
+        reportIfChanged({ kind: 'taskExtension', id: ext.id }, pci.taskExtensions[ext.id])
+      }
+    }
+    if (deps.loadedAssessmentId) {
+      reportIfChanged(
+        { kind: 'assessment', id: deps.loadedAssessmentId },
+        pci.assessments[deps.loadedAssessmentId]
+      )
+    }
+  }, [
+    pci,
+    deps.onThreadChange,
+    deps.loadedTaskId,
+    deps.loadedAssessmentId,
+    deps.taskBuilder.extensions,
+  ])
+
+  // Persist thread changes as they happen.
+  useEffect(() => {
+    if (!deps.loadedTaskId) return
+    saveStoredThread({ kind: 'task' }, pci.task)
+    for (const ext of deps.taskBuilder.extensions) {
+      const thread = pci.taskExtensions[ext.id]
+      if (thread) {
+        saveStoredThread({ kind: 'taskExtension', id: ext.id }, thread)
+      }
+    }
+  }, [pci.task, pci.taskExtensions, deps.loadedTaskId, deps.taskBuilder.extensions])
+
+  useEffect(() => {
+    if (!deps.loadedAssessmentId) return
+    const thread = pci.assessments[deps.loadedAssessmentId]
+    if (thread) {
+      saveStoredThread({ kind: 'assessment', id: deps.loadedAssessmentId }, thread)
+    }
+  }, [pci.assessments, deps.loadedAssessmentId])
 
   const applyTaskPciDraft = () => {
     const target = activeTaskTarget()
@@ -112,7 +303,8 @@ export function usePci(deps: UsePciDeps) {
     }
     deps.setCurrentPci('task', draft, audit)
     dispatch({ type: 'clearDraft', target })
-    toast.success('Rubric applied to PCI')
+    removeStoredThread(target)
+    toast.success('Policy applied to PCI')
   }
 
   const applyAssessmentPciDraft = (assessmentId: string) => {
@@ -130,6 +322,7 @@ export function usePci(deps: UsePciDeps) {
     }
     deps.setCurrentPci('assessment', draft, audit)
     dispatch({ type: 'clearDraft', target })
+    removeStoredThread(target)
     toast.success('Rubric applied to PCI')
   }
 
@@ -211,13 +404,12 @@ export function usePci(deps: UsePciDeps) {
           }
         : undefined
 
-      // Render an attached PDF's pages (cached) so the model can SEE the
-      // document — first turn only (see isFirstTurn above).
-      // When we already have extracted text, one page is enough as a layout aid;
+      // Render an attached PDF's pages (cached) so the model can SEE the document on
+      // every turn. When we already have extracted text, one page is enough as a layout aid;
       // otherwise render a few pages so the model has some visual signal.
       let pdfPages: string[] | undefined
-      if (isFirstTurn && sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
-        const cacheKey = sourceDocData.fileUrl
+      if (sourceDocData?.mimeType === 'application/pdf' && sourceDocData.fileUrl) {
+        const cacheKey = `${sourceDocData.fileUrl}:${sourceDocData.fileKey ?? ''}`
         const cached = deps.pdfPageCache.get(cacheKey)
         const hasExtractedText = !!(sourceDocData.extractedText || '').trim()
         const pageLimit = hasExtractedText ? 1 : 3
@@ -225,13 +417,22 @@ export function usePci(deps: UsePciDeps) {
           pdfPages = cached.slice(0, pageLimit)
         } else {
           try {
-            const rendered = await deps.renderPdfToImages(sourceDocData.fileUrl, pageLimit)
+            const rendered = await deps.renderPdfToImages(
+              sourceDocData.fileUrl,
+              pageLimit,
+              sourceDocData.fileKey
+            )
             if (rendered.length > 0) {
               pdfPages = rendered
               deps.pdfPageCache.set(cacheKey, rendered)
             }
-          } catch {
-            // Vision is best-effort; fall back to text-only on render failure.
+          } catch (error) {
+            // Vision is best-effort; text-only fallback, but let the tutor know so
+            // they aren't silently wondering why the AI can't see the PDF.
+            console.error('PDF vision render failed:', error)
+            toast.error(
+              `Could not render the PDF for the AI (${error instanceof Error ? error.message : 'unknown error'}). Continuing with text only.`
+            )
           }
         }
       }

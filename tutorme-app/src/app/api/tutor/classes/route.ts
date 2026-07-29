@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { eq, or, and, gte, asc, ne } from 'drizzle-orm'
+import { eq, or, and, gte, asc, ne, desc } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable } from '@/lib/db/schema'
@@ -26,9 +26,11 @@ export const GET = withAuth(
         ? eq(liveSessionTable.tutorId, tutorId)
         : // Upcoming = future or in-progress, but never an ended/cancelled session
           // (an ended session with a future scheduledAt must not show as "upcoming").
+          // Demo classes are schedule-less and live only in the dedicated demos tab.
           and(
             eq(liveSessionTable.tutorId, tutorId),
             ne(liveSessionTable.status, 'ended'),
+            ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO'),
             or(gte(liveSessionTable.scheduledAt, now), eq(liveSessionTable.status, 'active'))
           ),
       with: {
@@ -36,7 +38,9 @@ export const GET = withAuth(
           columns: { participantId: true },
         },
       },
-      orderBy: [asc(liveSessionTable.scheduledAt)],
+      orderBy: includeEnded
+        ? [desc(liveSessionTable.createdAt)]
+        : [asc(liveSessionTable.scheduledAt)],
     })
 
     const classes = sessions.map(s => ({
@@ -44,13 +48,16 @@ export const GET = withAuth(
       courseId: s.courseId,
       title: s.title,
       subject: s.category,
-      scheduledAt: s.scheduledAt?.toISOString() ?? new Date().toISOString(),
+      scheduledAt: s.scheduledAt?.toISOString() ?? null,
+      createdAt: s.createdAt?.toISOString() ?? null,
       startedAt: s.startedAt?.toISOString() ?? null,
       endedAt: s.endedAt?.toISOString() ?? null,
       duration: s.durationMinutes,
       maxStudents: s.maxStudents,
       enrolledStudents: s.participants.length,
       status: s.status,
+      sessionType: s.sessionType,
+      description: s.description,
     }))
 
     return NextResponse.json({ classes })

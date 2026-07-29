@@ -360,7 +360,14 @@ export async function withRateLimit(
   return { response: null, remaining }
 }
 
-type RateLimitPreset = 'login' | 'register' | 'paymentCreate' | 'enroll' | 'booking' | 'aiGenerate'
+type RateLimitPreset =
+  | 'login'
+  | 'register'
+  | 'paymentCreate'
+  | 'enroll'
+  | 'booking'
+  | 'aiGenerate'
+  | 'contact'
 
 /**
  * Apply rate limit using a named preset (stricter limits for sensitive routes).

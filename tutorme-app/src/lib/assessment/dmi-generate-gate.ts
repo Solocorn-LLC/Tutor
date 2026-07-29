@@ -1,26 +1,22 @@
 /**
- * Pre-network dialog routing for "Generate DMI".
+ * Pre-network dialog routing for auto-generating a DMI.
  *
- * Generating a DMI resolves through a chain of dialogs, each of which pauses the
- * flow and re-invokes the generator from the top once answered:
+ * A DMI now generates automatically the moment a document is loaded (and via the
+ * manual Generate / Regenerate control). The former "response format" step —
+ * which asked MCQ vs free-response up front — was removed: the model reads the
+ * paper and detects the question mix itself. So the ONLY remaining pre-network
+ * dialog is the content-source chooser, shown when an attached PDF and the typed
+ * text genuinely disagree and no pick has been made yet:
  *
- *   format (MCQ vs free-response, assessment only)
- *     └─ free-response → source (which content: attached PDF vs edited text)
- *                          └─ proceed → (server may then ask kind → question-spec)
+ *   proceed  (default — run generation)
+ *     └─ source  (only when PDF ≠ typed text; then proceed → server may still
+ *                 ask kind → question-spec for study material)
  *
- * This helper decides ONLY the next pre-network step. It is deliberately pure
- * and framework-free so the routing — including the property that the format
- * step is always resolved before the source step — is unit-tested directly,
- * away from the giant CourseBuilder component.
- *
- * Ordering matters. The source chooser MUST come after the format chooser:
- * multiple-choice papers are built locally and never read the content, so they
- * return at the format step and are never asked which source to use. Putting the
- * source step first (and dropping the pick on each re-invocation) is exactly the
- * bug that once looped source↔format forever — see the tests.
+ * This helper decides ONLY the next pre-network step. It is deliberately pure and
+ * framework-free so the routing is unit-tested away from the giant CourseBuilder.
  */
 
-export type DmiGate = 'format' | 'source' | 'proceed'
+export type DmiGate = 'source' | 'proceed'
 
 export interface DmiGateInput {
   type: 'task' | 'assessment'
@@ -44,23 +40,13 @@ export interface DmiGateInput {
 
 /**
  * The next pre-network step for a Generate DMI (re-)invocation:
- * - `'format'`  → open the response-format chooser (assessment, not yet chosen).
- * - `'source'`  → open the content-source chooser (free-response, sources disagree,
- *                 no pick yet). Only reachable once the format step is resolved.
+ * - `'source'`  → open the content-source chooser (an attached PDF and the typed
+ *                 text disagree and no pick has been made yet).
  * - `'proceed'` → no dialog needed; run generation.
  */
 export function nextDmiGate(input: DmiGateInput): DmiGate {
-  // Format first: a fresh assessment run with no downstream choice yet.
-  if (
-    input.type === 'assessment' &&
-    !input.hasQuestionSpec &&
-    !input.hasDocumentKindOverride &&
-    !input.skipFormatPrompt
-  ) {
-    return 'format'
-  }
-  // Then source: only after format is resolved, and only when the two content
-  // sources genuinely disagree and the tutor hasn't already picked one.
+  // The only pre-network dialog: pick a source when the attached PDF and the
+  // typed text genuinely disagree and the tutor hasn't already picked one.
   if (input.sourcesDisagree && !input.contentSource) {
     return 'source'
   }

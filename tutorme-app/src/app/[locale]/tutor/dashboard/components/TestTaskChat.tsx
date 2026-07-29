@@ -65,6 +65,8 @@ export function TestTaskChat({
   onAddAnswer,
   onAsk,
   onComplete,
+  onGrade,
+  taskId,
 }: {
   pci?: string
   pciSpec?: unknown
@@ -93,6 +95,10 @@ export function TestTaskChat({
   onAsk?: (question: string) => void
   /** Called when the student clicks "Task complete" (Test mode only). */
   onComplete?: (answers: string[]) => void
+  /** Optional grading request handler. When provided, complete/ask POST through this instead of /api/tutor/task-chat-preview. */
+  onGrade?: (body: Record<string, unknown>) => Promise<Response>
+  /** Task id used by the default preview endpoint. Required when onGrade is not provided. */
+  taskId?: string
 }) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
@@ -102,6 +108,18 @@ export function TestTaskChat({
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastIncomingLen = useRef(0)
   const isClassroom = mode === 'classroom'
+
+  // Re-initialize the chat whenever the parent provides a new initialState. This
+  // prevents a previous task's answers/AI feedback from surviving when the
+  // component remounts for a newly deployed task before the new task's history
+  // has loaded. The parent should clear initialState synchronously on task
+  // change so we reset to an empty state first, then to the fetched history.
+  useEffect(() => {
+    setMessages(initialState?.messages ?? [])
+    setDraft(initialState?.draft ?? '')
+    setCompleted(initialState?.completed ?? false)
+    lastIncomingLen.current = 0
+  }, [initialState])
 
   // In classroom mode, sync messages directly from incomingMessages.
   // This ensures messages persist when switching tabs (component remounts).
@@ -151,12 +169,14 @@ export function TestTaskChat({
     (!sourceDocument?.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument?.fileName || rawUrl))
   const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
 
-  const post = (extra: Record<string, unknown>) =>
-    fetchWithCsrf('/api/tutor/test-grade', {
+  const post = (extra: Record<string, unknown>) => {
+    if (onGrade) return onGrade(extra)
+    return fetchWithCsrf('/api/tutor/task-chat-preview', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pci, pciSpec, questionText, ...extra }),
+      body: JSON.stringify({ taskId, pci, pciSpec, questionText, ...extra }),
     })
+  }
 
   const addAnswer = () => {
     const a = draft.trim()
@@ -171,6 +191,7 @@ export function TestTaskChat({
       setMessages(nextMessages)
     }
     setDraft('')
+    setPdfPopupOpen(false)
     onPersist?.({ messages: nextMessages, draft: '', completed })
     onBroadcast?.(msg)
     onAddAnswer?.(a)
@@ -196,6 +217,7 @@ export function TestTaskChat({
         setMessages(nextMessages)
       }
       setDraft('')
+      setPdfPopupOpen(false)
       onPersist?.({ messages: nextMessages, draft: '', completed })
       onBroadcast?.(pendingMsg)
     }
@@ -207,20 +229,22 @@ export function TestTaskChat({
       if (!res.ok) throw new Error(data?.error || 'Failed to grade')
       const responses: Array<{
         answer: string
-        studentFeedback: string | null
-        tutorNote: string | null
-        score: number | null
-        hasBasis: boolean
+        studentFeedback?: string | null
+        response?: string | null
+        tutorNote?: string | null
+        score?: number | null
+        hasBasis?: boolean
       }> = Array.isArray(data.responses) ? data.responses : []
       const aiMsgs: ChatMsg[] = []
       responses.forEach(r => {
         if (r.tutorNote) {
           onTutorNote?.(r.tutorNote)
         }
-        if (r.studentFeedback) {
+        const feedback = r.studentFeedback || r.response
+        if (feedback) {
           aiMsgs.push({
-            role: 'ai' as const,
-            content: r.studentFeedback,
+            role: 'tutor' as const,
+            content: feedback,
             re: r.answer,
             timestamp: Date.now(),
           })
@@ -256,9 +280,10 @@ export function TestTaskChat({
     onAsk?.(q)
     setBusy(true)
     try {
-      const history = messages
-        .slice(-6)
-        .map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
+      const history = messages.slice(-6).map(m => ({
+        role: m.role === 'tutor' || m.role === 'ai' ? 'assistant' : 'user',
+        content: m.content,
+      }))
       const res = await post({ question: q, history, answers: studentAnswers })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data?.error || 'Failed to answer')
@@ -292,8 +317,25 @@ export function TestTaskChat({
     }
   }
 
+  const sendTutorMessage = () => {
+    const text = draft.trim()
+    if (!text || busy) return
+    const msg: ChatMsg = {
+      role: 'tutor',
+      content: text,
+      timestamp: Date.now(),
+    }
+    setDraft('')
+    onBroadcast?.(msg)
+    onPersist?.({ messages, draft: '', completed })
+  }
+
   const onSend = () => {
-    completed ? ask() : addAnswer()
+    if (isClassroom) {
+      sendTutorMessage()
+    } else {
+      completed ? ask() : addAnswer()
+    }
   }
 
   const reset = () => {
@@ -438,10 +480,42 @@ export function TestTaskChat({
         )}
       </div>
 
-      {/* Input area — student tabs only. Classroom tab is a read-only tutor view. */}
+      {/* Input area — chat composer for both classroom and student tabs. */}
       <div className="border-t border-gray-100 p-2">
-        {isClassroom ? (
-          <div className="flex justify-end">
+        <div className="flex items-end gap-2">
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                onSend()
+              }
+            }}
+            disabled={busy}
+            rows={1}
+            placeholder={
+              isClassroom
+                ? 'Send a message to students…'
+                : completed
+                  ? 'Ask about this task…'
+                  : 'Type a sample answer…'
+            }
+            className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+          />
+          <button
+            type="button"
+            onClick={onSend}
+            disabled={busy || !draft.trim()}
+            title={isClassroom ? 'Send message' : completed ? 'Send' : 'Add answer'}
+            className={cn(
+              'grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-40',
+              isClassroom ? sendButtonBg : 'bg-violet-600'
+            )}
+          >
+            <Send className="h-4 w-4" />
+          </button>
+          {isClassroom && (
             <button
               type="button"
               onClick={reset}
@@ -450,51 +524,23 @@ export function TestTaskChat({
             >
               <RotateCcw className="h-4 w-4" />
             </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-end gap-2">
-              <textarea
-                value={draft}
-                onChange={e => setDraft(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault()
-                    onSend()
-                  }
-                }}
-                disabled={busy}
-                rows={1}
-                placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
-                className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
-              />
-              <button
-                type="button"
-                onClick={onSend}
-                disabled={busy || !draft.trim()}
-                title={completed ? 'Send' : 'Add answer'}
-                className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-violet-600 text-white transition-colors hover:opacity-90 disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-            {/* Task Complete button — only shown in test-student mode, not classroom */}
-            {!completed && (
-              <button
-                type="button"
-                onClick={complete}
-                disabled={busy || (studentAnswers.length === 0 && !draft.trim())}
-                className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
-              >
-                {busy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}
-                Task complete
-              </button>
+          )}
+        </div>
+        {/* Task Complete button — only shown in test-student mode, not classroom */}
+        {!isClassroom && (
+          <button
+            type="button"
+            onClick={complete}
+            disabled={completed || busy || (studentAnswers.length === 0 && !draft.trim())}
+            className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
+          >
+            {busy ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4" />
             )}
-          </>
+            Task complete
+          </button>
         )}
       </div>
     </div>

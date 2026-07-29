@@ -640,7 +640,7 @@ export default function TutorRegistrationPage() {
         profileData: {
           timezone: formData.timezone,
           preferredLanguage: formData.preferredLanguage,
-          nationality: formData.nationality,
+          nationality: formData.nationality || selectedCountryName,
           tutorNationalities: selectedRegions.includes('global')
             ? ['Global']
             : tutoringCountryNames,
@@ -651,7 +651,7 @@ export default function TutorRegistrationPage() {
           middleName: formData.middleName,
           lastName: formData.lastName,
           legalName: formData.legalName,
-          nationality: formData.nationality,
+          nationality: formData.nationality || selectedCountryName,
           phoneCountryCode: '+1',
           phoneNumber: '0000000000',
           educationLevel: 'Bachelor',
@@ -922,6 +922,12 @@ export default function TutorRegistrationPage() {
                             onValueChange={v => {
                               setRegion(v)
                               setCountryCode('')
+                              // Country (and the nationality derived from it) resets with the region.
+                              setFormData(prev => ({
+                                ...prev,
+                                nationality: '',
+                                countryOfResidence: '',
+                              }))
                               clearError('region')
                             }}
                           >
@@ -960,6 +966,15 @@ export default function TutorRegistrationPage() {
                             onValueChange={v => {
                               setCountryCode(v)
                               clearError('countryCode')
+                              // Derive nationality/residence from the chosen country — the schema
+                              // requires nationality and there is no separate input for it.
+                              const countryName =
+                                availableCountries.find(c => c.code === v)?.name ?? ''
+                              setFormData(prev => ({
+                                ...prev,
+                                nationality: countryName,
+                                countryOfResidence: countryName,
+                              }))
                             }}
                             disabled={!region}
                           >

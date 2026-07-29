@@ -37,6 +37,7 @@ import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { VariantScheduleEditor } from './VariantScheduleEditor'
 import type { ScheduleItem } from '../constants'
 import { REGIONS } from '@/lib/data/tutor-categories'
+import { getCategoryConfig } from '@/lib/data/category-tab-config'
 import { CountryFlag } from '@/components/country-flag'
 
 interface CourseScheduleConfig {
@@ -51,6 +52,7 @@ interface CourseScheduleConfig {
 interface VariantConfig {
   category: string
   nationality: string
+  name: string
   isPublished: boolean
   isFree: boolean
   price: number | null
@@ -80,7 +82,7 @@ interface VariantManagerProps {
 export type VariantManagerHandle = {
   publish: () => Promise<void>
   /** Persist schedule edits to already-published variants without publishing. */
-  saveSchedules: () => Promise<void>
+  saveSchedules: () => Promise<SaveSchedulesResult | null>
   setPanelsOpen: (open: boolean) => void
 }
 
@@ -102,7 +104,27 @@ type VariantApiItem = {
 type PublishResponse = {
   variants?: Array<{ isPublished?: boolean }>
   count?: number
+  skippedCount?: number
+  skippedSessions?: Array<{ reason?: string }>
   error?: string
+}
+
+/** Outcome of a schedules-only save, so callers can message the tutor. */
+type SaveSchedulesResult = { ok: boolean; processed: number; skipped: number }
+
+/** Turn the server's skip reasons into a short human phrase for a toast. */
+function summarizeSkipReasons(skipped?: Array<{ reason?: string }>): string {
+  const labels: Record<string, string> = {
+    outside_availability: 'outside your availability',
+    exception: 'blocked by a calendar exception',
+    calendar_event: 'conflicting with another event',
+    one_on_one: 'conflicting with a 1-on-1',
+    other_course_live_session: 'conflicting with another course',
+  }
+  const reasons = Array.from(
+    new Set((skipped ?? []).map(s => labels[s.reason ?? ''] ?? 'unavailable'))
+  )
+  return reasons.length > 0 ? reasons.join('; ') : 'unavailable'
 }
 
 function getCountryName(code: string): string {
@@ -140,6 +162,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     )
     const [variants, setVariants] = useState<VariantConfig[]>([])
     const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false)
+    const [savingSchedule, setSavingSchedule] = useState(false)
     const [scheduleDialogVariantIndex, setScheduleDialogVariantIndex] = useState<number | null>(
       null
     )
@@ -188,6 +211,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             return {
               category: typeof v.category === 'string' ? v.category : '',
               nationality: typeof v.nationality === 'string' ? v.nationality : '',
+              name:
+                typeof v.name === 'string' && v.name.trim()
+                  ? v.name.trim()
+                  : (templateCourseName ?? ''),
               isPublished: typeof v.isPublished === 'boolean' ? v.isPublished : false,
               isFree: typeof v.isFree === 'boolean' ? v.isFree : false,
               price: typeof v.price === 'number' ? v.price : null,
@@ -205,7 +232,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       return () => {
         active = false
       }
-    }, [templateCourseId])
+    }, [templateCourseId, templateCourseName])
 
     // Sync global defaults from parent when they change meaningfully
     useEffect(() => {
@@ -267,6 +294,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             map.set(key, {
               category,
               nationality,
+              name: templateCourseName ?? '',
               isPublished: true,
               isFree: globalIsFree,
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
@@ -279,7 +307,11 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             // Backfill: the variant was created before the course schedule had
             // loaded (course fetch is async), so adopt the template schedule now
             // instead of leaving the scheduler showing only the "Add" button.
-            map.set(key, { ...existing, schedules: baselineSchedules })
+            map.set(key, {
+              ...existing,
+              name: existing.name || (templateCourseName ?? ''),
+              schedules: baselineSchedules,
+            })
             changed = true
           }
         }
@@ -306,7 +338,16 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       // variant this effect already added, and since `desiredKeys` never
       // changes again the scheduler would stay empty. Re-running here re-adds
       // the desired variant on top of whatever the fetch loaded.
-    }, [desiredKeys, globalPrice, globalCurrency, globalLanguage, defaultSchedule, loading])
+    }, [
+      desiredKeys,
+      globalPrice,
+      globalCurrency,
+      globalLanguage,
+      globalIsFree,
+      defaultSchedule,
+      loading,
+      templateCourseName,
+    ])
 
     const applyGlobalsToAll = useCallback(() => {
       const price = globalPrice ? parseFloat(globalPrice) : null
@@ -431,8 +472,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     // Persist schedule edits to already-published variants WITHOUT publishing
     // anything new (schedulesOnly). Used by the page's Save button so a tutor can
     // save schedule changes on a live course without putting more of it live.
-    const handleSaveSchedules = useCallback(async () => {
-      if (variants.length === 0) return
+    const handleSaveSchedules = useCallback(async (): Promise<SaveSchedulesResult | null> => {
+      if (variants.length === 0) return null
       try {
         const payload = variants.map(v => ({
           ...v,
@@ -443,13 +484,38 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ variants: payload, schedulesOnly: true }),
         })
+        const data: PublishResponse = await res.json().catch(() => ({}))
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
           toast.error(data?.error || 'Failed to save schedules')
+          return { ok: false, processed: 0, skipped: 0 }
         }
+        const processed = typeof data.count === 'number' ? data.count : 0
+        const skipped = typeof data.skippedCount === 'number' ? data.skippedCount : 0
+        const hasScheduleSlots = variants.some(
+          v =>
+            Array.isArray(v.schedules) &&
+            v.schedules.some(s => Array.isArray(s.schedule) && s.schedule.length > 0)
+        )
+        // Surface the actionable cases so a silently-skipped schedule isn't
+        // mistaken for success (clean success is messaged by the caller). A
+        // schedules-only save only materialises sessions for PUBLISHED variants,
+        // so processed === 0 with real slots means nothing reached the calendar.
+        if (processed === 0 && hasScheduleSlots) {
+          toast.warning(
+            'Schedule saved, but no sessions were added to your calendar — publish this course first (schedules only appear once the course is live).'
+          )
+        } else if (skipped > 0) {
+          toast.warning(
+            `Schedule saved. ${skipped} session${skipped === 1 ? '' : 's'} skipped (${summarizeSkipReasons(
+              data.skippedSessions
+            )}); the rest were added to your calendar.`
+          )
+        }
+        return { ok: true, processed, skipped }
       } catch (err) {
         console.error(err)
         toast.error('Failed to save schedules')
+        return { ok: false, processed: 0, skipped: 0 }
       }
     }, [variants, templateCourseId])
 
@@ -907,13 +973,23 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           >
             <div className="flex h-full flex-col p-5 sm:p-6">
               <DialogHeader className="p-0">
-                <DialogTitle>
+                <DialogTitle className="flex flex-wrap items-center gap-2">
                   {dialogVariant && dialogSchedule ? (
-                    <span className="inline-flex items-center gap-1 whitespace-nowrap">
-                      {`Configure ${dialogSchedule.name || `Schedule ${dialogSchedule.scheduleIndex}`} for `}
-                      {dialogVariant.category} —{' '}
-                      <CountryFlag countryName={dialogVariant.nationality} size="xs" showLabel />
-                    </span>
+                    <>
+                      <span>Edit schedule for</span>
+                      <Input
+                        value={dialogVariant.name}
+                        onChange={e =>
+                          scheduleDialogVariantIndex != null &&
+                          updateVariant(scheduleDialogVariantIndex, v => ({
+                            ...v,
+                            name: e.target.value,
+                          }))
+                        }
+                        placeholder={templateCourseName}
+                        className="h-8 w-[260px] border-white/20 bg-white/10 px-2 py-1 text-sm font-medium text-white placeholder:text-gray-400 focus-visible:border-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      />
+                    </>
                   ) : (
                     'Configure schedule'
                   )}
@@ -978,13 +1054,45 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                 </div>
               )}
 
-              <div className="mt-6 flex justify-end gap-3">
-                <Button type="button" variant="modal-secondary-dark" onClick={cancelScheduleDialog}>
-                  Cancel
-                </Button>
-                <Button type="button" variant="modal-primary-dark" onClick={closeScheduleDialog}>
-                  Save
-                </Button>
+              <div className="mt-6 flex items-center justify-between">
+                {dialogVariant && (
+                  <Badge
+                    className="border-0 px-2.5 py-1 text-xs font-semibold text-white"
+                    style={{
+                      backgroundColor: getCategoryConfig(dialogVariant.category).color,
+                    }}
+                  >
+                    {dialogVariant.category}
+                  </Badge>
+                )}
+                <div className="flex gap-3">
+                  <Button
+                    type="button"
+                    variant="modal-secondary-dark"
+                    disabled={savingSchedule}
+                    onClick={cancelScheduleDialog}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="modal-primary-dark"
+                    disabled={savingSchedule}
+                    onClick={async () => {
+                      // Persist immediately so "Save" actually saves — the schedule
+                      // edit is already in `variants` state via onScheduleChange.
+                      setSavingSchedule(true)
+                      const result = await handleSaveSchedules()
+                      setSavingSchedule(false)
+                      if (result?.ok && result.processed > 0 && result.skipped === 0) {
+                        toast.success('Schedule saved — sessions added to your calendar.')
+                      }
+                      closeScheduleDialog()
+                    }}
+                  >
+                    {savingSchedule ? 'Saving…' : 'Save'}
+                  </Button>
+                </div>
               </div>
             </div>
           </DialogContent>

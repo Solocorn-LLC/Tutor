@@ -38,14 +38,8 @@ import {
 import { BackButton } from '@/components/navigation/BackButton'
 import { CourseCategoryPicker } from './CourseCategoryPicker'
 import { getCategoryBoard } from '@/lib/data/category-board'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 
+import { CourseSelectorDialog } from '@/components/course/course-selector-dialog'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
@@ -146,6 +140,7 @@ type Props = UseCourseBuilderContentArgs & {
     isPublished?: boolean
     isVariant?: boolean
     categories?: string[]
+    folder?: string | null
     schedule?: ScheduleItem[]
   }[]
   draftCourses?: {
@@ -156,6 +151,7 @@ type Props = UseCourseBuilderContentArgs & {
     isPublished?: boolean
     isVariant?: boolean
     categories?: string[]
+    folder?: string | null
     schedule?: ScheduleItem[]
   }[]
   courseName?: string
@@ -554,28 +550,12 @@ function CourseBuilderInsightsRouteInner({
     openEditCourse()
   }
   const [goLiveDialogOpen, setGoLiveDialogOpen] = useState(false)
+  const [courseSelectorOpen, setCourseSelectorOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
   const [controlsMode, setControlsMode] = useState<ControlsMode>(
     initialMainTab === 'live' ? 'classroom' : initialMainTab === 'test-pci' ? 'test' : 'build'
   )
-  type CourseStateFilter = 'creating' | 'unpublished' | 'published'
-
-  // Course-state filter for the toggle. It controls which courses appear in the
-  // dropdown and is updated automatically when the selected course changes.
-  const initialCourseStateFilter: CourseStateFilter =
-    saveMode === 'draft' ? 'creating' : 'unpublished'
-  const [courseStateFilter, setCourseStateFilter] =
-    useState<CourseStateFilter>(initialCourseStateFilter)
-
-  // The selected course's actual state (draft / unpublished / published).
-  const currentCourseState = useMemo((): CourseStateFilter => {
-    if (!courseId) return courseStateFilter
-    if (draftCourses?.some(c => c.id === courseId)) return 'creating'
-    const dbCourse = courses?.find(c => c.id === courseId)
-    if (dbCourse?.isPublished) return 'published'
-    return 'unpublished'
-  }, [courseId, courses, draftCourses, courseStateFilter])
 
   // Persist mode is determined by the course itself, not by the toggle.
   const effectiveSaveMode = useMemo((): 'live' | 'draft' => {
@@ -583,15 +563,6 @@ function CourseBuilderInsightsRouteInner({
     return 'live'
   }, [courseId, draftCourses])
 
-  // Sync the filter toggle to the selected course whenever the course changes.
-  useEffect(() => {
-    if (!courseId) return
-    setCourseStateFilter(prev => (prev === currentCourseState ? prev : currentCourseState))
-  }, [courseId, currentCourseState])
-
-  const handleCourseStateFilterChange = (filter: CourseStateFilter) => {
-    setCourseStateFilter(filter)
-  }
   const [hasUnsyncedChanges, setHasUnsyncedChanges] = useState(false)
 
   useEffect(() => {
@@ -876,139 +847,39 @@ function CourseBuilderInsightsRouteInner({
                   {activeMainTab !== 'live' &&
                     activeMainTab !== 'test-pci' &&
                     insightsProps.onCourseChange && (
-                      <Select
-                        // Only feed a value that has a matching <SelectItem>. courseId can
-                        // be an id absent from courses/draftCourses (template vs published
-                        // id split), and a controlled Radix Select value with no matching
-                        // item loops its value-sync forever → React #185 ("Maximum update
-                        // depth exceeded"). currentCourse is the in-list match or undefined.
-                        value={currentCourse?.id ?? ''}
-                        onValueChange={v => insightsProps.onCourseChange?.(v)}
-                        disabled={hasNoCourses}
-                      >
-                        <SelectTrigger
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => setCourseSelectorOpen(true)}
+                          disabled={hasNoCourses}
                           className={cn(
-                            // Header card is hardcoded light (bg-white) regardless of
-                            // theme, so use a hardcoded dark text colour — the theme
-                            // token text-foreground flips to white under dark themes
-                            // and made the course name unreadable here.
-                            'h-9 min-w-[220px] max-w-[420px] border border-slate-300 bg-transparent text-sm font-semibold text-[#1F2933] shadow-none transition-colors focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0',
-                            hasNoCourses ? 'cursor-not-allowed opacity-60' : 'hover:bg-slate-100'
+                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:bg-slate-100 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >
-                          <SelectValue
-                            placeholder={
-                              hasNoCourses ? 'Create your first course.' : 'Select course'
-                            }
-                          >
-                            {(() => {
-                              const c = currentCourse
-                              if (!c)
-                                return hasNoCourses ? 'Create your first course.' : 'Select course'
-                              return c.nationality && c.nationality !== 'Global' ? (
-                                <span className="inline-flex items-center gap-1">
-                                  {c.name} — {c.variantCategory || ''} —{' '}
-                                  <CountryFlag countryName={c.nationality} size="xs" showLabel />
-                                </span>
-                              ) : (
-                                c.name
-                              )
-                            })()}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent className="w-[var(--radix-select-trigger-width)] max-w-[420px] border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl">
-                          {courseStateFilter === 'unpublished' &&
-                            courses &&
-                            courses.filter(c => !c.isPublished).length > 0 && (
-                              <SelectItem
-                                value="__unpublished-header__"
-                                disabled
-                                className="text-xs font-semibold text-white transition-none focus-visible:ring-0"
-                              >
-                                Unpublished Courses
-                              </SelectItem>
-                            )}
-                          {courseStateFilter === 'unpublished' &&
-                            courses
-                              ?.filter(c => !c.isPublished)
-                              .map(c => (
-                                <SelectItem key={c.id} value={c.id} className="transition-none">
-                                  {c.nationality && c.nationality !== 'Global' ? (
-                                    <span className="inline-flex items-center gap-1">
-                                      {c.name} — {c.variantCategory || ''} —{' '}
-                                      <CountryFlag
-                                        countryName={c.nationality}
-                                        size="xs"
-                                        showLabel
-                                      />
-                                    </span>
-                                  ) : c.isVariant ? (
-                                    `${c.name} — Global`
-                                  ) : (
-                                    c.name
-                                  )}
-                                </SelectItem>
-                              ))}
-                          {courseStateFilter === 'published' &&
-                            courses &&
-                            courses.filter(c => c.isPublished).length > 0 && (
-                              <SelectItem
-                                value="__published-header__"
-                                disabled
-                                className="text-xs font-semibold text-white transition-none focus-visible:ring-0"
-                              >
-                                Published Courses
-                              </SelectItem>
-                            )}
-                          {courseStateFilter === 'published' &&
-                            courses
-                              ?.filter(c => c.isPublished)
-                              .map(c => (
-                                <SelectItem key={c.id} value={c.id} className="transition-none">
-                                  {c.nationality && c.nationality !== 'Global' ? (
-                                    <span className="inline-flex items-center gap-1">
-                                      {c.name} — {c.variantCategory || ''} —{' '}
-                                      <CountryFlag
-                                        countryName={c.nationality}
-                                        size="xs"
-                                        showLabel
-                                      />
-                                    </span>
-                                  ) : c.isVariant ? (
-                                    `${c.name} — Global`
-                                  ) : (
-                                    c.name
-                                  )}
-                                </SelectItem>
-                              ))}
-                          {courseStateFilter === 'creating' &&
-                            draftCourses &&
-                            draftCourses.length > 0 && (
-                              <SelectItem
-                                value="__creating-header__"
-                                disabled
-                                className="text-xs font-semibold text-white transition-none focus-visible:ring-0"
-                              >
-                                Creating Courses
-                              </SelectItem>
-                            )}
-                          {courseStateFilter === 'creating' &&
-                            draftCourses?.map(c => (
-                              <SelectItem key={c.id} value={c.id} className="transition-none">
-                                {c.nationality && c.nationality !== 'Global' ? (
-                                  <span className="inline-flex items-center gap-1">
-                                    {c.name} — {c.variantCategory || ''} —{' '}
-                                    <CountryFlag countryName={c.nationality} size="xs" showLabel />
-                                  </span>
-                                ) : c.isVariant ? (
-                                  `${c.name} — Global`
-                                ) : (
-                                  c.name
-                                )}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
+                          {(() => {
+                            const c = currentCourse
+                            if (!c)
+                              return hasNoCourses ? 'Create your first course.' : 'Select course'
+                            return c.nationality && c.nationality !== 'Global' ? (
+                              <span className="inline-flex items-center gap-1">
+                                {c.name} — {c.variantCategory || ''} —{' '}
+                                <CountryFlag countryName={c.nationality} size="xs" showLabel />
+                              </span>
+                            ) : (
+                              c.name
+                            )
+                          })()}
+                        </Button>
+                        <CourseSelectorDialog
+                          open={courseSelectorOpen}
+                          onOpenChange={setCourseSelectorOpen}
+                          courses={courses ?? []}
+                          draftCourses={draftCourses ?? []}
+                          currentCourseId={courseId}
+                          onSelectCourse={id => insightsProps.onCourseChange?.(id)}
+                        />
+                      </>
                     )}
 
                   {activeMainTab === 'builder' && (
@@ -1084,44 +955,6 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
-              {(activeMainTab === 'builder' || activeMainTab === 'live') &&
-                onSaveModeChange &&
-                !modeLocked && (
-                  <Select
-                    value={courseStateFilter}
-                    onValueChange={(val: CourseStateFilter) => handleCourseStateFilterChange(val)}
-                  >
-                    <SelectTrigger className="h-9 w-[190px] border-slate-200 bg-white text-sm font-medium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unpublished" className="">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
-                          Unpublished
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="published" className="">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-blue-500" />
-                          Published
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="creating" className="">
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full bg-amber-500" />
-                          Creating
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              {(activeMainTab === 'builder' || activeMainTab === 'live') && modeLocked && (
-                <div className="flex h-9 w-[190px] items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-600">
-                  <div className="h-2 w-2 rounded-full bg-amber-500" />
-                  Creating
-                </div>
-              )}
               {/* Reflect the real socket connection: emerald when connected,
                   red when a session is live but the socket has dropped, amber
                   when idle (no active session). */}
@@ -1442,17 +1275,38 @@ function CourseBuilderInsightsRouteInner({
             <DialogTitle>Rename Course</DialogTitle>
             <DialogDescription>Enter a new name for this course.</DialogDescription>
           </DialogHeader>
-          <Input
-            value={renameValue}
-            onChange={e => setRenameValue(e.target.value)}
-            placeholder="Course name"
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                onCourseNameChange?.(renameValue)
-                setIsRenameDialogOpen(false)
-              }
-            }}
-          />
+          <div className="space-y-2">
+            <Input
+              value={renameValue}
+              onChange={e => {
+                const value = e.target.value
+                if (value.length <= 25) {
+                  setRenameValue(value)
+                }
+              }}
+              placeholder="Course name"
+              maxLength={25}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  onCourseNameChange?.(renameValue)
+                  setIsRenameDialogOpen(false)
+                }
+              }}
+            />
+            <div className="flex justify-end">
+              <span
+                className={`text-xs font-medium ${
+                  (renameValue?.length || 0) >= 25
+                    ? 'text-red-500'
+                    : (renameValue?.length || 0) >= 20
+                      ? 'text-orange-500'
+                      : 'text-gray-500'
+                }`}
+              >
+                {renameValue?.length || 0}/25
+              </span>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="modal-secondary-dark" onClick={() => setIsRenameDialogOpen(false)}>
               Cancel

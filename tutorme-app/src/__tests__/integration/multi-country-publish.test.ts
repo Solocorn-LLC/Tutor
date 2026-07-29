@@ -5,8 +5,8 @@
  * per (category × nationality) combination — on the course details page. The
  * publish route (`/api/tutor/courses/[id]/publish`) then materializes, for each
  * variant, a published `course` row plus a `courseVariant` link row that ties it
- * back to the template. Published courses are named `"{templateName} — {nationality}"`,
- * except a `Global` variant which keeps the bare template name.
+ * back to the template. Published courses keep the bare template name (no
+ * nationality/flag suffix).
  *
  * This test drives that exact route against a real Postgres:
  *   1. Seed a tutor + a template course (with a lesson) owned by the tutor.
@@ -193,8 +193,8 @@ describe('Multi-country course publish end-to-end', () => {
     expect(new Set(variantRows.map(r => r.nationality))).toEqual(new Set(['Singapore', 'Korea']))
     expect(variantRows.every(r => r.category === CATEGORY)).toBe(true)
 
-    // The 2 linked published courses exist, are published, and are named with the
-    // nationality suffix.
+    // The 2 linked published courses exist, are published, and keep the bare
+    // template name (no nationality suffix).
     const publishedRows = await drizzleDb
       .select({
         courseId: course.courseId,
@@ -211,9 +211,7 @@ describe('Multi-country course publish end-to-end', () => {
 
     expect(publishedRows).toHaveLength(2)
     expect(publishedRows.every(r => r.isPublished === true)).toBe(true)
-    expect(new Set(publishedRows.map(r => r.name))).toEqual(
-      new Set([`${templateName} — Singapore`, `${templateName} — Korea`])
-    )
+    expect(new Set(publishedRows.map(r => r.name))).toEqual(new Set([templateName]))
   })
 
   it('surfaces both variants via the GET handler', async () => {

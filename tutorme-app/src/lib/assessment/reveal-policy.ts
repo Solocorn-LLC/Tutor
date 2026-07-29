@@ -1,7 +1,12 @@
 /**
- * Map the tutor's free-text PCI answer-reveal policy to a deploy reveal mode, so
- * the Deploy dialog can default to what they already said (they can still change
- * it). Returns null when the policy doesn't clearly map to a mode.
+ * Map the tutor's free-text PCI answer-reveal policy to a deploy reveal mode.
+ *
+ * For tasks, this is now the canonical source used at deploy time: the answer-reveal
+ * dialog is skipped and the mode is derived from the task PCI (free-text instructions
+ * or the structured `answerRevealPolicy` field). For assessments and homework, it is
+ * still used to default the answer-reveal dialog to the tutor's stated policy.
+ *
+ * Returns null when the policy doesn't clearly map to a mode.
  */
 
 export type DeployAnswerReveal = 'instant' | 'after_submit' | 'hidden' | 'student_choice'

@@ -7,6 +7,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { withRateLimitPreset } from '@/lib/api/middleware'
+
+/**
+ * Escape user-supplied text before interpolating it into an HTML email body.
+ * Prevents HTML/script injection into the recipient's inbox (stored-XSS-into-email)
+ * and stops crafted values from breaking out of the template.
+ */
+function esc(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
 // Create SMTP transporter for Namecheap/PrivateEmail
 const createTransporter = () => {
@@ -34,6 +49,10 @@ interface ContactFormData {
 
 export async function POST(req: NextRequest) {
   try {
+    // Public, unauthenticated endpoint — throttle to prevent inbox flooding / abuse.
+    const { response: rateLimited } = await withRateLimitPreset(req, 'contact')
+    if (rateLimited) return rateLimited
+
     const body: ContactFormData = await req.json()
 
     // Validate required fields
@@ -67,10 +86,10 @@ export async function POST(req: NextRequest) {
         subject = `Contact Form: Message from ${body.name}`
         htmlContent = `
           <h2>New Contact Form Submission</h2>
-          <p><strong>Name:</strong> ${body.name}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
+          <p><strong>Name:</strong> ${esc(body.name)}</p>
+          <p><strong>Email:</strong> ${esc(body.email)}</p>
           <p><strong>Message:</strong></p>
-          <p>${body.message || 'No message provided'}</p>
+          <p>${esc(body.message || 'No message provided')}</p>
         `
         textContent = `Name: ${body.name}\nEmail: ${body.email}\nMessage: ${body.message || 'No message provided'}`
         break
@@ -79,11 +98,11 @@ export async function POST(req: NextRequest) {
         subject = `Tutor Signup: ${body.name}`
         htmlContent = `
           <h2>New Tutor Signup</h2>
-          <p><strong>Name:</strong> ${body.name}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
+          <p><strong>Name:</strong> ${esc(body.name)}</p>
+          <p><strong>Email:</strong> ${esc(body.email)}</p>
           <p><strong>About:</strong></p>
-          <p>${body.about || 'Not provided'}</p>
-          ${body.socialMedia ? `<p><strong>Social Media:</strong> ${body.socialMedia}</p>` : ''}
+          <p>${esc(body.about || 'Not provided')}</p>
+          ${body.socialMedia ? `<p><strong>Social Media:</strong> ${esc(body.socialMedia)}</p>` : ''}
         `
         textContent = `Tutor Signup\nName: ${body.name}\nEmail: ${body.email}\nAbout: ${body.about || 'Not provided'}\nSocial Media: ${body.socialMedia || 'Not provided'}`
         break
@@ -92,11 +111,11 @@ export async function POST(req: NextRequest) {
         subject = `Academy Signup: ${body.name}`
         htmlContent = `
           <h2>New Academy Signup</h2>
-          <p><strong>Name:</strong> ${body.name}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
+          <p><strong>Name:</strong> ${esc(body.name)}</p>
+          <p><strong>Email:</strong> ${esc(body.email)}</p>
           <p><strong>About:</strong></p>
-          <p>${body.about || 'Not provided'}</p>
-          ${body.socialMedia ? `<p><strong>Social Media:</strong> ${body.socialMedia}</p>` : ''}
+          <p>${esc(body.about || 'Not provided')}</p>
+          ${body.socialMedia ? `<p><strong>Social Media:</strong> ${esc(body.socialMedia)}</p>` : ''}
         `
         textContent = `Academy Signup\nName: ${body.name}\nEmail: ${body.email}\nAbout: ${body.about || 'Not provided'}\nSocial Media: ${body.socialMedia || 'Not provided'}`
         break
@@ -105,12 +124,12 @@ export async function POST(req: NextRequest) {
         subject = `School Partnership: ${body.school || body.name}`
         htmlContent = `
           <h2>New School Partnership Inquiry</h2>
-          <p><strong>Contact Name:</strong> ${body.name}</p>
-          <p><strong>School:</strong> ${body.school || 'Not provided'}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
-          ${body.website ? `<p><strong>Website:</strong> ${body.website}</p>` : ''}
+          <p><strong>Contact Name:</strong> ${esc(body.name)}</p>
+          <p><strong>School:</strong> ${esc(body.school || 'Not provided')}</p>
+          <p><strong>Email:</strong> ${esc(body.email)}</p>
+          ${body.website ? `<p><strong>Website:</strong> ${esc(body.website)}</p>` : ''}
           <p><strong>Message:</strong></p>
-          <p>${body.message || 'Not provided'}</p>
+          <p>${esc(body.message || 'Not provided')}</p>
         `
         textContent = `School Partnership\nContact Name: ${body.name}\nSchool: ${body.school || 'Not provided'}\nEmail: ${body.email}\nWebsite: ${body.website || 'Not provided'}\nMessage: ${body.message || 'Not provided'}`
         break
@@ -121,9 +140,9 @@ export async function POST(req: NextRequest) {
         subject = `Early Access Signup: ${body.name}`
         htmlContent = `
           <h2>New Early Access Signup</h2>
-          <p><strong>Name:</strong> ${body.name}</p>
-          <p><strong>Email:</strong> ${body.email}</p>
-          ${body.message ? `<p><strong>Message:</strong></p><p>${body.message}</p>` : ''}
+          <p><strong>Name:</strong> ${esc(body.name)}</p>
+          <p><strong>Email:</strong> ${esc(body.email)}</p>
+          ${body.message ? `<p><strong>Message:</strong></p><p>${esc(body.message)}</p>` : ''}
         `
         textContent = `Early Access Signup\nName: ${body.name}\nEmail: ${body.email}\nMessage: ${body.message || 'Not provided'}`
         break
@@ -148,7 +167,7 @@ export async function POST(req: NextRequest) {
         text: `Hi ${body.name},\n\nThank you for reaching out to us! We've received your message and will get back to you soon.\n\nBest regards,\nThe Solocorn Team`,
         html: `
           <h2>Thank you for contacting Solocorn!</h2>
-          <p>Hi ${body.name},</p>
+          <p>Hi ${esc(body.name)},</p>
           <p>Thank you for reaching out to us! We've received your message and will get back to you soon.</p>
           <br>
           <p>Best regards,<br>The Solocorn Team</p>
