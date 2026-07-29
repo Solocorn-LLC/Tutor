@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -239,8 +240,10 @@ export default function StudentAccount() {
       return
     }
     try {
-      const response = await fetch('/api/user/account', {
-        method: 'DELETE',
+      const response = await fetchWithCsrf('/api/user/gdpr/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ confirm: true }),
       })
       if (response.ok) {
         toast.success('Account deleted. Redirecting...')
