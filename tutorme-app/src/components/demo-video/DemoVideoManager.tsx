@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { DemoVideoUploader } from './DemoVideoUploader'
-import { cn, resolvePublicUrl } from '@/lib/utils'
+import { DemoVideoRecorder } from './DemoVideoRecorder'
 import { toast } from 'sonner'
 import { Film, Trash2, Upload, Video, X, Play, Clock } from 'lucide-react'
 
@@ -163,7 +163,7 @@ export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
                 <TabsTrigger value="upload" className="gap-1 text-xs">
                   <Upload className="h-3.5 w-3.5" /> Replace
                 </TabsTrigger>
-                <TabsTrigger value="record" className="gap-1 text-xs" disabled>
+                <TabsTrigger value="record" className="gap-1 text-xs">
                   <Video className="h-3.5 w-3.5" /> Record
                 </TabsTrigger>
               </TabsList>
@@ -171,9 +171,7 @@ export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
                 <DemoVideoUploader sessionId={sessionId} onUploaded={fetchVideo} />
               </TabsContent>
               <TabsContent value="record" className="pt-2">
-                <div className="rounded-lg bg-slate-50 p-4 text-center text-sm text-slate-500">
-                  Browser recording is coming in the next update.
-                </div>
+                <DemoVideoRecorder sessionId={sessionId} onUploaded={fetchVideo} />
               </TabsContent>
             </Tabs>
           </div>
@@ -183,7 +181,7 @@ export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
               <TabsTrigger value="upload" className="gap-1 text-xs">
                 <Upload className="h-3.5 w-3.5" /> Upload
               </TabsTrigger>
-              <TabsTrigger value="record" className="gap-1 text-xs" disabled>
+              <TabsTrigger value="record" className="gap-1 text-xs">
                 <Video className="h-3.5 w-3.5" /> Record
               </TabsTrigger>
             </TabsList>
@@ -191,9 +189,7 @@ export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
               <DemoVideoUploader sessionId={sessionId} onUploaded={fetchVideo} />
             </TabsContent>
             <TabsContent value="record" className="pt-2">
-              <div className="rounded-lg bg-slate-50 p-4 text-center text-sm text-slate-500">
-                Browser recording is coming in the next update.
-              </div>
+              <DemoVideoRecorder sessionId={sessionId} onUploaded={fetchVideo} />
             </TabsContent>
           </Tabs>
         )}

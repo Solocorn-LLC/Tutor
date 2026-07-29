@@ -1,63 +1,39 @@
 'use client'
 
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Upload, X, Film, AlertCircle } from 'lucide-react'
-
-const MAX_UPLOAD_BYTES = 1024 * 1024 * 500 // 500 MB
-const ALLOWED_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
+import {
+  useDemoVideoUpload,
+  validateDemoVideoFile,
+  formatDemoVideoBytes,
+} from './useDemoVideoUpload'
 
 interface DemoVideoUploaderProps {
   sessionId: string
   onUploaded: () => void
 }
 
-interface UploadInitResponse {
-  contentId: string
-  uploadUrl?: string | null
-  publicUrl?: string | null
-  key?: string | null
-  uploadHeaders?: Record<string, string> | null
-  maxBytes?: number
-  message?: string
-}
-
 export function DemoVideoUploader({ sessionId, onUploaded }: DemoVideoUploaderProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const { uploading, progress, uploadBlob } = useDemoVideoUpload()
   const inputRef = useRef<HTMLInputElement>(null)
-
-  const validateFile = (file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return 'Please upload an MP4, WebM, or MOV video.'
-    }
-    const maxBytes = Math.min(file.size > 0 ? MAX_UPLOAD_BYTES : MAX_UPLOAD_BYTES, MAX_UPLOAD_BYTES)
-    if (file.size > maxBytes) {
-      return `File size must be under ${formatBytes(MAX_UPLOAD_BYTES)}.`
-    }
-    if (file.size === 0) {
-      return 'Selected file is empty.'
-    }
-    return null
-  }
 
   const handleFileSelect = useCallback((file: File | null) => {
     if (!file) {
       setSelectedFile(null)
       return
     }
-    const error = validateFile(file)
+    const error = validateDemoVideoFile(file)
     if (error) {
       toast.error(error)
       setSelectedFile(null)
       return
     }
     setSelectedFile(file)
-    setProgress(0)
   }, [])
 
   const handleUpload = useCallback(async () => {
@@ -66,85 +42,18 @@ export function DemoVideoUploader({ sessionId, onUploaded }: DemoVideoUploaderPr
       return
     }
 
-    setUploading(true)
-    setProgress(10)
+    const ok = await uploadBlob({
+      sessionId,
+      blob: selectedFile,
+      filename: selectedFile.name,
+      contentType: selectedFile.type,
+    })
 
-    try {
-      const initRes = await fetch(`/api/tutor/classes/${sessionId}/demo-video/upload/init`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          filename: selectedFile.name,
-          contentType: selectedFile.type,
-          maxBytes: MAX_UPLOAD_BYTES,
-        }),
-      })
-
-      if (!initRes.ok) {
-        const data = await initRes.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to initialize upload')
-      }
-
-      const init: UploadInitResponse = await initRes.json()
-      setProgress(30)
-
-      if (init.uploadUrl) {
-        const gcsRes = await fetch(init.uploadUrl, {
-          method: 'PUT',
-          body: selectedFile,
-          headers: {
-            'Content-Type': selectedFile.type,
-            ...(init.uploadHeaders || {}),
-          },
-        })
-        if (!gcsRes.ok) {
-          throw new Error('GCS upload failed')
-        }
-      } else {
-        throw new Error(init.message || 'Upload URL not available. GCS may not be configured.')
-      }
-
-      setProgress(70)
-
-      const completeRes = await fetch(`/api/content/${init.contentId}/upload-complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          key: init.key,
-          url: init.publicUrl,
-        }),
-      })
-      if (!completeRes.ok) {
-        const data = await completeRes.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to finalize upload')
-      }
-
-      setProgress(85)
-
-      const assignRes = await fetch(`/api/tutor/classes/${sessionId}/demo-video`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ contentId: init.contentId }),
-      })
-      if (!assignRes.ok) {
-        const data = await assignRes.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to assign video to demo class')
-      }
-
-      setProgress(100)
-      toast.success('Demo video uploaded and assigned.')
+    if (ok) {
       setSelectedFile(null)
       onUploaded()
-    } catch (err: any) {
-      toast.error(err.message || 'Upload failed')
-    } finally {
-      setUploading(false)
-      setTimeout(() => setProgress(0), 500)
     }
-  }, [selectedFile, sessionId, onUploaded])
+  }, [selectedFile, sessionId, uploadBlob, onUploaded])
 
   return (
     <div className="space-y-4">
@@ -168,7 +77,7 @@ export function DemoVideoUploader({ sessionId, onUploaded }: DemoVideoUploaderPr
           <Upload className="h-8 w-8 text-slate-400" />
           <span className="text-sm font-medium text-slate-600">Click to upload a video</span>
           <span className="text-xs text-slate-400">
-            MP4, WebM, MOV · max {formatBytes(MAX_UPLOAD_BYTES)}
+            MP4, WebM, MOV · max {formatDemoVideoBytes(1024 * 1024 * 500)}
           </span>
         </button>
       ) : (
@@ -179,7 +88,7 @@ export function DemoVideoUploader({ sessionId, onUploaded }: DemoVideoUploaderPr
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-slate-900">{selectedFile.name}</p>
-              <p className="text-xs text-slate-500">{formatBytes(selectedFile.size)}</p>
+              <p className="text-xs text-slate-500">{formatDemoVideoBytes(selectedFile.size)}</p>
             </div>
             <button
               onClick={() => !uploading && handleFileSelect(null)}
@@ -224,12 +133,4 @@ export function DemoVideoUploader({ sessionId, onUploaded }: DemoVideoUploaderPr
       </div>
     </div>
   )
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`
 }
