@@ -17,6 +17,7 @@ import {
 import * as enums from '../enums'
 import { user } from './auth'
 import { course, courseSchedule, courseLesson } from './course'
+import { contentItem } from './content'
 
 export const liveSession = pgTable(
   'LiveSession',
@@ -50,6 +51,9 @@ export const liveSession = pgTable(
     roomUrl: text('roomUrl'),
     recordingUrl: text('recordingUrl'),
     recordingAvailableAt: timestamp('recordingAvailableAt', { withTimezone: true }),
+    demoVideoContentId: text('demoVideoContentId').references(() => contentItem.contentId, {
+      onDelete: 'set null',
+    }),
     maxStudents: integer('maxStudents').notNull().default(50),
     durationMinutes: integer('durationMinutes').notNull().default(120),
     // Set when an upcoming-session reminder notification has been sent, so the

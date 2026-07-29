@@ -785,6 +785,7 @@ function TutorInsightsPageInner() {
         ).map(s => ({
           ...s,
           durationMinutes: s.duration ?? 60,
+          sessionType: (s as any).sessionType,
         }))
         setSessions(classSessions)
 

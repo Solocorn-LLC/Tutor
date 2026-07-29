@@ -382,6 +382,7 @@ export interface InsightsSessionOption {
   scheduledAt: string
   status: string
   durationMinutes?: number
+  sessionType?: string
 }
 
 export interface CourseBuilderInsightsProps {

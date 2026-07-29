@@ -48,6 +48,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
+import { DemoVideoManager } from '@/components/demo-video/DemoVideoManager'
 import { toast } from 'sonner'
 import type { CourseBuilderInsightsProps } from './course-builder-types'
 import type { CourseBuilderRef } from '../../dashboard/components/builder-types'
@@ -612,6 +613,7 @@ function CourseBuilderInsightsRouteInner({
     (!courses || courses.length === 0) && (!draftCourses || draftCourses.length === 0)
 
   const currentSession = insightsProps?.sessions?.find(s => s.id === insightsProps?.sessionId)
+  const isDemoSession = currentSession?.sessionType === 'GO_LIVE_DEMO'
   const scheduledDateStr = currentSession?.scheduledAt
   const sessionPlannedDurationMinutes = currentSession?.durationMinutes || 60
   let countdownText = '--:--'
@@ -1013,6 +1015,12 @@ function CourseBuilderInsightsRouteInner({
               ))}
             </CardContent>
           </Card>
+        )}
+
+        {isDemoSession && insightsProps.sessionId && (
+          <div className="mb-8 w-full">
+            <DemoVideoManager sessionId={insightsProps.sessionId} />
+          </div>
         )}
 
         {model.loading ? (
