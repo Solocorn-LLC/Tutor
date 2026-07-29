@@ -146,7 +146,9 @@ export const ActionCard = ({ title, copy, buttonText, icon: Icon, onClick }: any
 );
 
 // Main App URL configuration
-const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003';
+// Empty default → same-origin. In production the landing is served by the main app, so
+// `/login` reaches it. For a separate local dev server, set VITE_MAIN_APP_URL=http://localhost:3003.
+const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || '';
 
 export const Navbar = ({ setView }: { setView: (v: View) => void }) => (
   <nav className="fixed top-0 left-0 right-0 z-50 px-6 py-4">
@@ -170,7 +172,7 @@ export const Navbar = ({ setView }: { setView: (v: View) => void }) => (
           JOIN
         </button>
         <a
-          href={MAIN_APP_URL}
+          href={`${MAIN_APP_URL}/login`}
           className="px-5 py-2 bg-white text-blue-700 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors"
         >
           Sign In

@@ -521,24 +521,24 @@ export async function generateTaskTextPDF(
   const html2canvas = (await import('html2canvas')).default
 
   const VIEWPORT_WIDTH = 1100
-  const VIEWPORT_HEIGHT = 620
+  const VIEWPORT_MIN_HEIGHT = 620
 
-  // Off-screen landscape slide viewport that mirrors the Task Slide display area.
-  // Use a fixed-position wrapper with explicit dimensions so html2canvas reliably
-  // renders the element at the intended 1100 x 620 size and the PDF page stays
-  // landscape. The wrapper is placed far off-screen; it is not visibility:hidden
-  // so the element still renders and has real dimensions.
+  // Off-screen slide viewport that mirrors the Task Slide display area. The
+  // wrapper is fixed to the 1100px width so html2canvas renders reliably, but
+  // its height is left to grow: long content expands the page (correct aspect
+  // ratio) instead of being clipped, while short content still fills the
+  // landscape minimum.
   const wrapper = document.createElement('div')
-  wrapper.style.position = 'fixed'
-  wrapper.style.left = '-10000px'
-  wrapper.style.top = '-10000px'
+  wrapper.style.position = 'absolute'
+  wrapper.style.left = '-9999px'
+  wrapper.style.top = '0'
   wrapper.style.width = `${VIEWPORT_WIDTH}px`
-  wrapper.style.height = `${VIEWPORT_HEIGHT}px`
   wrapper.style.overflow = 'hidden'
+  wrapper.style.visibility = 'hidden'
 
   const viewport = document.createElement('div')
   viewport.style.width = `${VIEWPORT_WIDTH}px`
-  viewport.style.height = `${VIEWPORT_HEIGHT}px`
+  viewport.style.minHeight = `${VIEWPORT_MIN_HEIGHT}px`
   viewport.style.padding = '48px'
   viewport.style.background = '#ffffff'
   viewport.style.color = '#1F2933'
@@ -550,7 +550,7 @@ export async function generateTaskTextPDF(
   viewport.style.whiteSpace = 'pre-wrap'
   viewport.style.wordBreak = 'break-word'
   viewport.style.boxSizing = 'border-box'
-  viewport.style.overflow = 'hidden'
+  viewport.style.overflow = 'visible'
   viewport.setAttribute('dir', 'auto')
 
   const trimmed = content.trim()
@@ -564,6 +564,16 @@ export async function generateTaskTextPDF(
   document.body.appendChild(wrapper)
 
   try {
+    // Force the viewport to render at the intended width, then measure how much
+    // height the content actually needs. If it exceeds the minimum, expand the
+    // viewport so html2canvas captures the full content.
+    const viewportCssWidth = Math.round(viewport.getBoundingClientRect().width)
+    const contentHeight = Math.round(viewport.scrollHeight)
+    const viewportCssHeight = Math.max(contentHeight, VIEWPORT_MIN_HEIGHT)
+    if (contentHeight > VIEWPORT_MIN_HEIGHT) {
+      viewport.style.height = `${contentHeight}px`
+    }
+
     const canvas = await html2canvas(viewport, {
       scale: 2,
       useCORS: true,
@@ -571,9 +581,10 @@ export async function generateTaskTextPDF(
       logging: false,
     })
 
-    // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
-    const ptWidth = VIEWPORT_WIDTH * 0.75
-    const ptHeight = VIEWPORT_HEIGHT * 0.75
+    // 1 CSS px = 0.75 pt (72 pt / 96 dpi). Use the measured size so a page that
+    // grew for long content keeps the right aspect ratio.
+    const ptWidth = viewportCssWidth * 0.75
+    const ptHeight = viewportCssHeight * 0.75
 
     const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight], orientation: 'landscape' })
     const imgData = canvas.toDataURL('image/png')

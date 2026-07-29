@@ -1,5 +1,4 @@
 export { CreateClassDialog } from './CreateClassDialog'
-export { CreateCourseDialog } from './CreateCourseDialog'
 export { StatsCards } from './StatsCards'
 export { UpcomingClassesCard, type UpcomingClass } from './UpcomingClassesCard'
 export {

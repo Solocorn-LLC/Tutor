@@ -66,6 +66,20 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
+          // Block sign-in for accounts that must verify their email first (only
+          // once the password is confirmed, so this never reveals whether an
+          // email exists). No-op unless enforcement is enabled + the account is
+          // newer than the cutoff — pre-existing users are never affected.
+          const { shouldBlockUnverifiedLogin } = await import('@/lib/auth/email-verification')
+          if (
+            shouldBlockUnverifiedLogin({
+              emailVerified: userRow.emailVerified,
+              createdAt: userRow.createdAt,
+            })
+          ) {
+            throw new Error('EMAIL_NOT_VERIFIED')
+          }
+
           const onboardingComplete = checkOnboardingComplete({ profile: profileRow ?? undefined })
           const tosAccepted = profileRow?.tosAccepted ?? false
 
