@@ -1226,10 +1226,22 @@ function TutorDashboardContent() {
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
                             <span>{demo.subject}</span>
+                            {demo.scheduledAt && (
+                              <>
+                                <span className="text-white/50">•</span>
+                                <span className="text-white/70">
+                                  {new Date(demo.scheduledAt).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="h-20 w-[320px] self-center rounded-md bg-white px-3 py-2">
-                          <p className="line-clamp-4 text-xs text-gray-700">
+                        <div className="h-16 w-[480px] self-center rounded-md bg-white px-3 py-2">
+                          <p className="line-clamp-3 text-xs text-gray-700">
                             {demo.description || 'No description'}
                           </p>
                         </div>
