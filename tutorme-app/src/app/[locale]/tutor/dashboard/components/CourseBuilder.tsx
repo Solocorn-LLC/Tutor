@@ -455,7 +455,6 @@ import {
   Copy,
   FileText,
   Video as VideoIcon,
-  Image as ImageIcon,
   FileQuestion,
   ChevronRight,
   ChevronDown,
@@ -1690,11 +1689,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // during live, so reveal answers/rubrics only on explicit toggle.
     const [showLiveDmiAnswers, setShowLiveDmiAnswers] = useState(false)
     const [dmiGenerating, setDmiGenerating] = useState(false)
-    // Opt-in: when a PDF paper contains diagrams/figures, also send rendered page
-    // images to the vision model so it can SEE figures a question refers to (the
-    // extracted text can't carry them). Off by default — keeps text-only speed and
-    // cost unless the tutor turns it on for a diagram-heavy paper.
-    const [dmiAnalyzeFigures, setDmiAnalyzeFigures] = useState(false)
     // When generate-dmi detects study material (no explicit questions), we ask
     // the tutor which question types + counts to generate before continuing.
     const [dmiSpecDialog, setDmiSpecDialog] = useState<{ type: 'task' | 'assessment' } | null>(null)
@@ -2252,6 +2246,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, number>
     >({})
     const activeItemId = mainBuilderTab === 'assessment' ? loadedAssessmentId : loadedTaskId
+
+    // Keep the visible builder tab in sync with the loaded item. When a task or
+    // assessment is loaded, its opposite tab is hidden, so the active tab must be
+    // the one that matches the loaded item.
+    useEffect(() => {
+      if (loadedTaskId && !loadedAssessmentId && mainBuilderTab !== 'task') {
+        setMainBuilderTab('task')
+      } else if (loadedAssessmentId && !loadedTaskId && mainBuilderTab !== 'assessment') {
+        setMainBuilderTab('assessment')
+      }
+    }, [loadedTaskId, loadedAssessmentId, mainBuilderTab])
+
     const extractedTextFontSize = activeItemId ? (extractedTextFontSizeMap[activeItemId] ?? 18) : 18
     const setExtractedTextFontSize = (val: number) => {
       if (activeItemId) setExtractedTextFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
@@ -4169,15 +4175,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }
           }
 
-          // Diagram-aware generation: when the tutor has flagged that this paper
-          // contains figures/diagrams, ALSO render page images and send them with
-          // the extracted text. A text-only model can't see a geometry figure or
-          // graph a question refers to; the page images give the vision model that
-          // visual context, while the full text still guarantees complete question
-          // coverage. Skipped when we already fell back to images (scanned PDF) or
-          // have no text. Non-fatal: if rendering fails, generation proceeds on
-          // text alone.
-          if (dmiAnalyzeFigures && pdfText && !pdfPages) {
+          // Diagram-aware generation: when the document supports figure analysis,
+          // ALSO render page images and send them with the extracted text. A text-only
+          // model can't see a geometry figure or graph a question refers to; the page
+          // images give the vision model that visual context, while the full text still
+          // guarantees complete question coverage. Skipped when we already fell back
+          // to images (scanned PDF) or have no text. Non-fatal: if rendering fails,
+          // generation proceeds on text alone.
+          if (docSupportsFigureAnalysis(sourceDoc) && pdfText && !pdfPages) {
             try {
               toast.info('Rendering diagrams for analysis...')
               pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8, sourceDoc.fileKey)
@@ -4188,12 +4193,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
 
         // Non-PDF documents (an image scan, a Word or PowerPoint file) lose their
-        // figures to OCR/text extraction too. When opted in, attach the visual so
-        // the model can see them — the image itself, or a doc's embedded images —
-        // alongside the extracted text (still sent as the authoritative content).
-        // Non-fatal: on failure, generation proceeds on text alone.
+        // figures to OCR/text extraction too. When the document supports figure
+        // analysis, attach the visual so the model can see them — the image itself,
+        // or a doc's embedded images — alongside the extracted text (still sent as
+        // the authoritative content). Non-fatal: on failure, generation proceeds on
+        // text alone.
         if (
-          dmiAnalyzeFigures &&
+          docSupportsFigureAnalysis(sourceDoc) &&
           !effectiveHasPdf &&
           !pdfPages &&
           sourceDoc &&
@@ -8123,8 +8129,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         doc.mimeType ===
           'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
         /\.(docx?|pptx?)$/i.test(doc.fileName || ''))
-    // Documents the "Analyze diagrams" toggle can send to the AI as images: PDFs
-    // (page-rendered) plus image scans and Office files (Word / PowerPoint).
+    // Documents that support figure analysis: PDFs (page-rendered) plus image
+    // scans and Office files (Word / PowerPoint). These always send rendered images
+    // to the AI so it can read diagrams and figures the extracted text can't capture.
     const docSupportsFigureAnalysis = (doc?: { mimeType?: string; fileName?: string }): boolean =>
       !!doc && (doc.mimeType === 'application/pdf' || isImageOrOfficeDoc(doc))
     const hasAssessmentDocument = !!currentAssessmentDocument
@@ -12278,21 +12285,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               )}
                             </div>
 
-                            <TabsList className="grid h-[46px] w-[400px] shrink-0 grid-cols-2 gap-2 bg-transparent p-0 shadow-none">
-                              <TabsTrigger
-                                value="task"
-                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#2563EB] data-[state=active]:bg-[#2563EB] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
-                              >
-                                <Wrench className="h-4 w-4 shrink-0" />
-                                Task Builder
-                              </TabsTrigger>
-                              <TabsTrigger
-                                value="assessment"
-                                className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#EC4899] data-[state=active]:bg-[#EC4899] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
-                              >
-                                <FileCheck2 className="h-4 w-4 shrink-0" />
-                                Assessment Builder
-                              </TabsTrigger>
+                            <TabsList
+                              className={cn(
+                                'grid h-[46px] w-[400px] shrink-0 gap-2 bg-transparent p-0 shadow-none',
+                                loadedTaskId && loadedAssessmentId
+                                  ? 'grid-cols-2'
+                                  : loadedTaskId || loadedAssessmentId
+                                    ? 'grid-cols-1'
+                                    : 'grid-cols-2'
+                              )}
+                            >
+                              {(!loadedAssessmentId || !loadedTaskId) && (
+                                <TabsTrigger
+                                  value="task"
+                                  className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#2563EB] data-[state=active]:bg-[#2563EB] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
+                                >
+                                  <Wrench className="h-4 w-4 shrink-0" />
+                                  Task Builder
+                                </TabsTrigger>
+                              )}
+                              {(!loadedTaskId || !loadedAssessmentId) && (
+                                <TabsTrigger
+                                  value="assessment"
+                                  className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#EC4899] data-[state=active]:bg-[#EC4899] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
+                                >
+                                  <FileCheck2 className="h-4 w-4 shrink-0" />
+                                  Assessment Builder
+                                </TabsTrigger>
+                              )}
                             </TabsList>
 
                             {/* Right: current assessment name */}
@@ -12354,82 +12374,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       value="content"
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      {/* View controls: switch between the text
-                                          editor (left) and the document (right),
-                                          or show both side by side. Only relevant
-                                          once an uploaded document is present. */}
-                                      {hasUploadedTaskDocument && (
-                                        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-3">
-                                          <div className="flex items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-                                            {[
-                                              {
-                                                key: 'text',
-                                                label: 'Text',
-                                                icon: <Type className="h-3.5 w-3.5" />,
-                                                active: taskTextVisible && !taskPdfVisible,
-                                                onClick: () => {
-                                                  setTaskTextVisible(true)
-                                                  setTaskPdfVisible(false)
-                                                },
-                                              },
-                                              {
-                                                key: 'split',
-                                                label: 'Split',
-                                                icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
-                                                active: taskTextVisible && taskPdfVisible,
-                                                onClick: () => {
-                                                  setTaskTextVisible(true)
-                                                  setTaskPdfVisible(true)
-                                                },
-                                              },
-                                              {
-                                                key: 'document',
-                                                label: 'Document',
-                                                icon: <FileText className="h-3.5 w-3.5" />,
-                                                active: !taskTextVisible && taskPdfVisible,
-                                                onClick: () => {
-                                                  setTaskTextVisible(false)
-                                                  setTaskPdfVisible(true)
-                                                },
-                                              },
-                                            ].map(view => (
-                                              <button
-                                                key={view.key}
-                                                type="button"
-                                                onClick={view.onClick}
-                                                title={`${view.label} view`}
-                                                aria-pressed={view.active}
-                                                className={cn(
-                                                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                                                  view.active
-                                                    ? 'bg-[#EEF4FF] text-[#2B5FB8]'
-                                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                                                )}
-                                              >
-                                                {view.icon}
-                                                {view.label}
-                                              </button>
-                                            ))}
-                                          </div>
-                                          {docSupportsFigureAnalysis(currentTaskDocument) && (
-                                            <label
-                                              className="flex cursor-pointer items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-                                              title="Also send the document's images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
-                                            >
-                                              <input
-                                                type="checkbox"
-                                                checked={dmiAnalyzeFigures}
-                                                onChange={e =>
-                                                  setDmiAnalyzeFigures(e.target.checked)
-                                                }
-                                                className="h-3.5 w-3.5 rounded border-slate-300 accent-[#2B5FB8]"
-                                              />
-                                              <ImageIcon className="h-3.5 w-3.5" aria-hidden />
-                                              Analyze diagrams
-                                            </label>
-                                          )}
-                                        </div>
-                                      )}
                                       <div
                                         className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
@@ -12924,85 +12868,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       value="content"
                                       className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                     >
-                                      {/* View controls: switch between the text
-                                          editor (left) and the document (right),
-                                          or show both side by side. Only relevant
-                                          once a document is present. */}
-                                      {hasAssessmentDocument && (
-                                        <div className="mb-2 flex shrink-0 flex-wrap items-center gap-3">
-                                          <div className="flex items-center gap-0.5 self-start rounded-lg border border-slate-200 bg-white p-0.5 shadow-sm">
-                                            {[
-                                              {
-                                                key: 'text',
-                                                label: 'Text',
-                                                icon: <Type className="h-3.5 w-3.5" />,
-                                                active:
-                                                  assessmentTextVisible && !assessmentPdfVisible,
-                                                onClick: () => {
-                                                  setAssessmentTextVisible(true)
-                                                  setAssessmentPdfVisible(false)
-                                                },
-                                              },
-                                              {
-                                                key: 'split',
-                                                label: 'Split',
-                                                icon: <LayoutPanelTop className="h-3.5 w-3.5" />,
-                                                active:
-                                                  assessmentTextVisible && assessmentPdfVisible,
-                                                onClick: () => {
-                                                  setAssessmentTextVisible(true)
-                                                  setAssessmentPdfVisible(true)
-                                                },
-                                              },
-                                              {
-                                                key: 'document',
-                                                label: 'Document',
-                                                icon: <FileText className="h-3.5 w-3.5" />,
-                                                active:
-                                                  !assessmentTextVisible && assessmentPdfVisible,
-                                                onClick: () => {
-                                                  setAssessmentTextVisible(false)
-                                                  setAssessmentPdfVisible(true)
-                                                },
-                                              },
-                                            ].map(view => (
-                                              <button
-                                                key={view.key}
-                                                type="button"
-                                                onClick={view.onClick}
-                                                title={`${view.label} view`}
-                                                aria-pressed={view.active}
-                                                className={cn(
-                                                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                                                  view.active
-                                                    ? 'bg-[#EEF4FF] text-[#2B5FB8]'
-                                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-                                                )}
-                                              >
-                                                {view.icon}
-                                                {view.label}
-                                              </button>
-                                            ))}
-                                          </div>
-                                          {docSupportsFigureAnalysis(currentAssessmentDocument) && (
-                                            <label
-                                              className="flex cursor-pointer items-center gap-1.5 self-start rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-                                              title="Also send the document's images to the AI so it can read diagrams and figures the extracted text can't capture (slower)."
-                                            >
-                                              <input
-                                                type="checkbox"
-                                                checked={dmiAnalyzeFigures}
-                                                onChange={e =>
-                                                  setDmiAnalyzeFigures(e.target.checked)
-                                                }
-                                                className="h-3.5 w-3.5 rounded border-slate-300 accent-[#2B5FB8]"
-                                              />
-                                              <ImageIcon className="h-3.5 w-3.5" aria-hidden />
-                                              Analyze diagrams
-                                            </label>
-                                          )}
-                                        </div>
-                                      )}
                                       <div
                                         className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
                                         onDragOver={e => e.preventDefault()}
