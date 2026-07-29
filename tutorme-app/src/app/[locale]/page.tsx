@@ -76,6 +76,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import './page.css'
 import {
   REGIONS,
@@ -1773,6 +1774,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
   const prevSelectedCourseRef = useRef<any | null>(null)
   const [rotation, setRotation] = useState(0)
   const router = useRouter()
+  const locale = useLocale()
 
   // Auto-detect user's country from IP on mount
   useEffect(() => {
@@ -2181,7 +2183,7 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
 
   const GoLiveSlot = ({ item }: { item: any }) => (
     <Link
-      href={`/student/classroom?sessionId=${encodeURIComponent(item?.sessionId || item?.id || '')}`}
+      href={`/${locale}/call/${encodeURIComponent(item?.sessionId || item?.id || '')}`}
       className="block h-full w-full"
     >
       <div
