@@ -878,6 +878,9 @@ function CourseBuilderInsightsRouteInner({
                           draftCourses={draftCourses ?? []}
                           currentCourseId={courseId}
                           onSelectCourse={id => insightsProps.onCourseChange?.(id)}
+                          onSelectDemoClass={id =>
+                            model.router.push(`/tutor/insights?sessionId=${id}`)
+                          }
                         />
                       </>
                     )}
