@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 
 const toast = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }))
 vi.mock('sonner', () => ({ toast }))
 
 import { usePci } from './use-pci'
-import { getThread } from './pci-reducer'
+import { getThread, emptyThread } from './pci-reducer'
+import type { PciThread } from './pci-reducer'
 
 const taskTarget = { kind: 'task' as const }
 
@@ -32,7 +33,10 @@ function deps(overrides: Partial<Parameters<typeof usePci>[0]> = {}) {
   }
 }
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  window.localStorage.clear()
+})
 
 describe('usePci', () => {
   it('sends a task message and stores the assistant reply + draft, clears input', async () => {
@@ -180,5 +184,105 @@ describe('usePci', () => {
       'FINAL',
       expect.objectContaining({ spec: { evaluationLogic: 'Award method marks' } })
     )
+  })
+
+  it('loads an initial server-side task thread and overrides localStorage', async () => {
+    const initialThread: PciThread = {
+      ...emptyThread(),
+      messages: [
+        { role: 'user', content: 'server message' },
+        { role: 'assistant', content: 'server reply' },
+      ],
+    }
+    window.localStorage.setItem(
+      'tutor-pci-thread:task:t1',
+      JSON.stringify({
+        ...emptyThread(),
+        messages: [{ role: 'user', content: 'local message' }],
+      })
+    )
+
+    const { result } = renderHook(() => usePci(deps({ initialTaskThread: initialThread })))
+    await waitFor(() =>
+      expect(getThread(result.current.pci, taskTarget).messages).toEqual(initialThread.messages)
+    )
+  })
+
+  it('loads an initial server-side assessment thread and overrides localStorage', async () => {
+    const assessmentTarget = { kind: 'assessment' as const, id: 'a1' }
+    const initialThread: PciThread = {
+      ...emptyThread(),
+      messages: [{ role: 'assistant', content: 'assessment context' }],
+    }
+    window.localStorage.setItem(
+      'tutor-pci-thread:assessment:a1',
+      JSON.stringify({
+        ...emptyThread(),
+        messages: [{ role: 'user', content: 'local assessment' }],
+      })
+    )
+
+    const { result } = renderHook(() =>
+      usePci(
+        deps({
+          loadedTaskId: null,
+          loadedAssessmentId: 'a1',
+          autoCreateAssessment: () => ({ id: 'a1' }),
+          initialAssessmentThread: initialThread,
+        })
+      )
+    )
+    await waitFor(() =>
+      expect(getThread(result.current.pci, assessmentTarget).messages).toEqual(
+        initialThread.messages
+      )
+    )
+  })
+
+  it('reports thread changes to onThreadChange after a send', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: 'Assistant reply',
+        pciDraft: 'Draft policy',
+        guardrailWarnings: [],
+      }),
+    }) as unknown as typeof fetch
+    const onThreadChange = vi.fn()
+
+    const { result } = renderHook(() => usePci(deps({ onThreadChange })))
+    act(() => result.current.setPciInput(taskTarget, 'hello'))
+    await act(async () => {
+      await result.current.handlePciSend('task')
+    })
+
+    await waitFor(() => expect(onThreadChange).toHaveBeenCalled())
+    const lastCall = onThreadChange.mock.calls.at(-1)
+    expect(lastCall?.[0]).toEqual(taskTarget)
+    expect(getThread(result.current.pci, taskTarget).messages).toEqual(lastCall?.[1].messages)
+  })
+
+  it('reports a cleared task thread after apply', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        response: 'ok',
+        pciDraft: 'FINAL',
+        guardrailWarnings: [],
+      }),
+    }) as unknown as typeof fetch
+    const onThreadChange = vi.fn()
+
+    const { result } = renderHook(() => usePci(deps({ onThreadChange })))
+    act(() => result.current.setPciInput(taskTarget, 'q'))
+    await act(async () => {
+      await result.current.handlePciSend('task')
+    })
+    act(() => result.current.applyTaskPciDraft())
+
+    await waitFor(() => expect(onThreadChange).toHaveBeenCalledTimes(2))
+    const lastCall = onThreadChange.mock.calls.at(-1)
+    expect(lastCall?.[0]).toEqual(taskTarget)
+    expect(getThread(result.current.pci, taskTarget).draft).toBe('')
   })
 })

@@ -21,7 +21,7 @@ export type SessionType = 'COURSE' | 'ADHOC' | 'ONE_ON_ONE' | 'CLINIC' | 'GO_LIV
 export interface CreateSessionInput {
   tutorId: string
   title: string
-  scheduledAt: Date
+  scheduledAt?: Date | null
   durationMinutes: number
   category: string
   type: SessionType
@@ -34,7 +34,7 @@ export interface CreateSessionInput {
   maxStudents?: number
   description?: string
   status?: LiveSessionStatus
-  startedAt?: Date
+  startedAt?: Date | null
   /** Defaults to 'Asia/Shanghai' */
   timezone?: string
   /** Optional: pass an existing Daily.co room if already created externally */
@@ -61,7 +61,9 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
   const db = tx ?? drizzleDb
   const sessionId = crypto.randomUUID()
   const now = new Date()
-  const endTime = new Date(input.scheduledAt.getTime() + input.durationMinutes * 60_000)
+  const endTime = input.scheduledAt
+    ? new Date(input.scheduledAt.getTime() + input.durationMinutes * 60_000)
+    : null
   const timezone = input.timezone || 'Asia/Shanghai'
 
   // 1. Create Daily.co room
@@ -88,7 +90,7 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
       title: input.title,
       category: input.category,
       description: input.description ?? null,
-      scheduledAt: input.scheduledAt,
+      scheduledAt: input.scheduledAt ?? null,
       startedAt: input.startedAt ?? null,
       status: input.status ?? 'scheduled',
       sessionType: input.type,
@@ -102,7 +104,7 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
   // 3. Upsert CalendarEvent (read-only projection) — skip for schedule-less demo
   // rooms so Go Live sessions do not block the tutor's calendar.
   let calendarEventRow: typeof calendarEvent.$inferSelect | undefined
-  if (input.type !== 'GO_LIVE_DEMO') {
+  if (input.type !== 'GO_LIVE_DEMO' && input.scheduledAt && endTime) {
     const [ce] = await db
       .insert(calendarEvent)
       .values({

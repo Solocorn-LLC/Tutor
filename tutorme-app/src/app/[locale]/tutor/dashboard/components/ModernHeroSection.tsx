@@ -124,7 +124,7 @@ export function ModernHeroSection({
         body: JSON.stringify({
           type: 'teaching',
           courseId,
-          title: `${course.name} - Live Session`,
+          title: course.name,
           description,
         }),
       })
