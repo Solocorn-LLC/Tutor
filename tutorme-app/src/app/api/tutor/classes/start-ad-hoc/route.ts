@@ -178,8 +178,8 @@ export const POST = withAuth(
 
         const { liveSession: created } = await createSession({
           tutorId: currentUser.id,
-          title: title || `${courseRecord.name} - Live Session`,
-          scheduledAt: new Date(),
+          title: title || courseRecord.name,
+          scheduledAt: null,
           durationMinutes: 120,
           category: Array.isArray(courseRecord.categories)
             ? courseRecord.categories[0] || 'General'
@@ -188,7 +188,7 @@ export const POST = withAuth(
           courseId,
           description,
           status: 'active',
-          startedAt: new Date(),
+          startedAt: null,
           existingRoom: room,
         })
         const sessionId = created.sessionId

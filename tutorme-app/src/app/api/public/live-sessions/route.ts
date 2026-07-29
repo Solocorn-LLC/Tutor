@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
         status: liveSession.status,
         scheduledAt: liveSession.scheduledAt,
         startedAt: liveSession.startedAt,
+        createdAt: liveSession.createdAt,
         tutorId: liveSession.tutorId,
         tutorUsername: sql<string>`coalesce(${profile.username}, ${user.handle})`.as(
           'tutorUsername'
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest) {
           eq(user.role, 'TUTOR' as Role)
         )
       )
-      .orderBy(desc(liveSession.scheduledAt))
+      .orderBy(desc(liveSession.createdAt))
       .limit(pageSize)
 
     console.log(`[GET /api/public/live-sessions] found ${rows.length} session(s)`)
@@ -116,6 +117,7 @@ export async function GET(request: NextRequest) {
       status: row.status,
       scheduledAt: row.scheduledAt?.toISOString() ?? null,
       startedAt: row.startedAt?.toISOString() ?? null,
+      createdAt: row.createdAt?.toISOString() ?? null,
       tutor: {
         id: row.tutorId,
         username: row.tutorUsername || '',
