@@ -221,8 +221,8 @@ import { buildClassroomSummaryRequest } from '@/lib/ai/session-tutor-summary'
 import { useMarkingScheme } from './hooks/use-marking-scheme'
 import { useDmiEditor } from './hooks/use-dmi-editor'
 import { usePci } from './hooks/use-pci'
-import { getThread, type PciTarget } from './hooks/pci-reducer'
-import { parsePciTranscript, type PciMessage } from '@/lib/assessment/pci'
+import { getThread, type PciTarget, type PciThread } from './hooks/pci-reducer'
+import { type PciMessage, type PciAuditRecord } from '@/lib/assessment/pci'
 import { PCI_SPEC_FIELDS } from '@/lib/assessment/pci-spec'
 import { PciQuestionnaire } from './PciQuestionnaire'
 import { PciSpecSoFar } from './PciSpecSoFar'
@@ -1220,6 +1220,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       details: string
       /** Append-only PCI approval audit log (TASK-18). */
       pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+      /** Full persisted PCI assistant conversation for the base task (TASK-18+). */
+      pciThread?: PciThread
       /** Current approved structured PCI spec (TASK-6). */
       pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
       sourceDocument?: {
@@ -1237,6 +1239,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         content: string
         pci: string
         sourceDocument?: any
+        /** Full persisted PCI assistant conversation for this extension. */
+        pciThread?: PciThread
       }[]
       activeExtensionId: string | null
     }>({
@@ -1256,6 +1260,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // Current approved structured PCI spec (TASK-6) — persisted at deploy to
       // BuilderTask.pciSpec, mirroring tasks, so the grader gets it too.
       pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
+      /** Append-only PCI approval audit log (TASK-18). */
+      pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+      /** Full persisted PCI assistant conversation for the assessment (TASK-18+). */
+      pciThread?: PciThread
       details: string
       sourceDocument?: {
         fileName: string
@@ -1316,13 +1324,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             : base
         })
       } else {
-        // TASK-6: persist the structured spec on a real "Apply to PCI" (audit
-        // present); a manual edit/clear passes no audit and leaves it as-is.
-        setAssessmentBuilder(prev =>
-          audit ? { ...prev, taskPci: text, pciSpec: audit.spec } : { ...prev, taskPci: text }
-        )
+        // TASK-18: assessments get the same audit log + structured spec parity as tasks.
+        setAssessmentBuilder(prev => {
+          const base = { ...prev, taskPci: text }
+          return audit
+            ? { ...base, pciHistory: [...(prev.pciHistory ?? []), audit], pciSpec: audit.spec }
+            : base
+        })
       }
     }
+
+    const handlePciThreadChange = useCallback((target: PciTarget, thread: PciThread) => {
+      if (target.kind === 'task') {
+        setTaskBuilder(prev => ({ ...prev, pciThread: thread }))
+      } else if (target.kind === 'taskExtension' && target.id) {
+        setTaskBuilder(prev => ({
+          ...prev,
+          extensions: prev.extensions.map(ext =>
+            ext.id === target.id ? { ...ext, pciThread: thread } : ext
+          ),
+        }))
+      } else if (target.kind === 'assessment' && target.id) {
+        setAssessmentBuilder(prev => ({ ...prev, pciThread: thread }))
+      }
+    }, [])
 
     // AI Assist Agent state - separate for task and assessment
     const [aiAssistOpen, setAiAssistOpen] = useState(false)
@@ -2571,6 +2596,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           details: task.shortDescription || '',
           // TASK-18: carry the PCI approval audit log so saves preserve/extend it.
           pciHistory: task.pciHistory,
+          // Full persisted PCI conversation thread for the base task.
+          pciThread: task.pciThread,
           // TASK-6: carry the current approved structured spec.
           pciSpec: task.pciSpec,
           sourceDocument: task.sourceDocument,
@@ -2578,6 +2605,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             ...ext,
             description: ext.description || '',
             sourceDocument: ext.sourceDocument,
+            // Full persisted PCI conversation thread for this extension.
+            pciThread: ext.pciThread,
           })),
           activeExtensionId,
         })
@@ -2607,15 +2636,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         } else {
           setTestPciViewMode('pdf')
         }
-        loadPciMessagesRef.current({ kind: 'task' }, parsePciTranscript(task.instructions || ''))
-        for (const ext of task.extensions || []) {
-          // Extensions share the base task's PCI policy; seed the extension thread
-          // with the same transcript so context is consistent everywhere.
-          loadPciMessagesRef.current(
-            { kind: 'taskExtension', id: ext.id },
-            parsePciTranscript(task.instructions || '')
-          )
-        }
         setLoadedTaskId(task.id)
         setTaskUploadedFiles(
           task.sourceDocument ? [{ id: 'source', name: task.sourceDocument.fileName }] : []
@@ -2634,6 +2654,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         taskContent: content,
         taskPci: assessment.instructions || '',
         pciSpec: assessment.pciSpec,
+        pciHistory: assessment.pciHistory,
+        pciThread: assessment.pciThread,
         details: '',
         sourceDocument: assessment.sourceDocument,
         extensions: [],
@@ -2823,6 +2845,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   task.shortDescription === taskBuilder.details &&
                   task.description === taskBuilder.taskContent &&
                   task.instructions === taskBuilder.taskPci &&
+                  task.pciHistory === taskBuilder.pciHistory &&
+                  task.pciSpec === taskBuilder.pciSpec &&
+                  task.pciThread === taskBuilder.pciThread &&
                   task.extensions === taskBuilder.extensions &&
                   task.dmiItems === taskDmiItems &&
                   task.documentKind === (dmiDocumentKind.task ?? task.documentKind) &&
@@ -2843,6 +2868,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   pciHistory: taskBuilder.pciHistory,
                   // TASK-6: persist the current approved structured spec.
                   pciSpec: taskBuilder.pciSpec,
+                  // Full PCI conversation thread (messages, draft, specSoFar) so it
+                  // survives reloads and device changes.
+                  pciThread: taskBuilder.pciThread,
                   extensions: taskBuilder.extensions,
                   dmiItems: taskDmiItems,
                   // Preserve the persisted kind when the session hasn't set one.
@@ -2864,6 +2892,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.details,
       taskBuilder.taskContent,
       taskBuilder.taskPci,
+      taskBuilder.pciHistory,
+      taskBuilder.pciSpec,
+      taskBuilder.pciThread,
       taskBuilder.extensions,
       taskBuilder.sourceDocument,
       taskDmiItems,
@@ -2900,7 +2931,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   hw.title === assessmentBuilder.title &&
                   hw.description === assessmentBuilder.taskContent &&
                   hw.instructions === assessmentBuilder.taskPci &&
+                  hw.pciHistory === assessmentBuilder.pciHistory &&
                   hw.pciSpec === assessmentBuilder.pciSpec &&
+                  hw.pciThread === assessmentBuilder.pciThread &&
                   hw.dmiItems === assessmentDmiItems &&
                   hw.documentKind === (dmiDocumentKind.assessment ?? hw.documentKind) &&
                   hw.dmiVersions === assessmentDmiVersions &&
@@ -2915,7 +2948,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   title: assessmentBuilder.title,
                   description: assessmentBuilder.taskContent,
                   instructions: assessmentBuilder.taskPci,
+                  pciHistory: assessmentBuilder.pciHistory,
                   pciSpec: assessmentBuilder.pciSpec,
+                  pciThread: assessmentBuilder.pciThread,
                   dmiItems: assessmentDmiItems,
                   // Preserve the persisted kind when the session hasn't set one.
                   documentKind: dmiDocumentKind.assessment ?? hw.documentKind,
@@ -2935,7 +2970,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.title,
       assessmentBuilder.taskContent,
       assessmentBuilder.taskPci,
+      assessmentBuilder.pciHistory,
       assessmentBuilder.pciSpec,
+      assessmentBuilder.pciThread,
       assessmentBuilder.sourceDocument,
       assessmentDmiItems,
       assessmentDmiVersions,
@@ -8151,6 +8188,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       autoCreateAssessment,
       renderPdfToImages,
       pdfPageCache,
+      // Persisted server-side threads live in the lesson JSON and survive reloads.
+      initialTaskThread: taskBuilder.pciThread,
+      initialExtensionThreads: Object.fromEntries(
+        taskBuilder.extensions
+          .filter(ext => ext.pciThread)
+          .map(ext => [ext.id, ext.pciThread as PciThread])
+      ),
+      initialAssessmentThread: assessmentBuilder.pciThread,
+      onThreadChange: handlePciThreadChange,
       // DMI digest (marks + rubric, no answers) so the policy chat sees the
       // actual questions/marks/rubrics.
       assessmentMarkingScheme: assessmentDmiItems
@@ -8221,6 +8267,40 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // The saved PCI (marking policy) for tasks. Extensions share the base task's
     // policy, so always read from the base task.
     const activeTaskPci = taskBuilder.taskPci
+    // Small status badge showing whether the PCI is empty, finalized, or has a
+    // draft conversation in progress. Helps tutors know the state at a glance
+    // when they reopen a task after leaving the course.
+    const PciStatusBadge = ({
+      value,
+      history,
+      thread,
+    }: {
+      value: string
+      history?: PciAuditRecord[]
+      thread?: PciThread
+    }) => {
+      const hasFinalized = value.trim().length > 0 && (history?.length ?? 0) > 0
+      const hasDraft = (thread?.messages?.length ?? 0) > 0 || !!thread?.draft
+      let label = 'No PCI set'
+      let className = 'bg-slate-100 text-slate-600'
+      if (hasFinalized) {
+        label = 'PCI finalized'
+        className = 'bg-emerald-100 text-emerald-700'
+      } else if (hasDraft) {
+        label = 'PCI draft in progress'
+        className = 'bg-amber-100 text-amber-700'
+      } else if (value.trim()) {
+        label = 'PCI set (manual)'
+        className = 'bg-blue-100 text-blue-700'
+      }
+      return (
+        <span
+          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${className}`}
+        >
+          {label}
+        </span>
+      )
+    }
     // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
     const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
       <div
@@ -8228,7 +8308,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         className="mb-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs"
       >
         <div className="flex items-center justify-between gap-2">
-          <span className="font-semibold text-slate-700">Current marking policy (PCI)</span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-700">Current marking policy (PCI)</span>
+            <PciStatusBadge
+              value={value}
+              history={source === 'task' ? taskBuilder.pciHistory : assessmentBuilder.pciHistory}
+              thread={
+                source === 'task'
+                  ? activeTaskThread
+                  : loadedAssessmentId
+                    ? pci.assessments[loadedAssessmentId]
+                    : undefined
+              }
+            />
+          </div>
           <div className="flex items-center gap-2">
             {value.trim() && canEdit && (
               <button
@@ -12659,6 +12752,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           ref={taskPciScrollRef}
                                           className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
                                         >
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-xs font-semibold text-slate-700">
+                                              PCI assistant
+                                            </span>
+                                            <PciStatusBadge
+                                              value={activeTaskPci}
+                                              history={taskBuilder.pciHistory}
+                                              thread={activeTaskThread}
+                                            />
+                                          </div>
                                           {activeTaskPciMessages.length === 0 && (
                                             <p className="text-muted-foreground text-xs">
                                               Start a PCI chat to build instructions with the

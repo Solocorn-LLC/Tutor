@@ -1,12 +1,13 @@
 'use client'
 
-import { useReducer, useEffect } from 'react'
+import { useReducer, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import type { PciMessage, PciAuditRecord } from '@/lib/assessment/pci'
 import {
   pciReducer,
   initialPciState,
   getThread,
+  emptyThread,
   type PciState,
   type PciTarget,
   type PciGuardrailWarning,
@@ -69,6 +70,26 @@ interface UsePciDeps {
   }
   /** Writes the finalized policy to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
+  /**
+   * Persisted server-side PCI thread for the base task. If present, it is loaded
+   * on mount and overrides any localStorage draft. Reported back via onThreadChange
+   * so the parent can auto-save it into the lesson JSON.
+   */
+  initialTaskThread?: PciThread
+  /**
+   * Persisted server-side PCI threads for task extensions, keyed by extension id.
+   * Each extension keeps its own conversation thread separate from the base task.
+   */
+  initialExtensionThreads?: Record<string, PciThread>
+  /**
+   * Persisted server-side PCI thread for the current assessment.
+   */
+  initialAssessmentThread?: PciThread
+  /**
+   * Called whenever a thread changes so the parent can persist it to the lesson
+   * JSON. The target identifies which thread changed (task, extension, assessment).
+   */
+  onThreadChange?: (target: PciTarget, thread: PciThread) => void
   taskSourceDocument?: PciSourceDoc
   currentAssessmentDocument?: PciSourceDoc
   /**
@@ -151,20 +172,100 @@ export function usePci(deps: UsePciDeps) {
   }
 
   // Load any previously persisted conversations when the item becomes known.
+  // Always start from a clean thread for the new task/assessment, then load the
+  // server-side thread if present; otherwise fall back to the localStorage draft.
   useEffect(() => {
     if (!deps.loadedTaskId) return
-    loadStoredThread({ kind: 'task' })
+    loadPciThread({ kind: 'task' }, emptyThread())
+    if (deps.initialTaskThread) {
+      loadPciThread({ kind: 'task' }, deps.initialTaskThread)
+    } else {
+      loadStoredThread({ kind: 'task' })
+    }
     for (const ext of deps.taskBuilder.extensions) {
-      loadStoredThread({ kind: 'taskExtension', id: ext.id })
+      loadPciThread({ kind: 'taskExtension', id: ext.id }, emptyThread())
+      const initial = deps.initialExtensionThreads?.[ext.id]
+      if (initial) {
+        loadPciThread({ kind: 'taskExtension', id: ext.id }, initial)
+      } else {
+        loadStoredThread({ kind: 'taskExtension', id: ext.id })
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deps.loadedTaskId])
 
   useEffect(() => {
     if (!deps.loadedAssessmentId) return
-    loadStoredThread({ kind: 'assessment', id: deps.loadedAssessmentId })
+    loadPciThread({ kind: 'assessment', id: deps.loadedAssessmentId }, emptyThread())
+    if (deps.initialAssessmentThread) {
+      loadPciThread(
+        { kind: 'assessment', id: deps.loadedAssessmentId },
+        deps.initialAssessmentThread
+      )
+    } else {
+      loadStoredThread({ kind: 'assessment', id: deps.loadedAssessmentId })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deps.loadedAssessmentId])
+
+  // Report thread changes to the parent so they can be persisted in the lesson
+  // JSON. We compare JSON snapshots to avoid redundant callbacks and reset the
+  // tracker whenever the loaded task/assessment changes.
+  const lastReportedRef = useRef<Record<string, string>>({})
+  const lastReportedTaskIdRef = useRef<string | null>(null)
+  const lastReportedAssessmentIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const onThreadChange = deps.onThreadChange
+    if (!onThreadChange) return
+    if (lastReportedTaskIdRef.current !== deps.loadedTaskId) {
+      lastReportedRef.current = {}
+      lastReportedTaskIdRef.current = deps.loadedTaskId
+    }
+    if (lastReportedAssessmentIdRef.current !== deps.loadedAssessmentId) {
+      lastReportedRef.current = {}
+      lastReportedAssessmentIdRef.current = deps.loadedAssessmentId
+    }
+
+    const targetKey = (target: PciTarget): string => {
+      if (target.kind === 'task') return 'task'
+      if (target.kind === 'taskExtension') return `ext:${target.id}`
+      return `assessment:${target.id}`
+    }
+
+    const reportIfChanged = (target: PciTarget, thread?: PciThread) => {
+      if (!thread) return
+      const key = targetKey(target)
+      const serialized = JSON.stringify(thread)
+      const isEmpty =
+        thread.messages.length === 0 && !thread.draft && !thread.specSoFar && !thread.errorHint
+      // Skip empty threads we have never reported before; report once we have
+      // so the parent can clear a saved thread when the conversation ends.
+      if (isEmpty && !lastReportedRef.current[key]) return
+      if (lastReportedRef.current[key] === serialized) return
+      lastReportedRef.current[key] = serialized
+      onThreadChange(target, thread)
+    }
+
+    if (deps.loadedTaskId) {
+      reportIfChanged({ kind: 'task' }, pci.task)
+      for (const ext of deps.taskBuilder.extensions) {
+        reportIfChanged({ kind: 'taskExtension', id: ext.id }, pci.taskExtensions[ext.id])
+      }
+    }
+    if (deps.loadedAssessmentId) {
+      reportIfChanged(
+        { kind: 'assessment', id: deps.loadedAssessmentId },
+        pci.assessments[deps.loadedAssessmentId]
+      )
+    }
+  }, [
+    pci,
+    deps.onThreadChange,
+    deps.loadedTaskId,
+    deps.loadedAssessmentId,
+    deps.taskBuilder.extensions,
+  ])
 
   // Persist thread changes as they happen.
   useEffect(() => {
