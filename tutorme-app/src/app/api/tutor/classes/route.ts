@@ -20,19 +20,28 @@ export const GET = withAuth(
     const tutorId = session.user.id
     const now = new Date()
     const includeEnded = req.nextUrl.searchParams.get('includeEnded') === '1'
+    const includeDemoClasses = req.nextUrl.searchParams.get('includeDemoClasses') === '1'
 
     const sessions = await drizzleDb.query.liveSession.findMany({
       where: includeEnded
         ? eq(liveSessionTable.tutorId, tutorId)
-        : // Upcoming = future or in-progress, but never an ended/cancelled session
-          // (an ended session with a future scheduledAt must not show as "upcoming").
-          // Demo classes are schedule-less and live only in the dedicated demos tab.
-          and(
-            eq(liveSessionTable.tutorId, tutorId),
-            ne(liveSessionTable.status, 'ended'),
-            ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO'),
-            or(gte(liveSessionTable.scheduledAt, now), eq(liveSessionTable.status, 'active'))
-          ),
+        : (() => {
+            // Upcoming = future or in-progress, but never an ended/cancelled session
+            // (an ended session with a future scheduledAt must not show as "upcoming").
+            // Demo classes are schedule-less and live only in the dedicated demos tab
+            // unless explicitly requested (e.g. by the live insights/deploy page).
+            const filters = [
+              eq(liveSessionTable.tutorId, tutorId),
+              ne(liveSessionTable.status, 'ended'),
+            ]
+            if (!includeDemoClasses) {
+              filters.push(ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO'))
+            }
+            return and(
+              ...filters,
+              or(gte(liveSessionTable.scheduledAt, now), eq(liveSessionTable.status, 'active'))
+            )
+          })(),
       with: {
         participants: {
           columns: { participantId: true },

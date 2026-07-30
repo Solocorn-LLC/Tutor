@@ -777,7 +777,9 @@ function TutorInsightsPageInner() {
           setSessionId(querySessionId)
         }
 
-        const res = await fetch('/api/tutor/classes', { credentials: 'include' })
+        const res = await fetch('/api/tutor/classes?includeDemoClasses=1', {
+          credentials: 'include',
+        })
         if (!res.ok) throw new Error('Failed to load sessions')
         const data = await res.json()
         const classSessions = (
