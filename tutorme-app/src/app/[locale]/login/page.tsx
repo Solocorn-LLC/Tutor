@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons'
 
 function LoginForm() {
   const router = useRouter()
@@ -272,6 +273,8 @@ function LoginForm() {
               )}
             </Button>
           </form>
+
+          <SocialLoginButtons callbackUrl={`${localePrefix}/`} className="mt-4" />
 
           <div className="mt-4 text-center text-sm">
             <span className="text-white/80">Don&apos;t have an account?</span>
