@@ -505,7 +505,6 @@ import {
   PencilRuler,
   Pencil,
   Wrench,
-  FileCheck2,
   LayoutPanelTop,
   Brain,
   ClipboardList,
@@ -1927,6 +1926,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // back, because the DMI lives in local state and is only auto-saved once a
     // task is loaded. Resetting once preserves work across tab navigation.
     const didBlankSlateRef = useRef(false)
+    const autoLoadedCourseIdRef = useRef<string | null>(null)
+
+    // Reset blank-slate and auto-load tracking when a different course is loaded
+    // so the new course gets the same first-task auto-open behavior.
+    useEffect(() => {
+      didBlankSlateRef.current = false
+      autoLoadedCourseIdRef.current = null
+    }, [courseId])
+
     useEffect(() => {
       if (mainTab !== 'builder') return
       if (didBlankSlateRef.current) return
@@ -4630,18 +4638,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const isSectionCollapsed = (nodeId: string, section: 'task' | 'assessment' | 'homework') =>
       collapsedSections.has(`${nodeId}:${section}`)
 
-    const ensureSectionExpanded = (nodeId: string, section: 'task' | 'assessment' | 'homework') => {
-      setExpandedCourseBuilderNodes(prev => {
-        const next = new Set(prev)
-        next.add(nodeId)
-        return next
-      })
-      setCollapsedSections(prev => {
-        const next = new Set(prev)
-        next.delete(`${nodeId}:${section}`)
-        return next
-      })
-    }
+    const ensureSectionExpanded = useCallback(
+      (nodeId: string, section: 'task' | 'assessment' | 'homework') => {
+        setExpandedCourseBuilderNodes(prev => {
+          const next = new Set(prev)
+          next.add(nodeId)
+          return next
+        })
+        setCollapsedSections(prev => {
+          const next = new Set(prev)
+          next.delete(`${nodeId}:${section}`)
+          return next
+        })
+      },
+      [setExpandedCourseBuilderNodes, setCollapsedSections]
+    )
 
     // Reveal an item in the Curriculum panel after a document load: select it,
     // expand its node + section, then scroll its row to the top of the Curriculum
@@ -4921,6 +4932,66 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       toast.success('New assessment created')
       return newAssessment
     }, [nodes, ensureFirstLessonContext])
+
+    // Auto-load the first task/assessment when a course is loaded into the
+    // builder. If the course has neither, create a default task and save it.
+    useEffect(() => {
+      if (mainTab !== 'builder') return
+      if (!didBlankSlateRef.current) return
+      if (!courseId) return
+      if (initialLessons === undefined) return
+      if (loadedTaskId || loadedAssessmentId) return
+      if (autoLoadedCourseIdRef.current === courseId) return
+
+      const firstNode = nodes[0]
+      const firstLesson = firstNode?.lessons?.[0]
+
+      if (firstLesson?.tasks && firstLesson.tasks.length > 0) {
+        const firstTask = firstLesson.tasks[0]
+        loadTaskIntoBuilder(firstTask)
+        setMainBuilderTab('task')
+        ensureSectionExpanded(firstNode.id, 'task')
+        setSelectedItem({ type: 'task', id: firstTask.id })
+        autoLoadedCourseIdRef.current = courseId
+        return
+      }
+
+      const assessments = (firstLesson?.homework || []).filter(
+        (h: any) => h.category !== 'homework'
+      )
+      if (assessments.length > 0) {
+        const firstAssessment = assessments[0]
+        loadAssessmentIntoBuilder(firstAssessment)
+        setMainBuilderTab('assessment')
+        ensureSectionExpanded(firstNode.id, 'assessment')
+        setSelectedItem({ type: 'homework', id: firstAssessment.id })
+        autoLoadedCourseIdRef.current = courseId
+        return
+      }
+
+      // No lessons, no tasks, no assessments — create a default task and persist it.
+      const createdTask = autoCreateTask()
+      if (createdTask) {
+        window.setTimeout(() => {
+          doSave(true)
+        }, 0)
+      }
+      autoLoadedCourseIdRef.current = courseId
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+      mainTab,
+      courseId,
+      initialLessons,
+      loadedTaskId,
+      loadedAssessmentId,
+      nodes,
+      loadTaskIntoBuilder,
+      loadAssessmentIntoBuilder,
+      setMainBuilderTab,
+      ensureSectionExpanded,
+      autoCreateTask,
+      doSave,
+    ])
 
     // When a task has only manually-typed text (no uploaded PDF), generate a PDF
     // from that text and upload it so the task behaves identically to a loaded
@@ -12242,31 +12313,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         </div>
                       </div>
                       <CardContent className="flex h-full flex-col overflow-hidden px-4 pb-4 pt-4">
-                        <Tabs
-                          value={mainBuilderTab}
-                          onValueChange={v => setMainBuilderTab(v as 'task' | 'assessment')}
-                          className="flex h-full w-full flex-col"
-                        >
-                          {/* Main Builder Tabs — nested pill design */}
-                          <div className="mb-4 flex w-full items-center justify-between gap-4">
-                            {/* Left: current task name */}
-                            <div className="flex min-w-0 flex-1 items-center gap-2 px-3 text-sm font-semibold text-[#1F2933]">
-                              {mainBuilderTab === 'task' && (
-                                <input
-                                  className="w-full truncate bg-transparent outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-blue-300"
-                                  placeholder="Select or name a Task"
-                                  readOnly={!canEdit}
-                                  value={
-                                    taskBuilder.activeExtensionId
+                        <div className="flex h-full w-full flex-col">
+                          {/* Centered task/assessment name sub-header */}
+                          <div className="mb-4 flex w-full flex-col items-center justify-center border-b border-gray-200 pb-3">
+                            <div className="flex max-w-full items-center justify-center gap-2 text-sm font-semibold text-[#1F2933]">
+                              <span className="shrink-0 text-[#667085]">
+                                {mainBuilderTab === 'task' ? 'Task Name:' : 'Assessment Name:'}
+                              </span>
+                              <input
+                                className="min-w-0 max-w-[260px] truncate bg-transparent text-center outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-blue-300"
+                                placeholder={
+                                  mainBuilderTab === 'task'
+                                    ? 'Select or name a Task'
+                                    : 'Select or name an Assessment'
+                                }
+                                readOnly={!canEdit}
+                                value={
+                                  mainBuilderTab === 'task'
+                                    ? taskBuilder.activeExtensionId
                                       ? taskBuilder.extensions.find(
                                           x => x.id === taskBuilder.activeExtensionId
                                         )?.name || ''
                                       : taskBuilder.title || ''
-                                  }
-                                  onChange={e => {
-                                    const sanitized = e.target.value
-                                      .replace(/[@;'"]/g, '')
-                                      .substring(0, 25)
+                                    : assessmentBuilder.title || ''
+                                }
+                                onChange={e => {
+                                  const sanitized = e.target.value
+                                    .replace(/[@;'"]/g, '')
+                                    .substring(0, 25)
+                                  if (mainBuilderTab === 'task') {
                                     setTaskBuilder(prev => {
                                       if (prev.activeExtensionId) {
                                         return {
@@ -12280,258 +12355,101 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       }
                                       return { ...prev, title: sanitized }
                                     })
-                                  }}
-                                />
-                              )}
-                            </div>
-
-                            <TabsList
-                              className={cn(
-                                'grid h-[46px] w-[400px] shrink-0 gap-2 bg-transparent p-0 shadow-none',
-                                loadedTaskId && loadedAssessmentId
-                                  ? 'grid-cols-2'
-                                  : loadedTaskId || loadedAssessmentId
-                                    ? 'grid-cols-1'
-                                    : 'grid-cols-2'
-                              )}
-                            >
-                              {(!loadedAssessmentId || !loadedTaskId) && (
-                                <TabsTrigger
-                                  value="task"
-                                  className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#2563EB] data-[state=active]:bg-[#2563EB] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
-                                >
-                                  <Wrench className="h-4 w-4 shrink-0" />
-                                  Task Builder
-                                </TabsTrigger>
-                              )}
-                              {(!loadedTaskId || !loadedAssessmentId) && (
-                                <TabsTrigger
-                                  value="assessment"
-                                  className="relative flex w-full items-center justify-center gap-2 rounded-xl border border-transparent bg-transparent py-2.5 text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#EC4899] data-[state=active]:bg-[#EC4899] data-[state=active]:font-semibold data-[state=active]:text-white data-[state=inactive]:hover:bg-slate-50"
-                                >
-                                  <FileCheck2 className="h-4 w-4 shrink-0" />
-                                  Assessment Builder
-                                </TabsTrigger>
-                              )}
-                            </TabsList>
-
-                            {/* Right: current assessment name */}
-                            <div className="flex min-w-0 flex-1 items-center justify-end gap-2 px-3 text-sm font-semibold text-[#1F2933]">
-                              {mainBuilderTab === 'assessment' && (
-                                <input
-                                  className="w-full truncate bg-transparent text-right outline-none placeholder:text-gray-500 focus-visible:border-b focus-visible:border-purple-300"
-                                  placeholder="Select or name an Assessment"
-                                  readOnly={!canEdit}
-                                  value={assessmentBuilder.title || ''}
-                                  onChange={e => {
-                                    const sanitized = e.target.value
-                                      .replace(/[@;'"]/g, '')
-                                      .substring(0, 25)
+                                  } else {
                                     setAssessmentBuilder(prev => ({
                                       ...prev,
                                       title: sanitized,
                                     }))
-                                  }}
-                                />
-                              )}
+                                  }
+                                }}
+                              />
                             </div>
                           </div>
 
                           {/* Content area */}
                           <div className="relative min-h-0 flex-1 rounded-none border-0 bg-transparent p-0 shadow-none">
-                            {/* Task Builder Tab */}
-                            <TabsContent
-                              value="task"
-                              className="flex h-full flex-col space-y-px overflow-hidden data-[state=inactive]:hidden"
-                            >
-                              <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
-                                {/* Main content with tabs */}
-                                <div className="flex flex-1 flex-col overflow-hidden">
-                                  <Tabs
-                                    value={taskBuilderActiveTab}
-                                    onValueChange={v => {
-                                      setTaskBuilderActiveTab(v as 'content' | 'pci')
-                                    }}
-                                    className="flex h-full w-full flex-col"
-                                  >
-                                    <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
-                                      <TabsTrigger
-                                        value="content"
-                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
-                                      >
-                                        <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
-                                        Slide
-                                      </TabsTrigger>
-                                      <TabsTrigger
-                                        value="pci"
-                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
-                                      >
-                                        <Brain className="mr-2 h-4 w-4 shrink-0" />
-                                        PCI
-                                      </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent
-                                      value="content"
-                                      className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                            {mainBuilderTab === 'task' && (
+                              <div className="flex h-full flex-col space-y-px overflow-hidden">
+                                <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
+                                  {/* Main content with tabs */}
+                                  <div className="flex flex-1 flex-col overflow-hidden">
+                                    <Tabs
+                                      value={taskBuilderActiveTab}
+                                      onValueChange={v => {
+                                        setTaskBuilderActiveTab(v as 'content' | 'pci')
+                                      }}
+                                      className="flex h-full w-full flex-col"
                                     >
-                                      <div
-                                        className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
-                                        onDragOver={e => e.preventDefault()}
-                                        onDrop={(e: any) => {
-                                          if (!canEdit) return
-                                          handleDragFiles(
-                                            e,
-                                            text => {
-                                              const activeExt = taskBuilder.activeExtensionId
-                                              const currentContent = activeExt
-                                                ? taskBuilder.extensions.find(
-                                                    ext => ext.id === activeExt
-                                                  )?.content || ''
-                                                : taskBuilder.taskContent
-                                              const combined =
-                                                currentContent +
-                                                (currentContent ? '\n\n' : '') +
-                                                text
-                                              if (isTaskSlideOverflowing(combined)) {
-                                                toast.error(
-                                                  'Dropped text would exceed the slide area'
-                                                )
-                                                return
-                                              }
-                                              setTaskBuilder(prev => {
-                                                if (prev.activeExtensionId) {
-                                                  return {
-                                                    ...prev,
-                                                    extensions: prev.extensions.map(ext =>
-                                                      ext.id === prev.activeExtensionId
-                                                        ? { ...ext, content: combined }
-                                                        : ext
-                                                    ),
-                                                  }
-                                                }
-                                                return { ...prev, taskContent: combined }
-                                              })
-                                            },
-                                            'task'
-                                          )
-                                        }}
+                                      <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
+                                        <TabsTrigger
+                                          value="content"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
+                                        >
+                                          <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
+                                          Slide
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                          value="pci"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
+                                        >
+                                          <Brain className="mr-2 h-4 w-4 shrink-0" />
+                                          PCI
+                                        </TabsTrigger>
+                                      </TabsList>
+                                      <TabsContent
+                                        value="content"
+                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                       >
-                                        {!hasUploadedTaskDocument ? (
-                                          // Text-only task: locked 1100 x 620 slide canvas.
-                                          // No PDF preview here; the snapshot is generated only when entering Test/Live.
-                                          <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                            <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
-                                              <TaskSlideTextEditor
-                                                ref={taskSlideEditorRef}
-                                                html={
-                                                  taskBuilder.activeExtensionId
-                                                    ? taskBuilder.extensions.find(
-                                                        e => e.id === taskBuilder.activeExtensionId
-                                                      )?.content || ''
-                                                    : taskBuilder.taskContent
+                                        <div
+                                          className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
+                                          onDragOver={e => e.preventDefault()}
+                                          onDrop={(e: any) => {
+                                            if (!canEdit) return
+                                            handleDragFiles(
+                                              e,
+                                              text => {
+                                                const activeExt = taskBuilder.activeExtensionId
+                                                const currentContent = activeExt
+                                                  ? taskBuilder.extensions.find(
+                                                      ext => ext.id === activeExt
+                                                    )?.content || ''
+                                                  : taskBuilder.taskContent
+                                                const combined =
+                                                  currentContent +
+                                                  (currentContent ? '\n\n' : '') +
+                                                  text
+                                                if (isTaskSlideOverflowing(combined)) {
+                                                  toast.error(
+                                                    'Dropped text would exceed the slide area'
+                                                  )
+                                                  return
                                                 }
-                                                onHtmlChange={(newContent: string) => {
-                                                  if (
-                                                    !loadedTaskId &&
-                                                    !taskBuilder.activeExtensionId
-                                                  ) {
-                                                    autoCreateTask()
-                                                  }
-                                                  if (taskBuilder.activeExtensionId) {
-                                                    setTaskBuilder(prev => ({
+                                                setTaskBuilder(prev => {
+                                                  if (prev.activeExtensionId) {
+                                                    return {
                                                       ...prev,
                                                       extensions: prev.extensions.map(ext =>
                                                         ext.id === prev.activeExtensionId
-                                                          ? { ...ext, content: newContent }
+                                                          ? { ...ext, content: combined }
                                                           : ext
                                                       ),
-                                                    }))
-                                                  } else {
-                                                    setTaskBuilder(prev => ({
-                                                      ...prev,
-                                                      taskContent: newContent,
-                                                    }))
+                                                    }
                                                   }
-                                                }}
-                                                readOnly={!canEdit}
-                                                placeholder="Type the task content here — or load a document above to work from it."
-                                                className="h-full w-full"
-                                                style={{
-                                                  fontSize: `${slideFontSize}px`,
-                                                  color: slideTextColor,
-                                                }}
-                                              />
-                                            </div>
-                                            <TaskSlideFontEditor
-                                              fontSize={slideFontSize}
-                                              onFontSizeChange={(size: number) => {
-                                                setSlideFontSize(size)
-                                                taskSlideEditorRef.current?.applyFormat({
-                                                  fontSize: size,
+                                                  return { ...prev, taskContent: combined }
                                                 })
-                                              }}
-                                              color={slideTextColor}
-                                              onColorChange={(color: string) => {
-                                                setSlideTextColor(color)
-                                                taskSlideEditorRef.current?.applyFormat({
-                                                  color,
-                                                })
-                                              }}
-                                              className="absolute bottom-6 right-6"
-                                            />
-                                          </div>
-                                        ) : (
-                                          <div className="flex h-full w-full flex-row">
-                                            {taskTextVisible && (
-                                              <div
-                                                className={cn(
-                                                  'relative flex h-full flex-col bg-[#FBFCFD]',
-                                                  taskPdfVisible ? 'w-1/2 border-r' : 'w-full'
-                                                )}
-                                              >
-                                                <AutoTextarea
-                                                  className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  style={{ fontSize: `${extractedTextFontSize}px` }}
-                                                  disableAutoResize
-                                                  readOnly={!canEdit}
-                                                  placeholder="Type the task content here — or load a document above to work from it."
-                                                  onDrop={(e: any) =>
-                                                    handleDragFiles(
-                                                      e,
-                                                      text => {
-                                                        setTaskBuilder(prev => {
-                                                          if (prev.activeExtensionId) {
-                                                            const ext = prev.extensions.find(
-                                                              x => x.id === prev.activeExtensionId
-                                                            )
-                                                            const combined = ext
-                                                              ? ext.content +
-                                                                (ext.content ? '\n\n' : '') +
-                                                                text
-                                                              : text
-                                                            return {
-                                                              ...prev,
-                                                              extensions: prev.extensions.map(x =>
-                                                                x.id === prev.activeExtensionId
-                                                                  ? { ...x, content: combined }
-                                                                  : x
-                                                              ),
-                                                            }
-                                                          } else {
-                                                            return {
-                                                              ...prev,
-                                                              taskContent:
-                                                                prev.taskContent +
-                                                                (prev.taskContent ? '\n\n' : '') +
-                                                                text,
-                                                            }
-                                                          }
-                                                        })
-                                                      },
-                                                      'task'
-                                                    )
-                                                  }
-                                                  value={
+                                              },
+                                              'task'
+                                            )
+                                          }}
+                                        >
+                                          {!hasUploadedTaskDocument ? (
+                                            // Text-only task: locked 1100 x 620 slide canvas.
+                                            // No PDF preview here; the snapshot is generated only when entering Test/Live.
+                                            <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
+                                              <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                                <TaskSlideTextEditor
+                                                  ref={taskSlideEditorRef}
+                                                  html={
                                                     taskBuilder.activeExtensionId
                                                       ? taskBuilder.extensions.find(
                                                           e =>
@@ -12539,8 +12457,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         )?.content || ''
                                                       : taskBuilder.taskContent
                                                   }
-                                                  onChange={(e: any) => {
-                                                    const newContent = e.target.value
+                                                  onHtmlChange={(newContent: string) => {
                                                     if (
                                                       !loadedTaskId &&
                                                       !taskBuilder.activeExtensionId
@@ -12548,16 +12465,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       autoCreateTask()
                                                     }
                                                     if (taskBuilder.activeExtensionId) {
-                                                      setTaskBuilder(prev => {
-                                                        return {
-                                                          ...prev,
-                                                          extensions: prev.extensions.map(ext =>
-                                                            ext.id === prev.activeExtensionId
-                                                              ? { ...ext, content: newContent }
-                                                              : ext
-                                                          ),
-                                                        }
-                                                      })
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        extensions: prev.extensions.map(ext =>
+                                                          ext.id === prev.activeExtensionId
+                                                            ? { ...ext, content: newContent }
+                                                            : ext
+                                                        ),
+                                                      }))
                                                     } else {
                                                       setTaskBuilder(prev => ({
                                                         ...prev,
@@ -12565,829 +12480,949 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }))
                                                     }
                                                   }}
-                                                />
-                                                {/* Floating font size control */}
-                                                <div
-                                                  className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
-                                                  style={{
-                                                    background: 'rgba(40,40,40,0.78)',
-                                                    backdropFilter: 'blur(8px)',
-                                                  }}
-                                                >
-                                                  <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                      setExtractedTextFontSize(
-                                                        Math.max(10, extractedTextFontSize - 2)
-                                                      )
-                                                    }
-                                                    className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                                  >
-                                                    -
-                                                  </button>
-                                                  <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
-                                                    {extractedTextFontSize}px
-                                                  </span>
-                                                  <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                      setExtractedTextFontSize(
-                                                        Math.min(32, extractedTextFontSize + 2)
-                                                      )
-                                                    }
-                                                    className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                                  >
-                                                    +
-                                                  </button>
-                                                </div>
-                                              </div>
-                                            )}
-
-                                            {/* Right Panel (Preview) */}
-                                            {taskPdfVisible && (
-                                              <div
-                                                className={cn(
-                                                  'relative flex h-full flex-col bg-[#FBFCFD]',
-                                                  taskTextVisible ? 'w-1/2' : 'w-full'
-                                                )}
-                                              >
-                                                <div className="relative min-h-0 flex-1 overflow-hidden">
-                                                  {currentTaskDocument?.mimeType ===
-                                                    'application/pdf' ||
-                                                  (currentTaskDocument?.fileKey &&
-                                                    (!currentTaskDocument?.mimeType ||
-                                                      currentTaskDocument?.mimeType ===
-                                                        'application/pdf')) ? (
-                                                    <PDFViewer
-                                                      key={
-                                                        currentTaskDocument.fileUrl ||
-                                                        currentTaskDocument.fileKey ||
-                                                        'task-doc'
-                                                      }
-                                                      fileUrl={currentTaskDocument.fileUrl || ''}
-                                                      fileKey={currentTaskDocument.fileKey}
-                                                      className="absolute inset-0 h-full w-full"
-                                                      fitToScreen
-                                                      onHidePreview={() => {
-                                                        if (!taskTextVisible)
-                                                          setTaskTextVisible(true)
-                                                        setTaskPdfVisible(false)
-                                                      }}
-                                                    />
-                                                  ) : currentTaskDocument &&
-                                                    currentTaskDocument.mimeType !==
-                                                      'application/pdf' &&
-                                                    currentTaskDocument.mimeType?.startsWith(
-                                                      'image/'
-                                                    ) ? (
-                                                    <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
-                                                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                      <img
-                                                        src={
-                                                          currentTaskDocument.fileKey
-                                                            ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
-                                                            : currentTaskDocument.fileUrl
-                                                        }
-                                                        alt={currentTaskDocument.fileName}
-                                                        className="max-h-full max-w-full object-contain"
-                                                      />
-                                                    </div>
-                                                  ) : currentTaskDocument &&
-                                                    currentTaskDocument.mimeType !==
-                                                      'application/pdf' &&
-                                                    !currentTaskDocument.mimeType?.startsWith(
-                                                      'image/'
-                                                    ) ? (
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
-                                                      <FileText className="mb-4 h-16 w-16 text-blue-500" />
-                                                      <a
-                                                        href={
-                                                          currentTaskDocument.fileKey
-                                                            ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
-                                                            : currentTaskDocument.fileUrl
-                                                        }
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="text-center text-sm font-medium text-blue-600 hover:underline"
-                                                      >
-                                                        Open {currentTaskDocument.fileName} in new
-                                                        tab
-                                                      </a>
-                                                    </div>
-                                                  ) : (
-                                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
-                                                      <FileText className="mb-4 h-16 w-16 text-gray-300" />
-                                                      <p className="text-lg font-medium text-gray-500">
-                                                        No document selected
-                                                      </p>
-                                                    </div>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        )}
-                                      </div>
-                                      {/* Uploaded Files List - only show for task (not extensions) */}
-                                      {/* Upload button - only for task (not extensions) */}
-                                      {/* Assets Folder added to Slide Tab removed from here */}
-                                    </TabsContent>
-                                    <TabsContent
-                                      value="pci"
-                                      className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
-                                    >
-                                      <div
-                                        data-pci-container="task"
-                                        className="relative flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm"
-                                      >
-                                        <div
-                                          ref={taskPciScrollRef}
-                                          className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
-                                        >
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-xs font-semibold text-slate-700">
-                                              PCI assistant
-                                            </span>
-                                            <PciStatusBadge
-                                              value={activeTaskPci}
-                                              history={taskBuilder.pciHistory}
-                                              thread={activeTaskThread}
-                                            />
-                                          </div>
-                                          {activeTaskPciMessages.length === 0 && (
-                                            <p className="text-muted-foreground text-xs">
-                                              Start a PCI chat to build instructions with the
-                                              assistant.
-                                            </p>
-                                          )}
-                                          {activeTaskPciMessages.map((msg, idx) => (
-                                            <div
-                                              key={idx}
-                                              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                            >
-                                              <div
-                                                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                                                  msg.role === 'user'
-                                                    ? 'bg-blue-50 text-gray-900'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                }`}
-                                              >
-                                                <div className="whitespace-pre-wrap">
-                                                  {msg.content}
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                          {taskPciLoading && (
-                                            <div className="flex justify-start">
-                                              <div className="flex items-center gap-px rounded-lg bg-gray-100 px-px py-px text-sm">
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                <span className="text-xs text-gray-600">
-                                                  Thinking...
-                                                </span>
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="mt-auto p-0">
-                                          {taskPciDraft && (
-                                            <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                                              <span>
-                                                Policy ready — click Apply to save it as your
-                                                marking policy.
-                                              </span>
-                                              <Button
-                                                size="sm"
-                                                className="h-7 bg-emerald-600 text-white hover:bg-emerald-500"
-                                                onClick={applyTaskPciDraft}
-                                              >
-                                                Apply to PCI
-                                              </Button>
-                                            </div>
-                                          )}
-                                          {taskPciErrorHint && (
-                                            <div className="mb-px rounded-md border border-rose-200 bg-rose-50 px-px py-px text-xs text-rose-700">
-                                              PCI assistant error: {taskPciErrorHint}
-                                            </div>
-                                          )}
-                                          <GuardrailWarningsBanner
-                                            warnings={taskPciGuardrailWarnings}
-                                          />
-                                          <div
-                                            data-pci-anchor="chat-input"
-                                            className="mt-2 w-full rounded-2xl border border-blue-300 bg-white/90 backdrop-blur-md transition-all duration-300"
-                                          >
-                                            <div className="relative flex w-full flex-col p-px">
-                                              <div className="flex w-full flex-col">
-                                                <MentionTextarea
-                                                  mentionItems={mentionItems}
-                                                  className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  value={activeTaskPciInput}
                                                   readOnly={!canEdit}
-                                                  onChange={(e: any) => {
-                                                    setPciInput(
-                                                      taskBuilder.activeExtensionId
-                                                        ? {
-                                                            kind: 'taskExtension',
-                                                            id: taskBuilder.activeExtensionId,
-                                                          }
-                                                        : { kind: 'task' },
-                                                      e.target.value
-                                                    )
-                                                  }}
-                                                  onKeyDown={(e: any) => {
-                                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                                      e.preventDefault()
-                                                      handlePciSend('task')
-                                                    }
+                                                  placeholder="Type the task content here — or load a document above to work from it."
+                                                  className="h-full w-full"
+                                                  style={{
+                                                    fontSize: `${slideFontSize}px`,
+                                                    color: slideTextColor,
                                                   }}
                                                 />
-                                                <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
-                                                  <Button
-                                                    type="button"
-                                                    variant="default"
-                                                    size="icon"
-                                                    className="h-8 w-8 shrink-0 rounded-full"
-                                                    disabled={
-                                                      taskPciLoading || !activeTaskPciInput.trim()
-                                                    }
-                                                    data-pci-anchor="send"
-                                                    onClick={() => handlePciSend('task')}
-                                                    aria-label="Send"
-                                                  >
-                                                    {taskPciLoading ? (
-                                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                      <Send className="h-4 w-4" />
-                                                    )}
-                                                  </Button>
-                                                </div>
                                               </div>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </TabsContent>
-                                  </Tabs>
-                                </div>
-                              </div>
-                            </TabsContent>
-
-                            {/* Assessment Builder Tab */}
-                            <TabsContent
-                              value="assessment"
-                              className="flex h-full flex-col space-y-px overflow-hidden data-[state=inactive]:hidden"
-                            >
-                              <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
-                                {/* Main content with tabs */}
-                                <div className="flex flex-1 flex-col overflow-hidden">
-                                  <Tabs
-                                    value={assessmentBuilderActiveTab}
-                                    onValueChange={v => {
-                                      setAssessmentBuilderActiveTab(v as 'content' | 'pci')
-                                    }}
-                                    className="flex h-full w-full flex-col"
-                                  >
-                                    <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
-                                      <TabsTrigger
-                                        value="content"
-                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FBCFE8] data-[state=active]:bg-[#FDF2F8] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#EC4899] data-[state=inactive]:hover:bg-slate-50"
-                                      >
-                                        <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
-                                        Assessment
-                                      </TabsTrigger>
-                                      <TabsTrigger
-                                        value="pci"
-                                        className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FBCFE8] data-[state=active]:bg-[#FDF2F8] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#EC4899] data-[state=inactive]:hover:bg-slate-50"
-                                      >
-                                        <Brain className="mr-2 h-4 w-4 shrink-0" />
-                                        PCI
-                                      </TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent
-                                      value="content"
-                                      className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
-                                    >
-                                      <div
-                                        className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
-                                        onDragOver={e => e.preventDefault()}
-                                        onDrop={(e: any) => {
-                                          if (!canEdit) return
-                                          handleDragFiles(
-                                            e,
-                                            text => {
-                                              setAssessmentBuilder(prev => ({
-                                                ...prev,
-                                                taskContent:
-                                                  prev.taskContent +
-                                                  (prev.taskContent ? '\n\n' : '') +
-                                                  text,
-                                              }))
-                                            },
-                                            'assessment'
-                                          )
-                                        }}
-                                      >
-                                        {/* Left Panel (Text) */}
-                                        {assessmentTextVisible && (
-                                          <div
-                                            className={cn(
-                                              'relative flex h-full flex-col bg-[#FBFCFD]',
-                                              assessmentPdfVisible ? 'w-1/2' : 'w-full'
-                                            )}
-                                          >
-                                            <AutoTextarea
-                                              className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                              style={{ fontSize: `${extractedTextFontSize}px` }}
-                                              disableAutoResize
-                                              readOnly={!canEdit}
-                                              placeholder="Type your assessment questions here — or load a document above to work from it."
-                                              onDrop={(e: any) =>
-                                                handleDragFiles(
-                                                  e,
-                                                  text => {
-                                                    setAssessmentBuilder(prev => {
-                                                      const combined =
-                                                        prev.taskContent +
-                                                        (prev.taskContent ? '\n\n' : '') +
-                                                        text
-                                                      return {
-                                                        ...prev,
-                                                        taskContent: combined,
-                                                      }
-                                                    })
-                                                  },
-                                                  'assessment'
-                                                )
-                                              }
-                                              value={assessmentBuilder.taskContent}
-                                              onChange={(e: any) => {
-                                                const newContent = e.target.value
-                                                if (!loadedAssessmentId) {
-                                                  autoCreateAssessment()
-                                                }
-                                                setAssessmentBuilder(prev => ({
-                                                  ...prev,
-                                                  taskContent: newContent,
-                                                }))
-                                              }}
-                                            />
-                                            {/* Floating font size control */}
-                                            <div
-                                              className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
-                                              style={{
-                                                background: 'rgba(40,40,40,0.78)',
-                                                backdropFilter: 'blur(8px)',
-                                              }}
-                                            >
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  setExtractedTextFontSize(
-                                                    Math.max(10, extractedTextFontSize - 2)
-                                                  )
-                                                }
-                                                className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                              >
-                                                -
-                                              </button>
-                                              <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
-                                                {extractedTextFontSize}px
-                                              </span>
-                                              <button
-                                                type="button"
-                                                onClick={() =>
-                                                  setExtractedTextFontSize(
-                                                    Math.min(32, extractedTextFontSize + 2)
-                                                  )
-                                                }
-                                                className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                              >
-                                                +
-                                              </button>
-                                            </div>
-                                          </div>
-                                        )}
-
-                                        {/* Right Panel (Preview) */}
-                                        {assessmentPdfVisible && (
-                                          <div
-                                            className={cn(
-                                              'relative flex h-full flex-col bg-[#FBFCFD]',
-                                              assessmentTextVisible ? 'w-1/2' : 'w-full'
-                                            )}
-                                          >
-                                            <div className="relative min-h-0 flex-1 overflow-hidden">
-                                              {currentAssessmentDocument?.mimeType ===
-                                                'application/pdf' ||
-                                              (currentAssessmentDocument?.fileKey &&
-                                                (!currentAssessmentDocument?.mimeType ||
-                                                  currentAssessmentDocument?.mimeType ===
-                                                    'application/pdf')) ? (
-                                                <PDFViewer
-                                                  key={
-                                                    currentAssessmentDocument.fileUrl ||
-                                                    currentAssessmentDocument.fileKey ||
-                                                    'assessment-doc'
-                                                  }
-                                                  fileUrl={currentAssessmentDocument.fileUrl || ''}
-                                                  fileKey={currentAssessmentDocument.fileKey}
-                                                  className="absolute inset-0 h-full w-full"
-                                                  defaultScale={0.75}
-                                                  onHidePreview={() => {
-                                                    if (!assessmentTextVisible)
-                                                      setAssessmentTextVisible(true)
-                                                    setAssessmentPdfVisible(false)
-                                                  }}
-                                                />
-                                              ) : currentAssessmentDocument &&
-                                                currentAssessmentDocument.mimeType !==
-                                                  'application/pdf' &&
-                                                currentAssessmentDocument.mimeType?.startsWith(
-                                                  'image/'
-                                                ) ? (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
-                                                  <div className="relative h-full w-full">
-                                                    <NextImage
-                                                      src={
-                                                        currentAssessmentDocument.fileKey
-                                                          ? `/api/proxy-file?key=${encodeURIComponent(currentAssessmentDocument.fileKey)}`
-                                                          : currentAssessmentDocument.fileUrl
-                                                      }
-                                                      alt={currentAssessmentDocument.fileName}
-                                                      fill
-                                                      className="object-contain"
-                                                      unoptimized
-                                                    />
-                                                  </div>
-                                                </div>
-                                              ) : currentAssessmentDocument &&
-                                                currentAssessmentDocument.fileUrl ? (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
-                                                  <FileText className="mb-4 h-16 w-16 text-blue-500" />
-                                                  <a
-                                                    href={
-                                                      currentAssessmentDocument.fileKey
-                                                        ? `/api/proxy-file?key=${encodeURIComponent(currentAssessmentDocument.fileKey)}`
-                                                        : currentAssessmentDocument.fileUrl
-                                                    }
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="text-center text-sm font-medium text-blue-600 hover:underline"
-                                                  >
-                                                    Open {currentAssessmentDocument.fileName} in new
-                                                    tab
-                                                  </a>
-                                                </div>
-                                              ) : (
-                                                <div className="flex h-full flex-col items-center justify-center text-gray-600">
-                                                  <FileText className="mb-4 h-16 w-16 text-gray-300" />
-                                                  <p className="text-lg font-medium text-gray-600">
-                                                    No document selected
-                                                  </p>
-                                                  <p className="mt-2 text-sm">
-                                                    Drag & drop an asset here, or use the Load
-                                                    button
-                                                  </p>
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                      {/* Uploaded Files List - only show for assessment (not extensions) */}
-                                      {/* Upload button - only for assessment (not extensions) */}
-                                      {/* Assets Folder added to Slide Tab removed from here */}
-                                    </TabsContent>
-                                    <TabsContent
-                                      value="pci"
-                                      className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
-                                    >
-                                      <div
-                                        data-pci-container="assessment"
-                                        className="relative flex h-full min-h-0 flex-col rounded-2xl border border-pink-200 bg-white p-4 shadow-sm"
-                                      >
-                                        {/* Centered Pill for Test, Generate DMI, and Version History */}
-                                        <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
-                                          <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
-                                            <span className="text-xs font-light text-gray-600">
-                                              (
-                                            </span>
-
-                                            {/* DMI generation is automatic once a document is
-                                                loaded, so there's no manual "Generate" then. A
-                                                text-only assessment keeps a manual Generate; a
-                                                Regenerate appears only after a DMI exists. */}
-                                            {dmiGenerating ? (
-                                              <span className="flex h-6 items-center px-2 text-xs font-medium text-gray-500">
-                                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                Generating…
-                                              </span>
-                                            ) : assessmentDmiItems.length > 0 ||
-                                              !currentAssessmentDocument ? (
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                data-pci-anchor="generate-dmi"
-                                                className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                                disabled={!canEdit}
-                                                onClick={() => {
-                                                  if (!canEdit) return
-                                                  const content = assessmentBuilder.taskContent
-                                                  const hasPdf =
-                                                    currentAssessmentDocument?.mimeType ===
-                                                    'application/pdf'
-                                                  if (!content.trim() && !hasPdf) {
-                                                    toast.error(
-                                                      'Please add content to the Assessment tab or load a PDF first'
-                                                    )
-                                                    return
-                                                  }
-                                                  handleGenerateDMI('assessment')
+                                              <TaskSlideFontEditor
+                                                fontSize={slideFontSize}
+                                                onFontSizeChange={(size: number) => {
+                                                  setSlideFontSize(size)
+                                                  taskSlideEditorRef.current?.applyFormat({
+                                                    fontSize: size,
+                                                  })
                                                 }}
-                                              >
-                                                {assessmentDmiItems.length > 0
-                                                  ? 'Regenerate DMI'
-                                                  : 'Generate DMI'}
-                                              </Button>
-                                            ) : null}
-
-                                            {assessmentDmiItems.length > 0 && (
-                                              <>
-                                                <div className="h-3 w-px bg-gray-300" />
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  data-pci-anchor="edit-marks"
-                                                  className="h-6 px-2 text-xs font-medium text-[#F17623] hover:text-[#d9651a]"
-                                                  disabled={!canEdit}
-                                                  title="Set marks per question and review the AI answers"
-                                                  onClick={() =>
-                                                    setDmiEditor({ source: 'assessment' })
-                                                  }
+                                                color={slideTextColor}
+                                                onColorChange={(color: string) => {
+                                                  setSlideTextColor(color)
+                                                  taskSlideEditorRef.current?.applyFormat({
+                                                    color,
+                                                  })
+                                                }}
+                                                className="absolute bottom-6 right-6"
+                                              />
+                                            </div>
+                                          ) : (
+                                            <div className="flex h-full w-full flex-row">
+                                              {taskTextVisible && (
+                                                <div
+                                                  className={cn(
+                                                    'relative flex h-full flex-col bg-[#FBFCFD]',
+                                                    taskPdfVisible ? 'w-1/2 border-r' : 'w-full'
+                                                  )}
                                                 >
-                                                  Edit marks & answers
-                                                </Button>
-                                              </>
-                                            )}
-
-                                            <div className="h-3 w-px bg-gray-300" />
-
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                              onClick={() => setShowDmiVersionList(true)}
-                                              title="View DMI Versions"
-                                            >
-                                              DMI
-                                              {assessmentDmiVersions.length > 0 && (
-                                                <span className="ml-1">
-                                                  ({assessmentDmiVersions.length})
-                                                </span>
-                                              )}
-                                            </Button>
-
-                                            <span className="text-xs font-light text-gray-600">
-                                              )
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
-                                          <PciGuidance kind="assessment" />
-                                          {renderCurrentPci(
-                                            'assessment',
-                                            assessmentBuilder.taskPci
-                                          )}
-                                          {!assessmentDmiReady && (
-                                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
-                                              <p className="font-semibold">
-                                                Set up the questions &amp; marking scheme first
-                                              </p>
-                                              <p className="mt-1">
-                                                The marking-policy chat unlocks once your DMI has
-                                                questions, marks, and an answer key or rubric.{' '}
-                                                {assessmentDmiItems.length === 0
-                                                  ? currentAssessmentDocument
-                                                    ? 'Your DMI generates automatically from the loaded document.'
-                                                    : 'Generate the DMI to begin.'
-                                                  : assessmentDmiTotalMarks === 0
-                                                    ? 'Open “Edit marks & answers” to set the marks.'
-                                                    : 'Open “Edit marks & answers” to add the answer key / rubric.'}
-                                              </p>
-                                              {canEdit && (
-                                                <div className="mt-2 flex gap-2">
-                                                  {assessmentDmiItems.length === 0 ? (
-                                                    dmiGenerating ? (
-                                                      <span className="inline-flex items-center rounded-md bg-amber-600/80 px-2.5 py-1 font-semibold text-white">
-                                                        Generating…
-                                                      </span>
-                                                    ) : !currentAssessmentDocument ? (
-                                                      // Manual generate only when there's no document
-                                                      // to auto-generate from (text-only assessment).
-                                                      <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                          handleGenerateDMI('assessment')
-                                                        }
-                                                        className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
-                                                      >
-                                                        Generate DMI
-                                                      </button>
-                                                    ) : null
-                                                  ) : (
+                                                  <AutoTextarea
+                                                    className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    style={{
+                                                      fontSize: `${extractedTextFontSize}px`,
+                                                    }}
+                                                    disableAutoResize
+                                                    readOnly={!canEdit}
+                                                    placeholder="Type the task content here — or load a document above to work from it."
+                                                    onDrop={(e: any) =>
+                                                      handleDragFiles(
+                                                        e,
+                                                        text => {
+                                                          setTaskBuilder(prev => {
+                                                            if (prev.activeExtensionId) {
+                                                              const ext = prev.extensions.find(
+                                                                x => x.id === prev.activeExtensionId
+                                                              )
+                                                              const combined = ext
+                                                                ? ext.content +
+                                                                  (ext.content ? '\n\n' : '') +
+                                                                  text
+                                                                : text
+                                                              return {
+                                                                ...prev,
+                                                                extensions: prev.extensions.map(
+                                                                  x =>
+                                                                    x.id === prev.activeExtensionId
+                                                                      ? { ...x, content: combined }
+                                                                      : x
+                                                                ),
+                                                              }
+                                                            } else {
+                                                              return {
+                                                                ...prev,
+                                                                taskContent:
+                                                                  prev.taskContent +
+                                                                  (prev.taskContent ? '\n\n' : '') +
+                                                                  text,
+                                                              }
+                                                            }
+                                                          })
+                                                        },
+                                                        'task'
+                                                      )
+                                                    }
+                                                    value={
+                                                      taskBuilder.activeExtensionId
+                                                        ? taskBuilder.extensions.find(
+                                                            e =>
+                                                              e.id === taskBuilder.activeExtensionId
+                                                          )?.content || ''
+                                                        : taskBuilder.taskContent
+                                                    }
+                                                    onChange={(e: any) => {
+                                                      const newContent = e.target.value
+                                                      if (
+                                                        !loadedTaskId &&
+                                                        !taskBuilder.activeExtensionId
+                                                      ) {
+                                                        autoCreateTask()
+                                                      }
+                                                      if (taskBuilder.activeExtensionId) {
+                                                        setTaskBuilder(prev => {
+                                                          return {
+                                                            ...prev,
+                                                            extensions: prev.extensions.map(ext =>
+                                                              ext.id === prev.activeExtensionId
+                                                                ? { ...ext, content: newContent }
+                                                                : ext
+                                                            ),
+                                                          }
+                                                        })
+                                                      } else {
+                                                        setTaskBuilder(prev => ({
+                                                          ...prev,
+                                                          taskContent: newContent,
+                                                        }))
+                                                      }
+                                                    }}
+                                                  />
+                                                  {/* Floating font size control */}
+                                                  <div
+                                                    className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
+                                                    style={{
+                                                      background: 'rgba(40,40,40,0.78)',
+                                                      backdropFilter: 'blur(8px)',
+                                                    }}
+                                                  >
                                                     <button
                                                       type="button"
                                                       onClick={() =>
-                                                        setDmiEditor({ source: 'assessment' })
+                                                        setExtractedTextFontSize(
+                                                          Math.max(10, extractedTextFontSize - 2)
+                                                        )
                                                       }
-                                                      className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
+                                                      className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
                                                     >
-                                                      Edit marks &amp; answers
+                                                      -
                                                     </button>
+                                                    <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
+                                                      {extractedTextFontSize}px
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() =>
+                                                        setExtractedTextFontSize(
+                                                          Math.min(32, extractedTextFontSize + 2)
+                                                        )
+                                                      }
+                                                      className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
+                                                    >
+                                                      +
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Right Panel (Preview) */}
+                                              {taskPdfVisible && (
+                                                <div
+                                                  className={cn(
+                                                    'relative flex h-full flex-col bg-[#FBFCFD]',
+                                                    taskTextVisible ? 'w-1/2' : 'w-full'
                                                   )}
+                                                >
+                                                  <div className="relative min-h-0 flex-1 overflow-hidden">
+                                                    {currentTaskDocument?.mimeType ===
+                                                      'application/pdf' ||
+                                                    (currentTaskDocument?.fileKey &&
+                                                      (!currentTaskDocument?.mimeType ||
+                                                        currentTaskDocument?.mimeType ===
+                                                          'application/pdf')) ? (
+                                                      <PDFViewer
+                                                        key={
+                                                          currentTaskDocument.fileUrl ||
+                                                          currentTaskDocument.fileKey ||
+                                                          'task-doc'
+                                                        }
+                                                        fileUrl={currentTaskDocument.fileUrl || ''}
+                                                        fileKey={currentTaskDocument.fileKey}
+                                                        className="absolute inset-0 h-full w-full"
+                                                        fitToScreen
+                                                        onHidePreview={() => {
+                                                          if (!taskTextVisible)
+                                                            setTaskTextVisible(true)
+                                                          setTaskPdfVisible(false)
+                                                        }}
+                                                      />
+                                                    ) : currentTaskDocument &&
+                                                      currentTaskDocument.mimeType !==
+                                                        'application/pdf' &&
+                                                      currentTaskDocument.mimeType?.startsWith(
+                                                        'image/'
+                                                      ) ? (
+                                                      <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                          src={
+                                                            currentTaskDocument.fileKey
+                                                              ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
+                                                              : currentTaskDocument.fileUrl
+                                                          }
+                                                          alt={currentTaskDocument.fileName}
+                                                          className="max-h-full max-w-full object-contain"
+                                                        />
+                                                      </div>
+                                                    ) : currentTaskDocument &&
+                                                      currentTaskDocument.mimeType !==
+                                                        'application/pdf' &&
+                                                      !currentTaskDocument.mimeType?.startsWith(
+                                                        'image/'
+                                                      ) ? (
+                                                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
+                                                        <FileText className="mb-4 h-16 w-16 text-blue-500" />
+                                                        <a
+                                                          href={
+                                                            currentTaskDocument.fileKey
+                                                              ? `/api/proxy-file?key=${encodeURIComponent(currentTaskDocument.fileKey)}`
+                                                              : currentTaskDocument.fileUrl
+                                                          }
+                                                          target="_blank"
+                                                          rel="noreferrer"
+                                                          className="text-center text-sm font-medium text-blue-600 hover:underline"
+                                                        >
+                                                          Open {currentTaskDocument.fileName} in new
+                                                          tab
+                                                        </a>
+                                                      </div>
+                                                    ) : (
+                                                      <div className="absolute inset-0 flex flex-col items-center justify-center text-gray-600">
+                                                        <FileText className="mb-4 h-16 w-16 text-gray-300" />
+                                                        <p className="text-lg font-medium text-gray-500">
+                                                          No document selected
+                                                        </p>
+                                                      </div>
+                                                    )}
+                                                  </div>
                                                 </div>
                                               )}
                                             </div>
                                           )}
-                                          <PciSpecSoFar
-                                            spec={
-                                              assessmentPciSpecSoFarMap[loadedAssessmentId || '']
-                                            }
-                                            board={pciBoard}
-                                            subject={pciCategory}
-                                            editable={canEdit}
-                                            onEditField={(key, value) =>
-                                              editSpecSoFar(
-                                                {
-                                                  kind: 'assessment',
-                                                  id: loadedAssessmentId || '',
-                                                },
-                                                key,
-                                                value
-                                              )
-                                            }
-                                          />
-                                          {assessmentDmiReady &&
-                                            (
-                                              assessmentPciMessagesMap[loadedAssessmentId || ''] ||
-                                              []
-                                            ).length === 0 && (
+                                        </div>
+                                        {/* Uploaded Files List - only show for task (not extensions) */}
+                                        {/* Upload button - only for task (not extensions) */}
+                                        {/* Assets Folder added to Slide Tab removed from here */}
+                                      </TabsContent>
+                                      <TabsContent
+                                        value="pci"
+                                        className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                      >
+                                        <div
+                                          data-pci-container="task"
+                                          className="relative flex h-full min-h-0 flex-col rounded-2xl border border-blue-200 bg-white p-4 shadow-sm"
+                                        >
+                                          <div
+                                            ref={taskPciScrollRef}
+                                            className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
+                                          >
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-xs font-semibold text-slate-700">
+                                                PCI assistant
+                                              </span>
+                                              <PciStatusBadge
+                                                value={activeTaskPci}
+                                                history={taskBuilder.pciHistory}
+                                                thread={activeTaskThread}
+                                              />
+                                            </div>
+                                            {activeTaskPciMessages.length === 0 && (
                                               <p className="text-muted-foreground text-xs">
                                                 Start a PCI chat to build instructions with the
                                                 assistant.
                                               </p>
                                             )}
-                                          {(
-                                            assessmentPciMessagesMap[loadedAssessmentId || ''] || []
-                                          ).map((msg, idx) => (
-                                            <div
-                                              key={idx}
-                                              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                            >
+                                            {activeTaskPciMessages.map((msg, idx) => (
                                               <div
-                                                className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                                                  msg.role === 'user'
-                                                    ? 'bg-blue-50 text-gray-900'
-                                                    : 'bg-gray-100 text-gray-800'
-                                                }`}
+                                                key={idx}
+                                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                               >
-                                                <div className="whitespace-pre-wrap">
-                                                  {msg.content}
+                                                <div
+                                                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                                                    msg.role === 'user'
+                                                      ? 'bg-blue-50 text-gray-900'
+                                                      : 'bg-gray-100 text-gray-800'
+                                                  }`}
+                                                >
+                                                  <div className="whitespace-pre-wrap">
+                                                    {msg.content}
+                                                  </div>
                                                 </div>
                                               </div>
-                                            </div>
-                                          ))}
-                                          {(assessmentPciLoadingMap[loadedAssessmentId || ''] ||
-                                            false) && (
-                                            <div className="flex justify-start">
-                                              <div className="flex items-center gap-px rounded-lg bg-gray-100 px-px py-px text-sm">
-                                                <Loader2 className="h-4 w-4 animate-spin" />
-                                                <span className="text-xs text-gray-600">
-                                                  Thinking...
-                                                </span>
+                                            ))}
+                                            {taskPciLoading && (
+                                              <div className="flex justify-start">
+                                                <div className="flex items-center gap-px rounded-lg bg-gray-100 px-px py-px text-sm">
+                                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                                  <span className="text-xs text-gray-600">
+                                                    Thinking...
+                                                  </span>
+                                                </div>
                                               </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                        <div className="mt-auto p-0">
-                                          {assessmentPciDraftMap[loadedAssessmentId || ''] && (
-                                            <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
-                                              <span>
-                                                Rubric ready — click Apply to save it as your
-                                                marking policy.
-                                              </span>
-                                              <Button
-                                                size="sm"
-                                                className="h-7 bg-emerald-600 text-white hover:bg-emerald-500"
-                                                onClick={() =>
-                                                  applyAssessmentPciDraft(loadedAssessmentId || '')
-                                                }
-                                              >
-                                                Apply to PCI
-                                              </Button>
-                                            </div>
-                                          )}
-                                          {(assessmentPciErrorHintMap[loadedAssessmentId || ''] ||
-                                            '') && (
-                                            <div className="mb-px rounded-md border border-rose-200 bg-rose-50 px-px py-px text-xs text-rose-700">
-                                              PCI assistant error:{' '}
-                                              {assessmentPciErrorHintMap[
-                                                loadedAssessmentId || ''
-                                              ] || ''}
-                                            </div>
-                                          )}
-                                          <GuardrailWarningsBanner
-                                            warnings={
-                                              assessmentPciGuardrailWarningsMap[
-                                                loadedAssessmentId || ''
-                                              ] || []
-                                            }
-                                          />
-                                          <div
-                                            data-pci-anchor="chat-input"
-                                            className="mt-2 w-full rounded-2xl border border-pink-200 bg-white/90 backdrop-blur-md transition-all duration-300"
-                                          >
-                                            <div className="relative flex w-full flex-col p-px">
-                                              <div className="flex w-full flex-col">
-                                                <MentionTextarea
-                                                  mentionItems={mentionItems}
-                                                  className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                  value={
-                                                    assessmentPciInputMap[
-                                                      loadedAssessmentId || ''
-                                                    ] || ''
-                                                  }
-                                                  readOnly={!canEdit || !assessmentDmiReady}
-                                                  placeholder={
-                                                    assessmentDmiReady
-                                                      ? undefined
-                                                      : 'Complete the DMI (questions, marks, answer key) to unlock the marking-policy chat'
-                                                  }
-                                                  onChange={(e: any) =>
-                                                    setPciInput(
-                                                      {
-                                                        kind: 'assessment',
-                                                        id: loadedAssessmentId || '',
-                                                      },
-                                                      e.target.value
-                                                    )
-                                                  }
-                                                  onKeyDown={(e: any) => {
-                                                    if (
-                                                      e.key === 'Enter' &&
-                                                      !e.shiftKey &&
-                                                      assessmentDmiReady
-                                                    ) {
-                                                      e.preventDefault()
-                                                      handlePciSend('assessment')
-                                                    }
-                                                  }}
-                                                />
-                                                <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
-                                                  <Button
-                                                    type="button"
-                                                    variant="default"
-                                                    size="icon"
-                                                    className="h-8 w-8 shrink-0 rounded-full"
-                                                    disabled={
-                                                      !assessmentDmiReady ||
-                                                      assessmentPciLoadingMap[
-                                                        loadedAssessmentId || ''
-                                                      ] ||
-                                                      false ||
-                                                      !(
-                                                        assessmentPciInputMap[
-                                                          loadedAssessmentId || ''
-                                                        ] || ''
-                                                      ).trim()
-                                                    }
-                                                    data-pci-anchor="send"
-                                                    onClick={() => handlePciSend('assessment')}
-                                                    aria-label="Send"
-                                                  >
-                                                    {assessmentPciLoadingMap[
-                                                      loadedAssessmentId || ''
-                                                    ] || false ? (
-                                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                      <Send className="h-4 w-4" />
-                                                    )}
-                                                  </Button>
+                                            )}
+                                          </div>
+                                          <div className="mt-auto p-0">
+                                            {taskPciDraft && (
+                                              <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                                <span>
+                                                  Policy ready — click Apply to save it as your
+                                                  marking policy.
+                                                </span>
+                                                <Button
+                                                  size="sm"
+                                                  className="h-7 bg-emerald-600 text-white hover:bg-emerald-500"
+                                                  onClick={applyTaskPciDraft}
+                                                >
+                                                  Apply to PCI
+                                                </Button>
+                                              </div>
+                                            )}
+                                            {taskPciErrorHint && (
+                                              <div className="mb-px rounded-md border border-rose-200 bg-rose-50 px-px py-px text-xs text-rose-700">
+                                                PCI assistant error: {taskPciErrorHint}
+                                              </div>
+                                            )}
+                                            <GuardrailWarningsBanner
+                                              warnings={taskPciGuardrailWarnings}
+                                            />
+                                            <div
+                                              data-pci-anchor="chat-input"
+                                              className="mt-2 w-full rounded-2xl border border-blue-300 bg-white/90 backdrop-blur-md transition-all duration-300"
+                                            >
+                                              <div className="relative flex w-full flex-col p-px">
+                                                <div className="flex w-full flex-col">
+                                                  <MentionTextarea
+                                                    mentionItems={mentionItems}
+                                                    className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    value={activeTaskPciInput}
+                                                    readOnly={!canEdit}
+                                                    onChange={(e: any) => {
+                                                      setPciInput(
+                                                        taskBuilder.activeExtensionId
+                                                          ? {
+                                                              kind: 'taskExtension',
+                                                              id: taskBuilder.activeExtensionId,
+                                                            }
+                                                          : { kind: 'task' },
+                                                        e.target.value
+                                                      )
+                                                    }}
+                                                    onKeyDown={(e: any) => {
+                                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                                        e.preventDefault()
+                                                        handlePciSend('task')
+                                                      }
+                                                    }}
+                                                  />
+                                                  <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
+                                                    <Button
+                                                      type="button"
+                                                      variant="default"
+                                                      size="icon"
+                                                      className="h-8 w-8 shrink-0 rounded-full"
+                                                      disabled={
+                                                        taskPciLoading || !activeTaskPciInput.trim()
+                                                      }
+                                                      data-pci-anchor="send"
+                                                      onClick={() => handlePciSend('task')}
+                                                      aria-label="Send"
+                                                    >
+                                                      {taskPciLoading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                      ) : (
+                                                        <Send className="h-4 w-4" />
+                                                      )}
+                                                    </Button>
+                                                  </div>
                                                 </div>
                                               </div>
                                             </div>
                                           </div>
                                         </div>
-                                      </div>
-                                    </TabsContent>
-                                  </Tabs>
+                                      </TabsContent>
+                                    </Tabs>
+                                  </div>
                                 </div>
                               </div>
-                            </TabsContent>
+                            )}
+
+                            {mainBuilderTab === 'assessment' && (
+                              <div className="flex h-full flex-col space-y-px overflow-hidden">
+                                <div className="flex min-h-0 flex-1 gap-px overflow-hidden">
+                                  {/* Main content with tabs */}
+                                  <div className="flex flex-1 flex-col overflow-hidden">
+                                    <Tabs
+                                      value={assessmentBuilderActiveTab}
+                                      onValueChange={v => {
+                                        setAssessmentBuilderActiveTab(v as 'content' | 'pci')
+                                      }}
+                                      className="flex h-full w-full flex-col"
+                                    >
+                                      <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
+                                        <TabsTrigger
+                                          value="content"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FBCFE8] data-[state=active]:bg-[#FDF2F8] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#EC4899] data-[state=inactive]:hover:bg-slate-50"
+                                        >
+                                          <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
+                                          Assessment
+                                        </TabsTrigger>
+                                        <TabsTrigger
+                                          value="pci"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FBCFE8] data-[state=active]:bg-[#FDF2F8] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#EC4899] data-[state=inactive]:hover:bg-slate-50"
+                                        >
+                                          <Brain className="mr-2 h-4 w-4 shrink-0" />
+                                          PCI
+                                        </TabsTrigger>
+                                      </TabsList>
+                                      <TabsContent
+                                        value="content"
+                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                      >
+                                        <div
+                                          className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
+                                          onDragOver={e => e.preventDefault()}
+                                          onDrop={(e: any) => {
+                                            if (!canEdit) return
+                                            handleDragFiles(
+                                              e,
+                                              text => {
+                                                setAssessmentBuilder(prev => ({
+                                                  ...prev,
+                                                  taskContent:
+                                                    prev.taskContent +
+                                                    (prev.taskContent ? '\n\n' : '') +
+                                                    text,
+                                                }))
+                                              },
+                                              'assessment'
+                                            )
+                                          }}
+                                        >
+                                          {/* Left Panel (Text) */}
+                                          {assessmentTextVisible && (
+                                            <div
+                                              className={cn(
+                                                'relative flex h-full flex-col bg-[#FBFCFD]',
+                                                assessmentPdfVisible ? 'w-1/2' : 'w-full'
+                                              )}
+                                            >
+                                              <AutoTextarea
+                                                className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                style={{ fontSize: `${extractedTextFontSize}px` }}
+                                                disableAutoResize
+                                                readOnly={!canEdit}
+                                                placeholder="Type your assessment questions here — or load a document above to work from it."
+                                                onDrop={(e: any) =>
+                                                  handleDragFiles(
+                                                    e,
+                                                    text => {
+                                                      setAssessmentBuilder(prev => {
+                                                        const combined =
+                                                          prev.taskContent +
+                                                          (prev.taskContent ? '\n\n' : '') +
+                                                          text
+                                                        return {
+                                                          ...prev,
+                                                          taskContent: combined,
+                                                        }
+                                                      })
+                                                    },
+                                                    'assessment'
+                                                  )
+                                                }
+                                                value={assessmentBuilder.taskContent}
+                                                onChange={(e: any) => {
+                                                  const newContent = e.target.value
+                                                  if (!loadedAssessmentId) {
+                                                    autoCreateAssessment()
+                                                  }
+                                                  setAssessmentBuilder(prev => ({
+                                                    ...prev,
+                                                    taskContent: newContent,
+                                                  }))
+                                                }}
+                                              />
+                                              {/* Floating font size control */}
+                                              <div
+                                                className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
+                                                style={{
+                                                  background: 'rgba(40,40,40,0.78)',
+                                                  backdropFilter: 'blur(8px)',
+                                                }}
+                                              >
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setExtractedTextFontSize(
+                                                      Math.max(10, extractedTextFontSize - 2)
+                                                    )
+                                                  }
+                                                  className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
+                                                >
+                                                  -
+                                                </button>
+                                                <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
+                                                  {extractedTextFontSize}px
+                                                </span>
+                                                <button
+                                                  type="button"
+                                                  onClick={() =>
+                                                    setExtractedTextFontSize(
+                                                      Math.min(32, extractedTextFontSize + 2)
+                                                    )
+                                                  }
+                                                  className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
+                                                >
+                                                  +
+                                                </button>
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* Right Panel (Preview) */}
+                                          {assessmentPdfVisible && (
+                                            <div
+                                              className={cn(
+                                                'relative flex h-full flex-col bg-[#FBFCFD]',
+                                                assessmentTextVisible ? 'w-1/2' : 'w-full'
+                                              )}
+                                            >
+                                              <div className="relative min-h-0 flex-1 overflow-hidden">
+                                                {currentAssessmentDocument?.mimeType ===
+                                                  'application/pdf' ||
+                                                (currentAssessmentDocument?.fileKey &&
+                                                  (!currentAssessmentDocument?.mimeType ||
+                                                    currentAssessmentDocument?.mimeType ===
+                                                      'application/pdf')) ? (
+                                                  <PDFViewer
+                                                    key={
+                                                      currentAssessmentDocument.fileUrl ||
+                                                      currentAssessmentDocument.fileKey ||
+                                                      'assessment-doc'
+                                                    }
+                                                    fileUrl={
+                                                      currentAssessmentDocument.fileUrl || ''
+                                                    }
+                                                    fileKey={currentAssessmentDocument.fileKey}
+                                                    className="absolute inset-0 h-full w-full"
+                                                    defaultScale={0.75}
+                                                    onHidePreview={() => {
+                                                      if (!assessmentTextVisible)
+                                                        setAssessmentTextVisible(true)
+                                                      setAssessmentPdfVisible(false)
+                                                    }}
+                                                  />
+                                                ) : currentAssessmentDocument &&
+                                                  currentAssessmentDocument.mimeType !==
+                                                    'application/pdf' &&
+                                                  currentAssessmentDocument.mimeType?.startsWith(
+                                                    'image/'
+                                                  ) ? (
+                                                  <div className="absolute inset-0 flex items-center justify-center bg-white p-4">
+                                                    <div className="relative h-full w-full">
+                                                      <NextImage
+                                                        src={
+                                                          currentAssessmentDocument.fileKey
+                                                            ? `/api/proxy-file?key=${encodeURIComponent(currentAssessmentDocument.fileKey)}`
+                                                            : currentAssessmentDocument.fileUrl
+                                                        }
+                                                        alt={currentAssessmentDocument.fileName}
+                                                        fill
+                                                        className="object-contain"
+                                                        unoptimized
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                ) : currentAssessmentDocument &&
+                                                  currentAssessmentDocument.fileUrl ? (
+                                                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-white p-6">
+                                                    <FileText className="mb-4 h-16 w-16 text-blue-500" />
+                                                    <a
+                                                      href={
+                                                        currentAssessmentDocument.fileKey
+                                                          ? `/api/proxy-file?key=${encodeURIComponent(currentAssessmentDocument.fileKey)}`
+                                                          : currentAssessmentDocument.fileUrl
+                                                      }
+                                                      target="_blank"
+                                                      rel="noreferrer"
+                                                      className="text-center text-sm font-medium text-blue-600 hover:underline"
+                                                    >
+                                                      Open {currentAssessmentDocument.fileName} in
+                                                      new tab
+                                                    </a>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex h-full flex-col items-center justify-center text-gray-600">
+                                                    <FileText className="mb-4 h-16 w-16 text-gray-300" />
+                                                    <p className="text-lg font-medium text-gray-600">
+                                                      No document selected
+                                                    </p>
+                                                    <p className="mt-2 text-sm">
+                                                      Drag & drop an asset here, or use the Load
+                                                      button
+                                                    </p>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {/* Uploaded Files List - only show for assessment (not extensions) */}
+                                        {/* Upload button - only for assessment (not extensions) */}
+                                        {/* Assets Folder added to Slide Tab removed from here */}
+                                      </TabsContent>
+                                      <TabsContent
+                                        value="pci"
+                                        className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                      >
+                                        <div
+                                          data-pci-container="assessment"
+                                          className="relative flex h-full min-h-0 flex-col rounded-2xl border border-pink-200 bg-white p-4 shadow-sm"
+                                        >
+                                          {/* Centered Pill for Test, Generate DMI, and Version History */}
+                                          <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
+                                            <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
+                                              <span className="text-xs font-light text-gray-600">
+                                                (
+                                              </span>
+
+                                              {/* DMI generation is automatic once a document is
+                                                loaded, so there's no manual "Generate" then. A
+                                                text-only assessment keeps a manual Generate; a
+                                                Regenerate appears only after a DMI exists. */}
+                                              {dmiGenerating ? (
+                                                <span className="flex h-6 items-center px-2 text-xs font-medium text-gray-500">
+                                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                                  Generating…
+                                                </span>
+                                              ) : assessmentDmiItems.length > 0 ||
+                                                !currentAssessmentDocument ? (
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  data-pci-anchor="generate-dmi"
+                                                  className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
+                                                  disabled={!canEdit}
+                                                  onClick={() => {
+                                                    if (!canEdit) return
+                                                    const content = assessmentBuilder.taskContent
+                                                    const hasPdf =
+                                                      currentAssessmentDocument?.mimeType ===
+                                                      'application/pdf'
+                                                    if (!content.trim() && !hasPdf) {
+                                                      toast.error(
+                                                        'Please add content to the Assessment tab or load a PDF first'
+                                                      )
+                                                      return
+                                                    }
+                                                    handleGenerateDMI('assessment')
+                                                  }}
+                                                >
+                                                  {assessmentDmiItems.length > 0
+                                                    ? 'Regenerate DMI'
+                                                    : 'Generate DMI'}
+                                                </Button>
+                                              ) : null}
+
+                                              {assessmentDmiItems.length > 0 && (
+                                                <>
+                                                  <div className="h-3 w-px bg-gray-300" />
+                                                  <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    data-pci-anchor="edit-marks"
+                                                    className="h-6 px-2 text-xs font-medium text-[#F17623] hover:text-[#d9651a]"
+                                                    disabled={!canEdit}
+                                                    title="Set marks per question and review the AI answers"
+                                                    onClick={() =>
+                                                      setDmiEditor({ source: 'assessment' })
+                                                    }
+                                                  >
+                                                    Edit marks & answers
+                                                  </Button>
+                                                </>
+                                              )}
+
+                                              <div className="h-3 w-px bg-gray-300" />
+
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
+                                                onClick={() => setShowDmiVersionList(true)}
+                                                title="View DMI Versions"
+                                              >
+                                                DMI
+                                                {assessmentDmiVersions.length > 0 && (
+                                                  <span className="ml-1">
+                                                    ({assessmentDmiVersions.length})
+                                                  </span>
+                                                )}
+                                              </Button>
+
+                                              <span className="text-xs font-light text-gray-600">
+                                                )
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
+                                            <PciGuidance kind="assessment" />
+                                            {renderCurrentPci(
+                                              'assessment',
+                                              assessmentBuilder.taskPci
+                                            )}
+                                            {!assessmentDmiReady && (
+                                              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
+                                                <p className="font-semibold">
+                                                  Set up the questions &amp; marking scheme first
+                                                </p>
+                                                <p className="mt-1">
+                                                  The marking-policy chat unlocks once your DMI has
+                                                  questions, marks, and an answer key or rubric.{' '}
+                                                  {assessmentDmiItems.length === 0
+                                                    ? currentAssessmentDocument
+                                                      ? 'Your DMI generates automatically from the loaded document.'
+                                                      : 'Generate the DMI to begin.'
+                                                    : assessmentDmiTotalMarks === 0
+                                                      ? 'Open “Edit marks & answers” to set the marks.'
+                                                      : 'Open “Edit marks & answers” to add the answer key / rubric.'}
+                                                </p>
+                                                {canEdit && (
+                                                  <div className="mt-2 flex gap-2">
+                                                    {assessmentDmiItems.length === 0 ? (
+                                                      dmiGenerating ? (
+                                                        <span className="inline-flex items-center rounded-md bg-amber-600/80 px-2.5 py-1 font-semibold text-white">
+                                                          Generating…
+                                                        </span>
+                                                      ) : !currentAssessmentDocument ? (
+                                                        // Manual generate only when there's no document
+                                                        // to auto-generate from (text-only assessment).
+                                                        <button
+                                                          type="button"
+                                                          onClick={() =>
+                                                            handleGenerateDMI('assessment')
+                                                          }
+                                                          className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
+                                                        >
+                                                          Generate DMI
+                                                        </button>
+                                                      ) : null
+                                                    ) : (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          setDmiEditor({ source: 'assessment' })
+                                                        }
+                                                        className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
+                                                      >
+                                                        Edit marks &amp; answers
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                            <PciSpecSoFar
+                                              spec={
+                                                assessmentPciSpecSoFarMap[loadedAssessmentId || '']
+                                              }
+                                              board={pciBoard}
+                                              subject={pciCategory}
+                                              editable={canEdit}
+                                              onEditField={(key, value) =>
+                                                editSpecSoFar(
+                                                  {
+                                                    kind: 'assessment',
+                                                    id: loadedAssessmentId || '',
+                                                  },
+                                                  key,
+                                                  value
+                                                )
+                                              }
+                                            />
+                                            {assessmentDmiReady &&
+                                              (
+                                                assessmentPciMessagesMap[
+                                                  loadedAssessmentId || ''
+                                                ] || []
+                                              ).length === 0 && (
+                                                <p className="text-muted-foreground text-xs">
+                                                  Start a PCI chat to build instructions with the
+                                                  assistant.
+                                                </p>
+                                              )}
+                                            {(
+                                              assessmentPciMessagesMap[loadedAssessmentId || ''] ||
+                                              []
+                                            ).map((msg, idx) => (
+                                              <div
+                                                key={idx}
+                                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                              >
+                                                <div
+                                                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                                                    msg.role === 'user'
+                                                      ? 'bg-blue-50 text-gray-900'
+                                                      : 'bg-gray-100 text-gray-800'
+                                                  }`}
+                                                >
+                                                  <div className="whitespace-pre-wrap">
+                                                    {msg.content}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                            {(assessmentPciLoadingMap[loadedAssessmentId || ''] ||
+                                              false) && (
+                                              <div className="flex justify-start">
+                                                <div className="flex items-center gap-px rounded-lg bg-gray-100 px-px py-px text-sm">
+                                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                                  <span className="text-xs text-gray-600">
+                                                    Thinking...
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                          <div className="mt-auto p-0">
+                                            {assessmentPciDraftMap[loadedAssessmentId || ''] && (
+                                              <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                                                <span>
+                                                  Rubric ready — click Apply to save it as your
+                                                  marking policy.
+                                                </span>
+                                                <Button
+                                                  size="sm"
+                                                  className="h-7 bg-emerald-600 text-white hover:bg-emerald-500"
+                                                  onClick={() =>
+                                                    applyAssessmentPciDraft(
+                                                      loadedAssessmentId || ''
+                                                    )
+                                                  }
+                                                >
+                                                  Apply to PCI
+                                                </Button>
+                                              </div>
+                                            )}
+                                            {(assessmentPciErrorHintMap[loadedAssessmentId || ''] ||
+                                              '') && (
+                                              <div className="mb-px rounded-md border border-rose-200 bg-rose-50 px-px py-px text-xs text-rose-700">
+                                                PCI assistant error:{' '}
+                                                {assessmentPciErrorHintMap[
+                                                  loadedAssessmentId || ''
+                                                ] || ''}
+                                              </div>
+                                            )}
+                                            <GuardrailWarningsBanner
+                                              warnings={
+                                                assessmentPciGuardrailWarningsMap[
+                                                  loadedAssessmentId || ''
+                                                ] || []
+                                              }
+                                            />
+                                            <div
+                                              data-pci-anchor="chat-input"
+                                              className="mt-2 w-full rounded-2xl border border-pink-200 bg-white/90 backdrop-blur-md transition-all duration-300"
+                                            >
+                                              <div className="relative flex w-full flex-col p-px">
+                                                <div className="flex w-full flex-col">
+                                                  <MentionTextarea
+                                                    mentionItems={mentionItems}
+                                                    className="min-h-[100px] w-full flex-1 border-0 bg-transparent px-4 py-4 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                                    value={
+                                                      assessmentPciInputMap[
+                                                        loadedAssessmentId || ''
+                                                      ] || ''
+                                                    }
+                                                    readOnly={!canEdit || !assessmentDmiReady}
+                                                    placeholder={
+                                                      assessmentDmiReady
+                                                        ? undefined
+                                                        : 'Complete the DMI (questions, marks, answer key) to unlock the marking-policy chat'
+                                                    }
+                                                    onChange={(e: any) =>
+                                                      setPciInput(
+                                                        {
+                                                          kind: 'assessment',
+                                                          id: loadedAssessmentId || '',
+                                                        },
+                                                        e.target.value
+                                                      )
+                                                    }
+                                                    onKeyDown={(e: any) => {
+                                                      if (
+                                                        e.key === 'Enter' &&
+                                                        !e.shiftKey &&
+                                                        assessmentDmiReady
+                                                      ) {
+                                                        e.preventDefault()
+                                                        handlePciSend('assessment')
+                                                      }
+                                                    }}
+                                                  />
+                                                  <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
+                                                    <Button
+                                                      type="button"
+                                                      variant="default"
+                                                      size="icon"
+                                                      className="h-8 w-8 shrink-0 rounded-full"
+                                                      disabled={
+                                                        !assessmentDmiReady ||
+                                                        assessmentPciLoadingMap[
+                                                          loadedAssessmentId || ''
+                                                        ] ||
+                                                        false ||
+                                                        !(
+                                                          assessmentPciInputMap[
+                                                            loadedAssessmentId || ''
+                                                          ] || ''
+                                                        ).trim()
+                                                      }
+                                                      data-pci-anchor="send"
+                                                      onClick={() => handlePciSend('assessment')}
+                                                      aria-label="Send"
+                                                    >
+                                                      {assessmentPciLoadingMap[
+                                                        loadedAssessmentId || ''
+                                                      ] || false ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                      ) : (
+                                                        <Send className="h-4 w-4" />
+                                                      )}
+                                                    </Button>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </TabsContent>
+                                    </Tabs>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </Tabs>
+                        </div>
                       </CardContent>
                     </Card>
                   </div>

@@ -842,7 +842,7 @@ function CourseBuilderInsightsRouteInner({
     { label: string; dot: string; bg: string; text: string; border: string }
   > = {
     unpublished: {
-      label: 'Unpublished',
+      label: 'Template',
       dot: 'bg-green-500',
       bg: 'bg-green-50',
       text: 'text-green-700',
