@@ -47,6 +47,7 @@ interface InsightsSessionOption {
   scheduledAt: string
   status: string
   durationMinutes: number
+  sessionType?: string
 }
 
 // Stroke points may be compressed (flat number array) from socket delta sync.
@@ -782,13 +783,46 @@ function TutorInsightsPageInner() {
         })
         if (!res.ok) throw new Error('Failed to load sessions')
         const data = await res.json()
-        const classSessions = (
+        let classSessions = (
           (data.classes || []) as Array<InsightsSessionOption & { duration?: number }>
         ).map(s => ({
           ...s,
           durationMinutes: s.duration ?? 60,
           sessionType: (s as any).sessionType,
         }))
+
+        // Robust fallback: if the URL names a session that the filtered list does
+        // not include (e.g. an ended demo class, or any session filtered by role
+        // or status), fetch it directly so the classroom still has a valid session
+        // to deploy to and can determine its sessionType for demo features.
+        if (querySessionId && !classSessions.some(s => s.id === querySessionId)) {
+          try {
+            const directRes = await fetch(`/api/tutor/classes/${querySessionId}`, {
+              credentials: 'include',
+            })
+            if (directRes.ok) {
+              const directData = await directRes.json()
+              const directSession = directData.session
+              if (directSession) {
+                classSessions = [
+                  ...classSessions,
+                  {
+                    id: directSession.id,
+                    title: directSession.title,
+                    subject: directSession.subject,
+                    scheduledAt: directSession.scheduledAt,
+                    status: directSession.status,
+                    durationMinutes: 60,
+                    sessionType: directSession.sessionType,
+                  },
+                ]
+              }
+            }
+          } catch (directErr) {
+            console.error('[loadSessions] direct session fetch failed:', directErr)
+          }
+        }
+
         setSessions(classSessions)
 
         const activeSession = classSessions.find(item => item.status === 'active')
