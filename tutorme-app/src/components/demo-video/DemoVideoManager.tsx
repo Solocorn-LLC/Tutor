@@ -21,13 +21,20 @@ interface DemoVideo {
 
 interface DemoVideoManagerProps {
   sessionId: string
+  defaultTab?: 'upload' | 'record'
 }
 
-export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
+export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideoManagerProps) {
   const [video, setVideo] = useState<DemoVideo | null>(null)
   const [loading, setLoading] = useState(false)
-  const [activeTab, setActiveTab] = useState('upload')
+  const [activeTab, setActiveTab] = useState(defaultTab)
   const [showPreview, setShowPreview] = useState(false)
+
+  const handleTabChange = useCallback((value: string) => {
+    if (value === 'upload' || value === 'record') {
+      setActiveTab(value)
+    }
+  }, [])
 
   const fetchVideo = useCallback(async () => {
     setLoading(true)
@@ -158,7 +165,7 @@ export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
               </div>
             )}
 
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="upload" className="gap-1 text-xs">
                   <Upload className="h-3.5 w-3.5" /> Replace
@@ -176,7 +183,7 @@ export function DemoVideoManager({ sessionId }: DemoVideoManagerProps) {
             </Tabs>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="upload" className="gap-1 text-xs">
                 <Upload className="h-3.5 w-3.5" /> Upload
