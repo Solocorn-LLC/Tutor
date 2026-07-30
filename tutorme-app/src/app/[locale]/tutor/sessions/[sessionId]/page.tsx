@@ -96,7 +96,7 @@ export default function TutorSessionInsightsPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)]">
+      <div className="flex h-full flex-col items-center justify-center bg-white">
         <p className="text-[#7F7C77]">Loading session insights…</p>
       </div>
     )
@@ -104,7 +104,7 @@ export default function TutorSessionInsightsPage() {
 
   if (!data) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)]">
+      <div className="flex h-full flex-col items-center justify-center gap-4 bg-white">
         <p className="text-[#7F7C77]">Session not found.</p>
         <Button
           onClick={() => router.push('/tutor/classes')}
@@ -127,9 +127,9 @@ export default function TutorSessionInsightsPage() {
     : 'Unknown date'
 
   return (
-    <div className="min-h-screen w-full bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-6 font-sans lg:p-0">
-      <div className="mx-auto w-full max-w-[calc(100%-2rem)] space-y-6 px-3 lg:px-0 lg:py-4">
-        <div className="rounded-2xl bg-white p-4 shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5 lg:mx-4 lg:p-6">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5">
+      <div className="h-full overflow-y-auto p-4 lg:p-6">
+        <div className="space-y-6">
           <Card className="rounded-lg border border-[#E5E7EB] bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-white/40">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
