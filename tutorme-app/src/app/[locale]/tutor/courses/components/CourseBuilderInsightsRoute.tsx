@@ -38,14 +38,6 @@ import {
 import { BackButton } from '@/components/navigation/BackButton'
 import { CourseCategoryPicker } from './CourseCategoryPicker'
 import { getCategoryBoard } from '@/lib/data/category-board'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-
 import { CourseSelectorDialog } from '@/components/course/course-selector-dialog'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -835,14 +827,49 @@ function CourseBuilderInsightsRouteInner({
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
 
-  type CourseStateIndicator = 'creating' | 'unpublished' | 'published'
+  type CourseStateIndicator = 'creating' | 'unpublished' | 'published' | 'demo'
   const currentCourseState = useMemo((): CourseStateIndicator => {
+    if (isDemoSession) return 'demo'
     if (!courseId) return 'creating'
     if (draftCourses?.some(c => c.id === courseId)) return 'creating'
     const dbCourse = courses?.find(c => c.id === courseId)
     if (dbCourse?.isPublished) return 'published'
     return 'unpublished'
-  }, [courseId, courses, draftCourses])
+  }, [courseId, courses, draftCourses, isDemoSession])
+
+  const stateIndicatorMeta: Record<
+    CourseStateIndicator,
+    { label: string; dot: string; bg: string; text: string; border: string }
+  > = {
+    unpublished: {
+      label: 'Unpublished',
+      dot: 'bg-green-500',
+      bg: 'bg-green-50',
+      text: 'text-green-700',
+      border: 'border-green-200',
+    },
+    published: {
+      label: 'Published',
+      dot: 'bg-blue-500',
+      bg: 'bg-blue-50',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+    },
+    creating: {
+      label: 'Creating',
+      dot: 'bg-amber-500',
+      bg: 'bg-amber-50',
+      text: 'text-amber-700',
+      border: 'border-amber-200',
+    },
+    demo: {
+      label: 'Class Demo',
+      dot: 'bg-violet-500',
+      bg: 'bg-violet-50',
+      text: 'text-violet-700',
+      border: 'border-violet-200',
+    },
+  }
 
   return (
     <div
@@ -976,38 +1003,25 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Course state indicator (read-only). Reuses the previous course-state
-                  dropdown styling but is disabled because the state is derived from
-                  the selected course, not chosen by the tutor. */}
+              {/* Course state indicator (read-only). Bright, vibrant pill that reflects
+                  the derived state of the selected course or demo class. */}
               {activeMainTab !== 'test-pci' && courseId && (
-                <Select value={currentCourseState} disabled>
-                  <SelectTrigger className="h-9 w-[190px] cursor-default border-slate-200 bg-white text-sm font-medium transition-none focus-visible:ring-0 focus-visible:ring-offset-0">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem
-                      value="unpublished"
-                      className="transition-none focus-visible:ring-0"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-green-500" />
-                        Unpublished
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="published" className="transition-none focus-visible:ring-0">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-blue-500" />
-                        Published
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="creating" className="transition-none focus-visible:ring-0">
-                      <div className="flex items-center gap-2">
-                        <div className="h-2 w-2 rounded-full bg-amber-500" />
-                        Creating
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div
+                  className={cn(
+                    'flex h-9 w-[190px] items-center gap-2 rounded-md border px-3 text-sm font-medium shadow-sm',
+                    stateIndicatorMeta[currentCourseState].bg,
+                    stateIndicatorMeta[currentCourseState].text,
+                    stateIndicatorMeta[currentCourseState].border
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'h-2 w-2 rounded-full shadow-sm',
+                      stateIndicatorMeta[currentCourseState].dot
+                    )}
+                  />
+                  {stateIndicatorMeta[currentCourseState].label}
+                </div>
               )}
               {/* Reflect the real socket connection: emerald when connected,
                   red when a session is live but the socket has dropped, amber
