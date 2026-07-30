@@ -111,6 +111,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     pathname?.includes('/tutor/insights/') ||
     /\/tutor\/insights(\/|$)/.test(pathname || '')
 
+  const isSessionsPage = pathname?.includes('/tutor/sessions/')
+
   const isFloatingPage =
     isDashboardPage ||
     isReportsPage ||
@@ -120,7 +122,8 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isMyPage ||
     isSupportPage ||
     isGroupSessionsPage ||
-    isInsightsPage
+    isInsightsPage ||
+    isSessionsPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
     !isMyPage &&
       !isReportsPage &&
