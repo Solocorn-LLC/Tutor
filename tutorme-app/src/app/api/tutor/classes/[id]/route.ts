@@ -298,6 +298,7 @@ export const GET = withAuth(
         title: liveSessionRow.title,
         subject: liveSessionRow.category,
         status: liveSessionRow.status,
+        sessionType: liveSessionRow.sessionType,
         roomId: liveSessionRow.roomId,
         roomUrl,
         token,
