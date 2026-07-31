@@ -9561,25 +9561,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             </Button>
                                                           </DropdownMenuTrigger>
                                                           <DropdownMenuContent align="end">
-                                                            {canEdit && (
-                                                              <DropdownMenuItem
-                                                                onClick={e => {
-                                                                  e.stopPropagation()
-                                                                  openMoveDialog(
-                                                                    'task',
-                                                                    task.id,
-                                                                    task.title || 'Task',
-                                                                    node.id
-                                                                  )
-                                                                }}
-                                                              >
-                                                                Move to lesson…
-                                                              </DropdownMenuItem>
-                                                            )}
                                                             {mainTab === 'live' &&
                                                               insightsProps?.onDeployTask && (
                                                                 <DropdownMenuItem
-                                                                  className="font-medium text-emerald-600 focus:text-emerald-600"
+                                                                  className="font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] focus:text-emerald-400 focus-visible:bg-white/10"
                                                                   onClick={e => {
                                                                     e.stopPropagation()
                                                                     const dmiVersion =
@@ -9612,6 +9597,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   Deploy
                                                                 </DropdownMenuItem>
                                                               )}
+
+                                                            {canEdit && (
+                                                              <DropdownMenuItem
+                                                                onClick={e => {
+                                                                  e.stopPropagation()
+                                                                  openMoveDialog(
+                                                                    'task',
+                                                                    task.id,
+                                                                    task.title || 'Task',
+                                                                    node.id
+                                                                  )
+                                                                }}
+                                                              >
+                                                                Move to lesson…
+                                                              </DropdownMenuItem>
+                                                            )}
 
                                                             {mainTab === 'live' && (
                                                               <DropdownMenuItem
@@ -10307,25 +10308,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                          {canEdit && (
-                                                            <DropdownMenuItem
-                                                              onClick={e => {
-                                                                e.stopPropagation()
-                                                                openMoveDialog(
-                                                                  'assessment',
-                                                                  hw.id,
-                                                                  hw.title || 'Assessment',
-                                                                  node.id
-                                                                )
-                                                              }}
-                                                            >
-                                                              Move to lesson…
-                                                            </DropdownMenuItem>
-                                                          )}
                                                           {mainTab === 'live' &&
                                                             insightsProps?.onDeployTask && (
                                                               <DropdownMenuItem
-                                                                className="font-medium text-emerald-600 focus:text-emerald-600"
+                                                                className="font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] focus:text-emerald-400 focus-visible:bg-white/10"
                                                                 onClick={e => {
                                                                   e.stopPropagation()
                                                                   const dmiVersion =
@@ -10356,6 +10342,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 Deploy
                                                               </DropdownMenuItem>
                                                             )}
+
+                                                          {canEdit && (
+                                                            <DropdownMenuItem
+                                                              onClick={e => {
+                                                                e.stopPropagation()
+                                                                openMoveDialog(
+                                                                  'assessment',
+                                                                  hw.id,
+                                                                  hw.title || 'Assessment',
+                                                                  node.id
+                                                                )
+                                                              }}
+                                                            >
+                                                              Move to lesson…
+                                                            </DropdownMenuItem>
+                                                          )}
 
                                                           {mainTab === 'live' && (
                                                             <DropdownMenuItem
@@ -10644,7 +10646,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 {mainTab === 'live' &&
                                                                   insightsProps?.onDeployTask && (
                                                                     <DropdownMenuItem
-                                                                      className="font-medium text-emerald-600 focus:text-emerald-600"
+                                                                      className="font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] focus:text-emerald-400 focus-visible:bg-white/10"
                                                                       onClick={e => {
                                                                         e.stopPropagation()
                                                                         const dmiVersion =
