@@ -55,9 +55,8 @@ import {
   useCourseBuilderContentModel,
   type UseCourseBuilderContentArgs,
 } from './use-course-builder-content-model'
-import { saveCourse, resolveLessonDmis } from './save-course'
+import { resolveLessonDmis } from './save-course'
 import type { ScheduleItem } from '../[id]/constants'
-import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
 
 function WifiSignal({ connected, error }: { connected: boolean; error: boolean }) {
@@ -117,6 +116,7 @@ type Props = UseCourseBuilderContentArgs & {
   onSaveCourse?: (lessons: any[], options?: any) => void
   onSyncToLiveSession?: (silent?: boolean) => void
   onCreateCourse?: () => void
+  onCreateTemplate?: (lessons: any[], options?: any) => Promise<void>
   onDeleteCourse?: () => void
   isCreateDialogOpen?: boolean
   setIsCreateDialogOpen?: (v: boolean) => void
@@ -168,7 +168,7 @@ interface TutorControlsPanelProps {
   onModeChange: (mode: ControlsMode) => void
   disabled?: boolean
   onSave: () => void
-  onSchedule: () => void
+  onSchedule?: () => void
   onDelete: () => void
   onGoLive: () => void
   onRecordDemo: () => void
@@ -186,6 +186,8 @@ interface TutorControlsPanelProps {
   isConnected?: boolean
   connectionError?: boolean
   scheduleButtonLabel?: string
+  onCreateTemplate?: () => void
+  createTemplateButtonLabel?: string
 }
 
 function TutorControlsPanel({
@@ -211,6 +213,8 @@ function TutorControlsPanel({
   isConnected,
   connectionError,
   scheduleButtonLabel,
+  onCreateTemplate,
+  createTemplateButtonLabel,
 }: TutorControlsPanelProps) {
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
@@ -409,11 +413,11 @@ function TutorControlsPanel({
                   </div>
                 </div>
 
-                {/* Schedule / End Session — full width, below the grid.
-                    While a session is active, the End Session button replaces the
-                    Schedule button so tutors can't schedule/publish while in session.
-                    Demo sessions label the action "Exit" but still end the session
-                    and generate the lesson report. */}
+                {/* Schedule / Create Template / End Session — full width, below the grid.
+                    During a session the End Session button replaces scheduling so tutors
+                    can't publish while in session. For Creating-mode drafts the action
+                    becomes "Create Template", which persists the draft as an unpublished
+                    DB course and keeps the tutor in the builder. */}
                 {hasSession && onEndSession ? (
                   <button
                     type="button"
@@ -431,6 +435,25 @@ function TutorControlsPanel({
                     )}
                     {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
                   </button>
+                ) : createTemplateButtonLabel ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                          onClick={onCreateTemplate}
+                          className={cn(
+                            actionButtonBase,
+                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                          )}
+                        >
+                          <Calendar className="h-4 w-4" />
+                          {createTemplateButtonLabel}
+                        </button>
+                      </TooltipTrigger>
+                    </Tooltip>
+                  </TooltipProvider>
                 ) : (
                   <TooltipProvider>
                     <Tooltip>
@@ -472,6 +495,7 @@ function CourseBuilderInsightsRouteInner({
   onSaveCourse,
   onSyncToLiveSession,
   onCreateCourse,
+  onCreateTemplate,
   onDeleteCourse,
   isCreateDialogOpen,
   setIsCreateDialogOpen,
@@ -736,10 +760,10 @@ function CourseBuilderInsightsRouteInner({
     }
   }
 
-  const handlePublishDraft = async () => {
-    if (!courseId || courseId === 'insights-draft') return
+  const handleCreateTemplate = async () => {
+    if (!courseId || courseId === 'insights-draft' || !onCreateTemplate) return
 
-    // 0. Validate category is selected before publishing.
+    // Validate category is selected before creating the template.
     const courseCategories = [...(courses || []), ...(draftCourses || [])].find(
       (c: any) => c.id === courseId
     )?.categories
@@ -748,9 +772,7 @@ function CourseBuilderInsightsRouteInner({
       return
     }
 
-    // 1. Read the editor's current tree. If it hasn't hydrated it can come back
-    //    empty — fall back to the draft's persisted builder content so we never
-    //    publish an empty tree over real draft lessons.
+    // Read the editor's current tree, falling back to the draft's localStorage cache.
     const getLessonsCb = (model.courseBuilderRef.current as any)?.getLessons
     const editorLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
     let rawLessons = editorLessons
@@ -762,25 +784,12 @@ function CourseBuilderInsightsRouteInner({
           rawLessons = parsed.lessons
         }
       } catch {
-        // ignore a malformed draft cache
+        // ignore malformed cache
       }
     }
     const { lessons, hasMissingDmis } = resolveLessonDmis(rawLessons)
 
-    const isLocalDraft = (draftCourses ?? []).some((c: any) => c.id === courseId)
-
-    // An empty tree on a course that already exists in the DB means the editor
-    // never loaded — its content is safe there, so just open scheduling instead
-    // of a destructive empty publish. A local draft with no lessons still
-    // materializes fine: saveCourse keeps the default lesson created on POST.
-    if (lessons.length === 0 && !isLocalDraft) {
-      model.router.push(`/tutor/courses/${courseId}`)
-      return
-    }
-
-    // 2. Persist the latest editor edits before publishing — but only if the
-    //    editor actually had content, so an unhydrated (empty) editor can't
-    //    clobber the draft's stored lessons.
+    // Persist current editor edits before converting.
     if (editorLessons.length > 0) {
       const saveCb = (model.courseBuilderRef.current as any)?.saveAll
       if (typeof saveCb === 'function') await saveCb()
@@ -789,41 +798,18 @@ function CourseBuilderInsightsRouteInner({
     if (hasMissingDmis) {
       if (
         !window.confirm(
-          'Some assessments have no DMIs. Are you sure you want to proceed and publish?'
+          'Some assessments have no DMIs. Are you sure you want to create this template?'
         )
       ) {
         return
       }
     }
 
-    const isExistingDbCourse = courses?.some((c: any) => c.id === courseId)
-
-    // Carry the category chosen at creation. Creating-mode courses hold it locally, so when
-    // this first persists the course to the DB we must pass it through — else
-    // the new course row gets categories:[] and the Course Details page shows
-    // no variant and no scheduler. (executeSave threads it the same way.)
-    const draftCategories = [...(courses || []), ...(draftCourses || [])].find(
-      (c: any) => c.id === courseId
-    )?.categories
-
-    // 4. Publish via shared save function
-    const result = await saveCourse({
-      courseId,
-      lessons,
-      mode: 'publish',
+    await onCreateTemplate(lessons, {
       courseName,
-      detachedCourseName,
-      categories: draftCategories,
-      developmentMode: 'single',
-      previewDifficulty: 'all',
-      isExistingDbCourse,
+      courseDescription: model.course?.description,
+      categories: courseCategories,
     })
-
-    if (result.success && result.courseId) {
-      model.router.push(`/tutor/courses/${result.courseId}`)
-    } else {
-      toast.error(result.error || 'Failed to publish course')
-    }
   }
 
   // Search both lists regardless of saveMode so the selected course is always found
@@ -1136,12 +1122,14 @@ function CourseBuilderInsightsRouteInner({
               }
             }}
             onSchedule={() => {
-              if (effectiveSaveMode === 'draft') {
-                void handlePublishDraft()
-              } else if (courseId && courseId !== 'insights-draft') {
+              if (courseId && courseId !== 'insights-draft') {
                 model.router.push(`/tutor/courses/${courseId}`)
               }
             }}
+            onCreateTemplate={() => void handleCreateTemplate()}
+            createTemplateButtonLabel={
+              effectiveSaveMode === 'draft' ? 'Create Template' : undefined
+            }
             onDelete={() => onDeleteCourse?.()}
             onGoLive={handleStartSessionClick}
             onRecordDemo={() => setIsRecordDemoOpen(true)}
@@ -1152,11 +1140,11 @@ function CourseBuilderInsightsRouteInner({
             onCreateCourse={onCreateCourse}
             onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            // Schedule & Publish is available for any selected course. Creating courses
-            // are persisted first; existing DB courses jump to Course Details.
+            // Schedule & Publish is available for any selected DB course. Creating-mode
+            // drafts show "Create Template" instead, which persists to the DB in place.
             canSchedule={!!(courseId && courseId !== 'insights-draft')}
             scheduleButtonLabel={
-              effectiveSaveMode === 'draft' ? 'Schedule & Publish' : 'Schedule & Publish New Course'
+              effectiveSaveMode === 'draft' ? undefined : 'Schedule & Publish New Course'
             }
             canGoLive={
               !!(
