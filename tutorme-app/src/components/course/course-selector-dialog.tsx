@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
 import { cn } from '@/lib/utils'
@@ -64,7 +65,7 @@ interface CourseSelectorDialogProps {
 
 const SELECTOR_MODES: { value: CourseState; label: string }[] = [
   { value: 'published', label: 'Published' },
-  { value: 'unpublished', label: 'Unpublished' },
+  { value: 'unpublished', label: 'Template' },
   { value: 'creating', label: 'Creating' },
   { value: 'demo-classes', label: 'Demo Classes' },
 ]
@@ -207,27 +208,26 @@ export function CourseSelectorDialog({
   const updateSelectorPill = useCallback(() => {
     const list = selectorListRef.current
     if (!list) return
-    const buttons = Array.from(list.querySelectorAll('button[data-mode]'))
-    const active = buttons.find(b => b.getAttribute('data-state') === 'active')
+    const active = list.querySelector('[role="tab"][data-state="active"]') as HTMLElement | null
     if (!active) return
-    const rect = active.getBoundingClientRect()
     const listRect = list.getBoundingClientRect()
+    const rect = active.getBoundingClientRect()
     setSelectorPill({
       left: rect.left - listRect.left,
       width: rect.width,
     })
   }, [])
 
-  useEffect(() => {
-    const id = requestAnimationFrame(() => updateSelectorPill())
-    return () => cancelAnimationFrame(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab])
+  useLayoutEffect(() => {
+    updateSelectorPill()
+  }, [tab, updateSelectorPill])
 
   useEffect(() => {
-    const id = setTimeout(updateSelectorPill, 100)
+    // Re-measure after the dialog open animation finishes so the pill gets
+    // the final trigger size even if Radix/CSS transitions change layout.
+    const id = setTimeout(updateSelectorPill, 50)
     return () => clearTimeout(id)
-  }, [updateSelectorPill])
+  }, [open, updateSelectorPill])
 
   useEffect(() => {
     const handleResize = () => updateSelectorPill()
@@ -238,8 +238,10 @@ export function CourseSelectorDialog({
   useEffect(() => {
     const list = selectorListRef.current
     if (!list) return
+    const triggers = Array.from(list.querySelectorAll('[role="tab"]'))
+    if (triggers.length === 0) return
     const ro = new ResizeObserver(() => updateSelectorPill())
-    ro.observe(list)
+    triggers.forEach(t => ro.observe(t))
     return () => ro.disconnect()
   }, [updateSelectorPill])
 
@@ -424,35 +426,35 @@ export function CourseSelectorDialog({
                 </Button>
               )}
             </div>
-            <div className="flex flex-1">
-              <div
+            <Tabs value={tab} onValueChange={v => setTab(v as CourseState)} className="flex flex-1">
+              <TabsList
                 ref={selectorListRef}
-                className="relative flex h-10 w-full flex-1 items-center gap-1.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5 shadow-sm"
+                className="relative flex h-10 w-full flex-1 items-center gap-1.5 rounded-full border-0 bg-gradient-to-r from-[#2563EB] to-[#1D4ED8] p-1.5 shadow-sm"
               >
                 {SELECTOR_MODES.map(mode => (
-                  <button
+                  <TabsTrigger
                     key={mode.value}
-                    data-mode={mode.value}
-                    data-state={tab === mode.value ? 'active' : 'inactive'}
-                    onClick={() => setTab(mode.value)}
+                    value={mode.value}
                     className={cn(
-                      'relative z-10 flex flex-1 items-center justify-center rounded-full px-2 text-xs font-medium transition-colors hover:text-white',
-                      tab === mode.value ? 'text-blue-600' : 'text-white/80'
+                      'relative z-10 flex flex-1 items-center justify-center rounded-full px-2 text-xs font-medium transition-colors',
+                      'bg-transparent text-white/80 shadow-none hover:bg-transparent hover:text-white',
+                      'data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=active]:shadow-none',
+                      'data-[state=inactive]:bg-transparent'
                     )}
                   >
                     {mode.label}
-                  </button>
+                  </TabsTrigger>
                 ))}
                 <div
-                  className="absolute bottom-1.5 top-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ease-out"
+                  className="pointer-events-none absolute bottom-1.5 top-1.5 rounded-full bg-white shadow-sm transition-all duration-300 ease-out"
                   style={{
                     left: selectorPill.left,
                     width: selectorPill.width,
                     transitionProperty: 'left, width',
                   }}
                 />
-              </div>
-            </div>
+              </TabsList>
+            </Tabs>
           </div>
 
           {/* Body */}
@@ -637,8 +639,8 @@ export function CourseSelectorDialog({
                           className={cn(
                             'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
                             isActive
-                              ? 'bg-emerald-500/70 ring-2 ring-emerald-500'
-                              : 'bg-emerald-500/50 hover:bg-emerald-500/60'
+                              ? 'bg-blue-500/70 ring-2 ring-blue-500'
+                              : 'bg-blue-500/50 hover:bg-blue-500/60'
                           )}
                         >
                           <div className="mr-3 flex flex-1 items-center gap-3 overflow-hidden">
@@ -687,7 +689,7 @@ export function CourseSelectorDialog({
                             </select>
                             <Button
                               size="sm"
-                              className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-emerald-600 hover:bg-white/90"
+                              className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-blue-600 hover:bg-white/90"
                               onClick={() => handleSelect(course.id)}
                             >
                               <Edit3 className="h-3 w-3" />
