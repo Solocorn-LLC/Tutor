@@ -7,7 +7,7 @@ import { Server as NetServer } from 'http'
 import { Server as SocketIOServer, Socket } from 'socket.io'
 import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
-import { eq, and, inArray, desc, sql } from 'drizzle-orm'
+import { eq, and, inArray, desc, sql, ne } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { authorizeSessionStudent } from '@/lib/live/session-student-auth'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -755,14 +755,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
         const activeSessions = await drizzleDb
           .select({
             sessionId: liveSession.sessionId,
+            sessionType: liveSession.sessionType,
             scheduledAt: liveSession.scheduledAt,
             startedAt: liveSession.startedAt,
             durationMinutes: liveSession.durationMinutes,
           })
           .from(liveSession)
-          .where(inArray(liveSession.status, ['active', 'live', 'preparing', 'paused']))
+          .where(
+            and(
+              inArray(liveSession.status, ['active', 'live', 'preparing', 'paused']),
+              ne(liveSession.sessionType, 'GO_LIVE_DEMO')
+            )
+          )
 
         for (const s of activeSessions) {
+          // Demo sessions are intentionally open-ended and never auto-end.
+          if (s.sessionType === 'GO_LIVE_DEMO') continue
+
           const startTime = s.startedAt
             ? new Date(s.startedAt).getTime()
             : s.scheduledAt
@@ -1395,6 +1404,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         const [sessionRec] = await drizzleDb
           .select({
             status: liveSession.status,
+            sessionType: liveSession.sessionType,
             scheduledAt: liveSession.scheduledAt,
             startedAt: liveSession.startedAt,
             endedAt: liveSession.endedAt,
@@ -1413,6 +1423,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
         // has no tutor (legacy/ad-hoc) to preserve prior behaviour in those cases.
         if (deployerId && sessionRec.tutorId && sessionRec.tutorId !== deployerId) {
           return { ok: false, reason: 'Not authorized for this session' }
+        }
+
+        // Demo sessions are open-ended: they have no scheduled end time and tutors
+        // must be able to deploy tasks regardless of status/endedAt.
+        if (sessionRec.sessionType === 'GO_LIVE_DEMO') {
+          return { ok: true }
         }
 
         // Homework can be dropped even after session ends
@@ -2901,6 +2917,15 @@ export async function initEnhancedSocketServer(server: NetServer) {
       const roomId = data?.roomId || socket.data.roomId
       if (!roomId || !socket.data.userId) return
       try {
+        // Demo sessions are intentionally open-ended and cannot be ended.
+        const [targetSession] = await drizzleDb
+          .select({ sessionType: liveSession.sessionType, tutorId: liveSession.tutorId })
+          .from(liveSession)
+          .where(eq(liveSession.sessionId, roomId))
+          .limit(1)
+        if (!targetSession || targetSession.sessionType === 'GO_LIVE_DEMO') return
+        if (targetSession.tutorId && targetSession.tutorId !== socket.data.userId) return
+
         // Scope the end to a session THIS tutor owns — `roomId` is client-supplied,
         // so without the tutorId predicate any tutor could end (and kick everyone
         // out of) any session by id. Only broadcast if a row was actually ended.
