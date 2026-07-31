@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons'
 import { BackButton } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1027,6 +1028,12 @@ export default function TutorRegistrationPage() {
                       </Button>
                     </div>
                   </div>
+                  <SocialLoginButtons
+                    role="TUTOR"
+                    variant="onLight"
+                    className="mt-5"
+                    callbackUrl="/tutor/dashboard"
+                  />
                 </form>
               </>
             )}
