@@ -103,7 +103,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
             <Video className="h-4 w-4 text-blue-600" />
             Recording complete
           </div>
-          <video src={previewUrl} controls className="max-h-[240px] w-full rounded-lg bg-black" />
+          <video src={previewUrl} controls className="max-h-[200px] w-full rounded-lg bg-black" />
           <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
             <span>{formatRecordingDuration(elapsedMs)}</span>
             <span>{formatDemoVideoBytes(size)}</span>
@@ -144,7 +144,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-black p-1">
-        <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-slate-900">
+        <div className="relative aspect-video max-h-[320px] w-full overflow-hidden rounded-lg bg-slate-900">
           {isRecording && previewStream ? (
             <video ref={previewRef} autoPlay muted playsInline className="h-full w-full" />
           ) : (
