@@ -702,6 +702,69 @@ function TutorInsightsPageInner() {
     }
   }, [courseId, courses, draftCourses, draftStorageKey, detachedCourseName])
 
+  const handleCreateTemplate = useCallback(
+    async (lessons: any[], options?: any) => {
+      if (!courseId || courseId === 'insights-draft') return
+
+      const isDraft = draftCourses.some(c => c.id === courseId)
+      if (!isDraft) {
+        toast.error('Only Creating-mode courses can be converted to a template')
+        return
+      }
+
+      try {
+        const result = await saveCourse({
+          courseId,
+          lessons,
+          mode: 'publish',
+          courseName: options?.courseName || courseName || detachedCourseName,
+          courseDescription: options?.courseDescription,
+          categories: options?.categories,
+          isExistingDbCourse: false,
+        })
+
+        if (!result.success || !result.courseId) {
+          toast.error(result.error || 'Failed to create template')
+          return
+        }
+
+        const newCourseId = result.courseId
+
+        // Remove the original Creating-mode draft from localStorage and state.
+        try {
+          const raw = localStorage.getItem(draftStorageKey)
+          const parsed = raw ? JSON.parse(raw) : []
+          const updated = parsed.filter((c: any) => c.id !== courseId)
+          localStorage.setItem(draftStorageKey, JSON.stringify(updated))
+        } catch {
+          // ignore localStorage cleanup failure
+        }
+        localStorage.removeItem(`insights-course-builder:${courseId}`)
+
+        const oldDraft = draftCourses.find(c => c.id === courseId)
+        const newCourse: CourseSummary = {
+          id: newCourseId,
+          name: options?.courseName || courseName || detachedCourseName || 'Untitled Course',
+          categories: options?.categories || oldDraft?.categories || [],
+          updatedAt: new Date().toISOString(),
+        }
+
+        setDraftCourses(prev => prev.filter(c => c.id !== courseId))
+        setCourses(prev => {
+          if (prev.some(c => c.id === newCourseId)) return prev
+          return [...prev, newCourse]
+        })
+        setCourseId(newCourseId)
+        setSaveMode('live')
+        router.replace(`/tutor/insights?tab=builder&courseId=${newCourseId}`)
+        toast.success('Template created successfully')
+      } catch {
+        toast.error('Failed to create template')
+      }
+    },
+    [courseId, courseName, detachedCourseName, draftCourses, draftStorageKey, router]
+  )
+
   useEffect(() => {
     if (!sessionId) {
       setStudents([])
@@ -1488,6 +1551,7 @@ function TutorInsightsPageInner() {
           onSaveCourse={handleSave}
           onSyncToLiveSession={handleSyncToLiveSession}
           onCreateCourse={() => setIsCreateDialogOpen(true)}
+          onCreateTemplate={handleCreateTemplate}
           onDeleteCourse={() => setIsDeleteDialogOpen(true)}
           isCreateDialogOpen={isCreateDialogOpen}
           setIsCreateDialogOpen={setIsCreateDialogOpen}
