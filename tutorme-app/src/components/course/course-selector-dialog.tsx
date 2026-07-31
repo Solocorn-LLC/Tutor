@@ -64,7 +64,7 @@ interface CourseSelectorDialogProps {
 
 const SELECTOR_MODES: { value: CourseState; label: string }[] = [
   { value: 'published', label: 'Published' },
-  { value: 'unpublished', label: 'Unpublished' },
+  { value: 'unpublished', label: 'Template' },
   { value: 'creating', label: 'Creating' },
   { value: 'demo-classes', label: 'Demo Classes' },
 ]

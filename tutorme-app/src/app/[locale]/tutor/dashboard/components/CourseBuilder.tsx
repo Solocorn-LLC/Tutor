@@ -12704,7 +12704,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     color,
                                                   })
                                                 }}
-                                                className="absolute bottom-6 right-6"
+                                                className="absolute bottom-6 right-2"
                                               />
                                             </div>
                                           ) : (
@@ -13168,7 +13168,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       color,
                                                     })
                                                   }}
-                                                  className="absolute bottom-6 right-6"
+                                                  className="absolute bottom-6 right-2"
                                                 />
                                               </div>
                                             </div>
