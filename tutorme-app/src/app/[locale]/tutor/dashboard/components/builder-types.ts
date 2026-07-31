@@ -237,6 +237,9 @@ export interface Assessment extends WithDifficultyVariants {
   /** When false, not visible to students (draft) */
   isPublished?: boolean
   sourceDocument?: ImportedLearningResource
+  /** Multi-page slide content for the assessment builder. When absent, falls back
+   *  to `instructions` as a single page. */
+  pages?: string[]
 }
 
 export interface QuizQuestion {
