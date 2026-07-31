@@ -13106,12 +13106,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     current + (current ? '\n\n' : '') + text
                                                   return { ...prev, pages: nextPages }
                                                 })
+
                                               },
                                               'assessment'
                                             )
                                           }}
                                         >
                                           {/* Left Panel (Slide) */}
+
                                           {assessmentTextVisible && (
                                             <div
                                               className={cn(
@@ -13163,6 +13165,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   }}
                                                   className="absolute bottom-6 right-6"
                                                 />
+
                                               </div>
                                             </div>
                                           )}
@@ -13268,6 +13271,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               readOnly={!canEdit}
                                             />
                                           </div>
+
                                         </div>
                                         {/* Uploaded Files List - only show for assessment (not extensions) */}
                                         {/* Upload button - only for assessment (not extensions) */}
