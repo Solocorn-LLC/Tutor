@@ -325,6 +325,7 @@ import {
 import { LessonSelectorDialog, NEW_LESSON_VALUE } from './LessonSelectorDialog'
 import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTextEditor'
 import { TaskSlideFontEditor } from './TaskSlideFontEditor'
+import { SlidePageMenu } from './SlidePageMenu'
 import {
   AssessmentBuilderModal,
   TaskBuilderModal,
@@ -353,8 +354,10 @@ import {
   CONTENT_TEMPLATES,
   generateQuestionPaperPDF,
   generateTaskTextPDF,
+  generateAssessmentSlidePDF,
   isTaskSlideOverflowing,
   TASK_TEXT_SNAPSHOT_VERSION,
+  ASSESSMENT_SLIDE_SNAPSHOT_VERSION,
   resolveSelectedItem,
   stringToColor,
   formatDuration,
@@ -1229,6 +1232,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         mimeType: string
         uploadedAt: string
         extractedText?: string
+        generatedFromText?: boolean
+        snapshotVersion?: number
       }
       extensions: {
         id: string
@@ -1270,6 +1275,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         mimeType: string
         uploadedAt: string
         extractedText?: string
+        generatedFromText?: boolean
+        snapshotVersion?: number
       }
       extensions: {
         id: string
@@ -1280,6 +1287,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         sourceDocument?: any
       }[]
       activeExtensionId: string | null
+      /** Multi-page slide content. `taskContent` is kept as the concatenation of all pages for backward compatibility. */
+      pages: string[]
+      activePageIndex: number
     }>({
       title: '',
       taskContent: '',
@@ -1287,9 +1297,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       details: '',
       extensions: [],
       activeExtensionId: null,
+      pages: [''],
+      activePageIndex: 0,
     })
 
-    // The PCI assistant chat state + handlers live in usePci (called further down,
+    // Keep the legacy `taskContent` field in sync with the multi-page slide array
+    // so existing consumers (save, preview, DMI generation, AI assist) continue to
+    // see the full assessment text without being rewritten.
+    useEffect(() => {
+      setAssessmentBuilder(prev => {
+        const joined = prev.pages.join('\n\n---PAGE BREAK---\n\n')
+        if (prev.taskContent === joined) return prev
+        return { ...prev, taskContent: joined }
+      })
+    }, [assessmentBuilder.pages])
     // after its deps such as autoCreateTask are defined). The loaders and the
     // blank-slate reset need its dispatchers before that point, so bridge them
     // through refs that are pointed at the hook once it's created.
@@ -1956,6 +1977,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         details: '',
         extensions: [],
         activeExtensionId: null,
+        pages: [''],
+        activePageIndex: 0,
       })
       setTaskBuilderActiveTab('content')
       setAssessmentBuilderActiveTab('content')
@@ -2272,6 +2295,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     const taskSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
+    const assessmentSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
     const [slideFontSizeMap, setSlideFontSizeMap] = useState<Record<string, number>>({})
     const [slideTextColorMap, setSlideTextColorMap] = useState<Record<string, string>>({})
     const slideFontSize = activeItemId ? (slideFontSizeMap[activeItemId] ?? 18) : 18
@@ -2662,10 +2686,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Load assessment data into assessmentBuilder
     const loadAssessmentIntoBuilder = useCallback((assessment: Assessment) => {
-      const content = assessment.description || assessment.sourceDocument?.extractedText || ''
+      const fallbackContent =
+        assessment.description || assessment.sourceDocument?.extractedText || ''
+      const pages =
+        assessment.pages && assessment.pages.length > 0 ? assessment.pages : [fallbackContent]
       setAssessmentBuilder({
         title: assessment.title || '',
-        taskContent: content,
+        taskContent: pages.join('\n\n---PAGE BREAK---\n\n'),
         taskPci: assessment.instructions || '',
         pciSpec: assessment.pciSpec,
         pciHistory: assessment.pciHistory,
@@ -2674,6 +2701,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         sourceDocument: assessment.sourceDocument,
         extensions: [],
         activeExtensionId: null,
+        pages,
+        activePageIndex: 0,
       })
       setAssessmentDmiItems(assessment.dmiItems || [])
       // Rehydrate the DMI source kind so the PCI-chat study-material variant
@@ -2707,6 +2736,45 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setAssessmentSourceDocument(assessment.sourceDocument)
       setAssessmentSourceReferenceOnly(false)
       setAssessmentBuilderActiveTab('content')
+    }, [])
+
+    // Multi-page assessment slide actions
+    const addAssessmentPage = useCallback(() => {
+      setAssessmentBuilder(prev => {
+        const nextIndex = prev.pages.length
+        return { ...prev, pages: [...prev.pages, ''], activePageIndex: nextIndex }
+      })
+    }, [])
+
+    const deleteAssessmentPage = useCallback((index: number) => {
+      setAssessmentBuilder(prev => {
+        if (prev.pages.length <= 1) return prev
+        const newPages = prev.pages.filter((_, i) => i !== index)
+        let nextIndex = prev.activePageIndex
+        if (nextIndex >= index && nextIndex > 0) {
+          nextIndex -= 1
+        }
+        if (nextIndex >= newPages.length) {
+          nextIndex = newPages.length - 1
+        }
+        return { ...prev, pages: newPages, activePageIndex: nextIndex }
+      })
+    }, [])
+
+    const setAssessmentActivePageIndex = useCallback((index: number) => {
+      setAssessmentBuilder(prev => {
+        if (index < 0 || index >= prev.pages.length) return prev
+        return { ...prev, activePageIndex: index }
+      })
+    }, [])
+
+    const updateAssessmentPageContent = useCallback((index: number, content: string) => {
+      setAssessmentBuilder(prev => {
+        if (index < 0 || index >= prev.pages.length) return prev
+        const newPages = [...prev.pages]
+        newPages[index] = content
+        return { ...prev, pages: newPages }
+      })
     }, [])
 
     // Load tutor assets from API on mount
@@ -2952,7 +3020,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   hw.documentKind === (dmiDocumentKind.assessment ?? hw.documentKind) &&
                   hw.dmiVersions === assessmentDmiVersions &&
                   hw.activeDmiVersionId === nextActiveDmiVersionId &&
-                  hw.sourceDocument === assessmentBuilder.sourceDocument
+                  hw.sourceDocument === assessmentBuilder.sourceDocument &&
+                  hw.pages === assessmentBuilder.pages
                 ) {
                   return hw
                 }
@@ -2971,6 +3040,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   dmiVersions: assessmentDmiVersions,
                   activeDmiVersionId: nextActiveDmiVersionId,
                   sourceDocument: assessmentBuilder.sourceDocument,
+                  pages: assessmentBuilder.pages,
                 }
               }),
             })),
@@ -2988,6 +3058,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.pciSpec,
       assessmentBuilder.pciThread,
       assessmentBuilder.sourceDocument,
+      assessmentBuilder.pages,
       assessmentDmiItems,
       assessmentDmiVersions,
       dmiDocumentKind.assessment,
@@ -3467,6 +3538,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             details: '',
             extensions: [],
             activeExtensionId: null,
+            pages: [''],
+            activePageIndex: 0,
           })
         }
 
@@ -4928,6 +5001,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         details: '',
         extensions: [],
         activeExtensionId: null,
+        pages: [''],
+        activePageIndex: 0,
       })
       toast.success('New assessment created')
       return newAssessment
@@ -5103,12 +5178,100 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.title,
     ])
 
+    // When an assessment has only manually-typed slide pages (no uploaded PDF),
+    // generate a multi-page PDF from those pages and upload it so the assessment
+    // behaves identically to a loaded document in Test mode and in live classrooms.
+    const generatingAssessmentDocRef = useRef(false)
+    const ensureAssessmentDocument = useCallback(async () => {
+      if (generatingAssessmentDocRef.current) return
+      if (!loadedAssessmentId) return
+
+      const pages = assessmentBuilder.pages
+      if (pages.length === 0) return
+      const joinedContent = pages.map(p => p.trim()).join('\n')
+      if (!joinedContent) return
+
+      const existingDoc = assessmentBuilder.sourceDocument
+      // If a real uploaded document is present, never overwrite it.
+      if (existingDoc && !existingDoc.generatedFromText) return
+      // Already generated and content hasn't changed AND snapshot version matches → nothing to do.
+      if (
+        existingDoc?.generatedFromText &&
+        existingDoc.extractedText === joinedContent &&
+        existingDoc.snapshotVersion === ASSESSMENT_SLIDE_SNAPSHOT_VERSION
+      )
+        return
+
+      generatingAssessmentDocRef.current = true
+      try {
+        const { blob, fileName, snapshotVersion } = await generateAssessmentSlidePDF(
+          assessmentBuilder.title || 'Assessment',
+          pages
+        )
+        const file = new File([blob], fileName, { type: 'application/pdf' })
+        const formData = new FormData()
+        formData.append('file', file)
+
+        const res = await fetchWithCsrf('/api/uploads/documents', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error(data.error || `Failed to upload ${fileName}`)
+          return
+        }
+        const data = await res.json()
+        const newDoc = {
+          fileName: data.name || fileName,
+          fileUrl: data.url || '',
+          fileKey: data.key || '',
+          mimeType: data.type || 'application/pdf',
+          uploadedAt: new Date().toISOString(),
+          extractedText: joinedContent,
+          generatedFromText: true,
+          snapshotVersion,
+        }
+
+        setAssessmentSourceDocument(newDoc)
+        setAssessmentUploadedFiles([{ id: 'source', name: newDoc.fileName }])
+        setAssessmentBuilder(prev => ({ ...prev, sourceDocument: newDoc }))
+
+        setCourseBuilderNodes(prev =>
+          prev.map(mod => ({
+            ...mod,
+            lessons: mod.lessons.map(lesson => ({
+              ...lesson,
+              homework: lesson.homework.map(hw => {
+                if (hw.id !== loadedAssessmentId) return hw
+                return { ...hw, sourceDocument: newDoc, pages }
+              }),
+            })),
+          }))
+        )
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to convert assessment to PDF')
+      } finally {
+        generatingAssessmentDocRef.current = false
+      }
+    }, [
+      loadedAssessmentId,
+      assessmentBuilder.pages,
+      assessmentBuilder.sourceDocument,
+      assessmentBuilder.title,
+    ])
+
     // Ref so effects can reach the latest generation helper without taking a
     // dependency on the taskBuilder closure (which changes on every keystroke).
     const ensureTaskTextDocumentRef = useRef(ensureTaskTextDocument)
     useEffect(() => {
       ensureTaskTextDocumentRef.current = ensureTaskTextDocument
     }, [ensureTaskTextDocument])
+
+    const ensureAssessmentDocumentRef = useRef(ensureAssessmentDocument)
+    useEffect(() => {
+      ensureAssessmentDocumentRef.current = ensureAssessmentDocument
+    }, [ensureAssessmentDocument])
 
     // If a text-only task is selected while already in Test or Live mode,
     // generate its PDF snapshot so the preview sees a real document.
@@ -5121,6 +5284,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ensureTaskTextDocumentRef.current()
     }, [mainTab, mainBuilderTab, loadedTaskId])
 
+    useEffect(() => {
+      if (mainTab !== 'test-pci' && mainTab !== 'live') return
+      if (mainBuilderTab !== 'assessment') return
+      if (!loadedAssessmentId) return
+      ensureAssessmentDocumentRef.current()
+    }, [mainTab, mainBuilderTab, loadedAssessmentId])
+
     // Generate the PDF snapshot the first time a text-only task is selected in
     // the builder. Persisted snapshots are skipped by the existing guard.
     useEffect(() => {
@@ -5128,6 +5298,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (!loadedTaskId) return
       ensureTaskTextDocumentRef.current()
     }, [loadedTaskId, mainBuilderTab])
+
+    useEffect(() => {
+      if (mainBuilderTab !== 'assessment') return
+      if (!loadedAssessmentId) return
+      ensureAssessmentDocumentRef.current()
+    }, [loadedAssessmentId, mainBuilderTab])
 
     const handleMainTabChange = useCallback(
       async (v: string) => {
@@ -5145,6 +5321,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             await ensureTaskTextDocument()
             setPreparingTestPreview(false)
           }
+          // If the active assessment only has typed slide pages, generate its
+          // multi-page PDF snapshot before syncing to live.
+          if (mainBuilderTab === 'assessment') {
+            setPreparingTestPreview(true)
+            await ensureAssessmentDocument()
+            setPreparingTestPreview(false)
+          }
           handleSyncToLive()
           prevMainTabRef.current = 'live'
         }
@@ -5156,9 +5339,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           await ensureTaskTextDocument()
           setPreparingTestPreview(false)
         }
+        // If the active assessment only has typed slide pages, generate its
+        // multi-page PDF document before switching to Test.
+        if (next === 'test-pci' && mainBuilderTab === 'assessment') {
+          setPreparingTestPreview(true)
+          await ensureAssessmentDocument()
+          setPreparingTestPreview(false)
+        }
         setMainTab(next)
       },
-      [ensureTaskTextDocument, handleSyncToLive, mainBuilderTab, setMainTab]
+      [
+        ensureTaskTextDocument,
+        ensureAssessmentDocument,
+        handleSyncToLive,
+        mainBuilderTab,
+        setMainTab,
+      ]
     )
 
     const assetsLesson = nodes[0]?.lessons?.[0] ?? null
@@ -5760,6 +5956,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         details: '',
         extensions: [],
         activeExtensionId: null,
+        pages: [''],
+        activePageIndex: 0,
       })
       setAssessmentDmiItems([])
       setAssessmentDmiVersions([])
@@ -12904,19 +13102,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             handleDragFiles(
                                               e,
                                               text => {
-                                                setAssessmentBuilder(prev => ({
-                                                  ...prev,
-                                                  taskContent:
-                                                    prev.taskContent +
-                                                    (prev.taskContent ? '\n\n' : '') +
-                                                    text,
-                                                }))
+                                                setAssessmentBuilder(prev => {
+                                                  const index = prev.activePageIndex
+                                                  const current = prev.pages[index] ?? ''
+                                                  const nextPages = [...prev.pages]
+                                                  nextPages[index] =
+                                                    current + (current ? '\n\n' : '') + text
+                                                  return { ...prev, pages: nextPages }
+                                                })
                                               },
                                               'assessment'
                                             )
                                           }}
                                         >
-                                          {/* Left Panel (Text) */}
+                                          {/* Left Panel (Slide) */}
+
                                           {assessmentTextVisible && (
                                             <div
                                               className={cn(
@@ -12924,75 +13124,50 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 assessmentPdfVisible ? 'w-1/2' : 'w-full'
                                               )}
                                             >
-                                              <AutoTextarea
-                                                className="h-full min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent p-4 text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                                style={{ fontSize: `${extractedTextFontSize}px` }}
-                                                disableAutoResize
-                                                readOnly={!canEdit}
-                                                placeholder="Type your assessment questions here — or load a document above to work from it."
-                                                onDrop={(e: any) =>
-                                                  handleDragFiles(
-                                                    e,
-                                                    text => {
-                                                      setAssessmentBuilder(prev => {
-                                                        const combined =
-                                                          prev.taskContent +
-                                                          (prev.taskContent ? '\n\n' : '') +
-                                                          text
-                                                        return {
-                                                          ...prev,
-                                                          taskContent: combined,
-                                                        }
-                                                      })
-                                                    },
-                                                    'assessment'
-                                                  )
-                                                }
-                                                value={assessmentBuilder.taskContent}
-                                                onChange={(e: any) => {
-                                                  const newContent = e.target.value
-                                                  if (!loadedAssessmentId) {
-                                                    autoCreateAssessment()
-                                                  }
-                                                  setAssessmentBuilder(prev => ({
-                                                    ...prev,
-                                                    taskContent: newContent,
-                                                  }))
-                                                }}
-                                              />
-                                              {/* Floating font size control */}
-                                              <div
-                                                className="absolute bottom-6 right-6 z-20 flex origin-bottom-right scale-150 items-center gap-1 rounded-md px-2 py-1 text-white"
-                                                style={{
-                                                  background: 'rgba(40,40,40,0.78)',
-                                                  backdropFilter: 'blur(8px)',
-                                                }}
-                                              >
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setExtractedTextFontSize(
-                                                      Math.max(10, extractedTextFontSize - 2)
-                                                    )
-                                                  }
-                                                  className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                                >
-                                                  -
-                                                </button>
-                                                <span className="min-w-[1.5rem] text-center text-[11px] font-medium">
-                                                  {extractedTextFontSize}px
-                                                </span>
-                                                <button
-                                                  type="button"
-                                                  onClick={() =>
-                                                    setExtractedTextFontSize(
-                                                      Math.min(32, extractedTextFontSize + 2)
-                                                    )
-                                                  }
-                                                  className="cursor-pointer px-1 py-0.5 text-xs opacity-80 hover:opacity-100"
-                                                >
-                                                  +
-                                                </button>
+                                              <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
+                                                <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                                  <TaskSlideTextEditor
+                                                    ref={assessmentSlideEditorRef}
+                                                    html={
+                                                      assessmentBuilder.pages[
+                                                        assessmentBuilder.activePageIndex
+                                                      ] ?? ''
+                                                    }
+                                                    onHtmlChange={(newContent: string) => {
+                                                      if (!loadedAssessmentId) {
+                                                        autoCreateAssessment()
+                                                      }
+                                                      updateAssessmentPageContent(
+                                                        assessmentBuilder.activePageIndex,
+                                                        newContent
+                                                      )
+                                                    }}
+                                                    readOnly={!canEdit}
+                                                    placeholder="Type your assessment questions here — or load a document above to work from it."
+                                                    className="h-full w-full"
+                                                    style={{
+                                                      fontSize: `${slideFontSize}px`,
+                                                      color: slideTextColor,
+                                                    }}
+                                                  />
+                                                </div>
+                                                <TaskSlideFontEditor
+                                                  fontSize={slideFontSize}
+                                                  onFontSizeChange={(size: number) => {
+                                                    setSlideFontSize(size)
+                                                    assessmentSlideEditorRef.current?.applyFormat({
+                                                      fontSize: size,
+                                                    })
+                                                  }}
+                                                  color={slideTextColor}
+                                                  onColorChange={(color: string) => {
+                                                    setSlideTextColor(color)
+                                                    assessmentSlideEditorRef.current?.applyFormat({
+                                                      color,
+                                                    })
+                                                  }}
+                                                  className="absolute bottom-6 right-6"
+                                                />
                                               </div>
                                             </div>
                                           )}
@@ -13084,6 +13259,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               </div>
                                             </div>
                                           )}
+                                          {/* Page navigation menu */}
+                                          <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
+                                            <SlidePageMenu
+                                              pages={assessmentBuilder.pages.map((_, index) => ({
+                                                id: `assessment-page-${index}`,
+                                                name: `Page ${index + 1}`,
+                                              }))}
+                                              currentPageIndex={assessmentBuilder.activePageIndex}
+                                              onPageChange={setAssessmentActivePageIndex}
+                                              onAddPage={addAssessmentPage}
+                                              onDeletePage={deleteAssessmentPage}
+                                              readOnly={!canEdit}
+                                            />
+                                          </div>
                                         </div>
                                         {/* Uploaded Files List - only show for assessment (not extensions) */}
                                         {/* Upload button - only for assessment (not extensions) */}
