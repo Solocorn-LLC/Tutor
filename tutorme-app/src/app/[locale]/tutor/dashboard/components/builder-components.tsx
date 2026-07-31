@@ -422,7 +422,7 @@ export function PreviewCard({
     try {
       await onUpdateItem({ isPublished: !normalizedItem.isPublished })
       toast.success(
-        normalizedItem.isPublished ? 'Unpublished successfully' : 'Published successfully'
+        normalizedItem.isPublished ? 'Saved as Template successfully' : 'Published successfully'
       )
     } finally {
       setPublishing(false)
