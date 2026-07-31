@@ -171,7 +171,7 @@ interface TutorControlsPanelProps {
   onSchedule: () => void
   onDelete: () => void
   onGoLive: () => void
-  onVideo: () => void
+  onRecordDemo: () => void
   onSync: () => void
   onCreateCourse?: () => void
   onEditCourse?: () => void
@@ -195,7 +195,7 @@ function TutorControlsPanel({
   onSchedule,
   onDelete,
   onGoLive,
-  onVideo,
+  onRecordDemo,
   onSync,
   onCreateCourse,
   onEditCourse,
@@ -378,19 +378,16 @@ function TutorControlsPanel({
 
                     <button
                       type="button"
-                      // Video joins the live session — it must be usable while
-                      // live (mode === 'classroom'), not only in build mode. It
-                      // was wrongly gated on mode === 'build' (like the adjacent
-                      // build-only actions), so it was disabled during a session.
+                      // Record Demo opens the demo video recorder/uploader.
                       disabled={panelDisabled || !hasSession}
-                      onClick={onVideo}
+                      onClick={onRecordDemo}
                       className={cn(
                         actionButtonBase,
                         'bg-pink-500 hover:bg-pink-600 active:bg-pink-700'
                       )}
                     >
                       <VideoIcon className="h-4 w-4" />
-                      Video
+                      Record Demo
                     </button>
 
                     <button
@@ -529,6 +526,7 @@ function CourseBuilderInsightsRouteInner({
   // Edit-course dialog (control-panel Edit button): edit name + category of the
   // current course. Prefilled from currentCourse; persisted via onUpdateCourse.
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false)
+  const [isRecordDemoOpen, setIsRecordDemoOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editCategories, setEditCategories] = useState<string[]>([])
   const openEditCourse = () => {
@@ -1080,12 +1078,6 @@ function CourseBuilderInsightsRouteInner({
           </Card>
         )}
 
-        {isDemoSession && insightsProps.sessionId && (
-          <div className="mb-8 w-full">
-            <DemoVideoManager sessionId={insightsProps.sessionId} />
-          </div>
-        )}
-
         {model.loading ? (
           <div className="flex flex-1 items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
@@ -1148,10 +1140,7 @@ function CourseBuilderInsightsRouteInner({
             }}
             onDelete={() => onDeleteCourse?.()}
             onGoLive={handleStartSessionClick}
-            onVideo={() => {
-              const ref = model.courseBuilderRef.current as CourseBuilderRef | null
-              ref?.openVideo?.()
-            }}
+            onRecordDemo={() => setIsRecordDemoOpen(true)}
             onSync={() => {
               const ref = model.courseBuilderRef.current as CourseBuilderRef | null
               ref?.triggerSync?.()
@@ -1313,6 +1302,33 @@ function CourseBuilderInsightsRouteInner({
                 disabled={editCategories.length === 0}
               >
                 Save
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Demo Dialog */}
+      <Dialog open={isRecordDemoOpen} onOpenChange={setIsRecordDemoOpen}>
+        <DialogContent
+          className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-slate-200 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+          aria-describedby={undefined}
+        >
+          <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
+          <div className="relative z-10 flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0 border-b-0 pb-4 pt-4 text-center">
+              <DialogTitle className="mx-auto text-center text-white">Record Demo</DialogTitle>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto px-6 pb-4">
+              {insightsProps.sessionId && (
+                <DemoVideoManager sessionId={insightsProps.sessionId} defaultTab="record" />
+              )}
+            </div>
+
+            <DialogFooter className="shrink-0 gap-3 border-white/20 px-6 pb-4">
+              <Button variant="modal-secondary-dark" onClick={() => setIsRecordDemoOpen(false)}>
+                Close
               </Button>
             </DialogFooter>
           </div>
