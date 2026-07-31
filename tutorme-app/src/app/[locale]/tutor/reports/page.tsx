@@ -397,6 +397,7 @@ export default function TutorReports() {
               defaultOpen
               fillHeight
               className="flex-1"
+              contentClassName="p-6"
             >
               <div className="space-y-6">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
