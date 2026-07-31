@@ -437,11 +437,6 @@ export const PATCH = withCsrf(
         return NextResponse.json({ success: true, status: 'ended', alreadyEnded: true })
       }
 
-      // Demo classes are always live and do not support an explicit end action.
-      if (liveSessionRow.sessionType === 'GO_LIVE_DEMO') {
-        return NextResponse.json({ error: 'Demo classes cannot be ended' }, { status: 400 })
-      }
-
       const endedAt = new Date()
       await drizzleDb
         .update(liveSession)

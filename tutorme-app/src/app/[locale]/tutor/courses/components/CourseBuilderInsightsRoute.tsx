@@ -179,6 +179,7 @@ interface TutorControlsPanelProps {
   canSchedule: boolean
   canGoLive: boolean
   hasSession: boolean
+  isDemoSession?: boolean
   hasUnsyncedChanges?: boolean
   onEndSession?: () => void
   endingSession?: boolean
@@ -203,6 +204,7 @@ function TutorControlsPanel({
   canSchedule,
   canGoLive,
   hasSession,
+  isDemoSession,
   hasUnsyncedChanges,
   onEndSession,
   endingSession,
@@ -407,36 +409,19 @@ function TutorControlsPanel({
                   </div>
                 </div>
 
-                {/* Schedule & Publish — full width, below the grid */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        disabled={panelDisabled || mode !== 'build' || !canSchedule}
-                        onClick={onSchedule}
-                        className={cn(
-                          actionButtonBase,
-                          'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
-                        )}
-                      >
-                        <Calendar className="h-4 w-4" />
-                        {scheduleButtonLabel || 'Schedule & Publish'}
-                      </button>
-                    </TooltipTrigger>
-                  </Tooltip>
-                </TooltipProvider>
-
-                {/* End the live session — finalizes recording + analytics. Only
-                    shown while a session is active. */}
-                {onEndSession && hasSession && (
+                {/* Schedule / End Session — full width, below the grid.
+                    While a session is active, the End Session button replaces the
+                    Schedule button so tutors can't schedule/publish while in session.
+                    Demo sessions label the action "Exit" but still end the session
+                    and generate the lesson report. */}
+                {hasSession && onEndSession ? (
                   <button
                     type="button"
                     disabled={panelDisabled || endingSession}
                     onClick={onEndSession}
                     className={cn(
                       actionButtonBase,
-                      'mt-2 justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                      'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
                     )}
                   >
                     {endingSession ? (
@@ -444,8 +429,27 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    {endingSession ? 'Ending…' : 'End Session'}
+                    {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
                   </button>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                          onClick={onSchedule}
+                          className={cn(
+                            actionButtonBase,
+                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                          )}
+                        >
+                          <Calendar className="h-4 w-4" />
+                          {scheduleButtonLabel || 'Schedule & Publish'}
+                        </button>
+                      </TooltipTrigger>
+                    </Tooltip>
+                  </TooltipProvider>
                 )}
               </motion.div>
             )}
@@ -1163,6 +1167,7 @@ function CourseBuilderInsightsRouteInner({
               )
             }
             hasSession={!!insightsProps.sessionId}
+            isDemoSession={isDemoSession}
             hasUnsyncedChanges={hasUnsyncedChanges}
             onEndSession={insightsProps.sessionId ? handleEndSession : undefined}
             endingSession={endingSession}
