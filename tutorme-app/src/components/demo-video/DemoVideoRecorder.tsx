@@ -144,7 +144,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-black p-1">
-        <div className="relative aspect-video max-h-[320px] w-full overflow-hidden rounded-lg bg-slate-900">
+        <div className="relative aspect-video max-h-[270px] w-full overflow-hidden rounded-lg bg-slate-900">
           {isRecording && previewStream ? (
             <video ref={previewRef} autoPlay muted playsInline className="h-full w-full" />
           ) : (
