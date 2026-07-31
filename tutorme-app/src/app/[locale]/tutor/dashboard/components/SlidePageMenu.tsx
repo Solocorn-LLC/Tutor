@@ -86,7 +86,7 @@ export function SlidePageMenu({
 
       <div
         ref={scrollRef}
-        className="flex max-w-[520px] items-center gap-1 overflow-x-auto scrollbar-hide"
+        className="scrollbar-hide flex max-w-[520px] items-center gap-1 overflow-x-auto"
       >
         {pages.map((page, index) => (
           <button

@@ -2689,9 +2689,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const fallbackContent =
         assessment.description || assessment.sourceDocument?.extractedText || ''
       const pages =
-        assessment.pages && assessment.pages.length > 0
-          ? assessment.pages
-          : [fallbackContent]
+        assessment.pages && assessment.pages.length > 0 ? assessment.pages : [fallbackContent]
       setAssessmentBuilder({
         title: assessment.title || '',
         taskContent: pages.join('\n\n---PAGE BREAK---\n\n'),
@@ -5350,7 +5348,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
         setMainTab(next)
       },
-      [ensureTaskTextDocument, ensureAssessmentDocument, handleSyncToLive, mainBuilderTab, setMainTab]
+      [
+        ensureTaskTextDocument,
+        ensureAssessmentDocument,
+        handleSyncToLive,
+        mainBuilderTab,
+        setMainTab,
+      ]
     )
 
     const assetsLesson = nodes[0]?.lessons?.[0] ?? null
@@ -13106,7 +13110,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     current + (current ? '\n\n' : '') + text
                                                   return { ...prev, pages: nextPages }
                                                 })
-
                                               },
                                               'assessment'
                                             )
@@ -13165,7 +13168,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   }}
                                                   className="absolute bottom-6 right-6"
                                                 />
-
                                               </div>
                                             </div>
                                           )}
@@ -13271,7 +13273,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               readOnly={!canEdit}
                                             />
                                           </div>
-
                                         </div>
                                         {/* Uploaded Files List - only show for assessment (not extensions) */}
                                         {/* Upload button - only for assessment (not extensions) */}
