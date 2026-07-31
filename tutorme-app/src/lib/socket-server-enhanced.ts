@@ -2917,15 +2917,6 @@ export async function initEnhancedSocketServer(server: NetServer) {
       const roomId = data?.roomId || socket.data.roomId
       if (!roomId || !socket.data.userId) return
       try {
-        // Demo sessions are intentionally open-ended and cannot be ended.
-        const [targetSession] = await drizzleDb
-          .select({ sessionType: liveSession.sessionType, tutorId: liveSession.tutorId })
-          .from(liveSession)
-          .where(eq(liveSession.sessionId, roomId))
-          .limit(1)
-        if (!targetSession || targetSession.sessionType === 'GO_LIVE_DEMO') return
-        if (targetSession.tutorId && targetSession.tutorId !== socket.data.userId) return
-
         // Scope the end to a session THIS tutor owns — `roomId` is client-supplied,
         // so without the tutorId predicate any tutor could end (and kick everyone
         // out of) any session by id. Only broadcast if a row was actually ended.
