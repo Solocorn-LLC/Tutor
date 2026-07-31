@@ -14357,52 +14357,60 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         {/* Move task/assessment to another lesson */}
         <Dialog open={!!moveDialog} onOpenChange={open => !open && setMoveDialog(null)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                Move {moveDialog?.itemType === 'task' ? 'task' : 'assessment'} to lesson
-              </DialogTitle>
-              <DialogDescription>
-                Choose a lesson to move “{moveDialog?.itemTitle}” to, or create a new one. If the
-                lesson already has an item with the same name, this one gets a “new” suffix.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-2">
-              <label
-                htmlFor="move-to-lesson-select"
-                className="mb-1 block text-xs font-medium text-gray-700"
-              >
-                Destination lesson
-              </label>
-              <select
-                id="move-to-lesson-select"
-                value={moveTarget}
-                onChange={e => setMoveTarget(e.target.value)}
-                className="w-full rounded-md border border-gray-300 p-2 text-sm text-gray-900"
-              >
-                <option value="">Select a lesson…</option>
-                {nodes
-                  .filter(n => n.id !== moveDialog?.sourceNodeId)
-                  .map(n => (
-                    <option key={n.id} value={n.id}>
-                      {n.title}
-                    </option>
-                  ))}
-                <option value="__new__">＋ Create a new lesson</option>
-              </select>
+          <DialogContent
+            className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-slate-200 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl sm:max-w-md"
+            aria-describedby={undefined}
+          >
+            <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
+            <div className="relative z-10 flex flex-col overflow-hidden">
+              <DialogHeader className="shrink-0 border-b-0 pb-4 pt-4 text-center">
+                <DialogTitle className="mx-auto text-center text-white">
+                  Move {moveDialog?.itemType === 'task' ? 'task' : 'assessment'} to lesson
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 pb-4">
+                <p className="mb-4 text-center text-sm text-white/80">
+                  Choose a lesson to move “{moveDialog?.itemTitle}” to, or create a new one. If the
+                  lesson already has an item with the same name, this one gets a “new” suffix.
+                </p>
+                <Select value={moveTarget} onValueChange={setMoveTarget}>
+                  <SelectTrigger className="h-[42px] w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
+                    <SelectValue placeholder="Select a lesson…" />
+                  </SelectTrigger>
+                  <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
+                    {nodes
+                      .filter(n => n.id !== moveDialog?.sourceNodeId)
+                      .map(n => (
+                        <SelectItem
+                          key={n.id}
+                          value={n.id}
+                          className="mx-1.5 rounded-md text-white focus-visible:bg-transparent"
+                        >
+                          {n.title}
+                        </SelectItem>
+                      ))}
+                    <SelectItem
+                      value="__new__"
+                      className="mx-1.5 rounded-md text-white focus-visible:bg-transparent"
+                    >
+                      ＋ Create a new lesson
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <DialogFooter className="shrink-0 gap-3 border-white/20 px-6 pb-4">
+                <Button variant="modal-secondary-dark" onClick={() => setMoveDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="modal-primary-dark"
+                  disabled={!moveTarget}
+                  onClick={confirmMoveDialog}
+                >
+                  Move
+                </Button>
+              </DialogFooter>
             </div>
-            <DialogFooter>
-              <Button variant="modal-secondary-dark" onClick={() => setMoveDialog(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="modal-primary-dark"
-                disabled={!moveTarget}
-                onClick={confirmMoveDialog}
-              >
-                Move
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
