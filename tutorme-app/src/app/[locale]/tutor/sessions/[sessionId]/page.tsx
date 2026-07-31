@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { TabsContent } from '@/components/ui/tabs'
+import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { ArrowLeft, Users, CheckCircle, BookOpen, Clock } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -69,6 +70,7 @@ export default function TutorSessionInsightsPage() {
   const sessionId = params.sessionId as string
   const [data, setData] = useState<SessionData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('report')
 
   useEffect(() => {
     if (!sessionId) return
@@ -127,9 +129,15 @@ export default function TutorSessionInsightsPage() {
     : 'Unknown date'
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_18px_60px_rgba(0,0,0,0.16)] ring-1 ring-black/5">
-      <div className="h-full overflow-y-auto p-4 lg:p-6">
-        <div className="space-y-6">
+    <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
+      <SessionCalendarPanel
+        value={activeTab}
+        onValueChange={setActiveTab}
+        variant="charcoal"
+        tabs={[{ value: 'report', label: 'Lesson Report' }]}
+        className="flex-1"
+      >
+        <TabsContent value="report" className="flex h-full flex-col gap-6 overflow-y-auto pb-4">
           <Card className="rounded-lg border border-[#E5E7EB] bg-[linear-gradient(145deg,#ECEFF3_0%,#D6DBE3_40%,#C9D0DA_60%,#EEF2F6_100%)] p-4 shadow-[0_10px_30px_rgba(15,23,42,0.08)] ring-1 ring-white/40">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -318,8 +326,8 @@ export default function TutorSessionInsightsPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-      </div>
+        </TabsContent>
+      </SessionCalendarPanel>
     </div>
   )
 }
