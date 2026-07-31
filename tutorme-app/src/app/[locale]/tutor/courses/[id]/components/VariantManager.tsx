@@ -732,7 +732,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-sm font-medium text-slate-500">
-                          {variant.isPublished ? 'Publish' : 'Unpublished'}
+                          {variant.isPublished ? 'Publish' : 'Template'}
                         </span>
                         <Switch
                           checked={variant.isPublished}

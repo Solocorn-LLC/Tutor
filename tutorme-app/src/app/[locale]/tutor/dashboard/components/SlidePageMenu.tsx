@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Plus, ChevronLeft, ChevronRight, X, Grid3X3 } from 'lucide-react'
@@ -48,6 +48,17 @@ export function SlidePageMenu({
       target.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
     }
   }
+
+  // Auto-scroll the pagination strip so the active page (including a newly added page)
+  // is always visible without manual arrow clicks.
+  const didMountRef = useRef(false)
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true
+      return
+    }
+    scrollToPage(currentPageIndex)
+  }, [currentPageIndex, pages.length])
 
   return (
     <div
