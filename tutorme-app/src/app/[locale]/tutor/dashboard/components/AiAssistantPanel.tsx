@@ -1,12 +1,10 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2 } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
-import { toast } from 'sonner'
-import { useAnalyticsAssistant } from '@/hooks/use-analytics-assistant'
 
 interface SessionInfo {
   id: string
@@ -40,12 +38,10 @@ export function AiAssistantPanel({
   isActive = true,
 }: AiAssistantPanelProps) {
   const [input, setInput] = useState('')
-  const [introMessages, setIntroMessages] = useState<ChatMessage[]>([])
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [isAnimating, setIsAnimating] = useState(false)
   const hasAnimatedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
-  const { messages: assistantMessages, isLoading, sendMessage } = useAnalyticsAssistant(sessionId)
 
   // Build course info message blocks
   const buildCourseInfoMessages = useCallback((): string[] => {
@@ -132,10 +128,14 @@ export function AiAssistantPanel({
     // Add messages one at a time with staggered delay
     infoBlocks.forEach((text, index) => {
       setTimeout(() => {
-        setIntroMessages(prev => [
+        setMessages(prev => [
           ...prev,
           { role: 'assistant', text, id: `info-${index}-${Date.now()}` },
         ])
+        // Scroll to bottom after each message
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 50)
 
         // Clear animating flag after last message
         if (index === infoBlocks.length - 1) {
@@ -145,43 +145,36 @@ export function AiAssistantPanel({
     })
   }, [isActive, buildCourseInfoMessages])
 
-  // Scroll to bottom whenever new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [introMessages, assistantMessages])
-
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!input.trim()) return
-    if (!sessionId) {
-      toast.error('No session is loaded yet.')
-      return
-    }
-    const text = input.trim()
+    const userMsg: ChatMessage = { role: 'user', text: input.trim(), id: `user-${Date.now()}` }
+    setMessages(prev => [...prev, userMsg])
     setInput('')
-    await sendMessage(text)
+
+    // TODO: wire to AI backend — for now simulate assistant response
+    setTimeout(() => {
+      const assistantMsg: ChatMessage = {
+        role: 'assistant',
+        text: 'I received your message. AI integration coming soon.',
+        id: `assistant-${Date.now()}`,
+      }
+      setMessages(prev => [...prev, assistantMsg])
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 50)
+    }, 1000)
   }
-
-  const displayMessages: ChatMessage[] = [
-    ...introMessages,
-    ...assistantMessages.map((m, index) => ({
-      role: m.role,
-      text: m.content,
-      id: `assistant-msg-${index}-${m.role}`,
-    })),
-  ]
-
-  const isBusy = isAnimating || isLoading
 
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Chat messages — scrollable area */}
       <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
-        {displayMessages.length === 0 && !isBusy ? (
+        {messages.length === 0 && !isAnimating ? (
           <p className="text-sm text-gray-400">Ask the AI Assistant anything.</p>
         ) : (
           <div className="space-y-3">
             <AnimatePresence initial={false}>
-              {displayMessages.map(m => (
+              {messages.map(m => (
                 <motion.div
                   key={m.id}
                   initial={{ opacity: 0, y: 60 }}
@@ -197,12 +190,6 @@ export function AiAssistantPanel({
                 </motion.div>
               ))}
             </AnimatePresence>
-            {isLoading && (
-              <div className="flex items-center gap-2 text-xs text-gray-400">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                AI Assistant is thinking…
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -215,7 +202,6 @@ export function AiAssistantPanel({
             placeholder="Ask the AI Assistant..."
             className="min-h-[60px] border-0 bg-transparent pr-10 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
             value={input}
-            disabled={isBusy}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
@@ -226,15 +212,10 @@ export function AiAssistantPanel({
           />
           <Button
             size="icon"
-            className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
             onClick={handleSend}
-            disabled={isBusy || !input.trim() || !sessionId}
           >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>
