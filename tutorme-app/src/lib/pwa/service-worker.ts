@@ -210,7 +210,13 @@ async function handleNavigationRequest(event: any): Promise<Response> {
   const timeoutId = setTimeout(() => controller.abort(), NAVIGATION_TIMEOUT_MS)
 
   try {
-    const response = await fetch(event.request, { signal: controller.signal })
+    // Always bypass the browser/CDN cache for navigation requests so the latest
+    // app shell is loaded after a deploy. Stale HTML is the main reason fixes
+    // appeared "not deployed" even though Cloud Run was on the new revision.
+    const response = await fetch(event.request, {
+      signal: controller.signal,
+      cache: 'no-store',
+    })
     clearTimeout(timeoutId)
     return response
   } catch {
