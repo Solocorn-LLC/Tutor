@@ -1,10 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { toast } from 'sonner'
-import { Video, Square, RotateCcw, Upload, AlertCircle } from 'lucide-react'
+import { Video, Square, RotateCcw, Upload, Download, AlertCircle } from 'lucide-react'
 import { useDemoRecorder, formatRecordingDuration, DEMO_RECORDING_MAX_MS } from './useDemoRecorder'
 import { useDemoVideoUpload, formatDemoVideoBytes } from './useDemoVideoUpload'
 
@@ -20,7 +19,6 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
     recordedBlob,
     recordedMimeType,
     elapsedMs,
-    remainingMs,
     previewStream,
     startRecording,
     stopRecording,
@@ -96,6 +94,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
 
   if (state === 'stopped' && recordedBlob && previewUrl) {
     const size = recordedBlob.size
+    const downloadFilename = `demo-recording-${new Date().toISOString().replace(/[:.]/g, '-')}.${recordedMimeType.includes('mp4') ? 'mp4' : 'webm'}`
     return (
       <div className="flex h-full flex-col gap-4">
         <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4">
@@ -128,6 +127,12 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
               <Upload className="h-3.5 w-3.5" />
               {uploading ? 'Uploading…' : 'Upload recording'}
             </Button>
+            <Button size="sm" variant="outline" asChild className="gap-1">
+              <a href={previewUrl} download={downloadFilename}>
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </a>
+            </Button>
             <Button size="sm" variant="outline" onClick={reset} disabled={uploading}>
               Discard
             </Button>
@@ -150,12 +155,20 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
       <div className="min-h-0 flex-1 rounded-xl border border-slate-200 bg-black p-1">
         <div className="relative h-full w-full overflow-hidden rounded-lg bg-slate-900">
           {isRecording && previewStream ? (
-            <video ref={previewRef} autoPlay muted playsInline className="h-full w-full" />
+            <video
+              ref={previewRef}
+              autoPlay
+              muted
+              playsInline
+              className="h-full w-full scale-x-[-1] object-cover"
+            />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
               <Video className="h-10 w-10" />
               <span className="text-sm">
-                {isRequesting ? 'Waiting for screen share permission…' : 'Preview will appear here'}
+                {isRequesting
+                  ? 'Waiting for camera permission…'
+                  : 'Camera preview will appear here'}
               </span>
             </div>
           )}
@@ -207,8 +220,8 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
       <div className="flex shrink-0 items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
         <span>
-          Recording automatically stops at 10 minutes. Share your screen, a window, or a tab when
-          the browser prompts you.
+          Recording automatically stops at 10 minutes. Allow camera and microphone access when your
+          browser asks.
         </span>
       </div>
     </div>
