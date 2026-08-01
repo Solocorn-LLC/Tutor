@@ -1,10 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { toast } from 'sonner'
-import { Video, Square, RotateCcw, Upload, AlertCircle } from 'lucide-react'
+import { Video, Square, RotateCcw, Upload, Download, AlertCircle } from 'lucide-react'
 import { useDemoRecorder, formatRecordingDuration, DEMO_RECORDING_MAX_MS } from './useDemoRecorder'
 import { useDemoVideoUpload, formatDemoVideoBytes } from './useDemoVideoUpload'
 
@@ -20,7 +19,6 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
     recordedBlob,
     recordedMimeType,
     elapsedMs,
-    remainingMs,
     previewStream,
     startRecording,
     stopRecording,
@@ -96,25 +94,30 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
 
   if (state === 'stopped' && recordedBlob && previewUrl) {
     const size = recordedBlob.size
+    const downloadFilename = `demo-recording-${new Date().toISOString().replace(/[:.]/g, '-')}.${recordedMimeType.includes('mp4') ? 'mp4' : 'webm'}`
     return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
+      <div className="flex h-full flex-col gap-4">
+        <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex shrink-0 items-center gap-2 text-sm font-medium text-slate-900">
             <Video className="h-4 w-4 text-blue-600" />
             Recording complete
           </div>
-          <video src={previewUrl} controls className="max-h-[200px] w-full rounded-lg bg-black" />
-          <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+          <video
+            src={previewUrl}
+            controls
+            className="min-h-0 w-full flex-1 rounded-lg bg-black object-contain"
+          />
+          <div className="mt-2 flex shrink-0 items-center gap-3 text-xs text-slate-500">
             <span>{formatRecordingDuration(elapsedMs)}</span>
             <span>{formatDemoVideoBytes(size)}</span>
           </div>
           {uploading && progress > 0 && (
-            <div className="mt-3 space-y-1">
+            <div className="mt-3 shrink-0 space-y-1">
               <Progress value={progress} className="h-2" />
               <p className="text-xs text-slate-500">Uploading… {progress}%</p>
             </div>
           )}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex shrink-0 gap-2">
             <Button
               size="sm"
               onClick={handleUpload}
@@ -124,13 +127,19 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
               <Upload className="h-3.5 w-3.5" />
               {uploading ? 'Uploading…' : 'Upload recording'}
             </Button>
+            <Button size="sm" variant="outline" asChild className="gap-1">
+              <a href={previewUrl} download={downloadFilename}>
+                <Download className="h-3.5 w-3.5" />
+                Download
+              </a>
+            </Button>
             <Button size="sm" variant="outline" onClick={reset} disabled={uploading}>
               Discard
             </Button>
           </div>
         </div>
 
-        <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+        <div className="flex shrink-0 items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
           <span>Preview the recording, then upload it to assign it to the demo class.</span>
         </div>
@@ -142,16 +151,24 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
   const isRequesting = state === 'requesting'
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-black p-1">
-        <div className="relative aspect-video max-h-[320px] w-full overflow-hidden rounded-lg bg-slate-900">
+    <div className="flex h-full flex-col gap-4">
+      <div className="min-h-0 flex-1 rounded-xl border border-slate-200 bg-black p-1">
+        <div className="relative h-full w-full overflow-hidden rounded-lg bg-slate-900">
           {isRecording && previewStream ? (
-            <video ref={previewRef} autoPlay muted playsInline className="h-full w-full" />
+            <video
+              ref={previewRef}
+              autoPlay
+              muted
+              playsInline
+              className="h-full w-full scale-x-[-1] object-cover"
+            />
           ) : (
             <div className="flex h-full flex-col items-center justify-center gap-2 text-slate-400">
               <Video className="h-10 w-10" />
               <span className="text-sm">
-                {isRequesting ? 'Waiting for screen share permission…' : 'Preview will appear here'}
+                {isRequesting
+                  ? 'Waiting for camera permission…'
+                  : 'Camera preview will appear here'}
               </span>
             </div>
           )}
@@ -175,7 +192,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex shrink-0 gap-2">
         {!isRecording ? (
           <Button
             size="sm"
@@ -200,11 +217,11 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
         )}
       </div>
 
-      <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+      <div className="flex shrink-0 items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
         <span>
-          Recording automatically stops at 10 minutes. Share your screen, a window, or a tab when
-          the browser prompts you.
+          Recording automatically stops at 10 minutes. Allow camera and microphone access when your
+          browser asks.
         </span>
       </div>
     </div>
