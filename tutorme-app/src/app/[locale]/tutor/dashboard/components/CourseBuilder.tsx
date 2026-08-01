@@ -5044,9 +5044,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return
       }
 
-      // No lessons, no tasks, no assessments — create a default task and persist it.
+      // No lessons, no tasks, no assessments — create a default task, fully load
+      // it into the builder, and persist it so there is never an empty state.
       const createdTask = autoCreateTask()
       if (createdTask) {
+        loadTaskIntoBuilder(createdTask)
+        setSelectedItem({ type: 'task', id: createdTask.id })
         window.setTimeout(() => {
           doSave(true)
         }, 0)
@@ -5063,6 +5066,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       loadTaskIntoBuilder,
       loadAssessmentIntoBuilder,
       setMainBuilderTab,
+      setSelectedItem,
       ensureSectionExpanded,
       autoCreateTask,
       doSave,
@@ -9564,7 +9568,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             {mainTab === 'live' &&
                                                               insightsProps?.onDeployTask && (
                                                                 <DropdownMenuItem
-                                                                  className="font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] focus:text-emerald-400 focus-visible:bg-white/10"
+                                                                  className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                   onClick={e => {
                                                                     e.stopPropagation()
                                                                     const dmiVersion =
@@ -10311,7 +10315,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           {mainTab === 'live' &&
                                                             insightsProps?.onDeployTask && (
                                                               <DropdownMenuItem
-                                                                className="font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] focus:text-emerald-400 focus-visible:bg-white/10"
+                                                                className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                 onClick={e => {
                                                                   e.stopPropagation()
                                                                   const dmiVersion =
@@ -10646,7 +10650,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 {mainTab === 'live' &&
                                                                   insightsProps?.onDeployTask && (
                                                                     <DropdownMenuItem
-                                                                      className="font-bold text-emerald-400 drop-shadow-[0_0_6px_rgba(52,211,153,0.6)] focus:text-emerald-400 focus-visible:bg-white/10"
+                                                                      className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                       onClick={e => {
                                                                         e.stopPropagation()
                                                                         const dmiVersion =
@@ -14358,59 +14362,47 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         {/* Move task/assessment to another lesson */}
         <Dialog open={!!moveDialog} onOpenChange={open => !open && setMoveDialog(null)}>
           <DialogContent
-            className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-slate-200 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl sm:max-w-md"
-            aria-describedby={undefined}
+            theme="metallic"
+            className="border-white/10 bg-[rgba(31,41,51,0.60)] text-white shadow-2xl backdrop-blur-xl sm:max-w-md"
           >
-            <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
-            <div className="relative z-10 flex flex-col overflow-hidden">
-              <DialogHeader className="shrink-0 border-b-0 pb-4 pt-4 text-center">
-                <DialogTitle className="mx-auto text-center text-white">
-                  Move {moveDialog?.itemType === 'task' ? 'task' : 'assessment'} to lesson
-                </DialogTitle>
-              </DialogHeader>
-              <div className="flex-1 overflow-y-auto px-6 pb-4">
-                <p className="mb-4 text-center text-sm text-white/80">
-                  Choose a lesson to move “{moveDialog?.itemTitle}” to, or create a new one. If the
-                  lesson already has an item with the same name, this one gets a “new” suffix.
-                </p>
-                <Select value={moveTarget} onValueChange={setMoveTarget}>
-                  <SelectTrigger className="h-[42px] w-full rounded-lg border border-slate-700/25 bg-white/30 text-sm text-white shadow-sm backdrop-blur-sm transition-all duration-200 hover:border-slate-700/50 hover:bg-white/60 hover:shadow-md focus:outline-none focus-visible:!shadow-none focus-visible:outline-none">
-                    <SelectValue placeholder="Select a lesson…" />
-                  </SelectTrigger>
-                  <SelectContent className="w-[var(--radix-select-trigger-width)] rounded-lg border border-slate-700/25 bg-white/30 p-1.5 shadow-lg backdrop-blur-xl">
-                    {nodes
-                      .filter(n => n.id !== moveDialog?.sourceNodeId)
-                      .map(n => (
-                        <SelectItem
-                          key={n.id}
-                          value={n.id}
-                          className="mx-1.5 rounded-md text-white focus-visible:bg-transparent"
-                        >
-                          {n.title}
-                        </SelectItem>
-                      ))}
-                    <SelectItem
-                      value="__new__"
-                      className="mx-1.5 rounded-md text-white focus-visible:bg-transparent"
-                    >
-                      ＋ Create a new lesson
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter className="shrink-0 gap-3 border-white/20 px-6 pb-4">
-                <Button variant="modal-secondary-dark" onClick={() => setMoveDialog(null)}>
-                  Cancel
-                </Button>
-                <Button
-                  variant="modal-primary-dark"
-                  disabled={!moveTarget}
-                  onClick={confirmMoveDialog}
-                >
-                  Move
-                </Button>
-              </DialogFooter>
+            <DialogHeader>
+              <DialogTitle className="text-white">
+                Move {moveDialog?.itemType === 'task' ? 'task' : 'assessment'} to lesson
+              </DialogTitle>
+              <DialogDescription className="text-white/90">
+                Choose a lesson to move “{moveDialog?.itemTitle}” to, or create a new one. If the
+                lesson already has an item with the same name, this one gets a “new” suffix.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-2">
+              <Select value={moveTarget} onValueChange={setMoveTarget}>
+                <SelectTrigger className="w-full rounded-[10px] border-gray-200 bg-white text-sm font-medium text-gray-900">
+                  <SelectValue placeholder="Select a lesson…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {nodes
+                    .filter(n => n.id !== moveDialog?.sourceNodeId)
+                    .map(n => (
+                      <SelectItem key={n.id} value={n.id}>
+                        {n.title}
+                      </SelectItem>
+                    ))}
+                  <SelectItem value="__new__">＋ Create a new lesson</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
+            <DialogFooter>
+              <Button variant="modal-secondary-dark" onClick={() => setMoveDialog(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="modal-primary-dark"
+                disabled={!moveTarget}
+                onClick={confirmMoveDialog}
+              >
+                Move
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

@@ -28,8 +28,7 @@ export function useDemoRecorder(): UseDemoRecorderReturn {
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const displayStreamRef = useRef<MediaStream | null>(null)
-  const micStreamRef = useRef<MediaStream | null>(null)
+  const cameraStreamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
   const startTimeRef = useRef<number>(0)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -53,13 +52,9 @@ export function useDemoRecorder(): UseDemoRecorderReturn {
       }
       mediaRecorderRef.current = null
     }
-    if (displayStreamRef.current) {
-      displayStreamRef.current.getTracks().forEach(track => track.stop())
-      displayStreamRef.current = null
-    }
-    if (micStreamRef.current) {
-      micStreamRef.current.getTracks().forEach(track => track.stop())
-      micStreamRef.current = null
+    if (cameraStreamRef.current) {
+      cameraStreamRef.current.getTracks().forEach(track => track.stop())
+      cameraStreamRef.current = null
     }
     chunksRef.current = []
   }, [])
@@ -91,34 +86,20 @@ export function useDemoRecorder(): UseDemoRecorderReturn {
     setState('requesting')
 
     try {
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: 30 },
+      const cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'user',
+          frameRate: 30,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
         audio: true,
       })
-      displayStreamRef.current = displayStream
-
-      // Also try to capture microphone audio. If it fails, continue with display audio only.
-      let micStream: MediaStream | null = null
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
-        micStreamRef.current = micStream
-      } catch {
-        micStream = null
-      }
-
-      const combinedTracks: MediaStreamTrack[] = [
-        ...displayStream.getVideoTracks(),
-        ...displayStream.getAudioTracks(),
-      ]
-      if (micStream) {
-        combinedTracks.push(...micStream.getAudioTracks())
-      }
-
-      const combinedStream = new MediaStream(combinedTracks)
+      cameraStreamRef.current = cameraStream
 
       const mimeType = selectSupportedMimeType()
       setRecordedMimeType(mimeType)
-      const recorder = new MediaRecorder(combinedStream, { mimeType })
+      const recorder = new MediaRecorder(cameraStream, { mimeType })
       mediaRecorderRef.current = recorder
       chunksRef.current = []
 
@@ -146,7 +127,7 @@ export function useDemoRecorder(): UseDemoRecorderReturn {
       }
 
       recorder.start(1000) // collect 1-second chunks
-      setPreviewStream(combinedStream)
+      setPreviewStream(cameraStream)
       startTimeRef.current = Date.now()
       setState('recording')
 
@@ -162,16 +143,17 @@ export function useDemoRecorder(): UseDemoRecorderReturn {
       stopTimeoutRef.current = setTimeout(() => {
         stopRecording()
       }, DEMO_RECORDING_MAX_MS + 1000)
-    } catch (err: any) {
+    } catch (err: unknown) {
       cleanup()
       if (!isMountedRef.current) return
       let message = 'Could not start recording.'
-      if (err?.name === 'NotAllowedError') {
-        message = 'Permission denied. Please allow screen recording and try again.'
-      } else if (err?.name === 'NotFoundError') {
-        message = 'No screen or audio source found.'
-      } else if (err?.message) {
-        message = err.message
+      const error = err instanceof Error ? err : null
+      if ((error as Error | null)?.name === 'NotAllowedError') {
+        message = 'Permission denied. Please allow camera and microphone access and try again.'
+      } else if ((error as Error | null)?.name === 'NotFoundError') {
+        message = 'No camera or microphone found.'
+      } else if (error?.message) {
+        message = error.message
       }
       setError(message)
       setState('error')
