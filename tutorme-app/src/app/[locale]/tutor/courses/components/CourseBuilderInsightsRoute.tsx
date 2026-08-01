@@ -172,6 +172,7 @@ interface TutorControlsPanelProps {
   onDelete: () => void
   onGoLive: () => void
   onRecordDemo: () => void
+  onLaunchVideo: () => void
   onSync: () => void
   onCreateCourse?: () => void
   onEditCourse?: () => void
@@ -199,6 +200,7 @@ function TutorControlsPanel({
   onDelete,
   onGoLive,
   onRecordDemo,
+  onLaunchVideo,
   onSync,
   onCreateCourse,
   onEditCourse,
@@ -287,13 +289,13 @@ function TutorControlsPanel({
                 >
                   <TabsList
                     data-testid="builder-mode-tabs"
-                    className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white/10 p-1"
+                    className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
                   >
                     <TabsTrigger
                       value="build"
                       className={cn(
                         modeButtonBase,
-                        'text-white hover:bg-white/5 hover:text-white',
+                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                         'data-[state=active]:bg-[#2563EB] data-[state=active]:text-white data-[state=active]:shadow-sm'
                       )}
                     >
@@ -304,7 +306,7 @@ function TutorControlsPanel({
                       value="test"
                       className={cn(
                         modeButtonBase,
-                        'text-white hover:bg-white/5 hover:text-white',
+                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                         'data-[state=active]:bg-[#7C3AED] data-[state=active]:text-white data-[state=active]:shadow-sm'
                       )}
                     >
@@ -315,7 +317,7 @@ function TutorControlsPanel({
                       value="classroom"
                       className={cn(
                         modeButtonBase,
-                        'text-white hover:bg-white/5 hover:text-white',
+                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
                         'data-[state=active]:bg-[#F97316] data-[state=active]:text-white data-[state=active]:shadow-sm'
                       )}
                     >
@@ -376,7 +378,7 @@ function TutorControlsPanel({
                         onClick={onGoLive}
                         className={cn(
                           actionButtonBase,
-                          'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700'
+                          'bg-white text-emerald-600 hover:bg-emerald-500 hover:text-white active:bg-emerald-600'
                         )}
                       >
                         <VideoIcon className="h-4 w-4" />
@@ -385,16 +387,17 @@ function TutorControlsPanel({
 
                       <button
                         type="button"
-                        // Record Demo opens the demo video recorder/uploader.
+                        // Video launches the live video connection during a session; in a demo
+                        // session it reverts to the demo recorder/uploader label and action.
                         disabled={panelDisabled || !hasSession}
-                        onClick={onRecordDemo}
+                        onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
                         className={cn(
                           actionButtonBase,
-                          'bg-pink-500 hover:bg-pink-600 active:bg-pink-700'
+                          'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200'
                         )}
                       >
                         <VideoIcon className="h-4 w-4" />
-                        Record Demo
+                        {isDemoSession ? 'Record Demo' : 'Video'}
                       </button>
 
                       <button
@@ -403,7 +406,7 @@ function TutorControlsPanel({
                         onClick={onCreateCourse}
                         className={cn(
                           actionButtonBase,
-                          'group bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
+                          'group bg-white text-blue-600 hover:bg-blue-600 hover:text-white active:bg-blue-700'
                         )}
                       >
                         <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
@@ -667,11 +670,27 @@ function CourseBuilderInsightsRouteInner({
       if (insightsProps.onStartSession) {
         insightsProps.onStartSession()
       } else {
-        // Fallback if not provided from parent
+        // Fallback if not provided from the parent
         setGoLiveDialogOpen(true)
       }
     } else {
       setGoLiveDialogOpen(true)
+    }
+  }
+
+  const handleLaunchVideo = () => {
+    // In a demo session the button reverts to the demo recorder.
+    if (isDemoSession) {
+      setIsRecordDemoOpen(true)
+      return
+    }
+    // During a live session, launch the live video connection.
+    if (insightsProps.sessionId) {
+      if (insightsProps.onStartSession) {
+        insightsProps.onStartSession()
+      } else {
+        model.router.push(`/tutor/classroom?sessionId=${insightsProps.sessionId}`)
+      }
     }
   }
 
@@ -1134,6 +1153,7 @@ function CourseBuilderInsightsRouteInner({
             }
             onDelete={() => onDeleteCourse?.()}
             onGoLive={handleStartSessionClick}
+            onLaunchVideo={handleLaunchVideo}
             onRecordDemo={() => setIsRecordDemoOpen(true)}
             onSync={() => {
               const ref = model.courseBuilderRef.current as CourseBuilderRef | null
