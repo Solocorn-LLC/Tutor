@@ -149,18 +149,15 @@ class GlobalMockMediaRecorder {
 
 describe('useDemoRecorder', () => {
   const originalMediaDevices = navigator.mediaDevices
-  let mockDisplayStream: MediaStream
-  let mockMicStream: MediaStream
+  let mockCameraStream: MediaStream
 
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
-    mockDisplayStream = createMockMediaStream()
-    mockMicStream = createMockMediaStream()
+    mockCameraStream = createMockMediaStream()
 
     // @ts-expect-error - jsdom does not define mediaDevices
     navigator.mediaDevices = {
-      getDisplayMedia: vi.fn(async () => mockDisplayStream),
-      getUserMedia: vi.fn(async () => mockMicStream),
+      getUserMedia: vi.fn(async () => mockCameraStream),
     }
 
     // @ts-expect-error - jsdom does not define MediaStream
@@ -228,8 +225,8 @@ describe('useDemoRecorder', () => {
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(DEMO_RECORDING_MAX_MS - 1000)
   })
 
-  it('shows a permission-denied error when getDisplayMedia rejects', async () => {
-    navigator.mediaDevices.getDisplayMedia = vi.fn(async () => {
+  it('shows a permission-denied error when getUserMedia rejects', async () => {
+    navigator.mediaDevices.getUserMedia = vi.fn(async () => {
       const err = new Error('Permission denied')
       err.name = 'NotAllowedError'
       throw err
@@ -245,9 +242,11 @@ describe('useDemoRecorder', () => {
     expect(result.current.error).toMatch(/Permission denied/)
   })
 
-  it('continues without microphone if getUserMedia fails', async () => {
+  it('shows an error when camera/mic access is not available', async () => {
     navigator.mediaDevices.getUserMedia = vi.fn(async () => {
-      throw new Error('mic denied')
+      const err = new Error('No camera found')
+      err.name = 'NotFoundError'
+      throw err
     })
 
     const { result } = renderHook(() => useDemoRecorder())
@@ -256,7 +255,7 @@ describe('useDemoRecorder', () => {
       await result.current.startRecording()
     })
 
-    expect(result.current.state).toBe('recording')
+    expect(result.current.state).toBe('error')
   })
 
   it('reset returns to idle and clears blob', async () => {
