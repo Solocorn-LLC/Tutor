@@ -14363,7 +14363,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         <Dialog open={!!moveDialog} onOpenChange={open => !open && setMoveDialog(null)}>
           <DialogContent
             theme="metallic"
-            className="sm:max-w-md border-white/10 bg-[rgba(31,41,51,0.60)] text-white shadow-2xl backdrop-blur-xl"
+            className="border-white/10 bg-[rgba(31,41,51,0.60)] text-white shadow-2xl backdrop-blur-xl sm:max-w-md"
           >
             <DialogHeader>
               <DialogTitle className="text-white">

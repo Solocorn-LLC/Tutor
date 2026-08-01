@@ -160,7 +160,11 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
               </div>
             )}
 
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden">
+            <Tabs
+              value={activeTab}
+              onValueChange={handleTabChange}
+              className="flex flex-1 flex-col overflow-hidden"
+            >
               <TabsList className="relative grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-700 p-1">
                 <div
                   className={cn(
@@ -183,16 +187,20 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
                   <Video className="h-3.5 w-3.5" /> Record
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="upload" className="flex-1 min-h-0 overflow-y-auto pt-2">
+              <TabsContent value="upload" className="min-h-0 flex-1 overflow-y-auto pt-2">
                 <DemoVideoUploader sessionId={sessionId} onUploaded={fetchVideo} />
               </TabsContent>
-              <TabsContent value="record" className="flex-1 min-h-0 overflow-y-auto pt-2">
+              <TabsContent value="record" className="min-h-0 flex-1 overflow-y-auto pt-2">
                 <DemoVideoRecorder sessionId={sessionId} onUploaded={fetchVideo} />
               </TabsContent>
             </Tabs>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden">
+          <Tabs
+            value={activeTab}
+            onValueChange={handleTabChange}
+            className="flex flex-1 flex-col overflow-hidden"
+          >
             <TabsList className="relative grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-700 p-1">
               <div
                 className={cn(
@@ -215,10 +223,10 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
                 <Video className="h-3.5 w-3.5" /> Record
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="upload" className="flex-1 min-h-0 overflow-y-auto pt-2">
+            <TabsContent value="upload" className="min-h-0 flex-1 overflow-y-auto pt-2">
               <DemoVideoUploader sessionId={sessionId} onUploaded={fetchVideo} />
             </TabsContent>
-            <TabsContent value="record" className="flex-1 min-h-0 overflow-y-auto pt-2">
+            <TabsContent value="record" className="min-h-0 flex-1 overflow-y-auto pt-2">
               <DemoVideoRecorder sessionId={sessionId} onUploaded={fetchVideo} />
             </TabsContent>
           </Tabs>
