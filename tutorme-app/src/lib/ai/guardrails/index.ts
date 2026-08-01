@@ -42,6 +42,13 @@ export {
 export { stripEvaluationLayer, findEvaluationLeaks } from './serialize'
 
 export {
+  ANALYTICS_ASSISTANT_GUARDRAILS,
+  ANALYTICS_ASSISTANT_SYSTEM_PROMPT,
+  validateAnalyticsAssistantOutput,
+  runAnalyticsGuardrails,
+} from './analytics-assistant'
+
+export {
   checkCurriculumMatch,
   detectExamBoards,
   normalizeBoard,
