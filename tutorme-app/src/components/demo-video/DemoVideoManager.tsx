@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { DemoVideoUploader } from './DemoVideoUploader'
@@ -95,18 +95,12 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
   }
 
   return (
-    <Card className="border-slate-200 shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Video className="h-5 w-5 text-blue-600" />
-          Demo Class Video
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+    <Card className="flex h-full flex-col border-slate-200 shadow-sm">
+      <CardContent className="flex flex-1 flex-col p-4">
         {loading ? (
           <div className="py-6 text-center text-sm text-slate-500">Loading…</div>
         ) : video ? (
-          <div className="space-y-4">
+          <div className="flex flex-1 flex-col gap-4">
             <div className="flex items-start gap-3 rounded-xl bg-blue-50 p-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white">
                 <Film className="h-5 w-5 text-blue-600" />
@@ -166,8 +160,8 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
               </div>
             )}
 
-            <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="relative grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden">
+              <TabsList className="relative grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-700 p-1">
                 <div
                   className={cn(
                     'absolute bottom-1 top-1 rounded-lg bg-white shadow-sm transition-all duration-300 ease-out',
@@ -178,28 +172,28 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
                 />
                 <TabsTrigger
                   value="upload"
-                  className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-slate-600 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=inactive]:hover:bg-transparent"
+                  className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-white/90 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-slate-700 data-[state=inactive]:hover:bg-transparent"
                 >
                   <Upload className="h-3.5 w-3.5" /> Replace
                 </TabsTrigger>
                 <TabsTrigger
                   value="record"
-                  className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-slate-600 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=inactive]:hover:bg-transparent"
+                  className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-white/90 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-slate-700 data-[state=inactive]:hover:bg-transparent"
                 >
                   <Video className="h-3.5 w-3.5" /> Record
                 </TabsTrigger>
               </TabsList>
-              <TabsContent value="upload" className="h-[360px] overflow-y-auto pt-2">
+              <TabsContent value="upload" className="flex-1 min-h-0 overflow-y-auto pt-2">
                 <DemoVideoUploader sessionId={sessionId} onUploaded={fetchVideo} />
               </TabsContent>
-              <TabsContent value="record" className="h-[360px] overflow-y-auto pt-2">
+              <TabsContent value="record" className="flex-1 min-h-0 overflow-y-auto pt-2">
                 <DemoVideoRecorder sessionId={sessionId} onUploaded={fetchVideo} />
               </TabsContent>
             </Tabs>
           </div>
         ) : (
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsList className="relative grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-1 flex-col overflow-hidden">
+            <TabsList className="relative grid w-full grid-cols-2 gap-1 rounded-xl bg-slate-700 p-1">
               <div
                 className={cn(
                   'absolute bottom-1 top-1 rounded-lg bg-white shadow-sm transition-all duration-300 ease-out',
@@ -210,21 +204,21 @@ export function DemoVideoManager({ sessionId, defaultTab = 'upload' }: DemoVideo
               />
               <TabsTrigger
                 value="upload"
-                className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-slate-600 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=inactive]:hover:bg-transparent"
+                className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-white/90 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-slate-700 data-[state=inactive]:hover:bg-transparent"
               >
                 <Upload className="h-3.5 w-3.5" /> Upload
               </TabsTrigger>
               <TabsTrigger
                 value="record"
-                className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-slate-600 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-blue-600 data-[state=inactive]:hover:bg-transparent"
+                className="relative z-10 gap-1 rounded-lg bg-transparent text-xs font-medium text-white/90 transition-colors hover:bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-slate-700 data-[state=inactive]:hover:bg-transparent"
               >
                 <Video className="h-3.5 w-3.5" /> Record
               </TabsTrigger>
             </TabsList>
-            <TabsContent value="upload" className="h-[360px] overflow-y-auto pt-2">
+            <TabsContent value="upload" className="flex-1 min-h-0 overflow-y-auto pt-2">
               <DemoVideoUploader sessionId={sessionId} onUploaded={fetchVideo} />
             </TabsContent>
-            <TabsContent value="record" className="h-[360px] overflow-y-auto pt-2">
+            <TabsContent value="record" className="flex-1 min-h-0 overflow-y-auto pt-2">
               <DemoVideoRecorder sessionId={sessionId} onUploaded={fetchVideo} />
             </TabsContent>
           </Tabs>

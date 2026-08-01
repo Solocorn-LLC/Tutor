@@ -97,24 +97,24 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
   if (state === 'stopped' && recordedBlob && previewUrl) {
     const size = recordedBlob.size
     return (
-      <div className="space-y-4">
-        <div className="rounded-xl border border-slate-200 bg-white p-4">
-          <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
+      <div className="flex h-full flex-col gap-4">
+        <div className="flex flex-1 min-h-0 flex-col rounded-xl border border-slate-200 bg-white p-4">
+          <div className="mb-3 flex shrink-0 items-center gap-2 text-sm font-medium text-slate-900">
             <Video className="h-4 w-4 text-blue-600" />
             Recording complete
           </div>
-          <video src={previewUrl} controls className="max-h-[200px] w-full rounded-lg bg-black" />
-          <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+          <video src={previewUrl} controls className="min-h-0 flex-1 w-full rounded-lg bg-black object-contain" />
+          <div className="mt-2 flex shrink-0 items-center gap-3 text-xs text-slate-500">
             <span>{formatRecordingDuration(elapsedMs)}</span>
             <span>{formatDemoVideoBytes(size)}</span>
           </div>
           {uploading && progress > 0 && (
-            <div className="mt-3 space-y-1">
+            <div className="mt-3 shrink-0 space-y-1">
               <Progress value={progress} className="h-2" />
               <p className="text-xs text-slate-500">Uploading… {progress}%</p>
             </div>
           )}
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 flex shrink-0 gap-2">
             <Button
               size="sm"
               onClick={handleUpload}
@@ -130,7 +130,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
           </div>
         </div>
 
-        <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+        <div className="shrink-0 flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
           <span>Preview the recording, then upload it to assign it to the demo class.</span>
         </div>
@@ -142,9 +142,9 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
   const isRequesting = state === 'requesting'
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-slate-200 bg-black p-1">
-        <div className="relative aspect-video max-h-[270px] w-full overflow-hidden rounded-lg bg-slate-900">
+    <div className="flex h-full flex-col gap-4">
+      <div className="flex-1 min-h-0 rounded-xl border border-slate-200 bg-black p-1">
+        <div className="relative h-full w-full overflow-hidden rounded-lg bg-slate-900">
           {isRecording && previewStream ? (
             <video ref={previewRef} autoPlay muted playsInline className="h-full w-full" />
           ) : (
@@ -175,7 +175,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="shrink-0 flex gap-2">
         {!isRecording ? (
           <Button
             size="sm"
@@ -200,7 +200,7 @@ export function DemoVideoRecorder({ sessionId, onUploaded }: DemoVideoRecorderPr
         )}
       </div>
 
-      <div className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+      <div className="shrink-0 flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
         <span>
           Recording automatically stops at 10 minutes. Share your screen, a window, or a tab when
