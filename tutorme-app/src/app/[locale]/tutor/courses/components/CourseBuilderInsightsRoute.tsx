@@ -1172,7 +1172,7 @@ function CourseBuilderInsightsRouteInner({
               !!(
                 courseId &&
                 courseId !== 'insights-draft' &&
-                effectiveSaveMode === 'draft' &&
+                effectiveSaveMode !== 'draft' &&
                 !insightsProps.sessionId
               )
             }
