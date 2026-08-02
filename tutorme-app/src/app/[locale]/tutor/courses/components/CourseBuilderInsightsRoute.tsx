@@ -907,7 +907,7 @@ function CourseBuilderInsightsRouteInner({
                           onClick={() => setCourseSelectorOpen(true)}
                           disabled={hasNoCourses}
                           className={cn(
-                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:bg-slate-100 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:bg-slate-100 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >
