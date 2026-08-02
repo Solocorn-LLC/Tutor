@@ -12,6 +12,7 @@ import { conversation, directMessage, user, profile, notification } from '@/lib/
 import { or, eq, and, desc, ne, lt, inArray } from 'drizzle-orm'
 import { getInboxPathByRole, isConversationAllowedByRoles } from '@/lib/messaging/permissions'
 import { recordMentions } from '@/lib/mentions/parse-mentions'
+import { getIO } from '@/lib/socket-server-enhanced'
 
 type AppRole = 'STUDENT' | 'TUTOR' | 'PARENT' | 'ADMIN'
 
@@ -255,6 +256,17 @@ export const POST = withAuth(async (req: NextRequest, session, context) => {
             : null,
         }
       : null
+
+    // Broadcast the new message in real time to anyone viewing the conversation
+    // or any tab of the recipient.
+    const io = getIO()
+    if (io && messageResponse) {
+      io.to(`dm:${id}`).emit('dm:message', { conversationId: id, message: messageResponse })
+      io.to(`user:${recipientId}`).emit('dm:message', {
+        conversationId: id,
+        message: messageResponse,
+      })
+    }
 
     return NextResponse.json({ message: messageResponse }, { status: 201 })
   } catch (error) {

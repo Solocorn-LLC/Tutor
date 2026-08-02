@@ -9,6 +9,11 @@ import Redis from 'ioredis'
 import * as Sentry from '@sentry/nextjs'
 import { eq, and, inArray, desc, sql, ne } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
+import {
+  canSendDirectMessage,
+  isConversationAllowedByRoles,
+  type AppRole,
+} from '@/lib/messaging/permissions'
 import { authorizeSessionStudent } from '@/lib/live/session-student-auth'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
@@ -25,6 +30,9 @@ import {
   builderTaskDmi,
   taskSubmission,
   course,
+  conversation,
+  directMessage,
+  user,
 } from '@/lib/db/schema'
 import { autoGradeDmi } from '@/lib/grading/auto-grade'
 import { normalizePciSpec } from '@/lib/assessment/pci-spec'
@@ -993,6 +1001,146 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
 
       io.to(targetRoomId).emit('task:chat_message', message)
+    })
+
+    // --- Direct messaging (real-time 1-to-1 chat) ---
+    socket.on('dm:join', async (data: { conversationId: string }) => {
+      const conversationId = data?.conversationId
+      if (!conversationId || typeof conversationId !== 'string') return
+      const userId = socket.data.userId
+      if (!userId) return
+
+      try {
+        const [conv] = await drizzleDb
+          .select({
+            conversationId: conversation.conversationId,
+            participant1Id: conversation.participant1Id,
+            participant2Id: conversation.participant2Id,
+          })
+          .from(conversation)
+          .where(eq(conversation.conversationId, conversationId))
+          .limit(1)
+        if (!conv) return
+        if (conv.participant1Id !== userId && conv.participant2Id !== userId) return
+
+        const p1Role =
+          (
+            await drizzleDb
+              .select({ role: user.role })
+              .from(user)
+              .where(eq(user.userId, conv.participant1Id))
+              .limit(1)
+          )[0]?.role ?? 'STUDENT'
+        const p2Role =
+          (
+            await drizzleDb
+              .select({ role: user.role })
+              .from(user)
+              .where(eq(user.userId, conv.participant2Id))
+              .limit(1)
+          )[0]?.role ?? 'STUDENT'
+        if (!isConversationAllowedByRoles(p1Role as AppRole, p2Role as AppRole)) return
+
+        socket.join(`dm:${conversationId}`)
+        let dmRoom = directMessageRooms.get(conversationId)
+        if (!dmRoom) {
+          dmRoom = {
+            conversationId,
+            participant1Id: conv.participant1Id,
+            participant2Id: conv.participant2Id,
+            typingUsers: new Set<string>(),
+            lastActivity: Date.now(),
+            createdAt: Date.now(),
+          }
+          directMessageRooms.set(conversationId, dmRoom)
+        } else {
+          dmRoom.lastActivity = Date.now()
+        }
+        socket.emit('dm:joined', { conversationId })
+      } catch (err) {
+        console.error('[dm:join] error:', err)
+      }
+    })
+
+    socket.on('dm:leave', (data: { conversationId: string }) => {
+      const conversationId = data?.conversationId
+      if (!conversationId || typeof conversationId !== 'string') return
+      socket.leave(`dm:${conversationId}`)
+      const dmRoom = directMessageRooms.get(conversationId)
+      if (dmRoom) {
+        dmRoom.typingUsers.delete(socket.data.userId)
+        dmRoom.lastActivity = Date.now()
+      }
+    })
+
+    socket.on('dm:typing', async (data: { conversationId: string; isTyping: boolean }) => {
+      const conversationId = data?.conversationId
+      const isTyping = !!data?.isTyping
+      if (!conversationId || typeof conversationId !== 'string') return
+      const userId = socket.data.userId
+      if (!userId) return
+
+      try {
+        const [conv] = await drizzleDb
+          .select({
+            participant1Id: conversation.participant1Id,
+            participant2Id: conversation.participant2Id,
+          })
+          .from(conversation)
+          .where(eq(conversation.conversationId, conversationId))
+          .limit(1)
+        if (!conv) return
+        if (conv.participant1Id !== userId && conv.participant2Id !== userId) return
+
+        const dmRoom = directMessageRooms.get(conversationId)
+        if (dmRoom) {
+          if (isTyping) dmRoom.typingUsers.add(userId)
+          else dmRoom.typingUsers.delete(userId)
+          dmRoom.lastActivity = Date.now()
+        }
+
+        const recipientId =
+          conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id
+        emitToUser(recipientId, 'dm:typing', { conversationId, userId, isTyping })
+      } catch (err) {
+        console.error('[dm:typing] error:', err)
+      }
+    })
+
+    socket.on('dm:read', async (data: { conversationId: string }) => {
+      const conversationId = data?.conversationId
+      if (!conversationId || typeof conversationId !== 'string') return
+      const userId = socket.data.userId
+      if (!userId) return
+
+      try {
+        const [conv] = await drizzleDb
+          .select({
+            participant1Id: conversation.participant1Id,
+            participant2Id: conversation.participant2Id,
+          })
+          .from(conversation)
+          .where(eq(conversation.conversationId, conversationId))
+          .limit(1)
+        if (!conv) return
+        if (conv.participant1Id !== userId && conv.participant2Id !== userId) return
+
+        await drizzleDb
+          .update(directMessage)
+          .set({ read: true, readAt: new Date() })
+          .where(
+            and(
+              eq(directMessage.conversationId, conversationId),
+              ne(directMessage.senderId, userId),
+              eq(directMessage.read, false)
+            )
+          )
+
+        const senderId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id
+        emitToUser(senderId, 'dm:read', { conversationId, readerId: userId })
+      } catch (err) {
+        console.error('[dm:read] error:', err)
+      }
     })
 
     // --- Live poll (ephemeral, one active per room) ---
