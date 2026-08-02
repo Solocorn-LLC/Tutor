@@ -212,9 +212,14 @@ export function CourseSelectorDialog({
     if (!active) return
     const rect = active.getBoundingClientRect()
     const listRect = list.getBoundingClientRect()
-    setSelectorPill({
-      left: rect.left - listRect.left,
-      width: rect.width,
+    const left = rect.left - listRect.left
+    const width = rect.width
+    if (width <= 0) return
+    setSelectorPill(prev => {
+      if (Math.abs(prev.left - left) < 0.5 && Math.abs(prev.width - width) < 0.5) {
+        return prev
+      }
+      return { left, width }
     })
   }, [])
 
@@ -228,6 +233,21 @@ export function CourseSelectorDialog({
     const id = setTimeout(updateSelectorPill, 100)
     return () => clearTimeout(id)
   }, [updateSelectorPill])
+
+  // The dialog is mounted with a CSS transition; the active button rect may not
+  // be ready on the first paint. Retry measuring for a short window after the
+  // dialog opens so the white sliding pill (and visible active text) is rendered.
+  useEffect(() => {
+    if (!open) return
+    let attempts = 0
+    const maxAttempts = 15
+    const timer = setInterval(() => {
+      updateSelectorPill()
+      attempts++
+      if (attempts >= maxAttempts) clearInterval(timer)
+    }, 100)
+    return () => clearInterval(timer)
+  }, [open, updateSelectorPill])
 
   useEffect(() => {
     const handleResize = () => updateSelectorPill()
