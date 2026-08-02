@@ -22,6 +22,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
   const initialTab = searchParams?.get('tab') === 'notifications' ? 'notifications' : 'messaging'
   const [activeTab, setActiveTab] = useState(initialTab)
   const [activeSection, setActiveSection] = useState<CommSection>('chats')
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0)
 
   // Notifications state
   const [notifications, setNotifications] = useState<AppNotification[]>([])
@@ -197,7 +198,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
             >
               <MessageSquare className="h-4 w-4 text-white/80" />
               <span className="text-xs font-medium text-white/80">New Messages</span>
-              <span className="text-sm font-bold text-white">0</span>
+              <span className="text-sm font-bold text-white">{unreadMessageCount}</span>
             </div>
             <div
               className={cn(
@@ -234,7 +235,11 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               fillHeight
               className="flex-1"
             >
-              <MessagingPanel activeSection={activeSection} onSectionChange={setActiveSection} />
+              <MessagingPanel
+                activeSection={activeSection}
+                onSectionChange={setActiveSection}
+                onUnreadCountChange={setUnreadMessageCount}
+              />
             </CollapsibleCard>
           </TabsContent>
 

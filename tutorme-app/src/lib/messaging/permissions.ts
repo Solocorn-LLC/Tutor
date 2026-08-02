@@ -1,4 +1,4 @@
-type AppRole = 'STUDENT' | 'TUTOR' | 'PARENT' | 'ADMIN'
+export type AppRole = 'STUDENT' | 'TUTOR' | 'PARENT' | 'ADMIN'
 
 const MESSAGING_ALLOWED_TARGETS: Record<AppRole, AppRole[]> = {
   STUDENT: ['TUTOR', 'PARENT', 'ADMIN'],

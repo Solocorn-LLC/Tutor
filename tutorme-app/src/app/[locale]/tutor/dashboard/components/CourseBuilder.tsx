@@ -1461,13 +1461,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const removeMonitorStudent = useCallback((id: string) => {
       setMonitorSelectedStudents(prev => prev.filter(s => s.id !== id))
     }, [])
-    const [liveRightPanelTab, setLiveRightPanelTab] = useState<'submissions' | 'insights'>(
-      'submissions'
+    const [liveRightPanelTab, setLiveRightPanelTab] = useState<'analytics' | 'insights'>(
+      'analytics'
     )
-    // Reset to Submissions when leaving Live mode so the pill doesn't stick on Insights
+    // Reset to Analytics when leaving Live mode so the pill doesn't stick on Insights
     useEffect(() => {
       if (mainTab !== 'live' && liveRightPanelTab === 'insights') {
-        setLiveRightPanelTab('submissions')
+        setLiveRightPanelTab('analytics')
       }
     }, [mainTab, liveRightPanelTab])
     // New (unseen) submission count, surfaced by SubmissionsPanel to badge the tab.
@@ -2329,6 +2329,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [insightsTabMap, setInsightsTabMap] = useState<
       Record<string, 'analytics' | 'poll' | 'question'>
     >({})
+    // Right Desk panel inner-tabs state: Submissions / Poll / Question
+    const [deskInsightsTabMap, setDeskInsightsTabMap] = useState<
+      Record<string, 'submissions' | 'poll' | 'question'>
+    >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
     // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No)
     const [pollOptionModeMap, setPollOptionModeMap] = useState<
@@ -2355,6 +2359,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         ? taskBuilder.activeExtensionId
         : activeInsightsTaskId || 'default'
     const insightsTab = insightsTabMap[currentInsightsId] ?? 'analytics'
+
+    // Right Desk panel inner-tabs state: Submissions / Poll / Question
+    const deskInsightsTab = deskInsightsTabMap[currentInsightsId] ?? 'submissions'
+    const setDeskInsightsTab = (val: 'submissions' | 'poll' | 'question') =>
+      setDeskInsightsTabMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     // Real poll/question results for the active task, derived from the live
     // (socket-updated) task's responses — not authored builder content. Feeds
@@ -4731,54 +4740,58 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // expand its node + section, then scroll its row to the top of the Curriculum
     // panel. React may need more than one frame to commit a newly created row or
     // expanded section, so we retry the DOM lookup for up to ~1s before giving up.
-    const revealCurriculumItem = (type: 'task' | 'homework', id: string) => {
-      setSelectedItem({ type, id })
+    const revealCurriculumItem = useCallback(
+      (type: 'task' | 'homework', id: string) => {
+        setSelectedItem({ type, id })
 
-      const scrollToItem = () => {
-        // Expand the item's node/section first (no-op if already expanded).
-        const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
-        if (resolved) {
-          let section: 'task' | 'assessment' | 'homework' = type === 'task' ? 'task' : 'assessment'
-          if (
-            type === 'homework' &&
-            'category' in resolved.item &&
-            (resolved.item as any).category === 'homework'
-          ) {
-            section = 'homework'
+        const scrollToItem = () => {
+          // Expand the item's node/section first (no-op if already expanded).
+          const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
+          if (resolved) {
+            let section: 'task' | 'assessment' | 'homework' =
+              type === 'task' ? 'task' : 'assessment'
+            if (
+              type === 'homework' &&
+              'category' in resolved.item &&
+              (resolved.item as any).category === 'homework'
+            ) {
+              section = 'homework'
+            }
+            ensureSectionExpanded(resolved.nodeId, section)
           }
-          ensureSectionExpanded(resolved.nodeId, section)
+
+          // Wait for the DOM to reflect the expansion, then scroll with retries.
+          window.setTimeout(() => {
+            let attempts = 0
+            const tryScroll = () => {
+              const el = document.querySelector(
+                `[data-curriculum-item="${type}:${id}"]`
+              ) as HTMLElement | null
+              if (el) {
+                const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
+                if (viewport) {
+                  const relativeTop =
+                    el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+                  const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
+                  viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+                } else {
+                  el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+                }
+                return
+              }
+              attempts += 1
+              if (attempts <= 16) {
+                window.setTimeout(tryScroll, 60)
+              }
+            }
+            tryScroll()
+          }, 80)
         }
 
-        // Wait for the DOM to reflect the expansion, then scroll with retries.
-        window.setTimeout(() => {
-          let attempts = 0
-          const tryScroll = () => {
-            const el = document.querySelector(
-              `[data-curriculum-item="${type}:${id}"]`
-            ) as HTMLElement | null
-            if (el) {
-              const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
-              if (viewport) {
-                const relativeTop =
-                  el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
-                const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
-                viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
-              } else {
-                el.scrollIntoView({ block: 'start', behavior: 'smooth' })
-              }
-              return
-            }
-            attempts += 1
-            if (attempts <= 16) {
-              window.setTimeout(tryScroll, 60)
-            }
-          }
-          tryScroll()
-        }, 80)
-      }
-
-      window.setTimeout(scrollToItem, 50)
-    }
+        window.setTimeout(scrollToItem, 50)
+      },
+      [setSelectedItem, ensureSectionExpanded]
+    )
 
     // Add handlers
     // Next lesson number = one past the HIGHEST existing "Lesson N" — not the
@@ -5046,15 +5059,38 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
       // No lessons, no tasks, no assessments — create a default task, fully load
       // it into the builder, and persist it so there is never an empty state.
-      const createdTask = autoCreateTask()
-      if (createdTask) {
-        loadTaskIntoBuilder(createdTask)
-        setSelectedItem({ type: 'task', id: createdTask.id })
-        window.setTimeout(() => {
-          doSave(true)
-        }, 0)
-      }
+      const newTask = DEFAULT_TASK(0)
+      const newLesson = DEFAULT_LESSON(0)
+      const newNode = DEFAULT_NODE(0)
+
+      const updatedNodes = (() => {
+        let next = [...nodes]
+        if (next.length === 0) {
+          next = [{ ...newNode, lessons: [newLesson] }]
+        } else if (next[0].lessons.length === 0) {
+          next[0] = { ...next[0], lessons: [newLesson] }
+        }
+        next[0] = {
+          ...next[0],
+          lessons: next[0].lessons.map((lesson, idx) =>
+            idx === 0 ? { ...lesson, tasks: [...lesson.tasks, newTask] } : lesson
+          ),
+        }
+        return next
+      })()
+
+      const targetNodeId = updatedNodes[0].id
+      setBuilderNodes(updatedNodes)
+      setExpandedCourseBuilderNodes(prev => new Set([...prev, targetNodeId]))
+      loadTaskIntoBuilder(newTask)
+      setMainBuilderTab('task')
+      ensureSectionExpanded(targetNodeId, 'task')
+      setSelectedItem({ type: 'task', id: newTask.id })
+      revealCurriculumItem('task', newTask.id)
       autoLoadedCourseIdRef.current = courseId
+      window.setTimeout(() => {
+        doSave(true)
+      }, 0)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       mainTab,
@@ -5067,8 +5103,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       loadAssessmentIntoBuilder,
       setMainBuilderTab,
       setSelectedItem,
+      setBuilderNodes,
+      setExpandedCourseBuilderNodes,
       ensureSectionExpanded,
-      autoCreateTask,
+      revealCurriculumItem,
       doSave,
     ])
 
@@ -13664,428 +13702,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       rightPanelHidden ? 'w-0 opacity-0' : 'w-full opacity-100'
                     )}
                   >
-                    {mainTab === 'live' && liveRightPanelTab === 'insights' ? (
-                      <div className="flex h-full min-h-0 flex-col">
-                        <Card
-                          padding="none"
-                          elevation="none"
-                          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] rounded-b-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
-                        >
-                          <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
-                            Desk
-                          </div>
-                          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                            <div className="shrink-0 px-4 pt-4">
-                              <Tabs
-                                value={liveRightPanelTab}
-                                onValueChange={value => {
-                                  if (value === 'insights' && mainTab !== 'live') return
-                                  setLiveRightPanelTab(value as 'submissions' | 'insights')
-                                }}
-                              >
-                                <SlidingPillTabsList
-                                  value={liveRightPanelTab}
-                                  variant="gray"
-                                  tabs={[
-                                    { value: 'submissions', label: 'Submissions' },
-                                    {
-                                      value: 'insights',
-                                      label: 'Insights',
-                                      disabled: mainTab !== 'live',
-                                    },
-                                  ]}
-                                  triggerClassName="h-8 rounded-md px-3"
-                                  pillClassName="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]"
-                                />
-                              </Tabs>
-                            </div>
-                            <div className="min-h-0 flex-1 overflow-hidden p-4 pt-2">
-                              {insightsProps ? (
-                                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-blue-50 p-4 pb-4">
-                                  <Tabs
-                                    value={insightsTab}
-                                    onValueChange={value =>
-                                      setInsightsTab(value as 'analytics' | 'poll' | 'question')
-                                    }
-                                    className="flex h-full min-h-0 flex-col"
-                                  >
-                                    <SlidingPillTabsList
-                                      value={insightsTab}
-                                      variant="white"
-                                      tabs={[
-                                        { value: 'analytics', label: 'Analytics' },
-                                        { value: 'poll', label: 'Poll' },
-                                        { value: 'question', label: 'Question' },
-                                      ]}
-                                      listClassName="mb-2 grid shrink-0 grid-cols-3 gap-2 shadow-none"
-                                      triggerClassName="h-7 rounded-md px-2 text-[11px]"
-                                    />
-                                    <TabsContent
-                                      value="analytics"
-                                      className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
-                                    >
-                                      <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                        <AiAssistantPanel
-                                          sessionId={insightsProps.sessionId}
-                                          courseName={courseName}
-                                          sessions={insightsProps.sessions?.map((s: any) => ({
-                                            id: s.id,
-                                            title: s.title,
-                                            scheduledAt: s.scheduledAt,
-                                            status: s.status,
-                                          }))}
-                                          studentsCount={(insightsProps.students || []).length}
-                                          liveSubmissions={insightsProps.liveSubmissions || []}
-                                          isActive={insightsTab === 'analytics'}
-                                        />
-                                      </div>
-                                    </TabsContent>
-                                    <TabsContent
-                                      value="poll"
-                                      className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
-                                    >
-                                      {pollComposeMode ? (
-                                        <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
-                                          {/* Header with toggle */}
-                                          <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
-                                            <span className="text-xs font-semibold text-blue-700">
-                                              New Poll
-                                            </span>
-                                            {pollResults.length > 0 && (
-                                              <button
-                                                type="button"
-                                                onClick={() => setPollComposeMode(false)}
-                                                className="text-xs text-blue-600 hover:text-blue-800"
-                                              >
-                                                View Results
-                                              </button>
-                                            )}
-                                          </div>
-                                          {/* Editable question area */}
-                                          <div className="flex-1 overflow-y-auto p-4">
-                                            <textarea
-                                              value={pollPrompt}
-                                              onChange={e => setPollPrompt(e.target.value)}
-                                              placeholder={getPollPlaceholder(pollOptionMode)}
-                                              className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
-                                              rows={3}
-                                            />
-                                            {/* Poll options preview */}
-                                            <div className="mt-4">
-                                              {pollOptionMode === '1-10' && (
-                                                <div className="grid grid-cols-5 gap-2">
-                                                  {Array.from({ length: 10 }, (_, i) => i + 1).map(
-                                                    num => (
-                                                      <button
-                                                        key={num}
-                                                        type="button"
-                                                        className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
-                                                      >
-                                                        {num}
-                                                      </button>
-                                                    )
-                                                  )}
-                                                </div>
-                                              )}
-                                              {pollOptionMode === 'likert' && (
-                                                <div className="flex flex-col gap-2">
-                                                  {likertLabels.map((label, i) => (
-                                                    <EditableLikertItem
-                                                      key={i}
-                                                      index={i}
-                                                      label={label}
-                                                      onChange={setLikertLabel}
-                                                      onDelete={deleteLikertLabel}
-                                                      canDelete={likertLabels.length > 2}
-                                                    />
-                                                  ))}
-                                                  <button
-                                                    type="button"
-                                                    onClick={addLikertLabel}
-                                                    className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-600 hover:bg-blue-100"
-                                                  >
-                                                    <Plus className="h-3.5 w-3.5" />
-                                                    Add option
-                                                  </button>
-                                                </div>
-                                              )}
-                                              {pollOptionMode === 'ae' && (
-                                                <div className="flex flex-wrap gap-2">
-                                                  {['A', 'B', 'C', 'D', 'E'].map(letter => (
-                                                    <button
-                                                      key={letter}
-                                                      type="button"
-                                                      className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
-                                                    >
-                                                      {letter}
-                                                    </button>
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {pollOptionMode === 'tf' && (
-                                                <div className="flex flex-wrap gap-2">
-                                                  {['True', 'False'].map(option => (
-                                                    <button
-                                                      key={option}
-                                                      type="button"
-                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
-                                                    >
-                                                      {option}
-                                                    </button>
-                                                  ))}
-                                                </div>
-                                              )}
-                                              {pollOptionMode === 'yn' && (
-                                                <div className="flex flex-wrap gap-2">
-                                                  {['Yes', 'No'].map(option => (
-                                                    <button
-                                                      key={option}
-                                                      type="button"
-                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
-                                                    >
-                                                      {option}
-                                                    </button>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                          {/* Bottom button row */}
-                                          <div className="relative flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
-                                            {/* Speed Dial */}
-                                            <div className="relative">
-                                              <button
-                                                type="button"
-                                                onClick={() => setSpeedDialOpen(!speedDialOpen)}
-                                                className={cn(
-                                                  'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
-                                                  'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
-                                                )}
-                                              >
-                                                {POLL_OPTION_PRESETS.find(
-                                                  p => p.id === pollOptionMode
-                                                )?.label || 'Type'}
-                                              </button>
-                                              {speedDialOpen && (
-                                                <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col items-center">
-                                                  {POLL_OPTION_PRESETS.map((preset, index) => (
-                                                    <Fragment key={preset.id}>
-                                                      {index > 0 && (
-                                                        <div className="h-2 w-px bg-blue-200" />
-                                                      )}
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                          setPollOptionMode(preset.id)
-                                                          setSpeedDialOpen(false)
-                                                        }}
-                                                        className={cn(
-                                                          'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
-                                                          pollOptionMode === preset.id
-                                                            ? 'bg-[#2563EB] text-white'
-                                                            : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
-                                                        )}
-                                                      >
-                                                        {preset.label}
-                                                      </button>
-                                                    </Fragment>
-                                                  ))}
-                                                </div>
-                                              )}
-                                            </div>
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setPollPrompt('')
-                                                setPollCustomOptions('')
-                                                setPollOptionMode('1-10')
-                                              }}
-                                              className={cn(
-                                                'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
-                                                'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
-                                              )}
-                                            >
-                                              New
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                setPollPrompt('')
-                                                setPollCustomOptions('')
-                                              }}
-                                              className={cn(
-                                                'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
-                                                'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
-                                              )}
-                                            >
-                                              Clear
-                                            </button>
-                                            <Button
-                                              size="sm"
-                                              className="h-8 flex-1 rounded-md bg-[#2563EB] px-3 text-xs text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB] disabled:opacity-30"
-                                              disabled={
-                                                !activeInsightsTaskId ||
-                                                !insightsProps.sessionId ||
-                                                !pollPrompt.trim()
-                                              }
-                                              onClick={() => {
-                                                if (
-                                                  !activeInsightsTaskId ||
-                                                  !insightsProps.sessionId
-                                                )
-                                                  return
-                                                const opts = resolvePollOptions()
-                                                insightsProps.onSendPoll({
-                                                  taskId: activeInsightsTaskId,
-                                                  question: pollPrompt,
-                                                  options: opts,
-                                                })
-                                                setPollComposeMode(false)
-                                              }}
-                                            >
-                                              <Send className="mr-1 h-3 w-3" />
-                                              Poll
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                            <InsightsReportView
-                                              type="poll"
-                                              pollResults={pollResults}
-                                              onClose={handleCloseInsight}
-                                              onMentionStudent={name =>
-                                                setPollPrompt(
-                                                  pollPrompt
-                                                    ? `${pollPrompt} @[${name}](student:${name}) `
-                                                    : `@[${name}](student:${name}) `
-                                                )
-                                              }
-                                            />
-                                          </div>
-                                          <div className="flex items-center justify-center py-2">
-                                            <button
-                                              type="button"
-                                              onClick={() => {
-                                                const lastPoll = pollResults[0]
-                                                if (lastPoll) {
-                                                  setPollPrompt(lastPoll.question)
-                                                }
-                                                setPollComposeMode(true)
-                                              }}
-                                              className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                                            >
-                                              <Send className="h-3 w-3" />
-                                              New Poll
-                                            </button>
-                                          </div>
-                                        </>
-                                      )}
-                                    </TabsContent>
-                                    <TabsContent
-                                      value="question"
-                                      className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
-                                    >
-                                      <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
-                                        <InsightsReportView
-                                          type="question"
-                                          questionResults={questionResults}
-                                          onClose={handleCloseInsight}
-                                          onMentionStudent={name =>
-                                            setQuestionPrompt(
-                                              questionPrompt
-                                                ? `${questionPrompt} @[${name}](student:${name}) `
-                                                : `@[${name}](student:${name}) `
-                                            )
-                                          }
-                                        />
-                                      </div>
-                                      <div className="mt-2 shrink-0 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
-                                        <div className="relative">
-                                          <MentionTextarea
-                                            mentionItems={mentionItems}
-                                            className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                                            disableAutoResize
-                                            value={questionPrompt}
-                                            onChange={event =>
-                                              setQuestionPrompt(event.target.value)
-                                            }
-                                          />
-                                          <div className="absolute bottom-2 right-2 flex items-center gap-1">
-                                            <Button
-                                              size="icon"
-                                              variant="ghost"
-                                              className={cn(
-                                                'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
-                                                showAIQuestion
-                                                  ? 'bg-blue-100 text-blue-700'
-                                                  : 'text-blue-600'
-                                              )}
-                                              title="Generate with Socratic AI"
-                                              onClick={() => setShowAIQuestion(!showAIQuestion)}
-                                              disabled={!activeInsightsTaskId}
-                                            >
-                                              <Sparkles className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                              size="icon"
-                                              className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
-                                              disabled={
-                                                !activeInsightsTaskId ||
-                                                !insightsProps.sessionId ||
-                                                !questionPrompt.trim()
-                                              }
-                                              onClick={() => {
-                                                if (
-                                                  !activeInsightsTaskId ||
-                                                  !insightsProps.sessionId
-                                                )
-                                                  return
-                                                insightsProps.onSendQuestion({
-                                                  taskId: activeInsightsTaskId,
-                                                  prompt: questionPrompt,
-                                                })
-                                                setQuestionPrompt('')
-                                              }}
-                                            >
-                                              <Send className="h-4 w-4" />
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </TabsContent>
-                                  </Tabs>
-                                </div>
-                              ) : (
-                                <div className="flex h-full items-center justify-center rounded-lg border bg-white p-4 text-sm text-slate-500">
-                                  Insights unavailable without an active session.
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                      </div>
-                    ) : (
-                      <SubmissionsPanel
-                        courseId={courseId || ''}
-                        onToggleHidden={setRightPanelHidden}
-                        liveSubmissions={insightsProps?.liveSubmissions}
-                        onNewSubmissionCount={setNewSubmissionCount}
-                        headerExtra={
-                          <div className="px-4 pt-4">
+                    <div className="flex h-full min-h-0 flex-col">
+                      <Card
+                        padding="none"
+                        elevation="none"
+                        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] rounded-b-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
+                      >
+                        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                          Desk
+                        </div>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                          <div className="shrink-0 px-4 pt-4">
                             <Tabs
                               value={liveRightPanelTab}
                               onValueChange={value => {
                                 if (value === 'insights' && mainTab !== 'live') return
-                                setLiveRightPanelTab(value as 'submissions' | 'insights')
+                                setLiveRightPanelTab(value as 'analytics' | 'insights')
                               }}
                             >
                               <SlidingPillTabsList
                                 value={liveRightPanelTab}
                                 variant="gray"
                                 tabs={[
-                                  { value: 'submissions', label: 'Submissions' },
+                                  { value: 'analytics', label: 'Analytics' },
                                   {
                                     value: 'insights',
                                     label: 'Insights',
@@ -14097,9 +13736,377 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               />
                             </Tabs>
                           </div>
-                        }
-                      />
-                    )}
+                          <div className="min-h-0 flex-1 overflow-hidden p-4 pt-2">
+                            {liveRightPanelTab === 'analytics' ? (
+                              <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                <AiAssistantPanel
+                                  sessionId={insightsProps?.sessionId}
+                                  courseName={courseName}
+                                  sessions={insightsProps?.sessions?.map((s: any) => ({
+                                    id: s.id,
+                                    title: s.title,
+                                    scheduledAt: s.scheduledAt,
+                                    status: s.status,
+                                  }))}
+                                  studentsCount={(insightsProps?.students || []).length}
+                                  liveSubmissions={insightsProps?.liveSubmissions || []}
+                                  isActive={liveRightPanelTab === 'analytics'}
+                                />
+                              </div>
+                            ) : insightsProps ? (
+                              <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl bg-blue-50 p-4 pb-4">
+                                <Tabs
+                                  value={deskInsightsTab}
+                                  onValueChange={value =>
+                                    setDeskInsightsTab(value as 'submissions' | 'poll' | 'question')
+                                  }
+                                  className="flex h-full min-h-0 flex-col"
+                                >
+                                  <SlidingPillTabsList
+                                    value={deskInsightsTab}
+                                    variant="white"
+                                    tabs={[
+                                      {
+                                        value: 'submissions',
+                                        label: 'Submissions',
+                                        badge: newSubmissionCount,
+                                      },
+                                      { value: 'poll', label: 'Poll' },
+                                      { value: 'question', label: 'Question' },
+                                    ]}
+                                    listClassName="mb-2 grid shrink-0 grid-cols-3 gap-2 shadow-none"
+                                    triggerClassName="h-7 rounded-md px-2 text-[11px]"
+                                  />
+                                  <TabsContent
+                                    value="submissions"
+                                    className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                  >
+                                    <SubmissionsPanel
+                                      hideHeader
+                                      courseId={courseId || ''}
+                                      onToggleHidden={setRightPanelHidden}
+                                      liveSubmissions={insightsProps?.liveSubmissions}
+                                      onNewSubmissionCount={setNewSubmissionCount}
+                                    />
+                                  </TabsContent>
+                                  <TabsContent
+                                    value="poll"
+                                    className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                  >
+                                    {pollComposeMode ? (
+                                      <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
+                                        {/* Header with toggle */}
+                                        <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
+                                          <span className="text-xs font-semibold text-blue-700">
+                                            New Poll
+                                          </span>
+                                          {pollResults.length > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setPollComposeMode(false)}
+                                              className="text-xs text-blue-600 hover:text-blue-800"
+                                            >
+                                              View Results
+                                            </button>
+                                          )}
+                                        </div>
+                                        {/* Editable question area */}
+                                        <div className="flex-1 overflow-y-auto p-4">
+                                          <textarea
+                                            value={pollPrompt}
+                                            onChange={e => setPollPrompt(e.target.value)}
+                                            placeholder={getPollPlaceholder(pollOptionMode)}
+                                            className="w-full resize-none border-0 bg-transparent text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
+                                            rows={3}
+                                          />
+                                          {/* Poll options preview */}
+                                          <div className="mt-4">
+                                            {pollOptionMode === '1-10' && (
+                                              <div className="grid grid-cols-5 gap-2">
+                                                {Array.from({ length: 10 }, (_, i) => i + 1).map(
+                                                  num => (
+                                                    <button
+                                                      key={num}
+                                                      type="button"
+                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                    >
+                                                      {num}
+                                                    </button>
+                                                  )
+                                                )}
+                                              </div>
+                                            )}
+                                            {pollOptionMode === 'likert' && (
+                                              <div className="flex flex-col gap-2">
+                                                {likertLabels.map((label, i) => (
+                                                  <EditableLikertItem
+                                                    key={i}
+                                                    index={i}
+                                                    label={label}
+                                                    onChange={setLikertLabel}
+                                                    onDelete={deleteLikertLabel}
+                                                    canDelete={likertLabels.length > 2}
+                                                  />
+                                                ))}
+                                                <button
+                                                  type="button"
+                                                  onClick={addLikertLabel}
+                                                  className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                                                >
+                                                  <Plus className="h-3.5 w-3.5" />
+                                                  Add option
+                                                </button>
+                                              </div>
+                                            )}
+                                            {pollOptionMode === 'ae' && (
+                                              <div className="flex flex-wrap gap-2">
+                                                {['A', 'B', 'C', 'D', 'E'].map(letter => (
+                                                  <button
+                                                    key={letter}
+                                                    type="button"
+                                                    className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                  >
+                                                    {letter}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                            {pollOptionMode === 'tf' && (
+                                              <div className="flex flex-wrap gap-2">
+                                                {['True', 'False'].map(option => (
+                                                  <button
+                                                    key={option}
+                                                    type="button"
+                                                    className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                  >
+                                                    {option}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                            {pollOptionMode === 'yn' && (
+                                              <div className="flex flex-wrap gap-2">
+                                                {['Yes', 'No'].map(option => (
+                                                  <button
+                                                    key={option}
+                                                    type="button"
+                                                    className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                  >
+                                                    {option}
+                                                  </button>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {/* Bottom button row */}
+                                        <div className="relative flex items-center gap-1.5 border-t border-blue-100 px-4 py-3">
+                                          {/* Speed Dial */}
+                                          <div className="relative">
+                                            <button
+                                              type="button"
+                                              onClick={() => setSpeedDialOpen(!speedDialOpen)}
+                                              className={cn(
+                                                'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
+                                                'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                              )}
+                                            >
+                                              {POLL_OPTION_PRESETS.find(
+                                                p => p.id === pollOptionMode
+                                              )?.label || 'Type'}
+                                            </button>
+                                            {speedDialOpen && (
+                                              <div className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 flex-col items-center">
+                                                {POLL_OPTION_PRESETS.map((preset, index) => (
+                                                  <Fragment key={preset.id}>
+                                                    {index > 0 && (
+                                                      <div className="h-2 w-px bg-blue-200" />
+                                                    )}
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        setPollOptionMode(preset.id)
+                                                        setSpeedDialOpen(false)
+                                                      }}
+                                                      className={cn(
+                                                        'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
+                                                        pollOptionMode === preset.id
+                                                          ? 'bg-[#2563EB] text-white'
+                                                          : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                      )}
+                                                    >
+                                                      {preset.label}
+                                                    </button>
+                                                  </Fragment>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setPollPrompt('')
+                                              setPollCustomOptions('')
+                                              setPollOptionMode('1-10')
+                                            }}
+                                            className={cn(
+                                              'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                              'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                            )}
+                                          >
+                                            New
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setPollPrompt('')
+                                              setPollCustomOptions('')
+                                            }}
+                                            className={cn(
+                                              'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
+                                              'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                            )}
+                                          >
+                                            Clear
+                                          </button>
+                                          <Button
+                                            size="sm"
+                                            className="h-8 flex-1 rounded-md bg-[#2563EB] px-3 text-xs text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB] disabled:opacity-30"
+                                            disabled={
+                                              !activeInsightsTaskId ||
+                                              !insightsProps.sessionId ||
+                                              !pollPrompt.trim()
+                                            }
+                                            onClick={() => {
+                                              if (!activeInsightsTaskId || !insightsProps.sessionId)
+                                                return
+                                              const opts = resolvePollOptions()
+                                              insightsProps.onSendPoll({
+                                                taskId: activeInsightsTaskId,
+                                                question: pollPrompt,
+                                                options: opts,
+                                              })
+                                              setPollComposeMode(false)
+                                            }}
+                                          >
+                                            <Send className="mr-1 h-3 w-3" />
+                                            Poll
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <>
+                                        <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                          <InsightsReportView
+                                            type="poll"
+                                            pollResults={pollResults}
+                                            onClose={handleCloseInsight}
+                                            onMentionStudent={name =>
+                                              setPollPrompt(
+                                                pollPrompt
+                                                  ? `${pollPrompt} @[${name}](student:${name}) `
+                                                  : `@[${name}](student:${name}) `
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                        <div className="flex items-center justify-center py-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const lastPoll = pollResults[0]
+                                              if (lastPoll) {
+                                                setPollPrompt(lastPoll.question)
+                                              }
+                                              setPollComposeMode(true)
+                                            }}
+                                            className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                                          >
+                                            <Send className="h-3 w-3" />
+                                            New Poll
+                                          </button>
+                                        </div>
+                                      </>
+                                    )}
+                                  </TabsContent>
+                                  <TabsContent
+                                    value="question"
+                                    className="flex flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                  >
+                                    <div className="flex-1 overflow-auto rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
+                                      <InsightsReportView
+                                        type="question"
+                                        questionResults={questionResults}
+                                        onClose={handleCloseInsight}
+                                        onMentionStudent={name =>
+                                          setQuestionPrompt(
+                                            questionPrompt
+                                              ? `${questionPrompt} @[${name}](student:${name}) `
+                                              : `@[${name}](student:${name}) `
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                    <div className="mt-2 shrink-0 rounded-2xl border border-blue-100 bg-white p-2 shadow-sm">
+                                      <div className="relative">
+                                        <MentionTextarea
+                                          mentionItems={mentionItems}
+                                          className="min-h-[100px] w-full resize-none border-0 bg-transparent py-2 pl-3 pr-24 text-sm shadow-none focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                                          disableAutoResize
+                                          value={questionPrompt}
+                                          onChange={event => setQuestionPrompt(event.target.value)}
+                                        />
+                                        <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className={cn(
+                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                              showAIQuestion
+                                                ? 'bg-blue-100 text-blue-700'
+                                                : 'text-blue-600'
+                                            )}
+                                            title="Generate with Socratic AI"
+                                            onClick={() => setShowAIQuestion(!showAIQuestion)}
+                                            disabled={!activeInsightsTaskId}
+                                          >
+                                            <Sparkles className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            size="icon"
+                                            className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                            disabled={
+                                              !activeInsightsTaskId ||
+                                              !insightsProps.sessionId ||
+                                              !questionPrompt.trim()
+                                            }
+                                            onClick={() => {
+                                              if (!activeInsightsTaskId || !insightsProps.sessionId)
+                                                return
+                                              insightsProps.onSendQuestion({
+                                                taskId: activeInsightsTaskId,
+                                                prompt: questionPrompt,
+                                              })
+                                              setQuestionPrompt('')
+                                            }}
+                                          >
+                                            <Send className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </TabsContent>
+                                </Tabs>
+                              </div>
+                            ) : (
+                              <div className="flex h-full items-center justify-center rounded-lg border bg-white p-4 text-sm text-slate-500">
+                                Insights unavailable without an active session.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
                   </div>
                 </div>
               </>
