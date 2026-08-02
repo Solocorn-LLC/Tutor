@@ -4740,54 +4740,58 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // expand its node + section, then scroll its row to the top of the Curriculum
     // panel. React may need more than one frame to commit a newly created row or
     // expanded section, so we retry the DOM lookup for up to ~1s before giving up.
-    const revealCurriculumItem = (type: 'task' | 'homework', id: string) => {
-      setSelectedItem({ type, id })
+    const revealCurriculumItem = useCallback(
+      (type: 'task' | 'homework', id: string) => {
+        setSelectedItem({ type, id })
 
-      const scrollToItem = () => {
-        // Expand the item's node/section first (no-op if already expanded).
-        const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
-        if (resolved) {
-          let section: 'task' | 'assessment' | 'homework' = type === 'task' ? 'task' : 'assessment'
-          if (
-            type === 'homework' &&
-            'category' in resolved.item &&
-            (resolved.item as any).category === 'homework'
-          ) {
-            section = 'homework'
+        const scrollToItem = () => {
+          // Expand the item's node/section first (no-op if already expanded).
+          const resolved = resolveSelectedItem({ type, id }, nodesRef.current)
+          if (resolved) {
+            let section: 'task' | 'assessment' | 'homework' =
+              type === 'task' ? 'task' : 'assessment'
+            if (
+              type === 'homework' &&
+              'category' in resolved.item &&
+              (resolved.item as any).category === 'homework'
+            ) {
+              section = 'homework'
+            }
+            ensureSectionExpanded(resolved.nodeId, section)
           }
-          ensureSectionExpanded(resolved.nodeId, section)
+
+          // Wait for the DOM to reflect the expansion, then scroll with retries.
+          window.setTimeout(() => {
+            let attempts = 0
+            const tryScroll = () => {
+              const el = document.querySelector(
+                `[data-curriculum-item="${type}:${id}"]`
+              ) as HTMLElement | null
+              if (el) {
+                const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
+                if (viewport) {
+                  const relativeTop =
+                    el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+                  const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
+                  viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+                } else {
+                  el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+                }
+                return
+              }
+              attempts += 1
+              if (attempts <= 16) {
+                window.setTimeout(tryScroll, 60)
+              }
+            }
+            tryScroll()
+          }, 80)
         }
 
-        // Wait for the DOM to reflect the expansion, then scroll with retries.
-        window.setTimeout(() => {
-          let attempts = 0
-          const tryScroll = () => {
-            const el = document.querySelector(
-              `[data-curriculum-item="${type}:${id}"]`
-            ) as HTMLElement | null
-            if (el) {
-              const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
-              if (viewport) {
-                const relativeTop =
-                  el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
-                const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
-                viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
-              } else {
-                el.scrollIntoView({ block: 'start', behavior: 'smooth' })
-              }
-              return
-            }
-            attempts += 1
-            if (attempts <= 16) {
-              window.setTimeout(tryScroll, 60)
-            }
-          }
-          tryScroll()
-        }, 80)
-      }
-
-      window.setTimeout(scrollToItem, 50)
-    }
+        window.setTimeout(scrollToItem, 50)
+      },
+      [setSelectedItem, ensureSectionExpanded]
+    )
 
     // Add handlers
     // Next lesson number = one past the HIGHEST existing "Lesson N" — not the
@@ -5055,15 +5059,38 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
       // No lessons, no tasks, no assessments — create a default task, fully load
       // it into the builder, and persist it so there is never an empty state.
-      const createdTask = autoCreateTask()
-      if (createdTask) {
-        loadTaskIntoBuilder(createdTask)
-        setSelectedItem({ type: 'task', id: createdTask.id })
-        window.setTimeout(() => {
-          doSave(true)
-        }, 0)
-      }
+      const newTask = DEFAULT_TASK(0)
+      const newLesson = DEFAULT_LESSON(0)
+      const newNode = DEFAULT_NODE(0)
+
+      const updatedNodes = (() => {
+        let next = [...nodes]
+        if (next.length === 0) {
+          next = [{ ...newNode, lessons: [newLesson] }]
+        } else if (next[0].lessons.length === 0) {
+          next[0] = { ...next[0], lessons: [newLesson] }
+        }
+        next[0] = {
+          ...next[0],
+          lessons: next[0].lessons.map((lesson, idx) =>
+            idx === 0 ? { ...lesson, tasks: [...lesson.tasks, newTask] } : lesson
+          ),
+        }
+        return next
+      })()
+
+      const targetNodeId = updatedNodes[0].id
+      setBuilderNodes(updatedNodes)
+      setExpandedCourseBuilderNodes(prev => new Set([...prev, targetNodeId]))
+      loadTaskIntoBuilder(newTask)
+      setMainBuilderTab('task')
+      ensureSectionExpanded(targetNodeId, 'task')
+      setSelectedItem({ type: 'task', id: newTask.id })
+      revealCurriculumItem('task', newTask.id)
       autoLoadedCourseIdRef.current = courseId
+      window.setTimeout(() => {
+        doSave(true)
+      }, 0)
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
       mainTab,
@@ -5076,8 +5103,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       loadAssessmentIntoBuilder,
       setMainBuilderTab,
       setSelectedItem,
+      setBuilderNodes,
+      setExpandedCourseBuilderNodes,
       ensureSectionExpanded,
-      autoCreateTask,
+      revealCurriculumItem,
       doSave,
     ])
 
