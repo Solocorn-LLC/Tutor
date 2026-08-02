@@ -61,7 +61,7 @@ export function CountryFlag({
 
   return (
     <span
-      className={cn('inline-flex items-center gap-1.5 align-text-bottom', className)}
+      className={cn('inline-flex items-center gap-1.5 align-middle', className)}
       title={resolvedName}
     >
       {hasFlag ? (
