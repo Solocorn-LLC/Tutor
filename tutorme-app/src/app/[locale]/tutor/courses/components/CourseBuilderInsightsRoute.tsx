@@ -5,7 +5,7 @@
 
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -161,7 +161,7 @@ type Props = UseCourseBuilderContentArgs & {
   modeLocked?: boolean
 }
 
-type ControlsMode = 'build' | 'test' | 'classroom'
+type ControlsMode = 'edit' | 'test' | 'classroom'
 
 interface TutorControlsPanelProps {
   mode: ControlsMode
@@ -221,6 +221,45 @@ function TutorControlsPanel({
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
+
+  // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
+  const modeListRef = useRef<HTMLDivElement>(null)
+  const [modePill, setModePill] = useState<{ left: number; width: number } | null>(null)
+
+  const updateModePill = useCallback(() => {
+    const list = modeListRef.current
+    if (!list) return
+    const triggers = Array.from(list.querySelectorAll('[role="tab"]'))
+    const active = triggers.find(t => t.getAttribute('data-state') === 'active')
+    if (!active) return
+    const rect = active.getBoundingClientRect()
+    const listRect = list.getBoundingClientRect()
+    setModePill({ left: rect.left - listRect.left, width: rect.width })
+  }, [])
+
+  useLayoutEffect(() => {
+    const id = requestAnimationFrame(() => updateModePill())
+    return () => cancelAnimationFrame(id)
+  }, [mode, updateModePill])
+
+  useEffect(() => {
+    const id = setTimeout(updateModePill, 100)
+    return () => clearTimeout(id)
+  }, [updateModePill])
+
+  useEffect(() => {
+    const handleResize = () => updateModePill()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [updateModePill])
+
+  useEffect(() => {
+    const list = modeListRef.current
+    if (!list) return
+    const ro = new ResizeObserver(() => updateModePill())
+    ro.observe(list)
+    return () => ro.disconnect()
+  }, [updateModePill])
 
   const modeButtonBase =
     'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
@@ -288,26 +327,27 @@ function TutorControlsPanel({
                   className="mt-2 w-full"
                 >
                   <TabsList
+                    ref={modeListRef}
                     data-testid="builder-mode-tabs"
-                    className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
+                    className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
                   >
                     <TabsTrigger
-                      value="build"
+                      value="edit"
                       className={cn(
                         modeButtonBase,
-                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
-                        'data-[state=active]:bg-[#2563EB] data-[state=active]:text-white data-[state=active]:shadow-sm'
+                        'relative z-10 text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
                       <Wrench className="h-3.5 w-3.5" />
-                      Build
+                      Edit
                     </TabsTrigger>
                     <TabsTrigger
                       value="test"
                       className={cn(
                         modeButtonBase,
-                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
-                        'data-[state=active]:bg-[#7C3AED] data-[state=active]:text-white data-[state=active]:shadow-sm'
+                        'relative z-10 text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
                       <TestTube2 className="h-3.5 w-3.5" />
@@ -317,13 +357,27 @@ function TutorControlsPanel({
                       value="classroom"
                       className={cn(
                         modeButtonBase,
-                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
-                        'data-[state=active]:bg-[#F97316] data-[state=active]:text-white data-[state=active]:shadow-sm'
+                        'relative z-10 text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
                       Classroom
                     </TabsTrigger>
+                    {modePill && (
+                      <div
+                        className={cn(
+                          'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
+                          mode === 'edit' && 'bg-[#2563EB]',
+                          mode === 'test' && 'bg-[#7C3AED]',
+                          mode === 'classroom' && 'bg-[#F97316]'
+                        )}
+                        style={{
+                          left: modePill.left,
+                          width: modePill.width,
+                        }}
+                      />
+                    )}
                   </TabsList>
                 </Tabs>
 
@@ -346,7 +400,7 @@ function TutorControlsPanel({
 
                       <button
                         type="button"
-                        disabled={panelDisabled || mode !== 'build' || !canDelete}
+                        disabled={panelDisabled || mode !== 'edit' || !canDelete}
                         onClick={onDelete}
                         className={cn(
                           actionButtonBase,
@@ -359,7 +413,7 @@ function TutorControlsPanel({
 
                       <button
                         type="button"
-                        disabled={panelDisabled || mode !== 'build' || !onEditCourse}
+                        disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
                         onClick={onEditCourse}
                         className={cn(
                           actionButtonBase,
@@ -374,7 +428,7 @@ function TutorControlsPanel({
                     <div className="flex flex-col gap-2">
                       <button
                         type="button"
-                        disabled={panelDisabled || mode !== 'build' || !canGoLive}
+                        disabled={panelDisabled || mode !== 'edit' || !canGoLive}
                         onClick={onGoLive}
                         className={cn(
                           actionButtonBase,
@@ -402,7 +456,7 @@ function TutorControlsPanel({
 
                       <button
                         type="button"
-                        disabled={panelDisabled || mode !== 'build'}
+                        disabled={panelDisabled || mode !== 'edit'}
                         onClick={onCreateCourse}
                         className={cn(
                           actionButtonBase,
@@ -445,7 +499,7 @@ function TutorControlsPanel({
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                            disabled={panelDisabled || mode !== 'edit' || !canSchedule}
                             onClick={onCreateTemplate}
                             className={cn(
                               actionButtonBase,
@@ -464,7 +518,7 @@ function TutorControlsPanel({
                         <TooltipTrigger asChild>
                           <button
                             type="button"
-                            disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                            disabled={panelDisabled || mode !== 'edit' || !canSchedule}
                             onClick={onSchedule}
                             className={cn(
                               actionButtonBase,
@@ -585,7 +639,7 @@ function CourseBuilderInsightsRouteInner({
   const [renameValue, setRenameValue] = useState('')
   const [leftPanelHidden, setLeftPanelHidden] = useState(false)
   const [controlsMode, setControlsMode] = useState<ControlsMode>(
-    initialMainTab === 'live' ? 'classroom' : initialMainTab === 'test-pci' ? 'test' : 'build'
+    initialMainTab === 'live' ? 'classroom' : initialMainTab === 'test-pci' ? 'test' : 'edit'
   )
 
   // Persist mode is determined by the course itself, not by the toggle.
@@ -608,12 +662,12 @@ function CourseBuilderInsightsRouteInner({
     }
   }, [insightsProps.sessionId, tabFromUrl, isClassroomMode])
 
-  // Allow switching between Live / Build / Test even during a live session so
+  // Allow switching between Live / Edit / Test even during a live session so
   // tutors can edit and test the course mid-class. Classroom mode only sets the
   // INITIAL tab to 'live' (see the effect above) — it no longer locks it.
   const handleMainTabChange = useCallback((tab: 'live' | 'builder' | 'test-pci') => {
     setActiveMainTab(tab)
-    if (tab === 'builder') setControlsMode('build')
+    if (tab === 'builder') setControlsMode('edit')
     if (tab === 'test-pci') setControlsMode('test')
     if (tab === 'live') setControlsMode('classroom')
   }, [])
@@ -621,7 +675,7 @@ function CourseBuilderInsightsRouteInner({
   const handleControlsModeChange = useCallback(
     (mode: ControlsMode) => {
       setControlsMode(mode)
-      if (mode === 'build') {
+      if (mode === 'edit') {
         if (activeMainTab !== 'builder') setActiveMainTab('builder')
       } else if (mode === 'test') {
         if (activeMainTab !== 'test-pci') setActiveMainTab('test-pci')
@@ -907,7 +961,7 @@ function CourseBuilderInsightsRouteInner({
                           onClick={() => setCourseSelectorOpen(true)}
                           disabled={hasNoCourses}
                           className={cn(
-                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:bg-slate-100 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:bg-slate-100 focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >
