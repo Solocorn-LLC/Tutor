@@ -31,12 +31,17 @@ const gsIds = [gsFull, gsOpen, gsPast]
 const staleSeat = `seat_stale_${stamp}`
 const freshSeat = `seat_fresh_${stamp}`
 
+const now = Date.now()
+const oneDayMs = 24 * 60 * 60 * 1000
+const tomorrow = new Date(now + oneDayMs)
+const yesterday = new Date(now - oneDayMs)
+
 function gs(id: string, extra: Record<string, unknown>) {
   return {
     groupSessionId: id,
     tutorId,
     title: 'Algebra clinic',
-    requestedDate: new Date('2026-08-01T00:00:00.000Z'),
+    requestedDate: tomorrow,
     startTime: '15:00',
     endTime: '16:00',
     timezone: 'UTC',
@@ -63,7 +68,7 @@ describe('group-session lifecycle sweeps', () => {
       gs(gsFull, { status: 'FULL' }),
       gs(gsOpen, { status: 'OPEN' }),
       // Ended days ago (past requestedDate + past wall-clock end).
-      gs(gsPast, { status: 'OPEN', requestedDate: new Date('2026-07-10T00:00:00.000Z') }),
+      gs(gsPast, { status: 'OPEN', requestedDate: yesterday }),
     ])
     await drizzleDb.insert(groupSessionParticipant).values([
       // Reserved 40 min ago, never paid → should expire.
