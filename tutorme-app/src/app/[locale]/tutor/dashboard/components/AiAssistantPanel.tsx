@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2 } from 'lucide-react'
+import { Send, Loader2, Bot } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import { useAnalyticsAssistant } from '@/hooks/use-analytics-assistant'
 
 interface SessionInfo {
@@ -182,19 +183,27 @@ export function AiAssistantPanel({
           <div className="space-y-3">
             <AnimatePresence initial={false}>
               {displayMessages.map(m => (
-                <motion.div
+                <div
                   key={m.id}
-                  initial={{ opacity: 0, y: 60 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, ease: 'easeOut' }}
-                  className={`max-w-[90%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
-                    m.role === 'user'
-                      ? 'ml-auto bg-blue-50 text-blue-900'
-                      : 'mr-auto bg-gray-50 text-gray-900'
-                  }`}
+                  className={cn('flex gap-2', m.role === 'user' ? 'justify-end' : 'justify-start')}
                 >
-                  {m.text}
-                </motion.div>
+                  {m.role === 'assistant' && (
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center self-end rounded-full bg-orange-100 text-orange-700">
+                      <Bot className="h-4 w-4" />
+                    </div>
+                  )}
+                  <motion.div
+                    initial={{ opacity: 0, y: 60, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                    style={{ originY: 1 }}
+                    className={`max-w-[80%] whitespace-pre-line rounded-lg px-3 py-2 text-sm ${
+                      m.role === 'user' ? 'bg-blue-50 text-blue-900' : 'bg-gray-50 text-gray-900'
+                    }`}
+                  >
+                    {m.text}
+                  </motion.div>
+                </div>
               ))}
             </AnimatePresence>
             {isLoading && (
