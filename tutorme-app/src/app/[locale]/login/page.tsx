@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { useNavigationOverlay } from '@/components/navigation/NavigationOverlay'
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons'
 
 function LoginForm() {
   const router = useRouter()
@@ -25,6 +26,7 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const registered = searchParams.get('registered')
   const authError = searchParams.get('error')
+  const verifyStatus = searchParams.get('verify') // 'success' | 'invalid' | 'expired'
   const { showOverlay } = useNavigationOverlay()
 
   const [email, setEmail] = useState('')
@@ -33,6 +35,25 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  // The email that needs verification (set when login is blocked as unverified),
+  // so we can offer a targeted "resend" without another lookup.
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent'>('idle')
+
+  const handleResendVerification = async () => {
+    if (!unverifiedEmail || resendState === 'sending') return
+    setResendState('sending')
+    try {
+      await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: unverifiedEmail }),
+      })
+    } catch {
+      // Best-effort; the endpoint always returns a generic success anyway.
+    }
+    setResendState('sent')
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -48,16 +69,22 @@ function LoginForm() {
       })
 
       if (result?.error) {
-        const healthRes = await fetch('/api/health', { method: 'GET', cache: 'no-store' }).catch(
-          () => null
-        )
-        const healthOk = healthRes?.ok ?? false
-        if (!healthOk) {
-          setError(
-            'Unable to reach the server. The database may be temporarily unavailable. Please try again later.'
-          )
+        if (result.error === 'EMAIL_NOT_VERIFIED') {
+          setUnverifiedEmail(email.trim().toLowerCase())
+          setResendState('idle')
+          setError('Please verify your email address to sign in — check your inbox for the link.')
         } else {
-          setError('Oops, your email or password is incorrect.')
+          const healthRes = await fetch('/api/health', { method: 'GET', cache: 'no-store' }).catch(
+            () => null
+          )
+          const healthOk = healthRes?.ok ?? false
+          if (!healthOk) {
+            setError(
+              'Unable to reach the server. The database may be temporarily unavailable. Please try again later.'
+            )
+          } else {
+            setError('Oops, your email or password is incorrect.')
+          }
         }
       } else {
         const session = await getSession()
@@ -127,7 +154,19 @@ function LoginForm() {
           {/* Reserved message area keeps the card height stable */}
           <div className="mb-3 min-h-[20px]">
             {registered && (
-              <div className="text-sm text-white/90">Registration successful! Please log in.</div>
+              <div className="text-sm text-white/90">
+                Registration successful! Check your email for a verification link, then log in.
+              </div>
+            )}
+
+            {verifyStatus === 'success' && (
+              <div className="text-sm text-white/90">Your email is verified — please log in.</div>
+            )}
+            {(verifyStatus === 'expired' || verifyStatus === 'invalid') && (
+              <div className="text-sm text-white/90">
+                That verification link is {verifyStatus === 'expired' ? 'expired' : 'invalid'}. Sign
+                in to get a new one.
+              </div>
             )}
 
             {(error || authError) && (
@@ -137,6 +176,21 @@ function LoginForm() {
                     ? 'Session expired or not found. Please log in again.'
                     : 'An authentication error occurred.')}
               </div>
+            )}
+
+            {unverifiedEmail && (
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendState !== 'idle'}
+                className="mt-1 text-sm font-medium text-white underline underline-offset-2 hover:text-white/80 disabled:opacity-60"
+              >
+                {resendState === 'sent'
+                  ? 'Verification email sent — check your inbox.'
+                  : resendState === 'sending'
+                    ? 'Sending…'
+                    : 'Resend verification email'}
+              </button>
             )}
           </div>
 
@@ -219,6 +273,8 @@ function LoginForm() {
               )}
             </Button>
           </form>
+
+          <SocialLoginButtons callbackUrl={`${localePrefix}/`} className="mt-4" />
 
           <div className="mt-4 text-center text-sm">
             <span className="text-white/80">Don&apos;t have an account?</span>

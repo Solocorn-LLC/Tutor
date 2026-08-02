@@ -100,7 +100,7 @@ export function ModernHeroSection({
         (c: { isPublished?: boolean | null }) => c.isPublished !== true
       )
       if (courses.length === 0) {
-        toast.info('No unpublished courses available to create a demo with.')
+        toast.info('No Template courses available to create a demo with.')
         return
       }
       setUnpublishedCourses(
@@ -124,7 +124,7 @@ export function ModernHeroSection({
         body: JSON.stringify({
           type: 'teaching',
           courseId,
-          title: `${course.name} - Live Session`,
+          title: course.name,
           description,
         }),
       })

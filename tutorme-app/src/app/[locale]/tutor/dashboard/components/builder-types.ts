@@ -1,5 +1,7 @@
 import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
+import type { PciThread } from './hooks/pci-reducer'
+import type { PciAuditRecord } from '@/lib/assessment/pci'
 
 // ============================================
 // HIERARCHICAL STRUCTURE TYPES
@@ -146,9 +148,12 @@ export interface Task extends WithDifficultyVariants {
   shortDescription?: string
   description: string
   instructions: string
+  /** Full persisted PCI assistant conversation for this task. Survives reloads
+   *  and device switches because it is stored in the lesson JSON. */
+  pciThread?: PciThread
   /** Append-only audit log of PCI approvals (TASK-18). Each "Apply to PCI"
    *  records the transcript + approved text for auditability/versioning. */
-  pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
+  pciHistory?: PciAuditRecord[]
   /** Current approved structured PCI spec (TASK-6), when finalized. */
   pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   extensions?: Array<{
@@ -158,6 +163,8 @@ export interface Task extends WithDifficultyVariants {
     content: string
     pci: string
     sourceDocument?: ImportedLearningResource
+    /** Full persisted PCI assistant conversation for this extension. */
+    pciThread?: PciThread
   }>
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
@@ -188,9 +195,12 @@ export interface Assessment extends WithDifficultyVariants {
   title: string
   description: string
   instructions: string
-  /** Current approved structured PCI spec (TASK-6), when finalized. Persisted at
-   *  deploy to BuilderTask.pciSpec so the grader can use the same structured
-   *  marking policy tasks already get. */
+  /** Full persisted PCI assistant conversation for this assessment. Survives
+   *  reloads and device switches because it is stored in the lesson JSON. */
+  pciThread?: PciThread
+  /** Append-only audit log of PCI approvals (TASK-18) for assessments. */
+  pciHistory?: PciAuditRecord[]
+  /** Current approved structured PCI spec (TASK-6), when finalized. */
   pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
@@ -227,6 +237,9 @@ export interface Assessment extends WithDifficultyVariants {
   /** When false, not visible to students (draft) */
   isPublished?: boolean
   sourceDocument?: ImportedLearningResource
+  /** Multi-page slide content for the assessment builder. When absent, falls back
+   *  to `instructions` as a single page. */
+  pages?: string[]
 }
 
 export interface QuizQuestion {
@@ -372,6 +385,7 @@ export interface InsightsSessionOption {
   scheduledAt: string
   status: string
   durationMinutes?: number
+  sessionType?: string
 }
 
 export interface CourseBuilderInsightsProps {

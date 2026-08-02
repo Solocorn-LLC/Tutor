@@ -1,0 +1,2 @@
+ALTER TABLE "LiveSession" ADD COLUMN "demoVideoContentId" text;--> statement-breakpoint
+ALTER TABLE "LiveSession" ADD CONSTRAINT "LiveSession_demoVideoContentId_ContentItem_id_fk" FOREIGN KEY ("demoVideoContentId") REFERENCES "public"."ContentItem"("id") ON DELETE set null ON UPDATE no action;

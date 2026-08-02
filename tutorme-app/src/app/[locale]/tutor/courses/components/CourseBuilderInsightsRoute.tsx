@@ -38,7 +38,6 @@ import {
 import { BackButton } from '@/components/navigation/BackButton'
 import { CourseCategoryPicker } from './CourseCategoryPicker'
 import { getCategoryBoard } from '@/lib/data/category-board'
-
 import { CourseSelectorDialog } from '@/components/course/course-selector-dialog'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -48,6 +47,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { GoLiveDialog } from '../../dashboard/components/GoLiveDialog'
+import { DemoVideoManager } from '@/components/demo-video/DemoVideoManager'
 import { toast } from 'sonner'
 import type { CourseBuilderInsightsProps } from './course-builder-types'
 import type { CourseBuilderRef } from '../../dashboard/components/builder-types'
@@ -55,9 +55,8 @@ import {
   useCourseBuilderContentModel,
   type UseCourseBuilderContentArgs,
 } from './use-course-builder-content-model'
-import { saveCourse, resolveLessonDmis } from './save-course'
+import { resolveLessonDmis } from './save-course'
 import type { ScheduleItem } from '../[id]/constants'
-import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
 
 function WifiSignal({ connected, error }: { connected: boolean; error: boolean }) {
@@ -117,6 +116,7 @@ type Props = UseCourseBuilderContentArgs & {
   onSaveCourse?: (lessons: any[], options?: any) => void
   onSyncToLiveSession?: (silent?: boolean) => void
   onCreateCourse?: () => void
+  onCreateTemplate?: (lessons: any[], options?: any) => Promise<void>
   onDeleteCourse?: () => void
   isCreateDialogOpen?: boolean
   setIsCreateDialogOpen?: (v: boolean) => void
@@ -168,10 +168,11 @@ interface TutorControlsPanelProps {
   onModeChange: (mode: ControlsMode) => void
   disabled?: boolean
   onSave: () => void
-  onSchedule: () => void
+  onSchedule?: () => void
   onDelete: () => void
   onGoLive: () => void
-  onVideo: () => void
+  onRecordDemo: () => void
+  onLaunchVideo: () => void
   onSync: () => void
   onCreateCourse?: () => void
   onEditCourse?: () => void
@@ -179,12 +180,15 @@ interface TutorControlsPanelProps {
   canSchedule: boolean
   canGoLive: boolean
   hasSession: boolean
+  isDemoSession?: boolean
   hasUnsyncedChanges?: boolean
   onEndSession?: () => void
   endingSession?: boolean
   isConnected?: boolean
   connectionError?: boolean
   scheduleButtonLabel?: string
+  onCreateTemplate?: () => void
+  createTemplateButtonLabel?: string
 }
 
 function TutorControlsPanel({
@@ -195,7 +199,8 @@ function TutorControlsPanel({
   onSchedule,
   onDelete,
   onGoLive,
-  onVideo,
+  onRecordDemo,
+  onLaunchVideo,
   onSync,
   onCreateCourse,
   onEditCourse,
@@ -203,12 +208,15 @@ function TutorControlsPanel({
   canSchedule,
   canGoLive,
   hasSession,
+  isDemoSession,
   hasUnsyncedChanges,
   onEndSession,
   endingSession,
   isConnected,
   connectionError,
   scheduleButtonLabel,
+  onCreateTemplate,
+  createTemplateButtonLabel,
 }: TutorControlsPanelProps) {
   const [open, setOpen] = useState(true)
   const [isDragging, setIsDragging] = useState(false)
@@ -218,7 +226,7 @@ function TutorControlsPanel({
     'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
 
   const actionButtonBase =
-    'flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
+    'flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
 
   const panelDisabled = disabled || false
 
@@ -281,14 +289,14 @@ function TutorControlsPanel({
                 >
                   <TabsList
                     data-testid="builder-mode-tabs"
-                    className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white/10 p-1"
+                    className="grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
                   >
                     <TabsTrigger
                       value="build"
                       className={cn(
                         modeButtonBase,
-                        'text-white hover:bg-white/5 hover:text-white',
-                        'data-[state=active]:bg-white data-[state=active]:text-[#2563EB] data-[state=active]:shadow-sm'
+                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                        'data-[state=active]:bg-[#2563EB] data-[state=active]:text-white data-[state=active]:shadow-sm'
                       )}
                     >
                       <Wrench className="h-3.5 w-3.5" />
@@ -298,8 +306,8 @@ function TutorControlsPanel({
                       value="test"
                       className={cn(
                         modeButtonBase,
-                        'text-white hover:bg-white/5 hover:text-white',
-                        'data-[state=active]:bg-white data-[state=active]:text-[#7C3AED] data-[state=active]:shadow-sm'
+                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                        'data-[state=active]:bg-[#7C3AED] data-[state=active]:text-white data-[state=active]:shadow-sm'
                       )}
                     >
                       <TestTube2 className="h-3.5 w-3.5" />
@@ -309,8 +317,8 @@ function TutorControlsPanel({
                       value="classroom"
                       className={cn(
                         modeButtonBase,
-                        'text-white hover:bg-white/5 hover:text-white',
-                        'data-[state=active]:bg-white data-[state=active]:text-[#F97316] data-[state=active]:shadow-sm'
+                        'text-slate-700 hover:bg-slate-100 hover:text-slate-900',
+                        'data-[state=active]:bg-[#F97316] data-[state=active]:text-white data-[state=active]:shadow-sm'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
@@ -320,136 +328,157 @@ function TutorControlsPanel({
                 </Tabs>
 
                 {/* Action buttons */}
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      disabled={panelDisabled}
-                      onClick={onSave}
-                      className={cn(
-                        actionButtonBase,
-                        'bg-white text-gray-900 hover:bg-gray-100 active:bg-gray-200'
-                      )}
-                    >
-                      <Save className="h-4 w-4" />
-                      Save
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={panelDisabled || mode !== 'build' || !canDelete}
-                      onClick={onDelete}
-                      className={cn(
-                        actionButtonBase,
-                        'bg-white text-red-600 hover:bg-red-50 active:bg-red-100'
-                      )}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={panelDisabled || mode !== 'build' || !onEditCourse}
-                      onClick={onEditCourse}
-                      className={cn(
-                        actionButtonBase,
-                        'bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100'
-                      )}
-                    >
-                      <Edit3 className="h-4 w-4" />
-                      Edit Category
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      disabled={panelDisabled || mode !== 'build' || !canGoLive}
-                      onClick={onGoLive}
-                      className={cn(
-                        actionButtonBase,
-                        'bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700'
-                      )}
-                    >
-                      <VideoIcon className="h-4 w-4" />
-                      Go Live
-                    </button>
-
-                    <button
-                      type="button"
-                      // Video joins the live session — it must be usable while
-                      // live (mode === 'classroom'), not only in build mode. It
-                      // was wrongly gated on mode === 'build' (like the adjacent
-                      // build-only actions), so it was disabled during a session.
-                      disabled={panelDisabled || !hasSession}
-                      onClick={onVideo}
-                      className={cn(
-                        actionButtonBase,
-                        'bg-pink-500 hover:bg-pink-600 active:bg-pink-700'
-                      )}
-                    >
-                      <VideoIcon className="h-4 w-4" />
-                      Video
-                    </button>
-
-                    <button
-                      type="button"
-                      disabled={panelDisabled || mode !== 'build'}
-                      onClick={onCreateCourse}
-                      className={cn(
-                        actionButtonBase,
-                        'group bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
-                      )}
-                    >
-                      <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
-                        <Plus className="h-4 w-4" />
-                        New Course
-                      </span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Schedule & Publish — full width, below the grid */}
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                <div className="mt-[17px] px-1">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-2">
                       <button
                         type="button"
-                        disabled={panelDisabled || mode !== 'build' || !canSchedule}
-                        onClick={onSchedule}
+                        disabled={panelDisabled}
+                        onClick={onSave}
                         className={cn(
                           actionButtonBase,
-                          'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                          'bg-white text-gray-900 hover:bg-gray-100 active:bg-gray-200'
                         )}
                       >
-                        <Calendar className="h-4 w-4" />
-                        {scheduleButtonLabel || 'Schedule & Publish'}
+                        <Save className="h-4 w-4" />
+                        Save
                       </button>
-                    </TooltipTrigger>
-                  </Tooltip>
-                </TooltipProvider>
 
-                {/* End the live session — finalizes recording + analytics. Only
-                    shown while a session is active. */}
-                {onEndSession && hasSession && (
-                  <button
-                    type="button"
-                    disabled={panelDisabled || endingSession}
-                    onClick={onEndSession}
-                    className={cn(
-                      actionButtonBase,
-                      'mt-2 justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                    )}
-                  >
-                    {endingSession ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <PhoneOff className="h-4 w-4" />
-                    )}
-                    {endingSession ? 'Ending…' : 'End Session'}
-                  </button>
-                )}
+                      <button
+                        type="button"
+                        disabled={panelDisabled || mode !== 'build' || !canDelete}
+                        onClick={onDelete}
+                        className={cn(
+                          actionButtonBase,
+                          'bg-white text-red-600 hover:bg-red-50 active:bg-red-100'
+                        )}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={panelDisabled || mode !== 'build' || !onEditCourse}
+                        onClick={onEditCourse}
+                        className={cn(
+                          actionButtonBase,
+                          'bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100'
+                        )}
+                      >
+                        <Edit3 className="h-4 w-4" />
+                        Edit Category
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        disabled={panelDisabled || mode !== 'build' || !canGoLive}
+                        onClick={onGoLive}
+                        className={cn(
+                          actionButtonBase,
+                          'bg-white text-emerald-600 hover:bg-emerald-500 hover:text-white active:bg-emerald-600'
+                        )}
+                      >
+                        <VideoIcon className="h-4 w-4" />
+                        Go Live
+                      </button>
+
+                      <button
+                        type="button"
+                        // Video launches the live video connection during a session; in a demo
+                        // session it reverts to the demo recorder/uploader label and action.
+                        disabled={panelDisabled || !hasSession}
+                        onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
+                        className={cn(
+                          actionButtonBase,
+                          'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200'
+                        )}
+                      >
+                        <VideoIcon className="h-4 w-4" />
+                        {isDemoSession ? 'Record Demo' : 'Video'}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={panelDisabled || mode !== 'build'}
+                        onClick={onCreateCourse}
+                        className={cn(
+                          actionButtonBase,
+                          'group bg-white text-blue-600 hover:bg-blue-600 hover:text-white active:bg-blue-700'
+                        )}
+                      >
+                        <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
+                          <Plus className="h-4 w-4" />
+                          New Course
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Schedule / Create Template / End Session — full width, below the grid.
+                    During a session the End Session button replaces scheduling so tutors
+                    can't publish while in session. For Creating-mode drafts the action
+                    becomes "Create Template", which persists the draft as an unpublished
+                    DB course and keeps the tutor in the builder. */}
+                  {hasSession && onEndSession ? (
+                    <button
+                      type="button"
+                      disabled={panelDisabled || endingSession}
+                      onClick={onEndSession}
+                      className={cn(
+                        actionButtonBase,
+                        'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                      )}
+                    >
+                      {endingSession ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <PhoneOff className="h-4 w-4" />
+                      )}
+                      {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                    </button>
+                  ) : createTemplateButtonLabel ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                            onClick={onCreateTemplate}
+                            className={cn(
+                              actionButtonBase,
+                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                            )}
+                          >
+                            <Calendar className="h-4 w-4" />
+                            {createTemplateButtonLabel}
+                          </button>
+                        </TooltipTrigger>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={panelDisabled || mode !== 'build' || !canSchedule}
+                            onClick={onSchedule}
+                            className={cn(
+                              actionButtonBase,
+                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                            )}
+                          >
+                            <Calendar className="h-4 w-4" />
+                            {scheduleButtonLabel || 'Schedule & Publish'}
+                          </button>
+                        </TooltipTrigger>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -471,6 +500,7 @@ function CourseBuilderInsightsRouteInner({
   onSaveCourse,
   onSyncToLiveSession,
   onCreateCourse,
+  onCreateTemplate,
   onDeleteCourse,
   isCreateDialogOpen,
   setIsCreateDialogOpen,
@@ -529,6 +559,7 @@ function CourseBuilderInsightsRouteInner({
   // Edit-course dialog (control-panel Edit button): edit name + category of the
   // current course. Prefilled from currentCourse; persisted via onUpdateCourse.
   const [isEditCourseOpen, setIsEditCourseOpen] = useState(false)
+  const [isRecordDemoOpen, setIsRecordDemoOpen] = useState(false)
   const [editName, setEditName] = useState('')
   const [editCategories, setEditCategories] = useState<string[]>([])
   const openEditCourse = () => {
@@ -612,6 +643,7 @@ function CourseBuilderInsightsRouteInner({
     (!courses || courses.length === 0) && (!draftCourses || draftCourses.length === 0)
 
   const currentSession = insightsProps?.sessions?.find(s => s.id === insightsProps?.sessionId)
+  const isDemoSession = currentSession?.sessionType === 'GO_LIVE_DEMO'
   const scheduledDateStr = currentSession?.scheduledAt
   const sessionPlannedDurationMinutes = currentSession?.durationMinutes || 60
   let countdownText = '--:--'
@@ -638,11 +670,27 @@ function CourseBuilderInsightsRouteInner({
       if (insightsProps.onStartSession) {
         insightsProps.onStartSession()
       } else {
-        // Fallback if not provided from parent
+        // Fallback if not provided from the parent
         setGoLiveDialogOpen(true)
       }
     } else {
       setGoLiveDialogOpen(true)
+    }
+  }
+
+  const handleLaunchVideo = () => {
+    // In a demo session the button reverts to the demo recorder.
+    if (isDemoSession) {
+      setIsRecordDemoOpen(true)
+      return
+    }
+    // During a live session, launch the live video connection.
+    if (insightsProps.sessionId) {
+      if (insightsProps.onStartSession) {
+        insightsProps.onStartSession()
+      } else {
+        model.router.push(`/tutor/classroom?sessionId=${insightsProps.sessionId}`)
+      }
     }
   }
 
@@ -733,10 +781,10 @@ function CourseBuilderInsightsRouteInner({
     }
   }
 
-  const handlePublishDraft = async () => {
-    if (!courseId || courseId === 'insights-draft') return
+  const handleCreateTemplate = async () => {
+    if (!courseId || courseId === 'insights-draft' || !onCreateTemplate) return
 
-    // 0. Validate category is selected before publishing.
+    // Validate category is selected before creating the template.
     const courseCategories = [...(courses || []), ...(draftCourses || [])].find(
       (c: any) => c.id === courseId
     )?.categories
@@ -745,9 +793,7 @@ function CourseBuilderInsightsRouteInner({
       return
     }
 
-    // 1. Read the editor's current tree. If it hasn't hydrated it can come back
-    //    empty — fall back to the draft's persisted builder content so we never
-    //    publish an empty tree over real draft lessons.
+    // Read the editor's current tree, falling back to the draft's localStorage cache.
     const getLessonsCb = (model.courseBuilderRef.current as any)?.getLessons
     const editorLessons = typeof getLessonsCb === 'function' ? getLessonsCb() : []
     let rawLessons = editorLessons
@@ -759,25 +805,12 @@ function CourseBuilderInsightsRouteInner({
           rawLessons = parsed.lessons
         }
       } catch {
-        // ignore a malformed draft cache
+        // ignore malformed cache
       }
     }
     const { lessons, hasMissingDmis } = resolveLessonDmis(rawLessons)
 
-    const isLocalDraft = (draftCourses ?? []).some((c: any) => c.id === courseId)
-
-    // An empty tree on a course that already exists in the DB means the editor
-    // never loaded — its content is safe there, so just open scheduling instead
-    // of a destructive empty publish. A local draft with no lessons still
-    // materializes fine: saveCourse keeps the default lesson created on POST.
-    if (lessons.length === 0 && !isLocalDraft) {
-      model.router.push(`/tutor/courses/${courseId}`)
-      return
-    }
-
-    // 2. Persist the latest editor edits before publishing — but only if the
-    //    editor actually had content, so an unhydrated (empty) editor can't
-    //    clobber the draft's stored lessons.
+    // Persist current editor edits before converting.
     if (editorLessons.length > 0) {
       const saveCb = (model.courseBuilderRef.current as any)?.saveAll
       if (typeof saveCb === 'function') await saveCb()
@@ -786,45 +819,66 @@ function CourseBuilderInsightsRouteInner({
     if (hasMissingDmis) {
       if (
         !window.confirm(
-          'Some assessments have no DMIs. Are you sure you want to proceed and publish?'
+          'Some assessments have no DMIs. Are you sure you want to create this template?'
         )
       ) {
         return
       }
     }
 
-    const isExistingDbCourse = courses?.some((c: any) => c.id === courseId)
-
-    // Carry the category chosen at creation. Creating-mode courses hold it locally, so when
-    // this first persists the course to the DB we must pass it through — else
-    // the new course row gets categories:[] and the Course Details page shows
-    // no variant and no scheduler. (executeSave threads it the same way.)
-    const draftCategories = [...(courses || []), ...(draftCourses || [])].find(
-      (c: any) => c.id === courseId
-    )?.categories
-
-    // 4. Publish via shared save function
-    const result = await saveCourse({
-      courseId,
-      lessons,
-      mode: 'publish',
+    await onCreateTemplate(lessons, {
       courseName,
-      detachedCourseName,
-      categories: draftCategories,
-      developmentMode: 'single',
-      previewDifficulty: 'all',
-      isExistingDbCourse,
+      courseDescription: model.course?.description,
+      categories: courseCategories,
     })
-
-    if (result.success && result.courseId) {
-      model.router.push(`/tutor/courses/${result.courseId}`)
-    } else {
-      toast.error(result.error || 'Failed to publish course')
-    }
   }
 
   // Search both lists regardless of saveMode so the selected course is always found
   const currentCourse = [...(courses || []), ...(draftCourses || [])].find(c => c.id === courseId)
+
+  type CourseStateIndicator = 'creating' | 'unpublished' | 'published' | 'demo'
+  const currentCourseState = useMemo((): CourseStateIndicator => {
+    if (isDemoSession) return 'demo'
+    if (!courseId) return 'creating'
+    if (draftCourses?.some(c => c.id === courseId)) return 'creating'
+    const dbCourse = courses?.find(c => c.id === courseId)
+    if (dbCourse?.isPublished) return 'published'
+    return 'unpublished'
+  }, [courseId, courses, draftCourses, isDemoSession])
+
+  const stateIndicatorMeta: Record<
+    CourseStateIndicator,
+    { label: string; dot: string; bg: string; text: string; border: string }
+  > = {
+    unpublished: {
+      label: 'Template',
+      dot: 'bg-green-500',
+      bg: 'bg-green-50',
+      text: 'text-green-700',
+      border: 'border-green-200',
+    },
+    published: {
+      label: 'Published',
+      dot: 'bg-blue-500',
+      bg: 'bg-blue-50',
+      text: 'text-blue-700',
+      border: 'border-blue-200',
+    },
+    creating: {
+      label: 'Creating',
+      dot: 'bg-amber-500',
+      bg: 'bg-amber-50',
+      text: 'text-amber-700',
+      border: 'border-amber-200',
+    },
+    demo: {
+      label: 'Class Demo',
+      dot: 'bg-violet-500',
+      bg: 'bg-violet-50',
+      text: 'text-violet-700',
+      border: 'border-violet-200',
+    },
+  }
 
   return (
     <div
@@ -878,6 +932,9 @@ function CourseBuilderInsightsRouteInner({
                           draftCourses={draftCourses ?? []}
                           currentCourseId={courseId}
                           onSelectCourse={id => insightsProps.onCourseChange?.(id)}
+                          onSelectDemoClass={id =>
+                            model.router.push(`/tutor/insights?sessionId=${id}`)
+                          }
                         />
                       </>
                     )}
@@ -955,6 +1012,26 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Course state indicator (read-only). Bright, vibrant pill that reflects
+                  the derived state of the selected course or demo class. */}
+              {activeMainTab !== 'test-pci' && courseId && (
+                <div
+                  className={cn(
+                    'flex h-9 w-[190px] items-center gap-2 rounded-md border px-3 text-sm font-medium shadow-sm',
+                    stateIndicatorMeta[currentCourseState].bg,
+                    stateIndicatorMeta[currentCourseState].text,
+                    stateIndicatorMeta[currentCourseState].border
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'h-2 w-2 rounded-full shadow-sm',
+                      stateIndicatorMeta[currentCourseState].dot
+                    )}
+                  />
+                  {stateIndicatorMeta[currentCourseState].label}
+                </div>
+              )}
               {/* Reflect the real socket connection: emerald when connected,
                   red when a session is live but the socket has dropped, amber
                   when idle (no active session). */}
@@ -1066,18 +1143,18 @@ function CourseBuilderInsightsRouteInner({
               }
             }}
             onSchedule={() => {
-              if (effectiveSaveMode === 'draft') {
-                void handlePublishDraft()
-              } else if (courseId && courseId !== 'insights-draft') {
+              if (courseId && courseId !== 'insights-draft') {
                 model.router.push(`/tutor/courses/${courseId}`)
               }
             }}
+            onCreateTemplate={() => void handleCreateTemplate()}
+            createTemplateButtonLabel={
+              effectiveSaveMode === 'draft' ? 'Create Template' : undefined
+            }
             onDelete={() => onDeleteCourse?.()}
             onGoLive={handleStartSessionClick}
-            onVideo={() => {
-              const ref = model.courseBuilderRef.current as CourseBuilderRef | null
-              ref?.openVideo?.()
-            }}
+            onLaunchVideo={handleLaunchVideo}
+            onRecordDemo={() => setIsRecordDemoOpen(true)}
             onSync={() => {
               const ref = model.courseBuilderRef.current as CourseBuilderRef | null
               ref?.triggerSync?.()
@@ -1085,21 +1162,22 @@ function CourseBuilderInsightsRouteInner({
             onCreateCourse={onCreateCourse}
             onEditCourse={courseId ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
-            // Schedule & Publish is available for any selected course. Creating courses
-            // are persisted first; existing DB courses jump to Course Details.
+            // Schedule & Publish is available for any selected DB course. Creating-mode
+            // drafts show "Create Template" instead, which persists to the DB in place.
             canSchedule={!!(courseId && courseId !== 'insights-draft')}
             scheduleButtonLabel={
-              effectiveSaveMode === 'draft' ? 'Schedule & Publish' : 'Schedule & Publish New Course'
+              effectiveSaveMode === 'draft' ? undefined : 'Schedule & Publish New Course'
             }
             canGoLive={
               !!(
                 courseId &&
                 courseId !== 'insights-draft' &&
-                effectiveSaveMode === 'draft' &&
+                effectiveSaveMode !== 'draft' &&
                 !insightsProps.sessionId
               )
             }
             hasSession={!!insightsProps.sessionId}
+            isDemoSession={isDemoSession}
             hasUnsyncedChanges={hasUnsyncedChanges}
             onEndSession={insightsProps.sessionId ? handleEndSession : undefined}
             endingSession={endingSession}
@@ -1239,6 +1317,33 @@ function CourseBuilderInsightsRouteInner({
                 disabled={editCategories.length === 0}
               >
                 Save
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Record Demo Dialog */}
+      <Dialog open={isRecordDemoOpen} onOpenChange={setIsRecordDemoOpen}>
+        <DialogContent
+          className="max-h-[90vh] w-full max-w-5xl overflow-hidden border border-slate-200 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+          aria-describedby={undefined}
+        >
+          <div className="pointer-events-none absolute inset-0 z-0 bg-gradient-to-br from-slate-900/5 via-slate-900/10 to-slate-900/20" />
+          <div className="relative z-10 flex flex-col overflow-hidden">
+            <DialogHeader className="shrink-0 border-b-0 pb-4 pt-4 text-center">
+              <DialogTitle className="mx-auto text-center text-white">Record Demo</DialogTitle>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto px-6 pb-4">
+              {insightsProps.sessionId && (
+                <DemoVideoManager sessionId={insightsProps.sessionId} defaultTab="record" />
+              )}
+            </div>
+
+            <DialogFooter className="shrink-0 gap-3 border-white/20 px-6 pb-4">
+              <Button variant="modal-secondary-dark" onClick={() => setIsRecordDemoOpen(false)}>
+                Close
               </Button>
             </DialogFooter>
           </div>

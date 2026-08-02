@@ -10,10 +10,56 @@ import { NextAuthOptions, getServerSession as getServerSessionNextAuth } from 'n
 import { getToken } from 'next-auth/jwt'
 import type { Session } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import GoogleProvider from 'next-auth/providers/google'
+import FacebookProvider from 'next-auth/providers/facebook'
+import TwitterProvider from 'next-auth/providers/twitter'
+import { cookies } from 'next/headers'
 import { eq } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { user, profile } from '@/lib/db/schema'
 import bcrypt from 'bcryptjs'
+
+/**
+ * Social sign-in providers, included ONLY when their credentials are present in
+ * the environment — so the app deploys safely before any OAuth apps are set up,
+ * and each provider appears the moment its keys are added. (Apple + WeChat are
+ * follow-ups: Apple needs a signed-JWT client secret, WeChat a custom provider.)
+ */
+function oauthProviders(): NonNullable<NextAuthOptions['providers']> {
+  const providers: NonNullable<NextAuthOptions['providers']> = []
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    providers.push(
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })
+    )
+  }
+  if (process.env.FACEBOOK_CLIENT_ID && process.env.FACEBOOK_CLIENT_SECRET) {
+    providers.push(
+      FacebookProvider({
+        clientId: process.env.FACEBOOK_CLIENT_ID,
+        clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      })
+    )
+  }
+  if (process.env.TWITTER_CLIENT_ID && process.env.TWITTER_CLIENT_SECRET) {
+    providers.push(
+      TwitterProvider({
+        clientId: process.env.TWITTER_CLIENT_ID,
+        clientSecret: process.env.TWITTER_CLIENT_SECRET,
+        version: '2.0',
+        allowDangerousEmailAccountLinking: true,
+      })
+    )
+  }
+  return providers
+}
+
+/** The cookie the register/login buttons set to carry the intended signup role. */
+export const OAUTH_ROLE_COOKIE = 'oauth_signup_role'
 
 /** Cookie names for realm-scoped sessions (tutor tab vs student tab). */
 export const REALM_COOKIE_TUTOR = 'tutor_session'
@@ -66,6 +112,20 @@ export const authOptions: NextAuthOptions = {
             return null
           }
 
+          // Block sign-in for accounts that must verify their email first (only
+          // once the password is confirmed, so this never reveals whether an
+          // email exists). No-op unless enforcement is enabled + the account is
+          // newer than the cutoff — pre-existing users are never affected.
+          const { shouldBlockUnverifiedLogin } = await import('@/lib/auth/email-verification')
+          if (
+            shouldBlockUnverifiedLogin({
+              emailVerified: userRow.emailVerified,
+              createdAt: userRow.createdAt,
+            })
+          ) {
+            throw new Error('EMAIL_NOT_VERIFIED')
+          }
+
           const onboardingComplete = checkOnboardingComplete({ profile: profileRow ?? undefined })
           const tosAccepted = profileRow?.tosAccepted ?? false
 
@@ -96,18 +156,82 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
+    // Social sign-in (Google / Facebook / X) — only the ones whose env creds
+    // exist. Apple + WeChat are follow-ups.
+    ...oauthProviders(),
   ],
 
-  // WeChat OAuth - To be added later
-  // WeChatProvider({
-  //   clientId: process.env.WECHAT_APP_ID!,
-  //   clientSecret: process.env.WECHAT_APP_SECRET!,
-  // })
-  // ], // This was an extra closing bracket for providers array, removed it.
-
   callbacks: {
-    async jwt({ token, user, trigger, session }) {
+    // OAuth sign-in: find-or-create the app user (role from the signup cookie,
+    // profile + handle provisioned) before a token is issued. Credentials logins
+    // skip this. Returning false blocks sign-in with ?error on the login page.
+    async signIn({ user: authUser, account, profile: oauthProfile }) {
+      if (!account || account.provider === 'credentials') return true
+
+      const email = (authUser?.email || (oauthProfile as { email?: string })?.email || '')
+        .trim()
+        .toLowerCase()
+      if (!email) return `/login?error=OAuthNoEmail`
+
+      // email_verified is provided by Google/Facebook (boolean); default true for
+      // providers that only return verified emails.
+      const emailVerifiedByProvider =
+        (oauthProfile as { email_verified?: boolean })?.email_verified !== false
+
+      const { provisionOAuthUser, normalizeOAuthRole } =
+        await import('@/lib/auth/oauth-provisioning')
+      let role = 'STUDENT'
+      try {
+        role = (await cookies()).get(OAUTH_ROLE_COOKIE)?.value || 'STUDENT'
+      } catch {
+        // cookies() unavailable in some contexts — default role stands.
+      }
+
+      const result = await provisionOAuthUser({
+        email,
+        name: authUser?.name ?? (oauthProfile as { name?: string })?.name ?? null,
+        image: authUser?.image ?? null,
+        emailVerifiedByProvider,
+        provider: account.provider,
+        providerAccountId: account.providerAccountId,
+        role: normalizeOAuthRole(role),
+        tokens: {
+          access_token: account.access_token ?? null,
+          refresh_token: account.refresh_token ?? null,
+          expires_at: typeof account.expires_at === 'number' ? account.expires_at : null,
+          token_type: account.token_type ?? null,
+          scope: account.scope ?? null,
+          id_token: account.id_token ?? null,
+        },
+      })
+
+      if (!result.ok) {
+        if (result.reason === 'link_blocked') return `/login?error=OAuthEmailUnverified`
+        if (result.reason === 'no_email') return `/login?error=OAuthNoEmail`
+        return `/login?error=OAuthProvisionFailed`
+      }
+      return true
+    },
+
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
+        // OAuth sign-in: the provider `user` has no role/profile — resolve them
+        // from our DB (provisioned in the signIn callback just above).
+        if (account && account.provider !== 'credentials') {
+          const { getUserTokenFieldsByEmail } = await import('@/lib/auth/oauth-provisioning')
+          const fields = await getUserTokenFieldsByEmail(user.email || '')
+          if (fields) {
+            token.id = fields.id
+            token.role = fields.role
+            token.name = fields.name
+            token.email = fields.email
+            token.picture = fields.image
+            token.onboardingComplete = fields.onboardingComplete
+            token.tosAccepted = fields.tosAccepted
+          }
+          return token
+        }
+
         token.role = user.role
         token.id = user.id
         token.name = user.name

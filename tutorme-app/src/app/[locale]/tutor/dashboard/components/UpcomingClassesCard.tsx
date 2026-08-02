@@ -35,6 +35,7 @@ export interface UpcomingClass {
   title: string
   subject: string
   scheduledAt: string
+  createdAt?: string | null
   duration: number
   maxStudents: number
   enrolledStudents: number

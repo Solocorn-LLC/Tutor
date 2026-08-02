@@ -1210,30 +1210,32 @@ function TutorDashboardContent() {
                         <div className="flex min-w-0 flex-col justify-center gap-1">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="truncate font-semibold text-white">{demo.title}</p>
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                'text-[10px] uppercase tracking-wide',
-                                demo.status === 'active'
-                                  ? 'border-white/40 bg-white/20 text-white'
-                                  : demo.status === 'ended'
-                                    ? 'border-black/20 bg-black/20 text-white/80'
-                                    : 'border-white/30 bg-white/15 text-white'
-                              )}
-                            >
-                              {demo.status}
-                            </Badge>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
                             <span>{demo.subject}</span>
+                            {(demo.createdAt || demo.scheduledAt) && (
+                              <>
+                                <span className="text-white/50">•</span>
+                                <span className="text-white/70">
+                                  Created{' '}
+                                  {new Date(
+                                    (demo.createdAt || demo.scheduledAt)!
+                                  ).toLocaleDateString('en-US', {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    year: 'numeric',
+                                  })}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
-                        <div className="h-14 w-full max-w-[420px] self-center rounded-md bg-white px-3 py-2">
-                          <p className="line-clamp-2 text-xs text-gray-700">
+                        <div className="h-16 w-[480px] self-center rounded-md bg-white px-3 py-2">
+                          <p className="line-clamp-3 text-xs text-gray-700">
                             {demo.description || 'No description'}
                           </p>
                         </div>
-                        <div className="flex flex-col items-end justify-center gap-2">
+                        <div className="flex flex-row items-center justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"

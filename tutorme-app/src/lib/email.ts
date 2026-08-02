@@ -50,6 +50,46 @@ Message: ${message}`,
 }
 
 /**
+ * Send an account email-verification link to a newly registered user.
+ */
+export async function sendVerificationEmail({
+  to,
+  name,
+  verifyUrl,
+}: {
+  to: string
+  name?: string | null
+  verifyUrl: string
+}) {
+  const greeting = name ? ` ${name}` : ''
+  const mailOptions = {
+    from: `"Solocorn" <${process.env.EMAIL_USER || 'support@solocorn.co'}>`,
+    to,
+    subject: 'Verify your email address',
+    text: `Hi${greeting},
+
+Confirm your email address to activate your Solocorn account:
+
+${verifyUrl}
+
+This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.`,
+    html: `
+      <div style="font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1F2933;">
+        <h2 style="font-size: 20px;">Verify your email</h2>
+        <p>Hi${greeting}, confirm your email address to activate your Solocorn account.</p>
+        <p style="margin: 24px 0;">
+          <a href="${verifyUrl}" style="display: inline-block; background: #2563EB; color: #ffffff; text-decoration: none; padding: 12px 20px; border-radius: 8px; font-weight: 600;">Verify email</a>
+        </p>
+        <p style="font-size: 13px; color: #6b7280;">Or paste this link into your browser:<br><a href="${verifyUrl}">${verifyUrl}</a></p>
+        <p style="font-size: 13px; color: #6b7280;">This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.</p>
+      </div>
+    `,
+  }
+
+  return transporter.sendMail(mailOptions)
+}
+
+/**
  * Send a tutor signup notification email to support@solocorn.co.
  */
 export async function sendTutorSignupEmail({

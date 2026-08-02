@@ -133,24 +133,29 @@ const nextConfig = {
   // to avoid duplication and ensure consistent policy.
   async headers() {
     return [
+      // Never cache HTML pages or public files by default. This prevents
+      // browsers/CDNs from serving a stale app shell after a deploy.
       {
-        source: '/',
+        source: '/:path*',
         headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },
+      // Next.js content-hashed chunks are immutable and can be cached forever.
       {
-        source: '/index.html',
-        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+        source: '/_next/static/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
+      // Long-lived user-uploaded assets.
+      {
+        source: '/assets/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      // The service worker must always be revalidated so updates deploy quickly.
       {
         source: '/sw.js',
         headers: [
           { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
         ],
-      },
-      {
-        source: '/assets/:path*',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ]
   },

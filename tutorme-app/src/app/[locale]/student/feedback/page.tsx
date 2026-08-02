@@ -83,6 +83,7 @@ import {
   type TestTaskChatMsg,
 } from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
+import { DemoVideoPrompt, DemoVideoPlayer } from '@/components/demo-video/DemoVideoPlayer'
 
 /** Group deployed task directory items into base tasks and their extensions. */
 interface GroupableTask {
@@ -1006,6 +1007,14 @@ function StudentFeedbackContent() {
     endedAt: string | null
   } | null>(null)
   const [sessionTimer, setSessionTimer] = useState<string>('')
+  const [demoVideo, setDemoVideo] = useState<{
+    contentId: string
+    title: string | null
+    url: string | undefined
+    duration: number | null
+  } | null>(null)
+  const [showDemoVideoPrompt, setShowDemoVideoPrompt] = useState(false)
+  const [showDemoVideoPlayer, setShowDemoVideoPlayer] = useState(false)
   const [myBoardPages, setMyBoardPages] = useState<WhiteboardPage[]>(createDefaultWhiteboardPages)
   const [myBoardPageIndex, setMyBoardPageIndex] = useState(0)
   const [tutorBoardPages, setTutorBoardPages] = useState<WhiteboardPage[]>(
@@ -1374,6 +1383,38 @@ function StudentFeedbackContent() {
       cancelled = true
     }
   }, [selectedSessionId, getCsrfToken])
+
+  // Fetch the demo-class video (if any) so students see a "Play class video?" prompt
+  // on entry. The prompt is dismissed per session once the student skips or finishes it.
+  useEffect(() => {
+    if (!selectedSessionId) return
+    let active = true
+    const loadDemoVideo = async () => {
+      try {
+        const res = await fetch(`/api/live-sessions/${selectedSessionId}/demo-video`, {
+          credentials: 'include',
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (!active) return
+        if (data?.video) {
+          setDemoVideo(data.video)
+          if (typeof window !== 'undefined') {
+            const dismissed = window.localStorage.getItem(
+              `demo-video-dismissed:${selectedSessionId}`
+            )
+            if (!dismissed) setShowDemoVideoPrompt(true)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load demo video:', e)
+      }
+    }
+    loadDemoVideo()
+    return () => {
+      active = false
+    }
+  }, [selectedSessionId])
 
   useEffect(() => {
     if (!socket) return
@@ -2139,6 +2180,39 @@ function StudentFeedbackContent() {
           openVideoOverlay={openVideoOverlay}
           setShowDirectoryPanel={setShowDirectoryPanel}
         />
+
+        {showDemoVideoPrompt && demoVideo && (
+          <DemoVideoPrompt
+            video={demoVideo}
+            onPlay={() => {
+              setShowDemoVideoPrompt(false)
+              setShowDemoVideoPlayer(true)
+            }}
+            onSkip={() => {
+              setShowDemoVideoPrompt(false)
+              if (selectedSessionId && typeof window !== 'undefined') {
+                window.localStorage.setItem(`demo-video-dismissed:${selectedSessionId}`, '1')
+              }
+            }}
+          />
+        )}
+        {showDemoVideoPlayer && demoVideo && (
+          <DemoVideoPlayer
+            video={demoVideo}
+            onComplete={() => {
+              setShowDemoVideoPlayer(false)
+              if (selectedSessionId && typeof window !== 'undefined') {
+                window.localStorage.setItem(`demo-video-dismissed:${selectedSessionId}`, '1')
+              }
+            }}
+            onSkip={() => {
+              setShowDemoVideoPlayer(false)
+              if (selectedSessionId && typeof window !== 'undefined') {
+                window.localStorage.setItem(`demo-video-dismissed:${selectedSessionId}`, '1')
+              }
+            }}
+          />
+        )}
 
         {/* Content Wrapper */}
         <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">

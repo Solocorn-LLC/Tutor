@@ -47,6 +47,7 @@ interface InsightsSessionOption {
   scheduledAt: string
   status: string
   durationMinutes: number
+  sessionType?: string
 }
 
 // Stroke points may be compressed (flat number array) from socket delta sync.
@@ -120,7 +121,7 @@ function TutorInsightsPageInner() {
   // When opened from Dashboard sidebar or My Page Create Course, start in Creating mode
   const startInEditMode = searchParams.get('mode') === 'edit'
   // Embedded in the in-session Edit-course modal: edit UI, but persist straight
-  // to the DB (Unpublished mode) and auto-save — so "changes sync everywhere" holds.
+  // to the DB (Template mode) and auto-save — so "changes sync everywhere" holds.
   const embedded = searchParams.get('embed') === '1'
   const [saveMode, setSaveMode] = useState<'live' | 'draft'>(
     searchParams.get('sessionId') || embedded ? 'live' : startInEditMode ? 'draft' : 'live'
@@ -137,7 +138,7 @@ function TutorInsightsPageInner() {
   // BUT respect explicit mode=edit query param (set by Create Course / Course Builder nav)
   useEffect(() => {
     if (!courseId || courseId === 'insights-draft') return
-    // A sessionId or the embedded Edit-course modal force DB (Unpublished mode) persistence.
+    // A sessionId or the embedded Edit-course modal force DB (Template mode) persistence.
     if (searchParams.get('sessionId') || searchParams.get('embed') === '1') {
       setSaveMode('live')
       return
@@ -358,7 +359,7 @@ function TutorInsightsPageInner() {
       propagateToVariants?: boolean,
       setIndependent?: boolean
     ) => {
-      // Any course loaded from the DB (Unpublished or Published) must persist to the
+      // Any course loaded from the DB (Template or Published) must persist to the
       // DB (mode='live') regardless of the UI's current saveMode. Creating-mode
       // drafts fall back to the selected saveMode.
       const persistMode = isDbCourse ? 'live' : saveMode
@@ -400,7 +401,7 @@ function TutorInsightsPageInner() {
       if (result.success) {
         toast.success(
           persistMode === 'draft'
-            ? 'Creating course saved locally — switch to Unpublished mode to persist to the server'
+            ? 'Creating course saved locally — switch to Template mode to persist to the server'
             : 'Course saved successfully'
         )
 
@@ -701,6 +702,69 @@ function TutorInsightsPageInner() {
     }
   }, [courseId, courses, draftCourses, draftStorageKey, detachedCourseName])
 
+  const handleCreateTemplate = useCallback(
+    async (lessons: any[], options?: any) => {
+      if (!courseId || courseId === 'insights-draft') return
+
+      const isDraft = draftCourses.some(c => c.id === courseId)
+      if (!isDraft) {
+        toast.error('Only Creating-mode courses can be converted to a template')
+        return
+      }
+
+      try {
+        const result = await saveCourse({
+          courseId,
+          lessons,
+          mode: 'publish',
+          courseName: options?.courseName || courseName || detachedCourseName,
+          courseDescription: options?.courseDescription,
+          categories: options?.categories,
+          isExistingDbCourse: false,
+        })
+
+        if (!result.success || !result.courseId) {
+          toast.error(result.error || 'Failed to create template')
+          return
+        }
+
+        const newCourseId = result.courseId
+
+        // Remove the original Creating-mode draft from localStorage and state.
+        try {
+          const raw = localStorage.getItem(draftStorageKey)
+          const parsed = raw ? JSON.parse(raw) : []
+          const updated = parsed.filter((c: any) => c.id !== courseId)
+          localStorage.setItem(draftStorageKey, JSON.stringify(updated))
+        } catch {
+          // ignore localStorage cleanup failure
+        }
+        localStorage.removeItem(`insights-course-builder:${courseId}`)
+
+        const oldDraft = draftCourses.find(c => c.id === courseId)
+        const newCourse: CourseSummary = {
+          id: newCourseId,
+          name: options?.courseName || courseName || detachedCourseName || 'Untitled Course',
+          categories: options?.categories || oldDraft?.categories || [],
+          updatedAt: new Date().toISOString(),
+        }
+
+        setDraftCourses(prev => prev.filter(c => c.id !== courseId))
+        setCourses(prev => {
+          if (prev.some(c => c.id === newCourseId)) return prev
+          return [...prev, newCourse]
+        })
+        setCourseId(newCourseId)
+        setSaveMode('live')
+        router.replace(`/tutor/insights?tab=builder&courseId=${newCourseId}`)
+        toast.success('Template created successfully')
+      } catch {
+        toast.error('Failed to create template')
+      }
+    },
+    [courseId, courseName, detachedCourseName, draftCourses, draftStorageKey, router]
+  )
+
   useEffect(() => {
     if (!sessionId) {
       setStudents([])
@@ -777,15 +841,51 @@ function TutorInsightsPageInner() {
           setSessionId(querySessionId)
         }
 
-        const res = await fetch('/api/tutor/classes', { credentials: 'include' })
+        const res = await fetch('/api/tutor/classes?includeDemoClasses=1', {
+          credentials: 'include',
+        })
         if (!res.ok) throw new Error('Failed to load sessions')
         const data = await res.json()
-        const classSessions = (
+        let classSessions = (
           (data.classes || []) as Array<InsightsSessionOption & { duration?: number }>
         ).map(s => ({
           ...s,
           durationMinutes: s.duration ?? 60,
+          sessionType: (s as any).sessionType,
         }))
+
+        // Robust fallback: if the URL names a session that the filtered list does
+        // not include (e.g. an ended demo class, or any session filtered by role
+        // or status), fetch it directly so the classroom still has a valid session
+        // to deploy to and can determine its sessionType for demo features.
+        if (querySessionId && !classSessions.some(s => s.id === querySessionId)) {
+          try {
+            const directRes = await fetch(`/api/tutor/classes/${querySessionId}`, {
+              credentials: 'include',
+            })
+            if (directRes.ok) {
+              const directData = await directRes.json()
+              const directSession = directData.session
+              if (directSession) {
+                classSessions = [
+                  ...classSessions,
+                  {
+                    id: directSession.id,
+                    title: directSession.title,
+                    subject: directSession.subject,
+                    scheduledAt: directSession.scheduledAt,
+                    status: directSession.status,
+                    durationMinutes: 60,
+                    sessionType: directSession.sessionType,
+                  },
+                ]
+              }
+            }
+          } catch (directErr) {
+            console.error('[loadSessions] direct session fetch failed:', directErr)
+          }
+        }
+
         setSessions(classSessions)
 
         const activeSession = classSessions.find(item => item.status === 'active')
@@ -1328,13 +1428,13 @@ function TutorInsightsPageInner() {
                   </h1>
                   <p className="text-muted-foreground text-sm">
                     {activeCourses.length > 0
-                      ? `Pick ${saveMode === 'live' ? 'an Unpublished' : 'a Creating'} course to open the builder.`
-                      : `Create ${saveMode === 'live' ? 'an Unpublished' : 'a Creating'} course to access the builder.`}
+                      ? `Pick ${saveMode === 'live' ? 'a Template' : 'a Creating'} course to open the builder.`
+                      : `Create ${saveMode === 'live' ? 'a Template' : 'a Creating'} course to access the builder.`}
                   </p>
                 </div>
                 {activeCourses.length === 0 ? (
                   <Button onClick={() => setIsCreateDialogOpen(true)}>
-                    New {saveMode === 'live' ? 'Unpublished' : 'Creating'} Course
+                    New {saveMode === 'live' ? 'Template' : 'Creating'} Course
                   </Button>
                 ) : (
                   <div className="mt-4 grid w-full gap-3">
@@ -1407,7 +1507,7 @@ function TutorInsightsPageInner() {
               setCourseId(value)
               const isDbCourseSelected = courses.some(course => course.id === value)
               const isDraftCourse = draftCourses.some(course => course.id === value)
-              // DB courses (Unpublished or Published) must be edited in live mode so they
+              // DB courses (Template or Published) must be edited in live mode so they
               // persist to the server. Creating-mode courses stay in draft mode.
               if (!sessionId) {
                 if (isDbCourseSelected) {
@@ -1451,6 +1551,7 @@ function TutorInsightsPageInner() {
           onSaveCourse={handleSave}
           onSyncToLiveSession={handleSyncToLiveSession}
           onCreateCourse={() => setIsCreateDialogOpen(true)}
+          onCreateTemplate={handleCreateTemplate}
           onDeleteCourse={() => setIsDeleteDialogOpen(true)}
           isCreateDialogOpen={isCreateDialogOpen}
           setIsCreateDialogOpen={setIsCreateDialogOpen}

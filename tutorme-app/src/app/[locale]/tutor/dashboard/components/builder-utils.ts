@@ -521,24 +521,24 @@ export async function generateTaskTextPDF(
   const html2canvas = (await import('html2canvas')).default
 
   const VIEWPORT_WIDTH = 1100
-  const VIEWPORT_HEIGHT = 620
+  const VIEWPORT_MIN_HEIGHT = 620
 
-  // Off-screen landscape slide viewport that mirrors the Task Slide display area.
-  // Use a fixed-position wrapper with explicit dimensions so html2canvas reliably
-  // renders the element at the intended 1100 x 620 size and the PDF page stays
-  // landscape. The wrapper is placed far off-screen; it is not visibility:hidden
-  // so the element still renders and has real dimensions.
+  // Off-screen slide viewport that mirrors the Task Slide display area. The
+  // wrapper is fixed to the 1100px width so html2canvas renders reliably, but
+  // its height is left to grow: long content expands the page (correct aspect
+  // ratio) instead of being clipped, while short content still fills the
+  // landscape minimum.
   const wrapper = document.createElement('div')
-  wrapper.style.position = 'fixed'
-  wrapper.style.left = '-10000px'
-  wrapper.style.top = '-10000px'
+  wrapper.style.position = 'absolute'
+  wrapper.style.left = '-9999px'
+  wrapper.style.top = '0'
   wrapper.style.width = `${VIEWPORT_WIDTH}px`
-  wrapper.style.height = `${VIEWPORT_HEIGHT}px`
   wrapper.style.overflow = 'hidden'
+  wrapper.style.visibility = 'hidden'
 
   const viewport = document.createElement('div')
   viewport.style.width = `${VIEWPORT_WIDTH}px`
-  viewport.style.height = `${VIEWPORT_HEIGHT}px`
+  viewport.style.minHeight = `${VIEWPORT_MIN_HEIGHT}px`
   viewport.style.padding = '48px'
   viewport.style.background = '#ffffff'
   viewport.style.color = '#1F2933'
@@ -550,7 +550,7 @@ export async function generateTaskTextPDF(
   viewport.style.whiteSpace = 'pre-wrap'
   viewport.style.wordBreak = 'break-word'
   viewport.style.boxSizing = 'border-box'
-  viewport.style.overflow = 'hidden'
+  viewport.style.overflow = 'visible'
   viewport.setAttribute('dir', 'auto')
 
   const trimmed = content.trim()
@@ -564,6 +564,16 @@ export async function generateTaskTextPDF(
   document.body.appendChild(wrapper)
 
   try {
+    // Force the viewport to render at the intended width, then measure how much
+    // height the content actually needs. If it exceeds the minimum, expand the
+    // viewport so html2canvas captures the full content.
+    const viewportCssWidth = Math.round(viewport.getBoundingClientRect().width)
+    const contentHeight = Math.round(viewport.scrollHeight)
+    const viewportCssHeight = Math.max(contentHeight, VIEWPORT_MIN_HEIGHT)
+    if (contentHeight > VIEWPORT_MIN_HEIGHT) {
+      viewport.style.height = `${contentHeight}px`
+    }
+
     const canvas = await html2canvas(viewport, {
       scale: 2,
       useCORS: true,
@@ -571,9 +581,10 @@ export async function generateTaskTextPDF(
       logging: false,
     })
 
-    // 1 CSS px = 0.75 pt (72 pt / 96 dpi)
-    const ptWidth = VIEWPORT_WIDTH * 0.75
-    const ptHeight = VIEWPORT_HEIGHT * 0.75
+    // 1 CSS px = 0.75 pt (72 pt / 96 dpi). Use the measured size so a page that
+    // grew for long content keeps the right aspect ratio.
+    const ptWidth = viewportCssWidth * 0.75
+    const ptHeight = viewportCssHeight * 0.75
 
     const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight], orientation: 'landscape' })
     const imgData = canvas.toDataURL('image/png')
@@ -584,6 +595,110 @@ export async function generateTaskTextPDF(
       blob: doc.output('blob'),
       fileName: `${safeTitle}.pdf`,
       snapshotVersion: TASK_TEXT_SNAPSHOT_VERSION,
+    }
+  } finally {
+    if (wrapper.parentNode) {
+      document.body.removeChild(wrapper)
+    }
+  }
+}
+
+/**
+ * Version of the multi-page assessment slide snapshot renderer. Bump this
+ * whenever the generated snapshot format changes so existing auto-generated PDFs
+ * are invalidated and regenerated.
+ */
+export const ASSESSMENT_SLIDE_SNAPSHOT_VERSION = 1
+
+/**
+ * Generate a multi-page PDF from an assessment's typed slide pages so that
+ * text-only assessments can be previewed and deployed exactly like uploaded PDF
+ * documents.
+ *
+ * Each page is rendered as a fixed 1100 x 620 px slide (matching the Task Slide
+ * viewport) using html2canvas, then combined into one PDF with one page per
+ * slide. Pages with no content still produce a blank slide so page count and
+ * order are preserved.
+ */
+export async function generateAssessmentSlidePDF(
+  title: string,
+  pages: string[]
+): Promise<{ blob: Blob; fileName: string; snapshotVersion: number }> {
+  if (typeof document === 'undefined') {
+    throw new Error('generateAssessmentSlidePDF must be called in a browser')
+  }
+
+  const { default: jsPDF } = await import('jspdf')
+  const html2canvas = (await import('html2canvas')).default
+
+  const VIEWPORT_WIDTH = 1100
+  const VIEWPORT_HEIGHT = 620
+
+  const wrapper = document.createElement('div')
+  wrapper.style.position = 'absolute'
+  wrapper.style.left = '-9999px'
+  wrapper.style.top = '0'
+  wrapper.style.width = `${VIEWPORT_WIDTH}px`
+  wrapper.style.overflow = 'hidden'
+  wrapper.style.visibility = 'hidden'
+  document.body.appendChild(wrapper)
+
+  try {
+    const images: string[] = []
+
+    for (const pageContent of pages) {
+      const viewport = document.createElement('div')
+      viewport.style.width = `${VIEWPORT_WIDTH}px`
+      viewport.style.height = `${VIEWPORT_HEIGHT}px`
+      viewport.style.padding = '48px'
+      viewport.style.background = '#ffffff'
+      viewport.style.color = '#1F2933'
+      viewport.style.border = '1px solid #E5E7EB'
+      viewport.style.fontFamily =
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, sans-serif'
+      viewport.style.fontSize = '18px'
+      viewport.style.lineHeight = '1.6'
+      viewport.style.whiteSpace = 'pre-wrap'
+      viewport.style.wordBreak = 'break-word'
+      viewport.style.boxSizing = 'border-box'
+      viewport.style.overflow = 'hidden'
+      viewport.setAttribute('dir', 'auto')
+
+      const trimmed = pageContent.trim()
+      if (isSlideHtml(trimmed)) {
+        viewport.innerHTML = sanitizeSlideHtml(trimmed)
+      } else {
+        viewport.textContent = trimmed
+      }
+
+      wrapper.appendChild(viewport)
+
+      const canvas = await html2canvas(viewport, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+
+      images.push(canvas.toDataURL('image/png'))
+      wrapper.removeChild(viewport)
+    }
+
+    const ptWidth = VIEWPORT_WIDTH * 0.75
+    const ptHeight = VIEWPORT_HEIGHT * 0.75
+
+    const doc = new jsPDF({ unit: 'pt', format: [ptWidth, ptHeight], orientation: 'landscape' })
+
+    images.forEach((imgData, index) => {
+      if (index > 0) doc.addPage([ptWidth, ptHeight], 'landscape')
+      doc.addImage(imgData, 'PNG', 0, 0, ptWidth, ptHeight)
+    })
+
+    const safeTitle = title.trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'Assessment'
+    return {
+      blob: doc.output('blob'),
+      fileName: `${safeTitle}.pdf`,
+      snapshotVersion: ASSESSMENT_SLIDE_SNAPSHOT_VERSION,
     }
   } finally {
     if (wrapper.parentNode) {

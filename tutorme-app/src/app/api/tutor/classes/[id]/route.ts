@@ -78,8 +78,9 @@ export const GET = withAuth(
     // Tutor entering the live classroom starts the session at any time — the
     // tutor's presence is what takes a class live (students can then join). No
     // scheduledAt gate for the tutor; unifies the start path so the session is
-    // 'active' however the tutor opened the room.
-    if (liveSessionRow.status === 'scheduled') {
+    // 'active' however the tutor opened the room. Schedule-less demo classes are
+    // always treated as live and never transitioned here.
+    if (liveSessionRow.status === 'scheduled' && liveSessionRow.sessionType !== 'GO_LIVE_DEMO') {
       const startedAt = liveSessionRow.startedAt || new Date()
       await drizzleDb
         .update(liveSession)
@@ -297,6 +298,7 @@ export const GET = withAuth(
         title: liveSessionRow.title,
         subject: liveSessionRow.category,
         status: liveSessionRow.status,
+        sessionType: liveSessionRow.sessionType,
         roomId: liveSessionRow.roomId,
         roomUrl,
         token,
@@ -374,9 +376,18 @@ export const POST = withCsrf(
         return NextResponse.json({ error: 'Cannot start a completed class' }, { status: 400 })
       }
 
-      // Tutors may start at any time — even before scheduledAt. The tutor's
-      // presence is what takes a class live; students remain gated to the 20-minute
-      // early-entry window in the room join route.
+      // Demo classes are always live and do not use the start/end lifecycle.
+      if (liveSessionRow.sessionType === 'GO_LIVE_DEMO') {
+        return NextResponse.json({
+          session: {
+            id: liveSessionRow.sessionId,
+            status: liveSessionRow.status,
+            startedAt: liveSessionRow.startedAt?.toISOString?.() ?? null,
+            roomId: liveSessionRow.roomId,
+            roomUrl: liveSessionRow.roomUrl,
+          },
+        })
+      }
 
       const [updated] = await drizzleDb
         .update(liveSession)
@@ -601,7 +612,7 @@ export const DELETE = withAuth(
         )
       }
 
-      if (liveSessionRow.status === 'active') {
+      if (liveSessionRow.status === 'active' && liveSessionRow.sessionType !== 'GO_LIVE_DEMO') {
         return NextResponse.json(
           { error: 'Cannot delete an active class. Please end the class first.' },
           { status: 400 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons'
 import { BackButton } from '@/components/navigation'
 import { Button } from '@/components/ui/button'
 import { parentRegistrationSchema } from '@/lib/validation/user-registration'
@@ -605,6 +606,12 @@ export default function ParentRegistrationPage() {
                       </Button>
                     </div>
                   </div>
+                  <SocialLoginButtons
+                    role="PARENT"
+                    variant="onLight"
+                    className="mt-5"
+                    callbackUrl="/parent/dashboard"
+                  />
                 </form>
               </>
             )}
