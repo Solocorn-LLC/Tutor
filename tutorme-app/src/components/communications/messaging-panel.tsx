@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -22,6 +22,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useDirectMessageSocket, type DirectMessage } from '@/hooks'
 
 export type CommSection = 'chats' | 'contacts' | 'requests' | 'followers' | 'settings'
 
@@ -62,6 +63,7 @@ interface Message {
 interface MessagingPanelProps {
   activeSection: CommSection
   onSectionChange: (section: CommSection) => void
+  onUnreadCountChange?: (count: number) => void
 }
 
 const topItems: { id: CommSection; label: string; icon: React.ElementType }[] = [
@@ -97,7 +99,23 @@ function roleLabel(role?: string | null): string {
   return r.charAt(0) + r.slice(1).toLowerCase()
 }
 
-export default function MessagingPanel({ activeSection, onSectionChange }: MessagingPanelProps) {
+function mapDirectMessage(dm: DirectMessage): Message {
+  return {
+    id: dm.id,
+    content: dm.content,
+    type: dm.type,
+    senderId: dm.senderId,
+    sender: dm.sender ?? { id: dm.senderId, profile: { name: null, avatarUrl: null } },
+    createdAt: dm.createdAt,
+    read: dm.read,
+  }
+}
+
+export default function MessagingPanel({
+  activeSection,
+  onSectionChange,
+  onUnreadCountChange,
+}: MessagingPanelProps) {
   const { data: session } = useSession()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -106,10 +124,17 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const list = emptyStates[activeSection]
   const ListIcon = list.icon
+
+  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
+
+  useEffect(() => {
+    onUnreadCountChange?.(totalUnread)
+  }, [totalUnread, onUnreadCountChange])
 
   useEffect(() => {
     fetchConversations()
@@ -118,8 +143,77 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   useEffect(() => {
     if (selectedConversation) {
       fetchMessages(selectedConversation.id)
+      setTypingUserIds(new Set())
     }
   }, [selectedConversation])
+
+  const handleIncomingMessage = useCallback(
+    (payload: { conversationId: string; message: DirectMessage }) => {
+      const { conversationId, message } = payload
+      const isSelected = selectedConversation?.id === conversationId
+
+      setMessages(prev => {
+        if (prev.some(m => m.id === message.id)) return prev
+        return [...prev, mapDirectMessage(message)]
+      })
+
+      setConversations(prev => {
+        const existing = prev.find(c => c.id === conversationId)
+        if (!existing) return prev
+        const isFromMe = message.senderId === session?.user?.id
+        const updated: Conversation = {
+          ...existing,
+          lastMessage: {
+            content: message.content,
+            createdAt: message.createdAt,
+            read: isFromMe ? true : isSelected,
+            senderId: message.senderId,
+          },
+          updatedAt: message.createdAt,
+          unreadCount: isFromMe || isSelected ? existing.unreadCount : existing.unreadCount + 1,
+        }
+        return [updated, ...prev.filter(c => c.id !== conversationId)]
+      })
+    },
+    [selectedConversation, session?.user?.id]
+  )
+
+  const handleTyping = useCallback(
+    (payload: { conversationId: string; userId: string; isTyping: boolean }) => {
+      if (selectedConversation?.id !== payload.conversationId) return
+      if (payload.userId === session?.user?.id) return
+      setTypingUserIds(prev => {
+        const next = new Set(prev)
+        if (payload.isTyping) next.add(payload.userId)
+        else next.delete(payload.userId)
+        return next
+      })
+    },
+    [selectedConversation, session?.user?.id]
+  )
+
+  const handleRead = useCallback(
+    (payload: { conversationId: string; readerId: string }) => {
+      if (payload.readerId === session?.user?.id) return
+      setMessages(prev =>
+        prev.map(m => (m.senderId === session?.user?.id ? { ...m, read: true } : m))
+      )
+      setConversations(prev =>
+        prev.map(c =>
+          c.id === payload.conversationId
+            ? { ...c, unreadCount: selectedConversation?.id === c.id ? 0 : c.unreadCount }
+            : c
+        )
+      )
+    },
+    [selectedConversation, session?.user?.id]
+  )
+
+  const { sendTyping, markRead } = useDirectMessageSocket(selectedConversation?.id ?? null, {
+    onMessage: handleIncomingMessage,
+    onTyping: handleTyping,
+    onRead: handleRead,
+  })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -159,6 +253,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
     setSending(true)
     const content = inputMessage
     setInputMessage('')
+    sendTyping(selectedConversation.id, false)
 
     try {
       const res = await fetchWithCsrf(`/api/conversations/${selectedConversation.id}/messages`, {
@@ -182,6 +277,7 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
                     read: true,
                     senderId: session?.user?.id || 'me',
                   },
+                  unreadCount: 0,
                 }
               : c
           )
@@ -201,7 +297,6 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
   const filteredConversations = conversations.filter(c =>
     c.otherParticipant.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
-  const totalUnread = conversations.reduce((sum, c) => sum + c.unreadCount, 0)
 
   return (
     <div className="flex h-full w-full overflow-hidden bg-white">
@@ -267,7 +362,15 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
                 {filteredConversations.map(conv => (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => {
+                      setSelectedConversation(conv)
+                      if (conv.unreadCount > 0) {
+                        markRead(conv.id)
+                        setConversations(prev =>
+                          prev.map(c => (c.id === conv.id ? { ...c, unreadCount: 0 } : c))
+                        )
+                      }
+                    }}
                     className={cn(
                       'flex w-full items-center gap-3 p-4 text-left transition-colors hover:bg-slate-50',
                       selectedConversation?.id === conv.id && 'bg-slate-50'
@@ -382,11 +485,25 @@ export default function MessagingPanel({ activeSection, onSectionChange }: Messa
 
         {/* Message input */}
         <div className="shrink-0 border-t border-gray-200 p-4">
+          {selectedConversation && typingUserIds.size > 0 && (
+            <div className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+              </span>
+              {typingUserIds.size === 1 ? 'Someone is typing...' : 'Several people are typing...'}
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <MentionInput
               placeholder="Type a message..."
               value={inputMessage}
-              onChange={setInputMessage}
+              onChange={value => {
+                setInputMessage(value)
+                if (selectedConversation && value.trim()) {
+                  sendTyping(selectedConversation.id, true)
+                }
+              }}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey && !sending) {
                   e.preventDefault()

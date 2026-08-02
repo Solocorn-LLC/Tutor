@@ -35,7 +35,7 @@ test.describe('Tutor builder — smoke', () => {
     // Open the standalone insights builder shell and confirm it mounts.
     await page.goto('/tutor/insights')
     const modeTabs = page.getByTestId('builder-mode-tabs')
-    await expect(modeTabs.getByRole('tab', { name: 'Build', exact: true })).toBeVisible({
+    await expect(modeTabs.getByRole('tab', { name: 'Edit', exact: true })).toBeVisible({
       timeout: 15000,
     })
 
@@ -46,8 +46,8 @@ test.describe('Tutor builder — smoke', () => {
       )
     ).toHaveCount(0)
 
-    // Landing on Build mode shows the builder body (Curriculum column).
-    await modeTabs.getByRole('tab', { name: 'Build', exact: true }).click()
+    // Landing on Edit mode shows the builder body (Curriculum column).
+    await modeTabs.getByRole('tab', { name: 'Edit', exact: true }).click()
     await expect(page.getByText(/Curriculum/i).first()).toBeVisible({ timeout: 10000 })
 
     expect(fatal, `unexpected render-loop errors:\n${fatal.join('\n')}`).toEqual([])

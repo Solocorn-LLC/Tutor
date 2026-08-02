@@ -8,3 +8,11 @@ export {
   type ParentFinancialData,
   type FinancialSummary,
 } from './useParentFinancialCalculations'
+export {
+  useDirectMessageSocket,
+  type DirectMessage,
+  type DMTypingPayload,
+  type DMReadPayload,
+  type DMMessagePayload,
+  type UseDirectMessageSocketCallbacks,
+} from './use-direct-message-socket'

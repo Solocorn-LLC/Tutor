@@ -92,6 +92,7 @@ export function SubmissionsPanel({
   headerExtra,
   liveSubmissions,
   onNewSubmissionCount,
+  hideHeader = false,
 }: {
   courseId: string
   onToggleHidden: (value: boolean) => void
@@ -101,6 +102,8 @@ export function SubmissionsPanel({
   liveSubmissions?: LiveSubmission[]
   /** Reports the count of new (unseen) submissions so a parent tab can badge it. */
   onNewSubmissionCount?: (count: number) => void
+  /** Render only the scrollable tree content, omitting the Desk header. */
+  hideHeader?: boolean
 }) {
   const [data, setData] = useState<SubmissionsTreeResponse | null>(null)
   const [loading, setLoading] = useState(false)
@@ -427,18 +430,27 @@ export function SubmissionsPanel({
 
   return (
     <TooltipProvider>
-      <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]">
-        <div className="sticky top-0 z-10 flex h-9 items-center justify-center gap-2 rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
-          Desk
-          {newCounts.total > 0 && (
-            <span
-              className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
-              title={`${newCounts.total} new submission${newCounts.total === 1 ? '' : 's'}`}
-            >
-              {newCounts.total}
-            </span>
-          )}
-        </div>
+      <div
+        className={cn(
+          'flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]',
+          hideHeader
+            ? 'flex-1 shadow-none'
+            : 'flex-1 shadow-[0_18px_45px_rgba(0,0,0,0.12),0_4px_12px_rgba(0,0,0,0.06)]'
+        )}
+      >
+        {!hideHeader && (
+          <div className="sticky top-0 z-10 flex h-9 items-center justify-center gap-2 rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+            Desk
+            {newCounts.total > 0 && (
+              <span
+                className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                title={`${newCounts.total} new submission${newCounts.total === 1 ? '' : 's'}`}
+              >
+                {newCounts.total}
+              </span>
+            )}
+          </div>
+        )}
         {headerExtra && <div className="px-4">{headerExtra}</div>}
 
         <ScrollArea className={cn('min-h-0 flex-1', headerExtra ? 'p-4 pt-0' : 'p-4')}>

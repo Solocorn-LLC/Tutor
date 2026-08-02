@@ -9,6 +9,7 @@ export interface SlidingPillTab {
   value: string
   label: string
   disabled?: boolean
+  badge?: number
 }
 
 interface SlidingPillTabsListProps {
@@ -111,7 +112,17 @@ export function SlidingPillTabsList({
             triggerClassName
           )}
         >
-          {tab.label}
+          <span className="flex items-center justify-center gap-1.5">
+            {tab.label}
+            {!!tab.badge && tab.badge > 0 && (
+              <span
+                className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                title={`${tab.badge} new submission${tab.badge === 1 ? '' : 's'}`}
+              >
+                {tab.badge}
+              </span>
+            )}
+          </span>
         </TabsTrigger>
       ))}
       {pillStyle && (
