@@ -1,7 +1,7 @@
 /**
  * E2E regression: the insights builder must survive repeated mode-tab clicks.
  *
- * Clicking the Build / Test / Classroom mode tabs used to trigger React error
+ * Clicking the Edit / Test / Classroom mode tabs used to trigger React error
  * #185 ("Maximum update depth exceeded") — a render loop from CourseBuilder
  * mirroring its `mainTab` prop into local state and echoing it back to the
  * parent one render apart. The PanelErrorBoundary then swapped the builder for
@@ -12,7 +12,7 @@
 import { test, expect } from '@playwright/test'
 
 test.describe('Insights builder — mode tabs', () => {
-  test('clicking Build/Test/Classroom repeatedly does not crash the builder', async ({ page }) => {
+  test('clicking Edit/Test/Classroom repeatedly does not crash the builder', async ({ page }) => {
     // Surface React #185 / update-depth as a test failure even when the error
     // boundary contains it (the boundary swallows the throw but logs to console).
     const loopErrors: string[] = []
@@ -36,9 +36,9 @@ test.describe('Insights builder — mode tabs', () => {
 
     // The mode tabs are part of the builder shell (TutorControlsPanel). Scope to
     // that tablist so we don't collide with the panel's own inner tabs (which
-    // also include "Build" / "Classroom" labels).
+    // also include "Edit" / "Classroom" labels).
     const modeTabs = page.getByTestId('builder-mode-tabs')
-    await expect(modeTabs.getByRole('tab', { name: 'Build', exact: true })).toBeVisible({
+    await expect(modeTabs.getByRole('tab', { name: 'Edit', exact: true })).toBeVisible({
       timeout: 15000,
     })
 
@@ -49,15 +49,12 @@ test.describe('Insights builder — mode tabs', () => {
 
     // Cycle through the mode tabs several times — this is the exact gesture that
     // used to crash on the first click.
-    const sequence = ['Test', 'Build', 'Classroom', 'Build', 'Test', 'Classroom']
+    const sequence = ['Test', 'Edit', 'Classroom', 'Edit', 'Test', 'Classroom']
     for (const label of sequence) {
       await modeTabs.getByRole('tab', { name: label, exact: true }).click()
       // Give any (now-removed) render loop a chance to blow the stack.
       await page.waitForTimeout(500)
-      await expect(
-        crashText,
-        `builder crashed after clicking "${label}"`
-      ).toHaveCount(0)
+      await expect(crashText, `builder crashed after clicking "${label}"`).toHaveCount(0)
     }
 
     expect(loopErrors, `unexpected render-loop errors:\n${loopErrors.join('\n')}`).toEqual([])
