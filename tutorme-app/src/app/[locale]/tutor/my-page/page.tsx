@@ -52,7 +52,6 @@ import {
   Trash2,
   Edit3,
   Eye,
-  EyeOff,
   User,
   Link2,
   Tags,
@@ -188,6 +187,13 @@ function MyCoursesSection() {
   }
   const router = useRouter()
 
+  const TAB_LABELS: Record<typeof activeTab, string> = {
+    active: 'Active',
+    pending: 'Pending',
+    unpublished: 'Templates',
+    catalogued: 'Catalogued',
+  }
+
   const loadCourses = useCallback(async () => {
     setLoading(true)
     try {
@@ -230,49 +236,30 @@ function MyCoursesSection() {
     measureRefs.catalogued,
   ])
 
-  const handleDeleteCourse = async (courseId: string) => {
+  const handleDeleteCourse = async (course: Course) => {
     if (!confirm('Are you sure you want to delete this course?')) return
     try {
       const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
       const csrfData = await csrfRes.json().catch(() => ({}))
       const csrfToken = csrfData?.token ?? null
 
-      const doDelete = async (confirmed: boolean) =>
-        fetch(`/api/tutor/courses/${courseId}${confirmed ? '?confirm=true' : ''}`, {
-          method: 'DELETE',
-          headers: {
-            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-          },
-          credentials: 'include',
-        })
-
-      const res = await doDelete(false)
+      const res = await fetch(`/api/tutor/courses/${course.id}`, {
+        method: 'DELETE',
+        headers: {
+          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
+        },
+        credentials: 'include',
+      })
 
       if (res.ok) {
-        setCourses(prev => prev.filter(c => c.id !== courseId))
+        setCourses(prev => prev.filter(c => c.id !== course.id))
         toast.success('Course deleted')
       } else {
         const data = await res.json().catch(() => ({}))
-        if (res.status === 409 && data?.requiresConfirmation) {
-          const enrolledCount = Number(data?.enrolledCount || 0)
-          const courseName = data?.courseName || 'this course'
-          const ok = confirm(
-            `This published course has ${enrolledCount} enrolled student${enrolledCount === 1 ? '' : 's'}.\n\nDeleting it will automatically initiate refunds for paid enrollments and notify students.\n\nDelete "${courseName}" anyway?`
+        if (res.status === 409 && typeof data?.enrolledCount === 'number') {
+          toast.error(
+            `Cannot delete: this course has ${data.enrolledCount} enrolled student${data.enrolledCount === 1 ? '' : 's'}.`
           )
-          if (!ok) return
-          const confirmedRes = await doDelete(true)
-          const confirmedData = await confirmedRes.json().catch(() => ({}))
-          if (confirmedRes.ok) {
-            setCourses(prev => prev.filter(c => c.id !== courseId))
-            const refundsInitiated = Number(confirmedData?.refundsInitiated || 0)
-            toast.success(
-              refundsInitiated > 0
-                ? `Course deleted. Refunds initiated for ${refundsInitiated} payment${refundsInitiated === 1 ? '' : 's'}.`
-                : 'Course deleted'
-            )
-            return
-          }
-          toast.error(confirmedData?.error || 'Failed to delete course')
           return
         }
         toast.error(data?.error || 'Failed to delete course')
@@ -282,7 +269,7 @@ function MyCoursesSection() {
     }
   }
 
-  const handleTogglePublish = async (course: Course) => {
+  const handlePublishCourse = async (course: Course) => {
     try {
       const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
       const csrfData = await csrfRes.json().catch(() => ({}))
@@ -295,19 +282,18 @@ function MyCoursesSection() {
           ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
         },
         credentials: 'include',
-        body: JSON.stringify({ isPublished: !course.isPublished }),
+        body: JSON.stringify({ isPublished: true }),
       })
 
       if (res.ok) {
-        setCourses(prev =>
-          prev.map(c => (c.id === course.id ? { ...c, isPublished: !c.isPublished } : c))
-        )
-        toast.success(course.isPublished ? 'Course unpublished' : 'Course published')
+        setCourses(prev => prev.map(c => (c.id === course.id ? { ...c, isPublished: true } : c)))
+        toast.success('Course published')
       } else {
-        toast.error('Failed to update course')
+        const data = await res.json().catch(() => ({}))
+        toast.error(data?.error || 'Failed to publish course')
       }
     } catch {
-      toast.error('Failed to update course')
+      toast.error('Failed to publish course')
     }
   }
 
@@ -443,34 +429,28 @@ function MyCoursesSection() {
                   <CalendarClock className="mr-1 h-4 w-4" />
                   Schedule
                 </Button>
-                {tab !== 'catalogued' && (
+                {tab !== 'catalogued' && !course.isPublished && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => handleTogglePublish(course)}
-                    className={cn(
-                      'hover:bg-white/10 hover:text-white',
-                      course.isPublished ? 'text-amber-400' : 'text-emerald-400'
-                    )}
+                    onClick={() => handlePublishCourse(course)}
+                    className="text-emerald-400 hover:bg-white/10 hover:text-white"
                   >
-                    {course.isPublished ? (
-                      <>
-                        <EyeOff className="mr-1 h-4 w-4" />
-                        Unpublish
-                      </>
-                    ) : (
-                      <>
-                        <Eye className="mr-1 h-4 w-4" />
-                        Publish
-                      </>
-                    )}
+                    <Eye className="mr-1 h-4 w-4" />
+                    Publish
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleDeleteCourse(course.id)}
-                  className="text-red-400 hover:bg-white/10 hover:text-white"
+                  disabled={course.studentCount ? course.studentCount > 0 : false}
+                  title={
+                    course.studentCount && course.studentCount > 0
+                      ? 'Cannot delete a course with enrolled students'
+                      : undefined
+                  }
+                  onClick={() => handleDeleteCourse(course)}
+                  className="text-red-400 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <Trash2 className="mr-1 h-4 w-4" />
                   Delete
@@ -511,7 +491,7 @@ function MyCoursesSection() {
                   activeTab === tab ? 'text-[#1D4ED8]' : 'text-[#64748B] hover:text-[#1F2933]'
                 }`}
               >
-                <span className="capitalize">{tab}</span>
+                <span>{TAB_LABELS[tab]}</span>
                 <span className="ml-1.5 rounded-full bg-[#F1F5F9] px-2 py-0.5 text-xs text-[#64748B]">
                   {courseCounts[tab]}
                 </span>
@@ -544,7 +524,7 @@ function MyCoursesSection() {
                     : activeTab === 'pending'
                       ? 'No pending courses'
                       : activeTab === 'unpublished'
-                        ? 'No unpublished courses'
+                        ? 'No templates'
                         : 'No catalogued courses'}
                 </p>
               </div>

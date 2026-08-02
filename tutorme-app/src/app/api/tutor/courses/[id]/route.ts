@@ -6,17 +6,13 @@ import {
   course,
   courseEnrollment,
   courseLesson,
-  payment,
-  refund,
   courseVariant,
   calendarEvent,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, isNull, sql, inArray } from 'drizzle-orm'
+import { eq, and, sql, inArray } from 'drizzle-orm'
 import { CourseBuilderService } from '@/lib/services/course-builder.service'
 import { z } from 'zod'
-import { notifyMany } from '@/lib/notifications/notify'
-import { getPaymentGateway, type GatewayName } from '@/lib/payments'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 const patchCourseSchema = z.strictObject({
@@ -174,6 +170,22 @@ export const PATCH = withAuth(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
       }
 
+      // One-way publish: templates may be published, but published courses can
+      // never be unpublished again.
+      if (parsedBody.isPublished === false) {
+        return NextResponse.json({ error: 'Unpublishing a course is not allowed' }, { status: 400 })
+      }
+      if (parsedBody.isPublished === true) {
+        const [currentCourseRow] = await drizzleDb
+          .select({ isPublished: course.isPublished })
+          .from(course)
+          .where(eq(course.courseId, id))
+          .limit(1)
+        if (currentCourseRow?.isPublished) {
+          return NextResponse.json({ error: 'Course is already published' }, { status: 400 })
+        }
+      }
+
       // Build update object with only provided fields
       const updateData: Record<string, unknown> = {}
 
@@ -228,7 +240,6 @@ export const DELETE = withAuth(
       const params = await context.params
       const id = params.id as string
       const userId = session.user.id
-      const confirmDelete = req.nextUrl.searchParams.get('confirm') === 'true'
 
       // Verify ownership
       const isOwner = await verifyCourseOwnership(id, userId)
@@ -257,126 +268,15 @@ export const DELETE = withAuth(
         .where(eq(courseEnrollment.courseId, id))
       const enrolledStudentIds = enrolled.map(e => e.studentId).filter(Boolean)
 
-      if (courseRow.isPublished && enrolledStudentIds.length > 0 && !confirmDelete) {
+      if (enrolledStudentIds.length > 0) {
         return NextResponse.json(
           {
-            error: 'This published course has enrolled students.',
-            requiresConfirmation: true,
+            error: 'Cannot delete a course with enrolled students.',
             enrolledCount: enrolledStudentIds.length,
             courseName: courseRow.name,
           },
           { status: 409 }
         )
-      }
-
-      let refundedPayments = 0
-      let pendingRefundPayments = 0
-      let refundFailedPayments = 0
-      const failedPaymentIds: string[] = []
-
-      if (courseRow.isPublished && enrolledStudentIds.length > 0) {
-        const payments = await drizzleDb
-          .select({
-            paymentId: payment.paymentId,
-            amount: payment.amount,
-            currency: payment.currency,
-            status: payment.status,
-            gateway: payment.gateway,
-            gatewayPaymentId: payment.gatewayPaymentId,
-            metadata: payment.metadata,
-          })
-          .from(payment)
-          .where(
-            and(
-              eq(payment.courseId, id),
-              eq(payment.status, 'COMPLETED'),
-              isNull(payment.refundedAt)
-            )
-          )
-
-        const batches: (typeof payments)[] = []
-        for (let i = 0; i < payments.length; i += 5) {
-          batches.push(payments.slice(i, i + 5))
-        }
-
-        for (const batch of batches) {
-          const results = await Promise.allSettled(
-            batch.map(async p => {
-              const gateway = getPaymentGateway(p.gateway as GatewayName)
-              const metadata = (p.metadata as { payment_attempt_id?: string } | null) ?? null
-              const refundPaymentId =
-                p.gateway === 'AIRWALLEX' && metadata?.payment_attempt_id
-                  ? metadata.payment_attempt_id
-                  : (p.gatewayPaymentId ?? p.paymentId)
-
-              const refundResponse = await gateway.refundPayment(refundPaymentId, p.amount)
-              if (refundResponse.error) {
-                throw new Error(refundResponse.error)
-              }
-
-              const isSettled =
-                refundResponse.status === 'succeeded' || refundResponse.status === 'RECEIVED'
-              const refundStatus = isSettled ? 'COMPLETED' : 'PENDING'
-
-              const refundId = crypto.randomUUID()
-              await drizzleDb.insert(refund).values({
-                refundId,
-                paymentId: p.paymentId,
-                amount: p.amount,
-                reason: 'course_deleted',
-                status: refundStatus,
-                gatewayRefundId: refundResponse.refundId,
-                processedAt: isSettled ? new Date() : null,
-              })
-
-              // Only mark the payment as REFUNDED when the gateway confirms it is settled.
-              // When the refund is still PENDING, leave the payment as COMPLETED so a
-              // subsequent webhook (e.g. hitpay/airwallex refund.succeeded) can update it.
-              if (isSettled) {
-                await drizzleDb
-                  .update(payment)
-                  .set({ status: 'REFUNDED', refundedAt: new Date() })
-                  .where(eq(payment.paymentId, p.paymentId))
-              }
-
-              return { settled: isSettled }
-            })
-          )
-
-          results.forEach((r, i) => {
-            if (r.status === 'fulfilled') {
-              if (r.value.settled) refundedPayments += 1
-              else pendingRefundPayments += 1
-            } else {
-              refundFailedPayments += 1
-              failedPaymentIds.push(batch[i].paymentId)
-            }
-          })
-        }
-
-        try {
-          let message: string
-          if (refundFailedPayments > 0) {
-            message =
-              'Your tutor removed this course. Some refunds could not be processed automatically — please contact support with your order details.'
-          } else if (pendingRefundPayments > 0) {
-            message =
-              'Your tutor removed this course. Refunds are being processed and will be returned to your original payment method within a few business days.'
-          } else {
-            message =
-              'Your tutor removed this course. Refunds for paid enrollments have been initiated automatically and will be returned to your original payment method.'
-          }
-          await notifyMany({
-            userIds: enrolledStudentIds,
-            type: 'payment',
-            title: `Course removed: ${courseRow.name}`,
-            message,
-            actionUrl: '/student/courses',
-            data: { courseId: id, reason: 'course_deleted', refundsInitiated: refundedPayments },
-          })
-        } catch (notifyErr) {
-          console.error('[DELETE /api/tutor/courses/[id]] notifyMany error:', notifyErr)
-        }
       }
 
       // Delete all calendar events linked to this course (including recurring instances)
@@ -414,10 +314,6 @@ export const DELETE = withAuth(
 
       return NextResponse.json({
         message: 'Course deleted successfully',
-        refundsCompleted: refundedPayments,
-        refundsPending: pendingRefundPayments,
-        refundsFailed: refundFailedPayments,
-        failedPaymentIds,
         enrolledCount: enrolledStudentIds.length,
       })
     } catch (error) {
