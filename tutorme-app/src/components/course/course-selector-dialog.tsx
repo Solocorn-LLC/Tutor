@@ -129,13 +129,21 @@ export function CourseSelectorDialog({
 
   const filteredCourses = useMemo(() => {
     if (isDemoMode) return []
-    if (selectedFolder === 'All') return coursesInTab
-    return coursesInTab.filter(c => {
-      if (c.folder === selectedFolder) return true
-      const category = c.categories?.[0]
-      return category === selectedFolder
+    let list = coursesInTab
+    if (selectedFolder !== 'All') {
+      list = coursesInTab.filter(c => {
+        if (c.folder === selectedFolder) return true
+        const category = c.categories?.[0]
+        return category === selectedFolder
+      })
+    }
+    // Keep the currently edited course first so it is always easy to find.
+    return [...list].sort((a, b) => {
+      if (a.id === currentCourseId) return -1
+      if (b.id === currentCourseId) return 1
+      return 0
     })
-  }, [isDemoMode, coursesInTab, selectedFolder])
+  }, [isDemoMode, coursesInTab, selectedFolder, currentCourseId])
 
   const filteredDemoClasses = useMemo(() => {
     if (!isDemoMode) return []
@@ -212,9 +220,14 @@ export function CourseSelectorDialog({
     if (!active) return
     const rect = active.getBoundingClientRect()
     const listRect = list.getBoundingClientRect()
-    setSelectorPill({
-      left: rect.left - listRect.left,
-      width: rect.width,
+    const left = rect.left - listRect.left
+    const width = rect.width
+    if (width <= 0) return
+    setSelectorPill(prev => {
+      if (Math.abs(prev.left - left) < 0.5 && Math.abs(prev.width - width) < 0.5) {
+        return prev
+      }
+      return { left, width }
     })
   }, [])
 
@@ -228,6 +241,21 @@ export function CourseSelectorDialog({
     const id = setTimeout(updateSelectorPill, 100)
     return () => clearTimeout(id)
   }, [updateSelectorPill])
+
+  // The dialog is mounted with a CSS transition; the active button rect may not
+  // be ready on the first paint. Retry measuring for a short window after the
+  // dialog opens so the white sliding pill (and visible active text) is rendered.
+  useEffect(() => {
+    if (!open) return
+    let attempts = 0
+    const maxAttempts = 15
+    const timer = setInterval(() => {
+      updateSelectorPill()
+      attempts++
+      if (attempts >= maxAttempts) clearInterval(timer)
+    }, 100)
+    return () => clearInterval(timer)
+  }, [open, updateSelectorPill])
 
   useEffect(() => {
     const handleResize = () => updateSelectorPill()
@@ -315,23 +343,6 @@ export function CourseSelectorDialog({
       toast.success(`Folder "${name}" deleted`)
     } catch (err: any) {
       toast.error(err.message || 'Failed to delete folder')
-    }
-  }
-
-  const handleAssignFolder = async (courseId: string, folderName: string | null) => {
-    try {
-      const res = await fetchWithCsrf(`/api/tutor/courses/${courseId}/folder`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder: folderName }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || 'Failed to update folder')
-      }
-      toast.success('Folder updated')
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update folder')
     }
   }
 
@@ -665,26 +676,9 @@ export function CourseSelectorDialog({
                             className="flex shrink-0 items-center gap-2"
                             onClick={e => e.stopPropagation()}
                           >
-                            <select
-                              className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[11px] text-gray-600 outline-none focus-visible:border-blue-400"
-                              value={course.folder || category || ''}
-                              onChange={e => {
-                                const value = e.target.value || null
-                                handleAssignFolder(course.id, value)
-                              }}
-                            >
-                              <option value="">Uncategorized</option>
-                              {courseCategories.map(cat => (
-                                <option key={cat} value={cat}>
-                                  {cat}
-                                </option>
-                              ))}
-                              {customFolders.map(f => (
-                                <option key={f.id} value={f.name}>
-                                  {f.name}
-                                </option>
-                              ))}
-                            </select>
+                            <span className="h-7 rounded-md border border-white/30 bg-white/20 px-2 text-[11px] font-medium leading-7 text-white">
+                              {course.folder || category || 'Uncategorized'}
+                            </span>
                             <Button
                               size="sm"
                               className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-emerald-600 hover:bg-white/90"
