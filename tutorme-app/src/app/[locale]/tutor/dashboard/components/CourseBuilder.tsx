@@ -305,6 +305,8 @@ export type {
 } from './builder-types'
 
 import { AiAssistantPanel } from './AiAssistantPanel'
+import type { CourseBuilderMode } from '@/lib/ai/guardrails'
+import type { CourseBuilderContext } from '@/lib/ai/course-builder-assistant'
 import { AITeachingAssistant } from '@/components/tutor/AITeachingAssistant'
 import { MentionTextarea } from '@/components/class/mention-textarea'
 import type { MentionItem } from '@/components/class/mention-textarea'
@@ -2379,7 +2381,107 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [insightsProps?.liveTasks, activeInsightsTaskId]
     )
 
-    // Tutor closes a poll/question: server locks it and no more answers land.
+    // AI Assistant mode: classroom for live sessions, test for preview, then builder
+    // sub-states based on whether the course has content and whether this is the
+    // tutor's first course.
+    const tutorCourseCount = useMemo(
+      () =>
+        ((insightsProps as any)?.courses?.length ?? 0) +
+        ((insightsProps as any)?.draftCourses?.length ?? 0),
+      [(insightsProps as any)?.courses, (insightsProps as any)?.draftCourses]
+    )
+
+    const assistantMode = useMemo<CourseBuilderMode>(() => {
+      if (mainTab === 'live') return 'classroom'
+      if (mainTab === 'test-pci') return 'test'
+      if (nodes.length === 0) return 'no-course'
+      if (tutorCourseCount <= 1) return 'first-course'
+      return 'new-course'
+    }, [mainTab, nodes.length, tutorCourseCount])
+
+    const assistantContext = useMemo<CourseBuilderContext>(() => {
+      const lessons = nodes.map(node => ({
+        id: node.id,
+        title: node.title || 'Untitled lesson',
+        taskCount: node.lessons.reduce(
+          (sum, lesson) => sum + (lesson.tasks?.length ?? 0) + (lesson.homework?.length ?? 0),
+          0
+        ),
+        assessmentCount: node.lessons.reduce(
+          (sum, lesson) => sum + (lesson.assessments?.length ?? 0),
+          0
+        ),
+      }))
+      const totalTasks = lessons.reduce((sum, l) => sum + l.taskCount, 0)
+      const totalAssessments = lessons.reduce((sum, l) => sum + l.assessmentCount, 0)
+
+      let loadedItem:
+        | { id: string; title: string; type: 'task' | 'assessment' | 'homework' }
+        | undefined
+      if (mainBuilderTab === 'task' && loadedTaskId) {
+        for (const node of nodes) {
+          for (const lesson of node.lessons) {
+            const task = lesson.tasks?.find(t => t.id === loadedTaskId)
+            if (task) {
+              loadedItem = {
+                id: task.id,
+                title: task.title || 'Untitled task',
+                type: 'task',
+              }
+              break
+            }
+            const homework = lesson.homework?.find(h => h.id === loadedTaskId)
+            if (homework) {
+              loadedItem = {
+                id: homework.id,
+                title: homework.title || 'Untitled homework',
+                type: 'homework',
+              }
+              break
+            }
+          }
+          if (loadedItem) break
+        }
+      } else if (mainBuilderTab === 'assessment' && loadedAssessmentId) {
+        for (const node of nodes) {
+          for (const lesson of node.lessons) {
+            const assessment = lesson.assessments?.find(a => a.id === loadedAssessmentId)
+            if (assessment) {
+              loadedItem = {
+                id: assessment.id,
+                title: assessment.title || 'Untitled assessment',
+                type: 'assessment',
+              }
+              break
+            }
+          }
+          if (loadedItem) break
+        }
+      }
+
+      return {
+        mode: assistantMode,
+        courseId,
+        courseName,
+        courseDescription,
+        totalLessons: nodes.length,
+        totalTasks,
+        totalAssessments,
+        lessons,
+        loadedItem,
+        tutorCourseCount,
+      }
+    }, [
+      assistantMode,
+      courseId,
+      courseName,
+      courseDescription,
+      nodes,
+      loadedTaskId,
+      loadedAssessmentId,
+      mainBuilderTab,
+      tutorCourseCount,
+    ])
     const handleCloseInsight = useCallback(
       (kind: 'poll' | 'question', insightId: string) => {
         const socket = insightsProps?.socket
@@ -11040,7 +11142,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             value={insightsTab}
                                             variant="white"
                                             tabs={[
-                                              { value: 'analytics', label: 'Analytics' },
+                                              { value: 'analytics', label: 'AI Assistant' },
                                               { value: 'poll', label: 'Poll' },
                                               { value: 'question', label: 'Question' },
                                             ]}
@@ -11054,7 +11156,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           >
                                             <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                               <AiAssistantPanel
+                                                mode={assistantMode}
                                                 sessionId={insightsProps.sessionId}
+                                                courseId={courseId}
                                                 courseName={courseName}
                                                 sessions={insightsProps.sessions?.map((s: any) => ({
                                                   id: s.id,
@@ -11068,6 +11172,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 liveSubmissions={
                                                   insightsProps.liveSubmissions || []
                                                 }
+                                                context={assistantContext}
                                               />
                                             </div>
                                           </TabsContent>
@@ -13724,7 +13829,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 value={liveRightPanelTab}
                                 variant="gray"
                                 tabs={[
-                                  { value: 'analytics', label: 'Analytics' },
+                                  { value: 'analytics', label: 'AI Assistant' },
                                   {
                                     value: 'insights',
                                     label: 'Insights',
@@ -13740,7 +13845,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             {liveRightPanelTab === 'analytics' ? (
                               <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white p-3 shadow-sm">
                                 <AiAssistantPanel
+                                  mode={assistantMode}
                                   sessionId={insightsProps?.sessionId}
+                                  courseId={courseId}
                                   courseName={courseName}
                                   sessions={insightsProps?.sessions?.map((s: any) => ({
                                     id: s.id,
@@ -13750,6 +13857,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   }))}
                                   studentsCount={(insightsProps?.students || []).length}
                                   liveSubmissions={insightsProps?.liveSubmissions || []}
+                                  context={assistantContext}
                                   isActive={liveRightPanelTab === 'analytics'}
                                 />
                               </div>
