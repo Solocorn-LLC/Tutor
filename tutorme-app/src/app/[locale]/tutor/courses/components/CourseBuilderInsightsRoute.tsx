@@ -223,34 +223,9 @@ function TutorControlsPanel({
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
 
-  // Measure the expanded panel height so the collapsed panel can stay anchored
-  // at the top of the expanded area (roll-up animation) instead of dropping to
-  // the bottom of the screen. Also track the current panel height for looser drag
-  // constraints that keep a small portion of the panel visible.
-  const panelRef = useRef<HTMLDivElement>(null)
-  const [expandedHeight, setExpandedHeight] = useState<number | undefined>(undefined)
-  const [panelHeight, setPanelHeight] = useState<number>(0)
-
-  const updatePanelMeasurements = useCallback(() => {
-    if (!panelRef.current) return
-    const h = panelRef.current.getBoundingClientRect().height
-    setPanelHeight(h)
-    if (open) {
-      setExpandedHeight(h)
-    }
-  }, [open])
-
-  useEffect(() => {
-    updatePanelMeasurements()
-  }, [open, updatePanelMeasurements])
-
-  useEffect(() => {
-    const panel = panelRef.current
-    if (!panel) return
-    const ro = new ResizeObserver(() => updatePanelMeasurements())
-    ro.observe(panel)
-    return () => ro.disconnect()
-  }, [updatePanelMeasurements])
+  // Constrain dragging to a padded viewport area so the panel can never be
+  // completely lost off-screen.
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
   const modeListRef = useRef<HTMLDivElement>(null)
@@ -341,245 +316,234 @@ function TutorControlsPanel({
   }
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50">
-      <div
-        className="pointer-events-none absolute bottom-4 right-4 flex items-start justify-end"
-        style={{ height: expandedHeight ? `${expandedHeight}px` : 'auto' }}
+    <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
+      <motion.div
+        drag
+        dragConstraints={containerRef}
+        dragControls={dragControls}
+        dragListener={false}
+        dragMomentum={false}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.25 }}
+        className={cn(
+          'pointer-events-auto absolute right-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
+          open ? 'p-3' : ''
+        )}
       >
-        <motion.div
-          ref={panelRef}
-          drag
-          dragConstraints={{
-            left: -window.innerWidth + 80,
-            right: 384 - 80,
-            top: -window.innerHeight + 80,
-            bottom: Math.max(80, panelHeight - 80),
-          }}
-          dragControls={dragControls}
-          dragListener={false}
-          dragMomentum={false}
-          onDragStart={() => setIsDragging(true)}
-          onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+        {/* Header / drag handle */}
+        <button
+          type="button"
           className={cn(
-            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
-            open ? 'p-3' : ''
+            'relative flex w-full cursor-grab items-center active:cursor-grabbing',
+            open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
           )}
+          onPointerDown={e => dragControls.start(e)}
+          onClick={() => {
+            if (isDragging) return
+            setOpen(v => !v)
+          }}
         >
-          {/* Header / drag handle */}
-          <button
-            type="button"
-            className={cn(
-              'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-              open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
-            )}
-            onPointerDown={e => dragControls.start(e)}
-            onClick={() => {
-              if (isDragging) return
-              setOpen(v => !v)
-            }}
-          >
-            <span className="w-4 shrink-0" aria-hidden="true" />
-            <span className="mx-auto text-xs font-semibold text-white">Controls</span>
-            <WifiSignal connected={isConnected ?? false} error={connectionError ?? false} />
-          </button>
+          <span className="w-4 shrink-0" aria-hidden="true" />
+          <span className="mx-auto text-xs font-semibold text-white">Controls</span>
+          <WifiSignal connected={isConnected ?? false} error={connectionError ?? false} />
+        </button>
 
-          <AnimatePresence initial={false}>
-            {open && (
-              <motion.div
-                key="controls-body"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
-                className="overflow-hidden"
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              key="controls-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="overflow-hidden"
+            >
+              {/* Mode selector */}
+              <Tabs
+                value={mode}
+                onValueChange={v => onModeChange(v as ControlsMode)}
+                className="mt-2 w-full"
               >
-                {/* Mode selector */}
-                <Tabs
-                  value={mode}
-                  onValueChange={v => onModeChange(v as ControlsMode)}
-                  className="mt-2 w-full"
+                <TabsList
+                  ref={modeListRef}
+                  data-testid="builder-mode-tabs"
+                  className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
                 >
-                  <TabsList
-                    ref={modeListRef}
-                    data-testid="builder-mode-tabs"
-                    className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
-                  >
-                    <TabsTrigger
-                      value="edit"
-                      className={cn(
-                        modeButtonBase,
-                        'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
-                      )}
-                    >
-                      <Wrench className="h-3.5 w-3.5" />
-                      Edit
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="test"
-                      className={cn(
-                        modeButtonBase,
-                        'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
-                      )}
-                    >
-                      <ClipboardCheck className="h-3.5 w-3.5" />
-                      Test
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="classroom"
-                      className={cn(
-                        modeButtonBase,
-                        'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
-                      )}
-                    >
-                      <MonitorPlay className="h-3.5 w-3.5" />
-                      Classroom
-                    </TabsTrigger>
-                    {modePill && (
-                      <div
-                        className={cn(
-                          'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
-                          mode === 'edit' && 'bg-[#2563EB]',
-                          mode === 'test' && 'bg-[#7C3AED]',
-                          mode === 'classroom' && 'bg-[#F97316]'
-                        )}
-                        style={{
-                          left: modePill.left,
-                          width: modePill.width,
-                        }}
-                      />
+                  <TabsTrigger
+                    value="edit"
+                    className={cn(
+                      modeButtonBase,
+                      'relative z-10 text-slate-700',
+                      'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                     )}
-                  </TabsList>
-                </Tabs>
+                  >
+                    <Wrench className="h-3.5 w-3.5" />
+                    Edit
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="test"
+                    className={cn(
+                      modeButtonBase,
+                      'relative z-10 text-slate-700',
+                      'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
+                    )}
+                  >
+                    <ClipboardCheck className="h-3.5 w-3.5" />
+                    Test
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="classroom"
+                    className={cn(
+                      modeButtonBase,
+                      'relative z-10 text-slate-700',
+                      'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
+                    )}
+                  >
+                    <MonitorPlay className="h-3.5 w-3.5" />
+                    Classroom
+                  </TabsTrigger>
+                  {modePill && (
+                    <div
+                      className={cn(
+                        'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
+                        mode === 'edit' && 'bg-[#2563EB]',
+                        mode === 'test' && 'bg-[#7C3AED]',
+                        mode === 'classroom' && 'bg-[#F97316]'
+                      )}
+                      style={{
+                        left: modePill.left,
+                        width: modePill.width,
+                      }}
+                    />
+                  )}
+                </TabsList>
+              </Tabs>
 
-                {/* Action buttons */}
-                <div className="mt-[17px] px-1">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="flex flex-col gap-2">
-                      <AnimatedControlButton
-                        icon={<Save className="h-4 w-4" />}
-                        label="Save"
-                        disabled={panelDisabled}
-                        onClick={onSave}
-                        className="bg-white text-gray-900"
-                      />
+              {/* Action buttons */}
+              <div className="mt-[17px] px-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-2">
+                    <AnimatedControlButton
+                      icon={<Save className="h-4 w-4" />}
+                      label="Save"
+                      disabled={panelDisabled}
+                      onClick={onSave}
+                      className="bg-white text-gray-900"
+                    />
 
-                      <AnimatedControlButton
-                        icon={<Trash2 className="h-4 w-4" />}
-                        label="Delete"
-                        disabled={panelDisabled || mode !== 'edit' || !canDelete}
-                        onClick={onDelete}
-                        className="bg-white text-red-600"
-                      />
+                    <AnimatedControlButton
+                      icon={<Trash2 className="h-4 w-4" />}
+                      label="Delete"
+                      disabled={panelDisabled || mode !== 'edit' || !canDelete}
+                      onClick={onDelete}
+                      className="bg-white text-red-600"
+                    />
 
-                      <AnimatedControlButton
-                        icon={<Edit3 className="h-4 w-4" />}
-                        label="Edit Category"
-                        disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
-                        onClick={onEditCourse}
-                        className="bg-white text-slate-700"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <AnimatedControlButton
-                        icon={<Presentation className="h-4 w-4" />}
-                        label="Create Class"
-                        disabled={panelDisabled || mode !== 'edit' || !canGoLive}
-                        onClick={onGoLive}
-                        className="bg-white text-emerald-600"
-                      />
-
-                      <AnimatedControlButton
-                        icon={<VideoIcon className="h-4 w-4" />}
-                        label={isDemoSession ? 'Record Demo' : 'Video'}
-                        disabled={panelDisabled || !hasSession}
-                        onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
-                        className="bg-white text-slate-700"
-                      />
-
-                      <AnimatedControlButton
-                        icon={<Plus className="h-4 w-4" />}
-                        label="New Course"
-                        disabled={panelDisabled || mode !== 'edit'}
-                        onClick={onCreateCourse}
-                        className="bg-white text-blue-600"
-                      />
-                    </div>
+                    <AnimatedControlButton
+                      icon={<Edit3 className="h-4 w-4" />}
+                      label="Edit Category"
+                      disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
+                      onClick={onEditCourse}
+                      className="bg-white text-slate-700"
+                    />
                   </div>
 
-                  {/* Schedule / Create Template / End Session — full width, below the grid.
+                  <div className="flex flex-col gap-2">
+                    <AnimatedControlButton
+                      icon={<Presentation className="h-4 w-4" />}
+                      label="Create Class"
+                      disabled={panelDisabled || mode !== 'edit' || !canGoLive}
+                      onClick={onGoLive}
+                      className="bg-white text-emerald-600"
+                    />
+
+                    <AnimatedControlButton
+                      icon={<VideoIcon className="h-4 w-4" />}
+                      label={isDemoSession ? 'Record Demo' : 'Video'}
+                      disabled={panelDisabled || !hasSession}
+                      onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
+                      className="bg-white text-slate-700"
+                    />
+
+                    <AnimatedControlButton
+                      icon={<Plus className="h-4 w-4" />}
+                      label="New Course"
+                      disabled={panelDisabled || mode !== 'edit'}
+                      onClick={onCreateCourse}
+                      className="bg-white text-blue-600"
+                    />
+                  </div>
+                </div>
+
+                {/* Schedule / Create Template / End Session — full width, below the grid.
                   During a session the End Session button replaces scheduling so tutors
                   can't publish while in session. For Creating-mode drafts the action
                   becomes "Create Template", which persists the draft as an unpublished
                   DB course and keeps the tutor in the builder. */}
-                  {hasSession && onEndSession ? (
-                    <button
-                      type="button"
-                      disabled={panelDisabled || endingSession}
-                      onClick={onEndSession}
-                      className={cn(
-                        actionButtonBase,
-                        'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                      )}
-                    >
-                      {endingSession ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <PhoneOff className="h-4 w-4" />
-                      )}
-                      {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
-                    </button>
-                  ) : createTemplateButtonLabel ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            disabled={panelDisabled || mode !== 'edit' || !canSchedule}
-                            onClick={onCreateTemplate}
-                            className={cn(
-                              actionButtonBase,
-                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
-                            )}
-                          >
-                            <Calendar className="h-4 w-4" />
-                            {createTemplateButtonLabel}
-                          </button>
-                        </TooltipTrigger>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <button
-                            type="button"
-                            disabled={panelDisabled || mode !== 'edit' || !canSchedule}
-                            onClick={onSchedule}
-                            className={cn(
-                              actionButtonBase,
-                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-600 hover:text-white active:bg-blue-700'
-                            )}
-                          >
-                            <Calendar className="h-4 w-4" />
-                            Schedule & Publish
-                          </button>
-                        </TooltipTrigger>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
+                {hasSession && onEndSession ? (
+                  <button
+                    type="button"
+                    disabled={panelDisabled || endingSession}
+                    onClick={onEndSession}
+                    className={cn(
+                      actionButtonBase,
+                      'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                    )}
+                  >
+                    {endingSession ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <PhoneOff className="h-4 w-4" />
+                    )}
+                    {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                  </button>
+                ) : createTemplateButtonLabel ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={panelDisabled || mode !== 'edit' || !canSchedule}
+                          onClick={onCreateTemplate}
+                          className={cn(
+                            actionButtonBase,
+                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                          )}
+                        >
+                          <Calendar className="h-4 w-4" />
+                          {createTemplateButtonLabel}
+                        </button>
+                      </TooltipTrigger>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          disabled={panelDisabled || mode !== 'edit' || !canSchedule}
+                          onClick={onSchedule}
+                          className={cn(
+                            actionButtonBase,
+                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-600 hover:text-white active:bg-blue-700'
+                          )}
+                        >
+                          <Calendar className="h-4 w-4" />
+                          Schedule & Publish
+                        </button>
+                      </TooltipTrigger>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   )
 }
