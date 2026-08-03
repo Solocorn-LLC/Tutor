@@ -37,12 +37,12 @@ import {
   Presentation,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
-import { CourseCategoryPicker } from './CourseCategoryPicker'
+import { CourseCategoryPicker, TAB_COLORS } from './CourseCategoryPicker'
 import { getCategoryBoard } from '@/lib/data/category-board'
 import { CourseSelectorDialog } from '@/components/course/course-selector-dialog'
 import { useSearchParams, usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { motion, AnimatePresence, useDragControls } from 'framer-motion'
+import { motion, AnimatePresence, useDragControls, useMotionValue } from 'framer-motion'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import { CourseBuilder } from '../../dashboard/components/CourseBuilder'
@@ -59,6 +59,17 @@ import {
 import { resolveLessonDmis } from './save-course'
 import type { ScheduleItem } from '../[id]/constants'
 import { CountryFlag } from '@/components/country-flag'
+
+const BOARD_TO_TAB_KEY: Record<string, string> = {
+  Global: 'global',
+  AP: 'ap',
+  'A Level': 'alevel',
+  IB: 'ib',
+  IGCSE: 'igcse',
+  Languages: 'languages',
+  Professional: 'professional',
+  Universities: 'universities',
+}
 
 function WifiSignal({ connected, error }: { connected: boolean; error: boolean }) {
   const color = error ? 'text-red-500' : connected ? 'text-emerald-500' : 'text-amber-400'
@@ -168,6 +179,10 @@ interface TutorControlsPanelProps {
   mode: ControlsMode
   onModeChange: (mode: ControlsMode) => void
   disabled?: boolean
+  positionAnchorRefs?: {
+    badgeRef: React.RefObject<HTMLElement | null>
+    indicatorRef: React.RefObject<HTMLElement | null>
+  }
   onSave: () => void
   onSchedule?: () => void
   onDelete: () => void
@@ -196,6 +211,7 @@ function TutorControlsPanel({
   mode,
   onModeChange,
   disabled,
+  positionAnchorRefs,
   onSave,
   onSchedule,
   onDelete,
@@ -219,13 +235,46 @@ function TutorControlsPanel({
   onCreateTemplate,
   createTemplateButtonLabel,
 }: TutorControlsPanelProps) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
 
   // Constrain dragging to a padded viewport area so the panel can never be
   // completely lost off-screen.
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Start the panel centered between the category badge and the course-state
+  // indicator so it lands in the header by default.
+  const panelX = useMotionValue(0)
+  const panelY = useMotionValue(0)
+  const panelOpacity = useMotionValue(0)
+
+  useLayoutEffect(() => {
+    if (!positionAnchorRefs) {
+      panelOpacity.set(1)
+      return
+    }
+    const badge = positionAnchorRefs.badgeRef.current
+    const indicator = positionAnchorRefs.indicatorRef.current
+    const panel = panelRef.current
+    const container = containerRef.current
+    if (!badge || !indicator || !panel || !container) {
+      panelOpacity.set(1)
+      return
+    }
+    const badgeRect = badge.getBoundingClientRect()
+    const indicatorRect = indicator.getBoundingClientRect()
+    const panelRect = panel.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const midX = (badgeRect.right + indicatorRect.left) / 2
+    const midY = (badgeRect.top + badgeRect.bottom) / 2
+    const x = midX - containerRect.left - panelRect.width / 2
+    const y = midY - containerRect.top - panelRect.height / 2
+    panelX.set(x)
+    panelY.set(y)
+    panelOpacity.set(1)
+  }, [positionAnchorRefs, panelX, panelY, panelOpacity])
 
   // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
   const modeListRef = useRef<HTMLDivElement>(null)
@@ -318,6 +367,7 @@ function TutorControlsPanel({
   return (
     <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
       <motion.div
+        ref={panelRef}
         drag
         dragConstraints={containerRef}
         dragControls={dragControls}
@@ -325,12 +375,10 @@ function TutorControlsPanel({
         dragMomentum={false}
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.25 }}
+        style={{ x: panelX, y: panelY, opacity: panelOpacity }}
         className={cn(
-          'pointer-events-auto absolute right-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
-          open ? 'p-3' : ''
+          'pointer-events-auto absolute left-0 top-0 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
+          open ? 'w-96 p-3' : 'w-auto'
         )}
       >
         {/* Header / drag handle */}
@@ -604,6 +652,8 @@ function CourseBuilderInsightsRouteInner({
   const [activeMainTab, setActiveMainTab] = useState<'live' | 'builder' | 'test-pci'>(
     initialMainTab
   )
+  const categoryBadgeRef = useRef<HTMLSpanElement>(null)
+  const courseStateIndicatorRef = useRef<HTMLDivElement>(null)
   const showWifiSignal = isClassroomMode || activeMainTab === 'live'
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   // Two-step create flow: name → category (category is required at creation).
@@ -1008,17 +1058,31 @@ function CourseBuilderInsightsRouteInner({
                       )}
                       {/* Full identity next to the name: Board (derived) · category ·
                           country (country appears once published, from the variant). */}
-                      {(currentCourse as any)?.categories?.length > 0 && (
-                        <span className="bg-muted text-muted-foreground inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
-                          {[
-                            getCategoryBoard((currentCourse as any).categories[0]),
-                            (currentCourse as any).categories.join(', '),
-                            (currentCourse as any).nationality,
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        </span>
-                      )}
+                      {(currentCourse as any)?.categories?.length > 0 &&
+                        (() => {
+                          const category = (currentCourse as any).categories[0]
+                          const board = getCategoryBoard(category)
+                          const tabKey = board ? BOARD_TO_TAB_KEY[board] : 'diy'
+                          const colors = TAB_COLORS[tabKey] || TAB_COLORS.diy
+                          return (
+                            <span
+                              ref={categoryBadgeRef}
+                              className={cn(
+                                'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
+                                colors.bg,
+                                colors.text
+                              )}
+                            >
+                              {[
+                                board,
+                                (currentCourse as any).categories.join(', '),
+                                (currentCourse as any).nationality,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          )
+                        })()}
                     </h1>
                   )}
                   {activeMainTab === 'live' && (
@@ -1076,6 +1140,7 @@ function CourseBuilderInsightsRouteInner({
                   the derived state of the selected course or demo class. */}
               {activeMainTab !== 'test-pci' && courseId && (
                 <div
+                  ref={courseStateIndicatorRef}
                   className={cn(
                     'flex h-9 w-[190px] items-center gap-2 rounded-md border px-3 text-sm font-medium shadow-sm',
                     stateIndicatorMeta[currentCourseState].bg,
@@ -1194,6 +1259,10 @@ function CourseBuilderInsightsRouteInner({
           <TutorControlsPanel
             mode={controlsMode}
             onModeChange={handleControlsModeChange}
+            positionAnchorRefs={{
+              badgeRef: categoryBadgeRef,
+              indicatorRef: courseStateIndicatorRef,
+            }}
             onSave={async () => {
               const ref = model.courseBuilderRef.current as CourseBuilderRef | null
               if (typeof ref?.saveAll === 'function') {

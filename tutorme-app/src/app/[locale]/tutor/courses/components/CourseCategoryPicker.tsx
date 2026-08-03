@@ -56,7 +56,7 @@ import {
   type CategoryTabConfig,
 } from '@/lib/data/category-tab-config'
 
-const TAB_COLORS: Record<string, { bg: string; text: string; close: string }> = {
+export const TAB_COLORS: Record<string, { bg: string; text: string; close: string }> = {
   global: { bg: 'bg-[#0A84FF]', text: 'text-white', close: 'text-white/60 hover:text-white' },
   ap: { bg: 'bg-[#FF1493]', text: 'text-white', close: 'text-white/60 hover:text-white' },
   alevel: { bg: 'bg-[#BF5AF2]', text: 'text-white', close: 'text-white/60 hover:text-white' },
