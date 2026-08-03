@@ -29,7 +29,7 @@ import {
   Trash2,
   Video as VideoIcon,
   RefreshCw,
-  TestTube2,
+  ClipboardCheck,
   PencilRuler,
   MonitorPlay,
   Wrench,
@@ -327,7 +327,10 @@ function TutorControlsPanel({
           <motion.span
             className="overflow-hidden whitespace-nowrap"
             initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: hovered ? 1 : 0, width: hovered ? 'auto' : 0 }}
+            animate={{
+              opacity: hovered && !buttonDisabled ? 1 : 0,
+              width: hovered && !buttonDisabled ? 'auto' : 0,
+            }}
             transition={{ type: 'spring', stiffness: 300, damping: 25 }}
           >
             {label}
@@ -423,7 +426,7 @@ function TutorControlsPanel({
                         'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
-                      <TestTube2 className="h-3.5 w-3.5" />
+                      <ClipboardCheck className="h-3.5 w-3.5" />
                       Test
                     </TabsTrigger>
                     <TabsTrigger
