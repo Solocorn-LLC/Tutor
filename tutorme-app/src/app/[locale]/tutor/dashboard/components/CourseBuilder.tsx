@@ -9114,7 +9114,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
             <div
               className={cn(
-                'relative z-40 flex min-h-0 shrink-0 flex-col',
+                'relative z-40 flex min-h-0 shrink-0 flex-col rounded-[20px]',
                 panelsMounted ? 'transition-[width] duration-500 ease-in-out' : '',
                 leftPanelHidden
                   ? 'bg-transparent shadow-none'
@@ -13687,7 +13687,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 {/* Right panel content - grid child with consistent wrapper */}
                 <div
                   className={cn(
-                    'relative z-40 flex min-h-0 shrink-0 flex-col items-end',
+                    'relative z-40 flex min-h-0 shrink-0 flex-col items-end rounded-[20px]',
                     panelsMounted ? 'transition-[width] duration-500 ease-in-out' : '',
                     rightPanelHidden
                       ? 'bg-transparent shadow-none'

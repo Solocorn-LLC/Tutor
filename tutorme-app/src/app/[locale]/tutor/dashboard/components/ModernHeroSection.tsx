@@ -34,7 +34,7 @@ import {
   Award,
   MessageSquare,
   User,
-  Video,
+  Presentation,
 } from 'lucide-react'
 import {
   Dialog,
@@ -414,7 +414,7 @@ export function ModernHeroSection({
               onClick={handleGoLiveClick}
               disabled={goLiveLoading}
             >
-              <Video className="mr-1 h-4 w-4" />
+              <Presentation className="mr-1 h-4 w-4" />
               Create Class
             </Button>
           </div>

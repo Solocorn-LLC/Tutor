@@ -1287,13 +1287,13 @@ export default function PublicTutorPage() {
                     <div className="hidden h-5 w-px bg-white/20 md:block" />
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 text-white/70" />
-                      <span className="text-xs font-semibold text-white/70">Country</span>
+                      <span className="text-sm font-semibold text-white/70">Country</span>
                       {tutor.country ? (
                         <CountryFlag
                           countryName={tutor.country}
                           size="xs"
                           showLabel
-                          className="text-sm font-semibold text-white"
+                          className="text-sm font-semibold leading-none text-white"
                           labelClassName="font-semibold text-white"
                         />
                       ) : (
