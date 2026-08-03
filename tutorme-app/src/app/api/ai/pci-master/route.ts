@@ -422,6 +422,8 @@ export async function POST(request: NextRequest) {
     // Partial structured policy captured SO FAR this turn (may be incomplete;
     // NOT a finalization). Drives the live "policy so far" panel in the chat.
     let pciSpecSoFar: PciSpec | null = null
+    // Conversational DMI edits surfaced by the assessment PCI chat.
+    let dmiEdits: unknown[] = []
     let pciUnconfirmed = false
     if (guardrailDomain) {
       const env = parseLlmJson<{
@@ -429,6 +431,7 @@ export async function POST(request: NextRequest) {
         pci?: string
         spec?: unknown
         specSoFar?: unknown
+        dmiEdits?: unknown
       }>(response.response)
       if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
         if (typeof env.reply === 'string' && env.reply.trim()) {
@@ -447,6 +450,10 @@ export async function POST(request: NextRequest) {
         const asObj = (v: unknown): Record<string, unknown> =>
           v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
         pciSpecSoFar = normalizePciSpec({ ...asObj(env.spec), ...asObj(env.specSoFar) })
+        // Forward any DMI edits the model emitted for conversational editing.
+        if (Array.isArray(env.dmiEdits)) {
+          dmiEdits = env.dmiEdits
+        }
       }
       // A rubric the model emitted without the tutor typing an explicit approval
       // this turn is still OFFERED (so the "Apply to PCI" button reliably appears
@@ -550,6 +557,8 @@ export async function POST(request: NextRequest) {
       // True when the model proposed a finalized rubric but the tutor hasn't
       // signalled approval — the UI can prompt them to confirm before applying.
       pciUnconfirmed,
+      // Conversational DMI edits for the assessment PCI chat.
+      dmiEdits,
       conversationId: response.conversationId,
       parsed: response.parsed ?? null,
       guardrailWarnings,

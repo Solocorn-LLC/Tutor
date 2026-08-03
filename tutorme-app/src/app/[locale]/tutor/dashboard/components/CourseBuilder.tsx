@@ -4175,15 +4175,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Per-question DMI edits, row add/remove, reference backfill and the badge's
     // board/subject — all live in their own hook.
-    const { applyDmiEdit, reextractRefs, removeDmiItem, setExamContext } = useDmiEditor({
-      taskDmiItems,
-      assessmentDmiItems,
-      setTaskDmiItems,
-      setAssessmentDmiItems,
-      setTaskDmiVersions,
-      setAssessmentDmiVersions,
-      testPciViewMode,
-    })
+    const { applyDmiEdit, reextractRefs, removeDmiItem, addDmiItem, setExamContext } = useDmiEditor(
+      {
+        taskDmiItems,
+        assessmentDmiItems,
+        setTaskDmiItems,
+        setAssessmentDmiItems,
+        setTaskDmiVersions,
+        setAssessmentDmiVersions,
+        testPciViewMode,
+      }
+    )
 
     // Marking-scheme upload (extract → parse → fill/append) lives in its own hook.
     const {
@@ -8626,8 +8628,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ),
       initialAssessmentThread: assessmentBuilder.pciThread,
       onThreadChange: handlePciThreadChange,
-      // DMI digest (marks + rubric, no answers) so the policy chat sees the
-      // actual questions/marks/rubrics.
+      // DMI digest sent to the PCI assistant. Includes answers so the assistant can
+      // summarize the generated assessment and support conversational editing.
       assessmentMarkingScheme: assessmentDmiItems
         .map(q => {
           const label = q.questionLabel || `Q${q.questionNumber ?? ''}`
@@ -8635,14 +8637,62 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             q.questionText && q.questionText.trim() && q.questionText.trim() !== label
               ? ` ${q.questionText.trim()}`
               : ''
+          const type = q.questionType ? ` (type: ${q.questionType})` : ''
           const marks =
             typeof q.marks === 'number' && q.marks > 0
               ? ` [${q.marks} mark${q.marks === 1 ? '' : 's'}]`
               : ''
+          const answer = q.answer?.trim() ? `\n  answer: ${q.answer.trim()}` : ''
+          const variants =
+            q.acceptableVariants && q.acceptableVariants.length > 0
+              ? `\n  acceptable variants: ${q.acceptableVariants.join(', ')}`
+              : ''
+          const options =
+            q.options && q.options.length > 0 ? `\n  options: ${q.options.join(', ')}` : ''
+          const pairs =
+            q.pairs && q.pairs.length > 0
+              ? `\n  matching pairs: ${q.pairs.map(p => `${p.left}→${p.right}`).join(', ')}`
+              : ''
           const rubric = q.rubric?.trim() ? `\n  rubric: ${q.rubric.trim()}` : ''
-          return `${label}:${text}${marks}${rubric}`
+          const provenance = q.answerProvenance ? `\n  provenance: ${q.answerProvenance}` : ''
+          return `${label}:${text}${type}${marks}${answer}${variants}${options}${pairs}${rubric}${provenance}`
         })
         .join('\n'),
+      // Conversational DMI editing callbacks for the assessment PCI chat. The
+      // assistant returns `dmiEdits` with question references; we resolve them to
+      // item ids and apply the mutations.
+      onAssessmentDmiUpdate: (questionRef, patch) => {
+        const ref = questionRef.trim().toLowerCase()
+        const item = assessmentDmiItems.find(
+          q =>
+            q.questionLabel?.trim().toLowerCase() === ref ||
+            String(q.questionNumber) === questionRef.trim()
+        )
+        if (!item) {
+          toast.error(`Could not find question "${questionRef}" to update.`)
+          return
+        }
+        applyDmiEdit('assessment', item.id, patch)
+        toast.success(`Updated question ${questionRef}.`)
+      },
+      onAssessmentDmiRemove: questionRef => {
+        const ref = questionRef.trim().toLowerCase()
+        const item = assessmentDmiItems.find(
+          q =>
+            q.questionLabel?.trim().toLowerCase() === ref ||
+            String(q.questionNumber) === questionRef.trim()
+        )
+        if (!item) {
+          toast.error(`Could not find question "${questionRef}" to remove.`)
+          return
+        }
+        removeDmiItem('assessment', item.id)
+        toast.success(`Removed question ${questionRef}.`)
+      },
+      onAssessmentDmiAdd: partial => {
+        addDmiItem('assessment', partial)
+        toast.success('Added new question.')
+      },
       // Per-type steering for the assessment PCI chat: composition from the DMI
       // question mix, source from the resolved documentKind. Forwarded as
       // context.variant; undefined fields simply fall back to the base prompt.
@@ -8972,7 +9022,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       queueMicrotask(() => {
         handlePciSend(
           'assessment',
-          'You already have the questions, sections, and marks (the DMI), so do not ask me about the questions, types, sections, or marks. First give me a brief summary of this assessment — what it covers, its sections / question types, and the total marks — so I can confirm you have understood it, then guide me through the GENERAL marking policy for the whole assessment one simple question at a time (how marks are awarded — method vs final answer, partial credit — how to handle wrong / partial / no answers, and tone), in clear, simple language with a small example each time. Only ask about a specific question if its marking differs from the general rule.'
+          `Greet me as the tutor, then give me a detailed breakdown of the assessment that was generated from the loaded document.
+
+Use the DMI context I already have (questions, sections, marks, and answers). For every question, show:
+- the question reference/number and text
+- the question type
+- the marks
+- the answer or expected response that was generated, and where it came from (extracted from the source, inferred by you, etc.)
+
+After the breakdown, ask me whether I want to edit any answers, add questions, or remove questions. Do not ask me any other marking-policy questions yet; we will handle those after the DMI is correct.`
         )
       })
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -13413,20 +13471,22 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               </div>
                                             </div>
                                           )}
-                                          {/* Page navigation menu */}
-                                          <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
-                                            <SlidePageMenu
-                                              pages={assessmentBuilder.pages.map((_, index) => ({
-                                                id: `assessment-page-${index}`,
-                                                name: `Page ${index + 1}`,
-                                              }))}
-                                              currentPageIndex={assessmentBuilder.activePageIndex}
-                                              onPageChange={setAssessmentActivePageIndex}
-                                              onAddPage={addAssessmentPage}
-                                              onDeletePage={deleteAssessmentPage}
-                                              readOnly={!canEdit}
-                                            />
-                                          </div>
+                                          {/* Page navigation menu — hidden when a source document is loaded because the PDF provides the pages. */}
+                                          {!currentAssessmentDocument && (
+                                            <div className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2">
+                                              <SlidePageMenu
+                                                pages={assessmentBuilder.pages.map((_, index) => ({
+                                                  id: `assessment-page-${index}`,
+                                                  name: `Page ${index + 1}`,
+                                                }))}
+                                                currentPageIndex={assessmentBuilder.activePageIndex}
+                                                onPageChange={setAssessmentActivePageIndex}
+                                                onAddPage={addAssessmentPage}
+                                                onDeletePage={deleteAssessmentPage}
+                                                readOnly={!canEdit}
+                                              />
+                                            </div>
+                                          )}
                                         </div>
                                         {/* Uploaded Files List - only show for assessment (not extensions) */}
                                         {/* Upload button - only for assessment (not extensions) */}
