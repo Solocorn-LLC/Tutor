@@ -361,7 +361,7 @@ function TutorControlsPanel({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           className={cn(
-            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
+            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
             open ? 'p-3' : ''
           )}
         >
@@ -390,7 +390,7 @@ function TutorControlsPanel({
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                 className="overflow-hidden"
               >
                 {/* Mode selector */}
