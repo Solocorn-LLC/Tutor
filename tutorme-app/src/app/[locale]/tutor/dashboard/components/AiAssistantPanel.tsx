@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Send, Loader2, Bot } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { useAnalyticsAssistant } from '@/hooks/use-analytics-assistant'
+import { useAiAssistant } from '@/hooks/use-ai-assistant'
+import type { CourseBuilderMode } from '@/lib/ai/guardrails'
+import type { CourseBuilderContext } from '@/lib/ai/course-builder-assistant'
 
 interface SessionInfo {
   id: string
@@ -17,12 +18,15 @@ interface SessionInfo {
 }
 
 interface AiAssistantPanelProps {
+  mode?: CourseBuilderMode
   sessionId?: string | null
+  courseId?: string | null
   courseName?: string
   sessions?: SessionInfo[]
   studentsCount?: number
   liveSubmissions?: Array<{ taskId: string; studentId: string; submittedAt?: string | number }>
-  /** Whether the Analytics tab is currently active — triggers the intro animation */
+  context?: CourseBuilderContext
+  /** Whether the AI Assistant tab is currently active — triggers the intro animation */
   isActive?: boolean
 }
 
@@ -32,12 +36,36 @@ interface ChatMessage {
   id: string
 }
 
+function modeGreeting(mode: CourseBuilderMode, context?: CourseBuilderContext): string {
+  const courseName = context?.courseName?.trim() || 'this course'
+
+  switch (mode) {
+    case 'first-course':
+      return `Welcome! I'm here to help you build your first course, ${courseName}. Let's start with a clear goal and your first lesson.`
+    case 'new-course':
+      return `Let's build ${courseName}. I can suggest a structure, outline lessons, and help you add tasks and assessments.`
+    case 'no-course':
+      return `This course is empty. Let's add your first lesson and a task or assessment to get started.`
+    case 'edit':
+      return `You're editing ${courseName}. Ask me to refine lessons, tasks, or assessments.`
+    case 'test':
+      return `You're testing ${courseName}. I can review the task or assessment from a student perspective and suggest improvements.`
+    case 'classroom':
+      return `Live session ready. Ask me about student progress, completion rates, or session summaries.`
+    default:
+      return `How can I help with ${courseName}?`
+  }
+}
+
 export function AiAssistantPanel({
+  mode = 'edit',
   sessionId,
+  courseId,
   courseName,
   sessions = [],
   studentsCount = 0,
   liveSubmissions = [],
+  context,
   isActive = true,
 }: AiAssistantPanelProps) {
   const [input, setInput] = useState('')
@@ -46,9 +74,19 @@ export function AiAssistantPanel({
   const hasAnimatedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  const { messages: assistantMessages, isLoading, sendMessage } = useAnalyticsAssistant(sessionId)
+  const {
+    messages: assistantMessages,
+    isLoading,
+    sendMessage,
+    resetMessages,
+  } = useAiAssistant({
+    mode,
+    sessionId,
+    courseId,
+    context,
+  })
 
-  // Build course info message blocks
+  // Build course info message blocks for classroom mode
   const buildCourseInfoMessages = useCallback((): string[] => {
     const blocks: string[] = []
 
@@ -120,11 +158,18 @@ export function AiAssistantPanel({
     return blocks
   }, [courseName, sessions, studentsCount, liveSubmissions])
 
-  // Animate course info messages in one at a time from the bottom
+  const introTextBlocks = useMemo(() => {
+    if (mode === 'classroom') {
+      return buildCourseInfoMessages()
+    }
+    return [modeGreeting(mode, context)]
+  }, [mode, context, buildCourseInfoMessages])
+
+  // Animate intro messages in one at a time from the bottom
   useEffect(() => {
     if (!isActive || hasAnimatedRef.current) return
 
-    const infoBlocks = buildCourseInfoMessages()
+    const infoBlocks = introTextBlocks
     if (infoBlocks.length === 0) return
 
     hasAnimatedRef.current = true
@@ -144,7 +189,14 @@ export function AiAssistantPanel({
         }
       }, index * 400)
     })
-  }, [isActive, buildCourseInfoMessages])
+  }, [isActive, introTextBlocks])
+
+  // Reset intro animation when mode/course changes so the greeting stays relevant
+  useEffect(() => {
+    hasAnimatedRef.current = false
+    setIntroMessages([])
+    resetMessages()
+  }, [mode, courseId, resetMessages])
 
   // Scroll to bottom whenever new messages arrive
   useEffect(() => {
@@ -153,10 +205,6 @@ export function AiAssistantPanel({
 
   const handleSend = async () => {
     if (!input.trim()) return
-    if (!sessionId) {
-      toast.error('No session is loaded yet.')
-      return
-    }
     const text = input.trim()
     setInput('')
     await sendMessage(text)
@@ -237,7 +285,7 @@ export function AiAssistantPanel({
             size="icon"
             className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
             onClick={handleSend}
-            disabled={isBusy || !input.trim() || !sessionId}
+            disabled={isBusy || !input.trim()}
           >
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

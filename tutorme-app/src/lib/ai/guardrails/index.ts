@@ -49,6 +49,14 @@ export {
 } from './analytics-assistant'
 
 export {
+  COURSE_BUILDER_ASSISTANT_GUARDRAILS,
+  courseBuilderSystemPrompt,
+  validateCourseBuilderAssistantOutput,
+  runCourseBuilderGuardrails,
+  type CourseBuilderMode,
+} from './course-builder-assistant'
+
+export {
   checkCurriculumMatch,
   detectExamBoards,
   normalizeBoard,
