@@ -224,7 +224,7 @@ export function AiAssistantPanel({
   return (
     <div className="flex h-full flex-col gap-3">
       {/* Chat messages — scrollable area */}
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-gray-200 bg-white/80 p-3 shadow-sm">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-xl bg-white/80 p-3 shadow-sm">
         {displayMessages.length === 0 && !isBusy ? (
           <p className="text-sm text-gray-400">Ask the AI Assistant anything.</p>
         ) : (
@@ -266,7 +266,7 @@ export function AiAssistantPanel({
       </div>
 
       {/* Input — fixed at bottom */}
-      <div className="shrink-0 rounded-xl border border-gray-200 bg-white p-2 shadow-sm">
+      <div className="shrink-0 rounded-xl bg-white p-2 shadow-sm">
         <div className="relative">
           <AutoTextarea
             placeholder="Ask the AI Assistant..."
