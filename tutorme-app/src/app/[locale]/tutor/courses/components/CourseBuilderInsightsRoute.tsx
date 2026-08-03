@@ -265,9 +265,47 @@ function TutorControlsPanel({
     'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
 
   const actionButtonBase =
-    'flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 active:bg-white/25 focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
+    'flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
 
   const panelDisabled = disabled || false
+
+  function AnimatedControlButton({
+    icon,
+    label,
+    className,
+    onClick,
+    disabled: buttonDisabled,
+  }: {
+    icon: React.ReactNode
+    label: string
+    className?: string
+    onClick?: () => void
+    disabled?: boolean
+  }) {
+    const [hovered, setHovered] = useState(false)
+    return (
+      <motion.button
+        type="button"
+        disabled={buttonDisabled}
+        onClick={onClick}
+        onHoverStart={() => setHovered(true)}
+        onHoverEnd={() => setHovered(false)}
+        className={cn(actionButtonBase, 'relative overflow-hidden', className)}
+      >
+        <span className="flex items-center justify-center gap-2">
+          {icon}
+          <motion.span
+            className="overflow-hidden whitespace-nowrap"
+            initial={{ opacity: 0, maxWidth: 0 }}
+            animate={{ opacity: hovered ? 1 : 0, maxWidth: hovered ? 160 : 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+          >
+            {label}
+          </motion.span>
+        </span>
+      </motion.button>
+    )
+  }
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
@@ -385,89 +423,55 @@ function TutorControlsPanel({
                 <div className="mt-[17px] px-1">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
+                      <AnimatedControlButton
+                        icon={<Save className="h-4 w-4" />}
+                        label="Save"
                         disabled={panelDisabled}
                         onClick={onSave}
-                        className={cn(
-                          actionButtonBase,
-                          'bg-white text-gray-900 hover:bg-gray-100 active:bg-gray-200'
-                        )}
-                      >
-                        <Save className="h-4 w-4" />
-                        Save
-                      </button>
+                        className="bg-white text-gray-900"
+                      />
 
-                      <button
-                        type="button"
+                      <AnimatedControlButton
+                        icon={<Trash2 className="h-4 w-4" />}
+                        label="Delete"
                         disabled={panelDisabled || mode !== 'edit' || !canDelete}
                         onClick={onDelete}
-                        className={cn(
-                          actionButtonBase,
-                          'bg-white text-red-600 hover:bg-red-50 active:bg-red-100'
-                        )}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete
-                      </button>
+                        className="bg-white text-red-600"
+                      />
 
-                      <button
-                        type="button"
+                      <AnimatedControlButton
+                        icon={<Edit3 className="h-4 w-4" />}
+                        label="Edit Category"
                         disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
                         onClick={onEditCourse}
-                        className={cn(
-                          actionButtonBase,
-                          'bg-white text-slate-700 hover:bg-slate-50 active:bg-slate-100'
-                        )}
-                      >
-                        <Edit3 className="h-4 w-4" />
-                        Edit Category
-                      </button>
+                        className="bg-white text-slate-700"
+                      />
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
+                      <AnimatedControlButton
+                        icon={<VideoIcon className="h-4 w-4" />}
+                        label="Go Live"
                         disabled={panelDisabled || mode !== 'edit' || !canGoLive}
                         onClick={onGoLive}
-                        className={cn(
-                          actionButtonBase,
-                          'bg-white text-emerald-600 hover:bg-emerald-500 hover:text-white active:bg-emerald-600'
-                        )}
-                      >
-                        <VideoIcon className="h-4 w-4" />
-                        Go Live
-                      </button>
+                        className="bg-white text-emerald-600"
+                      />
 
-                      <button
-                        type="button"
-                        // Video launches the live video connection during a session; in a demo
-                        // session it reverts to the demo recorder/uploader label and action.
+                      <AnimatedControlButton
+                        icon={<VideoIcon className="h-4 w-4" />}
+                        label={isDemoSession ? 'Record Demo' : 'Video'}
                         disabled={panelDisabled || !hasSession}
                         onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
-                        className={cn(
-                          actionButtonBase,
-                          'bg-white text-slate-700 hover:bg-slate-100 hover:text-slate-900 active:bg-slate-200'
-                        )}
-                      >
-                        <VideoIcon className="h-4 w-4" />
-                        {isDemoSession ? 'Record Demo' : 'Video'}
-                      </button>
+                        className="bg-white text-slate-700"
+                      />
 
-                      <button
-                        type="button"
+                      <AnimatedControlButton
+                        icon={<Plus className="h-4 w-4" />}
+                        label="New Course"
                         disabled={panelDisabled || mode !== 'edit'}
                         onClick={onCreateCourse}
-                        className={cn(
-                          actionButtonBase,
-                          'group bg-white text-blue-600 hover:bg-blue-600 hover:text-white active:bg-blue-700'
-                        )}
-                      >
-                        <span className="flex items-center gap-2 transition-opacity group-disabled:opacity-50">
-                          <Plus className="h-4 w-4" />
-                          New Course
-                        </span>
-                      </button>
+                        className="bg-white text-blue-600"
+                      />
                     </div>
                   </div>
 
@@ -522,11 +526,11 @@ function TutorControlsPanel({
                             onClick={onSchedule}
                             className={cn(
                               actionButtonBase,
-                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-600 hover:text-white active:bg-blue-700'
                             )}
                           >
                             <Calendar className="h-4 w-4" />
-                            {scheduleButtonLabel || 'Schedule & Publish'}
+                            Schedule & Publish
                           </button>
                         </TooltipTrigger>
                       </Tooltip>
