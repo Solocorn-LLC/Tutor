@@ -3,27 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  Search,
-  QrCode,
-  Settings,
-  X,
-  Play,
-  FileText,
-} from 'lucide-react';
-import {
-  Navbar,
-  LaunchCard,
-  View
-} from './components/Layout';
-import { RegistrationPage } from './components/RegistrationPage';
-import { ProfilePage } from './components/ProfilePage';
-import { ContactModal } from './components/ContactModal';
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'motion/react'
+import { Search, QrCode, Settings, X, Play, FileText } from 'lucide-react'
+import { Navbar, LaunchCard, View } from './components/Layout'
+import { RegistrationPage } from './components/RegistrationPage'
+import { ProfilePage } from './components/ProfilePage'
+import { ContactModal } from './components/ContactModal'
 
 // Main App URL configuration
-const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003';
+const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003'
 
 const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; description: string }[]> = {
   Promo: [
@@ -69,7 +58,7 @@ const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; descripti
       description: '“Booking a tutor took seconds and the AI tools are a game changer.”',
     },
   ],
-};
+}
 
 const HOW_IT_WORKS_DOCUMENTS = [
   {
@@ -84,21 +73,25 @@ const HOW_IT_WORKS_DOCUMENTS = [
     url: 'https://storage.googleapis.com/YOUR_BUCKET/how-it-works/pdfs/course-builder-guide.pdf',
     filename: 'solocorn-course-builder-guide.pdf',
   },
-];
+]
 
 // Only surface entries that point at real, published assets. Placeholder YouTube ids and
 // unconfigured storage buckets are hidden so the "How It Works" panel never shows dead
 // cards — drop in real ids/URLs above and they appear automatically.
-const isRealVideo = (v: { id: string }) => !!v.id && !v.id.startsWith('PLACEHOLDER');
-const isRealDoc = (d: { url: string }) => !!d.url && !d.url.includes('YOUR_BUCKET');
+const isRealVideo = (v: { id: string }) => !!v.id && !v.id.startsWith('PLACEHOLDER')
+const isRealDoc = (d: { url: string }) => !!d.url && !d.url.includes('YOUR_BUCKET')
 
 const VISIBLE_HOW_IT_WORKS_VIDEOS = Object.entries(HOW_IT_WORKS_VIDEOS)
   .map(([section, videos]) => [section, videos.filter(isRealVideo)] as const)
-  .filter(([, videos]) => videos.length > 0);
+  .filter(([, videos]) => videos.length > 0)
 
-const VISIBLE_HOW_IT_WORKS_DOCUMENTS = HOW_IT_WORKS_DOCUMENTS.filter(isRealDoc);
+const VISIBLE_HOW_IT_WORKS_DOCUMENTS = HOW_IT_WORKS_DOCUMENTS.filter(isRealDoc)
 
-function HowItWorksVideoCard({ video }: { video: { id: string; title: string; description: string } }) {
+function HowItWorksVideoCard({
+  video,
+}: {
+  video: { id: string; title: string; description: string }
+}) {
   return (
     <a
       href={`https://www.youtube.com/watch?v=${video.id}`}
@@ -123,10 +116,14 @@ function HowItWorksVideoCard({ video }: { video: { id: string; title: string; de
         )}
       </div>
     </a>
-  );
+  )
 }
 
-function HowItWorksDocumentCard({ doc }: { doc: { id: string; title: string; url: string; filename: string } }) {
+function HowItWorksDocumentCard({
+  doc,
+}: {
+  doc: { id: string; title: string; url: string; filename: string }
+}) {
   return (
     <a
       href={doc.url}
@@ -143,7 +140,7 @@ function HowItWorksDocumentCard({ doc }: { doc: { id: string; title: string; url
         <p className="mt-0.5 text-[9px] text-white/70">Download PDF</p>
       </div>
     </a>
-  );
+  )
 }
 
 function HowItWorksArrow({
@@ -151,9 +148,9 @@ function HowItWorksArrow({
   disabled,
   onClick,
 }: {
-  direction: 'left' | 'right';
-  disabled: boolean;
-  onClick: () => void;
+  direction: 'left' | 'right'
+  disabled: boolean
+  onClick: () => void
 }) {
   return (
     <button
@@ -165,20 +162,21 @@ function HowItWorksArrow({
         'h-20 w-6',
         disabled
           ? 'cursor-not-allowed opacity-30 grayscale'
-          : 'cursor-pointer hover:brightness-110 hover:-translate-y-[2px]',
+          : 'cursor-pointer hover:-translate-y-[2px] hover:brightness-110',
       ].join(' ')}
       style={{
         clipPath:
           direction === 'left'
             ? 'polygon(100% 0, 100% 100%, 0 50%)'
             : 'polygon(0 0, 0 100%, 100% 50%)',
-        background: 'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)',
+        background:
+          'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)',
         filter:
           'drop-shadow(0 8px 16px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(255,255,255,0.6)) drop-shadow(0 0 4px rgba(255,255,255,0.4))',
       }}
       aria-label={direction === 'left' ? 'Previous' : 'Next'}
     />
-  );
+  )
 }
 
 function HowItWorksRow<T>({
@@ -187,19 +185,19 @@ function HowItWorksRow<T>({
   renderItem,
   itemsPerPage = 5,
 }: {
-  title: string;
-  items: T[];
-  renderItem: (item: T) => React.ReactNode;
-  itemsPerPage?: number;
+  title: string
+  items: T[]
+  renderItem: (item: T) => React.ReactNode
+  itemsPerPage?: number
 }) {
-  const [page, setPage] = useState(0);
-  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage));
-  const currentPage = Math.min(page, totalPages - 1);
-  const canPrev = currentPage > 0;
-  const canNext = currentPage < totalPages - 1;
-  const visible = items.slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage);
+  const [page, setPage] = useState(0)
+  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage))
+  const currentPage = Math.min(page, totalPages - 1)
+  const canPrev = currentPage > 0
+  const canNext = currentPage < totalPages - 1
+  const visible = items.slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage)
 
-  const trackWidth = `calc(${itemsPerPage} * 9rem + ${itemsPerPage - 1} * 0.5rem)`;
+  const trackWidth = `calc(${itemsPerPage} * 9rem + ${itemsPerPage - 1} * 0.5rem)`
 
   return (
     <div className="flex flex-col items-center">
@@ -229,15 +227,15 @@ function HowItWorksRow<T>({
         />
       </div>
     </div>
-  );
+  )
 }
 
 export default function App() {
-  const [view, setView] = useState<View>('home');
-  const [userProfile, setUserProfile] = useState<any>(null);
-  const [isContactOpen, setIsContactOpen] = useState(false);
-  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [view, setView] = useState<View>('home')
+  const [userProfile, setUserProfile] = useState<any>(null)
+  const [isContactOpen, setIsContactOpen] = useState(false)
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
 
   // Lock background scrolling while the How It Works panel is open
   useEffect(() => {
@@ -257,19 +255,19 @@ export default function App() {
   }, [isHowItWorksOpen])
 
   const handleRegistration = (data: any) => {
-    setUserProfile({ ...data, isVerified: true });
-    setView('profile');
-  };
+    setUserProfile({ ...data, isVerified: true })
+    setView('profile')
+  }
 
   return (
-    <div className="min-h-screen bg-black text-white relative overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-black text-white">
       {/* Background Video */}
       <video
         autoPlay
         muted
         loop
         playsInline
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover"
       >
         <source src="/landing-bg-video.mp4" type="video/mp4" />
       </video>
@@ -287,10 +285,10 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="min-h-screen flex flex-col relative"
+              className="relative flex min-h-screen flex-col"
             >
               {/* Top spacer: clears navbar and pushes hero toward vertical center */}
-              <div className="flex-1 min-h-[100px]" />
+              <div className="min-h-[100px] flex-1" />
 
               {/* Hero Section */}
               <section className="flex flex-col items-center px-6">
@@ -298,9 +296,9 @@ export default function App() {
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2, duration: 0.6 }}
-                  className="text-center max-w-3xl mx-auto w-full"
+                  className="mx-auto w-full max-w-3xl text-center"
                 >
-                  <h1 className="text-3xl md:text-5xl font-sans font-medium tracking-tight mb-10 text-white">
+                  <h1 className="mb-10 font-sans text-3xl font-medium tracking-tight text-white md:text-5xl">
                     Live AI-Augmented Instruction Platform
                   </h1>
 
@@ -309,18 +307,18 @@ export default function App() {
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: isHowItWorksOpen ? 0 : 1 }}
                     transition={{ delay: 0.35, duration: 0.2 }}
-                    className={`relative max-w-2xl mx-auto mb-6 ${isHowItWorksOpen ? 'pointer-events-none' : ''}`}
+                    className={`relative mx-auto mb-6 max-w-2xl ${isHowItWorksOpen ? 'pointer-events-none' : ''}`}
                   >
-                    <div className="flex items-center bg-white rounded-full h-14 px-5 shadow-lg">
-                      <Search className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                    <div className="flex h-14 items-center rounded-full bg-white px-5 shadow-lg">
+                      <Search className="h-5 w-5 flex-shrink-0 text-gray-400" />
                       <input
                         type="text"
                         placeholder="Search tutors, courses, categories..."
                         value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 bg-transparent border-none outline-none text-gray-800 placeholder-gray-400 px-3 text-base"
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="flex-1 border-none bg-transparent px-3 text-base text-gray-800 placeholder-gray-400 outline-none"
                       />
-                      <QrCode className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                      <QrCode className="h-5 w-5 flex-shrink-0 text-gray-400" />
                     </div>
                   </motion.div>
 
@@ -332,7 +330,7 @@ export default function App() {
                   >
                     <button
                       onClick={() => setIsHowItWorksOpen(true)}
-                      className="group relative px-6 py-2.5 bg-white text-blue-700 rounded-full text-sm font-semibold hover:bg-white/90 transition-colors shadow-md overflow-hidden min-w-[140px]"
+                      className="group relative min-w-[140px] overflow-hidden rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-blue-700 shadow-md transition-colors hover:bg-white/90"
                     >
                       <span className="block opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                         How It Works
@@ -346,7 +344,7 @@ export default function App() {
                           <Settings className="h-full w-full" />
                         </motion.span>
                         <motion.span
-                          className="-mt-2 -ml-1 inline-flex h-3.5 w-3.5"
+                          className="-ml-1 -mt-2 inline-flex h-3.5 w-3.5"
                           animate={{ rotate: -360 }}
                           transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
                         >
@@ -359,10 +357,10 @@ export default function App() {
               </section>
 
               {/* Guaranteed buffer: ensures persistent gap between hero and card */}
-              <div className="flex-1 min-h-[160px]" />
+              <div className="min-h-[160px] flex-1" />
 
               {/* Launch Card — Bottom Right */}
-              <div className="flex-shrink-0 flex justify-end px-6 pb-10">
+              <div className="flex flex-shrink-0 justify-end px-6 pb-10">
                 <AnimatePresence>
                   {!isHowItWorksOpen && (
                     <motion.div
@@ -415,8 +413,11 @@ export default function App() {
               className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent px-6"
               style={{ willChange: 'opacity' }}
               onClick={() => setIsHowItWorksOpen(false)}
-              onWheel={(e) => {
-                // Prevent wheel events from bubbling to the background page
+              onWheel={e => {
+                // Prevent wheel events on the modal backdrop from scrolling the
+                // landing page behind it. The scrollable modal content stops
+                // propagation so it can still scroll.
+                e.preventDefault()
                 e.stopPropagation()
               }}
             >
@@ -427,7 +428,7 @@ export default function App() {
                 transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
                 className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] p-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:p-6"
                 style={{ willChange: 'transform, opacity' }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
               >
                 {/* Close button */}
                 <button
@@ -451,7 +452,7 @@ export default function App() {
                         <Settings className="h-full w-full" />
                       </motion.span>
                       <motion.span
-                        className="-mt-1.5 -ml-0.5 inline-flex h-6 w-6 text-white"
+                        className="-ml-0.5 -mt-1.5 inline-flex h-6 w-6 text-white"
                         animate={{ rotate: -360 }}
                         transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
                         style={{ willChange: 'transform' }}
@@ -462,7 +463,11 @@ export default function App() {
                   </div>
 
                   {/* Scrollable rows */}
-                  <div className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1" style={{ overscrollBehaviorY: 'contain' }}>
+                  <div
+                    className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1"
+                    style={{ overscrollBehaviorY: 'contain' }}
+                    onWheel={e => e.stopPropagation()}
+                  >
                     {VISIBLE_HOW_IT_WORKS_VIDEOS.length === 0 &&
                     VISIBLE_HOW_IT_WORKS_DOCUMENTS.length === 0 ? (
                       <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-white/70">
@@ -503,5 +508,5 @@ export default function App() {
         <ContactModal isOpen={isContactOpen} onClose={() => setIsContactOpen(false)} />
       </div>
     </div>
-  );
+  )
 }
