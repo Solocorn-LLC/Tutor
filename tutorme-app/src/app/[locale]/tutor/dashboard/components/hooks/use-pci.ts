@@ -13,6 +13,7 @@ import {
   type PciGuardrailWarning,
   type PciThread,
 } from './pci-reducer'
+import type { DMIQuestion } from '../builder-types'
 
 interface PciSourceDoc {
   fileName: string
@@ -70,6 +71,13 @@ interface UsePciDeps {
   }
   /** Writes the finalized policy to the active task/assessment PCI field. */
   setCurrentPci: (source: 'task' | 'assessment', text: string, audit?: PciAuditRecord) => void
+  /**
+   * Optional callbacks for conversational DMI editing in the assessment PCI chat.
+   * The hook forwards any `dmiEdits` returned by the assistant to these handlers.
+   */
+  onAssessmentDmiUpdate?: (questionRef: string, patch: Partial<DMIQuestion>) => void
+  onAssessmentDmiRemove?: (questionRef: string) => void
+  onAssessmentDmiAdd?: (question: Partial<DMIQuestion>) => void
   /**
    * Persisted server-side PCI thread for the base task. If present, it is loaded
    * on mount and overrides any localStorage draft. Reported back via onThreadChange
@@ -526,6 +534,33 @@ export function usePci(deps: UsePciDeps) {
         specSoFar: data.pciSpecSoFar || undefined,
         warnings,
       })
+
+      // Apply conversational DMI edits returned by the assistant (assessment only).
+      if (
+        target.kind === 'assessment' &&
+        Array.isArray(data.dmiEdits) &&
+        data.dmiEdits.length > 0
+      ) {
+        for (const edit of data.dmiEdits) {
+          if (!edit || typeof edit !== 'object') continue
+          try {
+            const editObj = edit as Record<string, unknown>
+            const action = editObj.action
+            const questionRef = editObj.questionRef
+            const question = editObj.question
+            const { action: _a, questionRef: _q, question: _qn, ...patch } = editObj
+            if (action === 'update' && typeof questionRef === 'string') {
+              deps.onAssessmentDmiUpdate?.(questionRef, patch as Partial<DMIQuestion>)
+            } else if (action === 'remove' && typeof questionRef === 'string') {
+              deps.onAssessmentDmiRemove?.(questionRef)
+            } else if (action === 'add' && question && typeof question === 'object') {
+              deps.onAssessmentDmiAdd?.(question as Partial<DMIQuestion>)
+            }
+          } catch (err) {
+            console.warn('[usePci] failed to apply dmiEdit:', edit, err)
+          }
+        }
+      }
     } catch (error) {
       // A rejected fetch (offline, connection reset, request too large) surfaces
       // as a TypeError with a terse, non-actionable message like "Load failed"

@@ -3,6 +3,7 @@
 import { useState, type Dispatch, type SetStateAction } from 'react'
 import { toast } from 'sonner'
 import { extractQuestionRef } from '@/lib/assessment/marking-scheme'
+import { generateId } from '../builder-utils'
 import type { DMIQuestion, DMIVersion } from '../builder-types'
 
 /** What the DMI editing handlers need from the course builder. Lifted into a hook
@@ -110,6 +111,34 @@ export function useDmiEditor(deps: DmiEditorDeps) {
     )
   }
 
+  // Add a new DMI question via the PCI chat (or other callers). Appends to the
+  // live items and the active version, assigning a stable id and the next
+  // question number.
+  const addDmiItem = (source: 'task' | 'assessment', partial: Partial<DMIQuestion>) => {
+    const currentItems = source === 'task' ? deps.taskDmiItems : deps.assessmentDmiItems
+    const nextNumber =
+      currentItems.length > 0 ? Math.max(...currentItems.map(q => q.questionNumber ?? 0)) + 1 : 1
+    const newItem: DMIQuestion = {
+      id: `q-${generateId()}`,
+      questionNumber: nextNumber,
+      questionText: partial.questionText?.trim() || `Question ${nextNumber}`,
+      answer: partial.answer?.trim() || '',
+      questionType: (partial.questionType as DMIQuestion['questionType']) ?? 'short',
+      marks: typeof partial.marks === 'number' && partial.marks >= 0 ? partial.marks : 1,
+      rubric: partial.rubric,
+      acceptableVariants: partial.acceptableVariants,
+      options: partial.options,
+      pairs: partial.pairs,
+      answerProvenance: 'tutor_edited',
+    }
+    const addItem = (arr: DMIQuestion[]) => [...arr, newItem]
+    setItemsAndVersions(
+      source,
+      addItem,
+      editActiveVersion(v => ({ ...v, items: addItem(v.items) }))
+    )
+  }
+
   // Persist the examining-body / subject badge onto the active DMI version (it
   // saves & reloads with the course). Only touches version metadata, never the
   // questions.
@@ -126,6 +155,7 @@ export function useDmiEditor(deps: DmiEditorDeps) {
     applyDmiEdit,
     reextractRefs,
     removeDmiItem,
+    addDmiItem,
     setExamContext,
     editingExamContext,
     setEditingExamContext,
