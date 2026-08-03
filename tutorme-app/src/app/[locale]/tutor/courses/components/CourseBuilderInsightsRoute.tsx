@@ -34,6 +34,7 @@ import {
   MonitorPlay,
   Wrench,
   PhoneOff,
+  Presentation,
 } from 'lucide-react'
 import { BackButton } from '@/components/navigation/BackButton'
 import { CourseCategoryPicker } from './CourseCategoryPicker'
@@ -478,8 +479,8 @@ function TutorControlsPanel({
 
                     <div className="flex flex-col gap-2">
                       <AnimatedControlButton
-                        icon={<VideoIcon className="h-4 w-4" />}
-                        label="Go Live"
+                        icon={<Presentation className="h-4 w-4" />}
+                        label="Create Class"
                         disabled={panelDisabled || mode !== 'edit' || !canGoLive}
                         onClick={onGoLive}
                         className="bg-white text-emerald-600"
@@ -978,7 +979,7 @@ function CourseBuilderInsightsRouteInner({
             <div className="flex items-center gap-4">
               <BackButton
                 href="/tutor/dashboard"
-                className="rounded-full hover:bg-[#F17623] hover:text-white"
+                className="h-9 w-9 rounded-full p-0 text-[#344054] transition-colors hover:bg-gray-100"
               />
 
               <div className="flex flex-col justify-center">
@@ -993,7 +994,7 @@ function CourseBuilderInsightsRouteInner({
                           onClick={() => setCourseSelectorOpen(true)}
                           disabled={hasNoCourses}
                           className={cn(
-                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:bg-slate-100 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >
