@@ -10,6 +10,7 @@ export interface SlidingPillTab {
   label: string
   disabled?: boolean
   badge?: number
+  icon?: React.ReactNode
 }
 
 interface SlidingPillTabsListProps {
@@ -113,6 +114,7 @@ export function SlidingPillTabsList({
           )}
         >
           <span className="flex items-center justify-center gap-1.5">
+            {tab.icon}
             {tab.label}
             {!!tab.badge && tab.badge > 0 && (
               <span

@@ -515,6 +515,7 @@ import {
   ClipboardList,
   RefreshCw,
   Type,
+  Bot,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
@@ -11142,7 +11143,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             value={insightsTab}
                                             variant="white"
                                             tabs={[
-                                              { value: 'analytics', label: 'AI Assistant' },
+                                              {
+                                                value: 'analytics',
+                                                label: 'AI Assistant',
+                                                icon: <Bot className="h-3.5 w-3.5" />,
+                                              },
                                               { value: 'poll', label: 'Poll' },
                                               { value: 'question', label: 'Question' },
                                             ]}
@@ -12656,7 +12661,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       >
                         <div className="flex items-center gap-2">
                           <Wrench className="h-4 w-4" />
-                          Build
+                          Edit
                         </div>
                       </div>
                       <CardContent className="flex h-full flex-col overflow-hidden px-4 pb-4 pt-4">
@@ -13829,7 +13834,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 value={liveRightPanelTab}
                                 variant="gray"
                                 tabs={[
-                                  { value: 'analytics', label: 'AI Assistant' },
+                                  {
+                                    value: 'analytics',
+                                    label: 'AI Assistant',
+                                    icon: <Bot className="h-3.5 w-3.5" />,
+                                  },
                                   {
                                     value: 'insights',
                                     label: 'Insights',
