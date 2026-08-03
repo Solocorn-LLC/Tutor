@@ -93,6 +93,11 @@ const DropdownMenuContent = React.forwardRef<
     <DropdownMenuPrimitive.Content
       ref={ref}
       sideOffset={sideOffset}
+      // Radix auto-focuses the first menu item on open, causing a visible focus
+      // flash. The dropdown content primitive supports this handler internally,
+      // but the exported TypeScript props omit it, so we pass it via a cast.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      {...({ onOpenAutoFocus: (event: Event) => event.preventDefault() } as any)}
       className={cn(
         'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-popover min-w-[8rem] overflow-hidden rounded-[14px] border border-white/[0.08] py-2.5 shadow-[0_12px_32px_rgba(0,0,0,0.25)]',
         'bg-[rgba(31,41,55,0.50)] text-white backdrop-blur-[18px] focus-visible:outline-none focus-visible:ring-0',
