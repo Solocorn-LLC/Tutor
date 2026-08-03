@@ -64,16 +64,35 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           const selection = window.getSelection()
           if (!selection || selection.rangeCount === 0) return false
           const range = selection.getRangeAt(0)
-          if (range.collapsed) return false
 
           const styles: string[] = []
           if (fontSize !== undefined) styles.push(`font-size: ${fontSize}px`)
           if (color !== undefined) styles.push(`color: ${color}`)
           if (styles.length === 0) return false
 
+          const styleString = styles.join('; ')
+
+          if (range.collapsed) {
+            if (!el.contains(range.commonAncestorContainer)) return false
+            const span = document.createElement('span')
+            span.setAttribute('style', styleString)
+            const anchor = document.createTextNode('\u200B')
+            span.appendChild(anchor)
+            range.insertNode(span)
+
+            const newRange = document.createRange()
+            newRange.setStart(anchor, 0)
+            newRange.collapse(true)
+            selection.removeAllRanges()
+            selection.addRange(newRange)
+
+            emitHtml()
+            return true
+          }
+
           const extracted = range.extractContents()
           const span = document.createElement('span')
-          span.setAttribute('style', styles.join('; '))
+          span.setAttribute('style', styleString)
           span.appendChild(extracted)
           range.insertNode(span)
           // Collapse the selection to the end of the inserted span.
@@ -103,7 +122,7 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           contentEditable={!readOnly}
           suppressContentEditableWarning
           className={cn(
-            'h-full w-full resize-none overflow-hidden border-0 bg-transparent p-12 leading-relaxed text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+            'h-full w-full resize-none overflow-hidden border-0 bg-transparent p-6 leading-relaxed text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
             readOnly && 'cursor-default'
           )}
           style={style}
@@ -112,7 +131,7 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           onBlur={emitHtml}
         />
         {placeholder && isEmpty && !readOnly && (
-          <div className="pointer-events-none absolute inset-0 p-12 leading-relaxed text-slate-400">
+          <div className="pointer-events-none absolute inset-0 p-6 leading-relaxed text-slate-400">
             {placeholder}
           </div>
         )}
