@@ -222,6 +222,30 @@ function TutorControlsPanel({
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
 
+  // Measure the expanded panel height so the collapsed panel can stay anchored
+  // at the top of the expanded area (roll-up animation) instead of dropping to
+  // the bottom of the screen.
+  const panelRef = useRef<HTMLDivElement>(null)
+  const [expandedHeight, setExpandedHeight] = useState<number | undefined>(undefined)
+
+  const updateExpandedHeight = useCallback(() => {
+    if (panelRef.current && open) {
+      setExpandedHeight(panelRef.current.getBoundingClientRect().height)
+    }
+  }, [open])
+
+  useEffect(() => {
+    updateExpandedHeight()
+  }, [open, updateExpandedHeight])
+
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const ro = new ResizeObserver(() => updateExpandedHeight())
+    ro.observe(panel)
+    return () => ro.disconnect()
+  }, [updateExpandedHeight])
+
   // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
   const modeListRef = useRef<HTMLDivElement>(null)
   const [modePill, setModePill] = useState<{ left: number; width: number } | null>(null)
@@ -309,8 +333,12 @@ function TutorControlsPanel({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="pointer-events-none absolute bottom-4 right-4">
+      <div
+        className="pointer-events-none absolute bottom-4 right-4 flex items-start justify-end"
+        style={{ height: expandedHeight ? `${expandedHeight}px` : 'auto' }}
+      >
         <motion.div
+          ref={panelRef}
           drag
           dragConstraints={{
             left: -window.innerWidth + 384,
