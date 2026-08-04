@@ -34,6 +34,8 @@ test.describe('Tutor builder — smoke', () => {
 
     // Open the standalone insights builder shell and confirm it mounts.
     await page.goto('/tutor/insights')
+    // The controls panel starts collapsed, so expand it before looking for the mode tabs.
+    await page.getByRole('button', { name: 'Controls' }).click()
     const modeTabs = page.getByTestId('builder-mode-tabs')
     await expect(modeTabs.getByRole('tab', { name: 'Edit', exact: true })).toBeVisible({
       timeout: 15000,

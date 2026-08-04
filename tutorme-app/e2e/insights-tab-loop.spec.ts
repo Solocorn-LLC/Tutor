@@ -34,6 +34,9 @@ test.describe('Insights builder — mode tabs', () => {
     // Open the standalone insights builder shell.
     await page.goto('/tutor/insights')
 
+    // The controls panel starts collapsed, so expand it before looking for the mode tabs.
+    await page.getByRole('button', { name: 'Controls' }).click()
+
     // The mode tabs are part of the builder shell (TutorControlsPanel). Scope to
     // that tablist so we don't collide with the panel's own inner tabs (which
     // also include "Edit" / "Classroom" labels).
