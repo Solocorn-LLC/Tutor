@@ -59,8 +59,8 @@ const PciMasterRequestSchema = z.object({
   // generates the greeting + summary + language offer itself; no user message is
   // shown in the UI.
   init: z.boolean().optional(),
-  // Tutor name used to personalize the silent assessment greeting.
-  tutorName: z.string().max(100).optional(),
+  // Tutor username/handle used to personalize the silent assessment greeting.
+  tutorUsername: z.string().max(100).optional(),
   sessionId: z.string().max(160).optional(),
   // Prior conversation turns, so the local/vision provider paths (which have no
   // server-side memory) can respond in context instead of restarting each turn.
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    const { message, init, tutorName, sessionId, context, pdfPages, history } = parsed.data
+    const { message, init, tutorUsername, sessionId, context, pdfPages, history } = parsed.data
 
     // Guardrail wiring: when the builder identifies a PCI domain (task or
     // assessment), swap in the canonical guardrail system prompt and lower the
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     // message, so the server must drive the greeting, summary, and language offer.
     const isAssessmentInit = init && guardrailDomain === 'assessment'
     const assessmentInitInstruction = isAssessmentInit
-      ? `FIRST TURN: Greet the tutor by name (${tutorName || 'tutor'}). Then give a concise but detailed plain-English breakdown of the assessment using the DMI already provided in the context (subject/sections, total marks, and each question with its reference, text, type, marks, generated answer or expected response, and provenance — extracted from source or inferred by you). After the breakdown, ask the tutor whether they would like to continue the conversation in a different language. Do NOT ask any other marking-policy questions yet; we will handle those after the tutor confirms the DMI is correct.`
+      ? `FIRST TURN: Greet the tutor as @${tutorUsername || 'tutor'}. Then give a concise but detailed plain-English breakdown of the assessment using the DMI already provided in the context (subject/sections, total marks, and each question with its reference, text, type, marks, generated answer or expected response, and provenance — extracted from source or inferred by you). After the breakdown, ask the tutor whether they would like to continue the conversation in a different language. Do NOT generate any message on behalf of the tutor. Do NOT ask any other marking-policy questions yet; we will handle those after the tutor confirms the DMI is correct.`
       : ''
 
     const activeSystemPrompt = guardrailDomain

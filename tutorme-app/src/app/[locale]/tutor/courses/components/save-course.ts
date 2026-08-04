@@ -67,6 +67,10 @@ export function resolveLessonDmis(lessons: unknown[]): DmiResolutionResult {
   const resolved = lessons.map((lesson: any) => ({
     ...lesson,
     homework: (lesson.homework || []).map((hw: any) => {
+      // New assessments store dmiItems directly; legacy courses may still have dmiVersions.
+      if (Array.isArray(hw.dmiItems) && hw.dmiItems.length > 0) {
+        return hw
+      }
       if (!hw.dmiVersions || hw.dmiVersions.length === 0) {
         hasMissingDmis = true
         return hw

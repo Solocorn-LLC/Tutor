@@ -18,9 +18,10 @@ interface MarkingSchemeDeps {
   setTaskDmiItems: Dispatch<SetStateAction<DMIQuestion[]>>
   setAssessmentDmiItems: Dispatch<SetStateAction<DMIQuestion[]>>
   taskDmiVersions: DMIVersion[]
-  assessmentDmiVersions: DMIVersion[]
   setTaskDmiVersions: Dispatch<SetStateAction<DMIVersion[]>>
-  setAssessmentDmiVersions: Dispatch<SetStateAction<DMIVersion[]>>
+  /** Assessments no longer use a version system — only a single DMI. */
+  assessmentDmiExamBody?: string
+  assessmentDmiSubject?: string
   testPciViewMode: string
   /** Active task builder PCI context (base PCI + extensions). */
   taskBuilder: {
@@ -32,7 +33,7 @@ interface MarkingSchemeDeps {
   /** Course category used to derive the default board/subject badge. */
   designatedFolder?: string | null
   courseName?: string | null
-  /** Persist a detected board/subject onto the active DMI version. */
+  /** Persist a detected board/subject onto the active DMI version or assessment metadata. */
   setExamContext: (
     source: 'task' | 'assessment',
     patch: { examBody?: string; subject?: string }
@@ -133,18 +134,27 @@ export function useMarkingScheme(deps: MarkingSchemeDeps) {
         label: it.questionText,
       }))
       // Badge board/subject hint (the model still verifies against the scheme).
-      const examVersions = source === 'task' ? deps.taskDmiVersions : deps.assessmentDmiVersions
-      const activeExamVerId = deps.testPciViewMode.startsWith('dmi_')
-        ? deps.testPciViewMode.slice('dmi_'.length)
-        : null
-      const activeExamVer =
-        examVersions.find(v => v.id === activeExamVerId) ?? examVersions[examVersions.length - 1]
       const derivedExam = deriveExamContext(deps.designatedFolder, deps.courseName)
-      const examBody = activeExamVer?.examBody ?? derivedExam.examBody
-      const examSubject = activeExamVer?.subject ?? derivedExam.subject
+      const isTask = source === 'task'
+      const activeExamVer = isTask
+        ? (() => {
+            const examVersions = deps.taskDmiVersions
+            const activeExamVerId = deps.testPciViewMode.startsWith('dmi_')
+              ? deps.testPciViewMode.slice('dmi_'.length)
+              : null
+            return (
+              examVersions.find(v => v.id === activeExamVerId) ??
+              examVersions[examVersions.length - 1]
+            )
+          })()
+        : null
+      const examBody =
+        (isTask ? activeExamVer?.examBody : deps.assessmentDmiExamBody) ?? derivedExam.examBody
+      const examSubject =
+        (isTask ? activeExamVer?.subject : deps.assessmentDmiSubject) ?? derivedExam.subject
       // The tutor's PCI for this context (active extension's PCI, else base).
       const pciText = (
-        source === 'task'
+        isTask
           ? deps.taskBuilder.activeExtensionId
             ? deps.taskBuilder.extensions.find(e => e.id === deps.taskBuilder.activeExtensionId)
                 ?.pci
@@ -191,10 +201,16 @@ export function useMarkingScheme(deps: MarkingSchemeDeps) {
       const data = await res.json()
       // Adopt the detected board/subject — only for fields the tutor hasn't set.
       const detectPatch: { examBody?: string; subject?: string } = {}
-      if (!activeExamVer?.examBody && typeof data?.detectedExamBody === 'string') {
+      if (
+        (isTask ? !activeExamVer?.examBody : !deps.assessmentDmiExamBody) &&
+        typeof data?.detectedExamBody === 'string'
+      ) {
         detectPatch.examBody = data.detectedExamBody
       }
-      if (!activeExamVer?.subject && typeof data?.detectedSubject === 'string') {
+      if (
+        (isTask ? !activeExamVer?.subject : !deps.assessmentDmiSubject) &&
+        typeof data?.detectedSubject === 'string'
+      ) {
         detectPatch.subject = data.detectedSubject
       }
       if (detectPatch.examBody || detectPatch.subject) {
@@ -210,31 +226,33 @@ export function useMarkingScheme(deps: MarkingSchemeDeps) {
       }
 
       // Pure split: patches for existing rows + new rows for missing references.
-      const { patchedItems, newRows, filled, applyToVersionItems } = applySchemeMatches(
-        items,
-        matches
-      )
+      const { patchedItems, newRows, filled } = applySchemeMatches(items, matches)
       if (filled === 0 && newRows.length === 0) {
         toast.error(
           "Couldn't line up the marking scheme with these questions — the question numbers didn't match. Check that the scheme covers the same questions."
         )
         return
       }
-      // Commit to the live items + the active DMI version (persists with course).
-      const activeVersionId = deps.testPciViewMode.startsWith('dmi_')
-        ? deps.testPciViewMode.slice('dmi_'.length)
-        : null
-      const patchVersions = (vs: DMIVersion[]) => {
-        if (vs.length === 0) return vs
-        const targetId = activeVersionId ?? vs[vs.length - 1].id
-        return vs.map(v => (v.id === targetId ? { ...v, items: applyToVersionItems(v.items) } : v))
-      }
-      if (source === 'task') {
+      // Commit to the live items. For tasks also mirror into the active version.
+      if (isTask) {
         deps.setTaskDmiItems(patchedItems)
-        deps.setTaskDmiVersions(patchVersions)
+        const activeVersionId = deps.testPciViewMode.startsWith('dmi_')
+          ? deps.testPciViewMode.slice('dmi_'.length)
+          : null
+        deps.setTaskDmiVersions((vs: DMIVersion[]) => {
+          if (vs.length === 0) return vs
+          const targetId = activeVersionId ?? vs[vs.length - 1].id
+          return vs.map(v =>
+            v.id === targetId
+              ? {
+                  ...v,
+                  items: applySchemeMatches(v.items, matches).patchedItems,
+                }
+              : v
+          )
+        })
       } else {
         deps.setAssessmentDmiItems(patchedItems)
-        deps.setAssessmentDmiVersions(patchVersions)
       }
       // Highlight + scroll to the freshly-appended rows so they're easy to find.
       if (newRows.length > 0) {

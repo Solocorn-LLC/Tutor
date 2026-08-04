@@ -203,8 +203,15 @@ export interface Assessment extends WithDifficultyVariants {
   /** Current approved structured PCI spec (TASK-6), when finalized. */
   pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
   dmiItems?: DMIQuestion[]
+  /** @deprecated Legacy version array kept only for loading old courses. New
+   *  assessments store a single DMI in `dmiItems`. */
   dmiVersions?: DMIVersion[]
+  /** @deprecated Legacy active version id. New assessments ignore this. */
   activeDmiVersionId?: string
+  /** Examining body (e.g. "AP", "IB") detected from the assessment source. */
+  dmiExamBody?: string
+  /** Subject detected from the assessment source. */
+  dmiSubject?: string
   /** How the DMI was sourced — persisted so the PCI-chat study-material variant
    *  works for a returning tutor (not just in the DMI-generation session). */
   documentKind?: 'question_paper' | 'study_material'
