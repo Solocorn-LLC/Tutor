@@ -9753,7 +9753,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                               variant="ghost"
                                                               size="icon"
                                                               className={cn(
-                                                                'h-7 w-7 transition-opacity hover:bg-[#F2F4F7]',
+                                                                'h-7 w-7 transition-opacity hover:bg-[#F2F4F7] focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
                                                                 directoryMenusAlwaysVisible
                                                                   ? 'opacity-80 hover:opacity-100'
                                                                   : 'opacity-0 group-hover/item:opacity-100'
