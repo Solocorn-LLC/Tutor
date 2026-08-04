@@ -55,6 +55,12 @@ function toCleanResponse(content: string): {
 
 const PciMasterRequestSchema = z.object({
   message: z.string().min(1).max(4000),
+  // Silent first-turn trigger for the assessment PCI chat. When true, the server
+  // generates the greeting + summary + language offer itself; no user message is
+  // shown in the UI.
+  init: z.boolean().optional(),
+  // Tutor name used to personalize the silent assessment greeting.
+  tutorName: z.string().max(100).optional(),
   sessionId: z.string().max(160).optional(),
   // Prior conversation turns, so the local/vision provider paths (which have no
   // server-side memory) can respond in context instead of restarting each turn.
@@ -176,15 +182,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    const { message, sessionId, context, pdfPages, history } = parsed.data
+    const { message, init, tutorName, sessionId, context, pdfPages, history } = parsed.data
 
     // Guardrail wiring: when the builder identifies a PCI domain (task or
     // assessment), swap in the canonical guardrail system prompt and lower the
     // sampling temperature for consistency (TASK-8). Otherwise keep the generic
     // Socratic prompt. Enforcement is warn-only — see the validator pass below.
     const guardrailDomain = context?.type
+
+    // Silent first turn for the assessment PCI chat: the UI does not show a user
+    // message, so the server must drive the greeting, summary, and language offer.
+    const isAssessmentInit = init && guardrailDomain === 'assessment'
+    const assessmentInitInstruction = isAssessmentInit
+      ? `FIRST TURN: Greet the tutor by name (${tutorName || 'tutor'}). Then give a concise but detailed plain-English breakdown of the assessment using the DMI already provided in the context (subject/sections, total marks, and each question with its reference, text, type, marks, generated answer or expected response, and provenance — extracted from source or inferred by you). After the breakdown, ask the tutor whether they would like to continue the conversation in a different language. Do NOT ask any other marking-policy questions yet; we will handle those after the tutor confirms the DMI is correct.`
+      : ''
+
     const activeSystemPrompt = guardrailDomain
-      ? guardrailSystemPrompt(guardrailDomain, context?.variant)
+      ? `${assessmentInitInstruction ? `${assessmentInitInstruction}\n\n` : ''}${guardrailSystemPrompt(guardrailDomain, context?.variant)}`
       : PCI_MASTER_SYSTEM_PROMPT
     const activeTemperature = guardrailDomain ? GUARDRAILED_TEMPERATURE : 0.7
 
