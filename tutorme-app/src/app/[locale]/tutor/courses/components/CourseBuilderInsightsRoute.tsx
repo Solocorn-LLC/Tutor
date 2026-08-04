@@ -377,8 +377,8 @@ function TutorControlsPanel({
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
         className={cn(
-          'pointer-events-auto absolute left-0 top-0 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
-          open ? 'w-96 p-3' : 'w-auto'
+          'pointer-events-auto absolute left-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
+          open && 'p-3'
         )}
       >
         {/* Header / drag handle */}
