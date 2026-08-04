@@ -338,7 +338,7 @@ export function usePci(deps: UsePciDeps) {
     type: 'task' | 'assessment',
     overrideMessage?: string,
     silent?: boolean,
-    initOptions?: { init?: boolean; tutorName?: string }
+    initOptions?: { init?: boolean; tutorUsername?: string }
   ) => {
     const isTask = type === 'task'
     let taskId = deps.loadedTaskId
@@ -460,7 +460,7 @@ export function usePci(deps: UsePciDeps) {
           body: JSON.stringify({
             message: userMessage,
             init: initOptions?.init,
-            tutorName: initOptions?.tutorName,
+            tutorUsername: initOptions?.tutorUsername,
             sessionId,
             // Prior turns so the model can hold a real conversation (the local /
             // vision provider paths have no server-side memory; ADK keys on

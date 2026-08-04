@@ -700,8 +700,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   ) {
     const { data: session } = useSession()
 
-    // Tutor avatar from profile — fetched once on mount.
+    // Tutor avatar + username from profile — fetched once on mount.
     const [tutorAvatarUrl, setTutorAvatarUrl] = useState<string | null>(null)
+    const [tutorUsername, setTutorUsername] = useState<string | null>(null)
     useEffect(() => {
       if (!session?.user?.id) return
       fetch('/api/user/profile', { credentials: 'include' })
@@ -709,6 +710,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         .then(data => {
           if (data?.profile?.avatarUrl) {
             setTutorAvatarUrl(data.profile.avatarUrl)
+          }
+          if (data?.profile?.username) {
+            setTutorUsername(data.profile.username)
           }
         })
         .catch(() => {})
@@ -1294,6 +1298,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       /** Multi-page slide content. `taskContent` is kept as the concatenation of all pages for backward compatibility. */
       pages: string[]
       activePageIndex: number
+      /** Examining body detected from the assessment source (no DMI versioning). */
+      dmiExamBody?: string
+      /** Subject detected from the assessment source (no DMI versioning). */
+      dmiSubject?: string
     }>({
       title: '',
       taskContent: '',
@@ -1702,9 +1710,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [taskDmiItems, setTaskDmiItems] = useState<DMIQuestion[]>([])
     const [assessmentDmiItems, setAssessmentDmiItems] = useState<DMIQuestion[]>([])
 
-    // DMI Version history
+    // DMI Version history (tasks only; assessments have a single DMI)
     const [taskDmiVersions, setTaskDmiVersions] = useState<DMIVersion[]>([])
-    const [assessmentDmiVersions, setAssessmentDmiVersions] = useState<DMIVersion[]>([])
     const [showDmiVersionList, setShowDmiVersionList] = useState(false)
     const [previewDmiVersion, setPreviewDmiVersion] = useState<DMIVersion | null>(null)
     // Floating "view DMI" modal available from the Classroom (live) view.
@@ -1994,7 +2001,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setTaskDmiItems([])
       setAssessmentDmiItems([])
       setTaskDmiVersions([])
-      setAssessmentDmiVersions([])
       setShowDmiVersionList(false)
       setPreviewDmiVersion(null)
       resetPciRef.current()
@@ -2803,6 +2809,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         assessment.description || assessment.sourceDocument?.extractedText || ''
       const pages =
         assessment.pages && assessment.pages.length > 0 ? assessment.pages : [fallbackContent]
+      // Legacy single-DMI migration: old courses may store the DMI inside a
+      // one-entry `dmiVersions` array. Prefer the new flat fields if present.
+      const legacyVersion = assessment.dmiVersions?.length
+        ? (assessment.dmiVersions.find(v => v.id === assessment.activeDmiVersionId) ??
+          assessment.dmiVersions[0])
+        : null
+      const migratedDmiItems =
+        assessment.dmiItems && assessment.dmiItems.length > 0
+          ? assessment.dmiItems
+          : (legacyVersion?.items ?? [])
       setAssessmentBuilder({
         title: assessment.title || '',
         taskContent: pages.join('\n\n---PAGE BREAK---\n\n'),
@@ -2816,8 +2832,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activeExtensionId: null,
         pages,
         activePageIndex: 0,
+        dmiExamBody: assessment.dmiExamBody ?? legacyVersion?.examBody ?? undefined,
+        dmiSubject: assessment.dmiSubject ?? legacyVersion?.subject ?? undefined,
       })
-      setAssessmentDmiItems(assessment.dmiItems || [])
+      setAssessmentDmiItems(migratedDmiItems)
       // Rehydrate the DMI source kind so the PCI-chat study-material variant
       // applies for a returning tutor, not just in the generation session.
       setDmiDocumentKind(prev => ({
@@ -2825,21 +2843,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // Backfill pre-fix DMIs (no saved kind) from answer provenance.
         assessment:
           assessment.documentKind ??
-          inferDocumentKindFromProvenance((assessment.dmiItems ?? []).map(i => i.answerProvenance)),
+          inferDocumentKindFromProvenance((migratedDmiItems ?? []).map(i => i.answerProvenance)),
       }))
-      // Normalize so every version's `items` is an array (see task note above).
-      setAssessmentDmiVersions(
-        (assessment.dmiVersions || []).map(v => ({
-          ...v,
-          items: Array.isArray(v.items) ? v.items : [],
-        }))
-      )
       setTestPciSource('assessment')
-      if (assessment.activeDmiVersionId) {
-        setTestPciViewMode(`dmi_${assessment.activeDmiVersionId}`)
-      } else {
-        setTestPciViewMode('pdf')
-      }
+      setTestPciViewMode(migratedDmiItems.length > 0 ? 'dmi' : 'pdf')
       setLoadedAssessmentId(assessment.id)
       setAssessmentUploadedFiles(
         assessment.sourceDocument
@@ -3118,10 +3125,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               ...lesson,
               homework: lesson.homework.map(hw => {
                 if (hw.id !== loadedAssessmentId) return hw
-                const nextActiveDmiVersionId =
-                  testPciSource === 'assessment' && testPciViewMode.startsWith('dmi_')
-                    ? testPciViewMode.replace('dmi_', '')
-                    : hw.activeDmiVersionId
                 if (
                   hw.title === assessmentBuilder.title &&
                   hw.description === assessmentBuilder.taskContent &&
@@ -3131,8 +3134,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   hw.pciThread === assessmentBuilder.pciThread &&
                   hw.dmiItems === assessmentDmiItems &&
                   hw.documentKind === (dmiDocumentKind.assessment ?? hw.documentKind) &&
-                  hw.dmiVersions === assessmentDmiVersions &&
-                  hw.activeDmiVersionId === nextActiveDmiVersionId &&
+                  hw.dmiExamBody === assessmentBuilder.dmiExamBody &&
+                  hw.dmiSubject === assessmentBuilder.dmiSubject &&
                   hw.sourceDocument === assessmentBuilder.sourceDocument &&
                   hw.pages === assessmentBuilder.pages
                 ) {
@@ -3150,8 +3153,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   dmiItems: assessmentDmiItems,
                   // Preserve the persisted kind when the session hasn't set one.
                   documentKind: dmiDocumentKind.assessment ?? hw.documentKind,
-                  dmiVersions: assessmentDmiVersions,
-                  activeDmiVersionId: nextActiveDmiVersionId,
+                  dmiExamBody: assessmentBuilder.dmiExamBody,
+                  dmiSubject: assessmentBuilder.dmiSubject,
+                  // Legacy version fields are no longer written for assessments.
+                  dmiVersions: undefined,
+                  activeDmiVersionId: undefined,
                   sourceDocument: assessmentBuilder.sourceDocument,
                   pages: assessmentBuilder.pages,
                 }
@@ -3172,8 +3178,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.pciThread,
       assessmentBuilder.sourceDocument,
       assessmentBuilder.pages,
+      assessmentBuilder.dmiExamBody,
+      assessmentBuilder.dmiSubject,
       assessmentDmiItems,
-      assessmentDmiVersions,
       dmiDocumentKind.assessment,
       testPciSource,
       testPciViewMode,
@@ -4183,7 +4190,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setTaskDmiItems,
         setAssessmentDmiItems,
         setTaskDmiVersions,
-        setAssessmentDmiVersions,
+        setAssessmentExamContext: patch => setAssessmentBuilder(prev => ({ ...prev, ...patch })),
         testPciViewMode,
       }
     )
@@ -4201,9 +4208,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setTaskDmiItems,
       setAssessmentDmiItems,
       taskDmiVersions,
-      assessmentDmiVersions,
       setTaskDmiVersions,
-      setAssessmentDmiVersions,
+      assessmentDmiExamBody: assessmentBuilder.dmiExamBody,
+      assessmentDmiSubject: assessmentBuilder.dmiSubject,
       testPciViewMode,
       taskBuilder,
       assessmentBuilder,
@@ -4567,26 +4574,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setAssessmentSourceReferenceOnly(false)
         }
 
-        const existingVersions = isTask ? taskDmiVersions : assessmentDmiVersions
-        const nextVersionNumber = existingVersions.length + 1
-        // Seed the Board/Subject onto the new version from the course category so
-        // the DMI carries them as real data (not just a derived-on-the-fly badge).
+        // Seed the Board/Subject onto the new DMI from the course category so the
+        // DMI carries them as real data (not just a derived-on-the-fly badge).
         // Board is assessment-only; honour a manual Board override; both are
         // derived from the tutor's own category — never fabricated.
         const seedExam = deriveExamContext(pciCategory || null, courseName)
-        const newVersion: DMIVersion = {
-          id: `dmi-version-${Date.now()}`,
-          versionNumber: nextVersionNumber,
-          items: dmiItems,
-          createdAt: Date.now(),
-          taskId: isTask ? loadedTaskId || undefined : undefined,
-          assessmentId: !isTask ? loadedAssessmentId || undefined : undefined,
-          examBody: !isTask ? pciBoardOverride || seedExam.examBody || undefined : undefined,
-          subject: seedExam.subject || pciCategory || undefined,
-          // ASMT-4: section grouping + total marks derived from the questions.
-          sections: deriveSections(dmiItems),
-          totalMarks: deriveTotalMarks(dmiItems),
-        }
+        const examBody = !isTask ? pciBoardOverride || seedExam.examBody || undefined : undefined
+        const subject = seedExam.subject || pciCategory || undefined
 
         // Remember how this DMI was classified so the tutor can override a wrong
         // call (see the "Detected as …" banner) without needing the model to be
@@ -4598,18 +4592,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setDmiDocumentKind(prev => ({ ...prev, [type]: detectedKind }))
 
         if (isTask) {
+          const nextVersionNumber = taskDmiVersions.length + 1
+          const newVersion: DMIVersion = {
+            id: `dmi-version-${Date.now()}`,
+            versionNumber: nextVersionNumber,
+            items: dmiItems,
+            createdAt: Date.now(),
+            taskId: loadedTaskId || undefined,
+            subject,
+            // ASMT-4: section grouping + total marks derived from the questions.
+            sections: deriveSections(dmiItems),
+            totalMarks: deriveTotalMarks(dmiItems),
+          }
           setTaskDmiItems(dmiItems)
           setTaskDmiVersions(prev => [...prev, newVersion])
           setTestPciSource('task')
           setTestPciViewMode(`dmi_${newVersion.id}`)
+          toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
         } else {
           setAssessmentDmiItems(dmiItems)
-          setAssessmentDmiVersions(prev => [...prev, newVersion])
+          setAssessmentBuilder(prev => ({
+            ...prev,
+            dmiExamBody: examBody,
+            dmiSubject: subject,
+          }))
           setTestPciSource('assessment')
-          setTestPciViewMode(`dmi_${newVersion.id}`)
+          setTestPciViewMode('dmi')
+          toast.success(`DMI created with ${dmiItems.length} questions`)
         }
-
-        toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
 
         // Open the DMI editor so the tutor can review and edit the AI-prepopulated
         // answers/rubrics. For study material this also vets the generated questions;
@@ -4654,17 +4664,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (type) void handleGenerateDMI(type, undefined, undefined, true, 'text')
     }
 
-    // Load a specific DMI version
-    const handleLoadDmiVersion = (version: DMIVersion, type: 'task' | 'assessment') => {
-      if (type === 'task') {
-        setTaskDmiItems(version.items || [])
-      } else {
-        setAssessmentDmiItems(version.items || [])
-      }
+    // Load a specific DMI version (task DMI versions only; assessments have a
+    // single editable DMI).
+    const handleLoadDmiVersion = (version: DMIVersion) => {
+      setTaskDmiItems(version.items || [])
       setShowDmiVersionList(false)
 
       // Also open the Test tab and display this DMI
-      const content = type === 'task' ? taskBuilder.taskContent : assessmentBuilder.taskContent
+      const content = taskBuilder.taskContent
       setTestPciScores({})
       setTestPciInputs({ classroom: '', student1: '', student2: '' })
       setTestPciContent({
@@ -4672,7 +4679,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         student1: content,
         student2: content,
       })
-      setTestPciSource(type)
+      setTestPciSource('task')
       setTestPciViewMode(`dmi_${version.id}`)
       setTestPciActiveTab('classroom')
       // Switch to the Test tab. setMainTab notifies the parent route; with
@@ -4682,13 +4689,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       toast.success(`Loaded DMI version ${version.versionNumber}`)
     }
 
-    // Delete a DMI version
-    const handleDeleteDmiVersion = (versionId: string, type: 'task' | 'assessment') => {
-      if (type === 'task') {
-        setTaskDmiVersions(prev => prev.filter(v => v.id !== versionId))
-      } else {
-        setAssessmentDmiVersions(prev => prev.filter(v => v.id !== versionId))
-      }
+    // Delete a DMI version (task DMI versions only).
+    const handleDeleteDmiVersion = (versionId: string) => {
+      setTaskDmiVersions(prev => prev.filter(v => v.id !== versionId))
     }
 
     useEffect(() => {
@@ -6108,7 +6111,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activePageIndex: 0,
       })
       setAssessmentDmiItems([])
-      setAssessmentDmiVersions([])
       setAssessmentSourceDocument(undefined)
       setAssessmentSourceReferenceOnly(false)
     }, [])
@@ -9030,7 +9032,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       queueMicrotask(() => {
         handlePciSend('assessment', 'Please begin.', true, {
           init: true,
-          tutorName: session?.user?.name || 'tutor',
+          tutorUsername: tutorUsername ?? session?.user?.email?.split('@')[0] ?? 'tutor',
         })
       })
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -9597,19 +9599,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                           assessmentBuilder.taskPci,
                                                                         dmiItems:
                                                                           assessmentDmiItems,
-                                                                        dmiVersions:
-                                                                          assessmentDmiVersions,
-                                                                        activeDmiVersionId:
-                                                                          testPciSource ===
-                                                                            'assessment' &&
-                                                                          testPciViewMode.startsWith(
-                                                                            'dmi_'
-                                                                          )
-                                                                            ? testPciViewMode.replace(
-                                                                                'dmi_',
-                                                                                ''
-                                                                              )
-                                                                            : hw.activeDmiVersionId,
+                                                                        dmiExamBody:
+                                                                          assessmentBuilder.dmiExamBody,
+                                                                        dmiSubject:
+                                                                          assessmentBuilder.dmiSubject,
                                                                         sourceDocument:
                                                                           assessmentBuilder.sourceDocument,
                                                                       }
@@ -9938,19 +9931,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                                             assessmentBuilder.taskPci,
                                                                                           dmiItems:
                                                                                             assessmentDmiItems,
-                                                                                          dmiVersions:
-                                                                                            assessmentDmiVersions,
-                                                                                          activeDmiVersionId:
-                                                                                            testPciSource ===
-                                                                                              'assessment' &&
-                                                                                            testPciViewMode.startsWith(
-                                                                                              'dmi_'
-                                                                                            )
-                                                                                              ? testPciViewMode.replace(
-                                                                                                  'dmi_',
-                                                                                                  ''
-                                                                                                )
-                                                                                              : h.activeDmiVersionId,
+                                                                                          dmiExamBody:
+                                                                                            assessmentBuilder.dmiExamBody,
+                                                                                          dmiSubject:
+                                                                                            assessmentBuilder.dmiSubject,
                                                                                           sourceDocument:
                                                                                             assessmentBuilder.sourceDocument,
                                                                                         }
@@ -10395,19 +10379,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                       instructions:
                                                                         assessmentBuilder.taskPci,
                                                                       dmiItems: assessmentDmiItems,
-                                                                      dmiVersions:
-                                                                        assessmentDmiVersions,
-                                                                      activeDmiVersionId:
-                                                                        testPciSource ===
-                                                                          'assessment' &&
-                                                                        testPciViewMode.startsWith(
-                                                                          'dmi_'
-                                                                        )
-                                                                          ? testPciViewMode.replace(
-                                                                              'dmi_',
-                                                                              ''
-                                                                            )
-                                                                          : h.activeDmiVersionId,
+                                                                      dmiExamBody:
+                                                                        assessmentBuilder.dmiExamBody,
+                                                                      dmiSubject:
+                                                                        assessmentBuilder.dmiSubject,
                                                                       sourceDocument:
                                                                         assessmentBuilder.sourceDocument,
                                                                     }
@@ -10517,12 +10492,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                 onClick={e => {
                                                                   e.stopPropagation()
-                                                                  const dmiVersion =
-                                                                    (hw.dmiVersions || []).find(
-                                                                      v =>
-                                                                        v.id ===
-                                                                        hw.activeDmiVersionId
-                                                                    ) || (hw.dmiVersions || [])[0]
                                                                   deployTaskWithDialog({
                                                                     id: hw.id,
                                                                     title: hw.title,
@@ -10530,8 +10499,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                       hw.description || hw.title,
                                                                     source: 'assessment',
                                                                     dmiItems:
-                                                                      dmiVersion?.items ||
                                                                       hw.dmiItems ||
+                                                                      (hw.dmiVersions || [])[0]
+                                                                        ?.items ||
                                                                       [],
                                                                     sourceDocument:
                                                                       hw.sourceDocument,
@@ -10852,15 +10822,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                       className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                       onClick={e => {
                                                                         e.stopPropagation()
-                                                                        const dmiVersion =
-                                                                          (
-                                                                            hw.dmiVersions || []
-                                                                          ).find(
-                                                                            v =>
-                                                                              v.id ===
-                                                                              hw.activeDmiVersionId
-                                                                          ) ||
-                                                                          (hw.dmiVersions || [])[0]
                                                                         deployTaskWithDialog({
                                                                           id: hw.id,
                                                                           title: hw.title,
@@ -10869,8 +10830,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                             hw.title,
                                                                           source: 'assessment',
                                                                           dmiItems:
-                                                                            dmiVersion?.items ||
                                                                             hw.dmiItems ||
+                                                                            (hw.dmiVersions ||
+                                                                              [])[0]?.items ||
                                                                             [],
                                                                           sourceDocument:
                                                                             hw.sourceDocument,
@@ -11806,7 +11768,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               ? []
                                               : testPciSource === 'task'
                                                 ? taskDmiVersions
-                                                : assessmentDmiVersions
+                                                : [
+                                                    {
+                                                      id: 'dmi',
+                                                      versionNumber: 1,
+                                                      items: assessmentDmiItems,
+                                                      createdAt: 0,
+                                                      examBody: assessmentBuilder.dmiExamBody,
+                                                      subject: assessmentBuilder.dmiSubject,
+                                                    },
+                                                  ]
                                           const version = versionId
                                             ? versions.find(v => v.id === versionId)
                                             : versions[0]
@@ -13500,149 +13471,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           data-pci-container="assessment"
                                           className="relative flex h-full min-h-0 flex-col rounded-2xl border border-pink-200 bg-white p-4 shadow-sm"
                                         >
-                                          {/* Centered Pill for Test, Generate DMI, and Version History */}
-                                          <div className="pointer-events-none absolute left-1/2 top-0 z-20 flex -translate-x-1/2 items-center justify-center">
-                                            <div className="pointer-events-auto flex h-11 items-center gap-1 rounded-b-xl border-x border-b border-[#E5E7EB] bg-white/90 px-2 shadow-sm backdrop-blur-sm">
-                                              <span className="text-xs font-light text-gray-600">
-                                                (
-                                              </span>
-
-                                              {/* DMI generation is automatic once a document is
-                                                loaded, so there's no manual "Generate" then. A
-                                                text-only assessment keeps a manual Generate; a
-                                                Regenerate appears only after a DMI exists. */}
-                                              {dmiGenerating ? (
-                                                <span className="flex h-6 items-center px-2 text-xs font-medium text-gray-500">
-                                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                                  Generating…
-                                                </span>
-                                              ) : assessmentDmiItems.length > 0 ||
-                                                !currentAssessmentDocument ? (
-                                                <Button
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  data-pci-anchor="generate-dmi"
-                                                  className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                                  disabled={!canEdit}
-                                                  onClick={() => {
-                                                    if (!canEdit) return
-                                                    const content = assessmentBuilder.taskContent
-                                                    const hasPdf =
-                                                      currentAssessmentDocument?.mimeType ===
-                                                      'application/pdf'
-                                                    if (!content.trim() && !hasPdf) {
-                                                      toast.error(
-                                                        'Please add content to the Assessment tab or load a PDF first'
-                                                      )
-                                                      return
-                                                    }
-                                                    handleGenerateDMI('assessment')
-                                                  }}
-                                                >
-                                                  {assessmentDmiItems.length > 0
-                                                    ? 'Regenerate DMI'
-                                                    : 'Generate DMI'}
-                                                </Button>
-                                              ) : null}
-
-                                              {assessmentDmiItems.length > 0 && (
-                                                <>
-                                                  <div className="h-3 w-px bg-gray-300" />
-                                                  <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    data-pci-anchor="edit-marks"
-                                                    className="h-6 px-2 text-xs font-medium text-[#F17623] hover:text-[#d9651a]"
-                                                    disabled={!canEdit}
-                                                    title="Set marks per question and review the AI answers"
-                                                    onClick={() =>
-                                                      setDmiEditor({ source: 'assessment' })
-                                                    }
-                                                  >
-                                                    Edit marks & answers
-                                                  </Button>
-                                                </>
-                                              )}
-
-                                              <div className="h-3 w-px bg-gray-300" />
-
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-6 px-2 text-xs font-medium text-gray-600 hover:text-gray-900"
-                                                onClick={() => setShowDmiVersionList(true)}
-                                                title="View DMI Versions"
-                                              >
-                                                DMI
-                                                {assessmentDmiVersions.length > 0 && (
-                                                  <span className="ml-1">
-                                                    ({assessmentDmiVersions.length})
-                                                  </span>
-                                                )}
-                                              </Button>
-
-                                              <span className="text-xs font-light text-gray-600">
-                                                )
-                                              </span>
-                                            </div>
-                                          </div>
-
                                           <div
                                             ref={assessmentPciMessagesRef}
-                                            className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
+                                            className="min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
                                           >
-                                            {!assessmentDmiReady && (
-                                              <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
-                                                <p className="font-semibold">
-                                                  Set up the questions &amp; marking scheme first
-                                                </p>
-                                                <p className="mt-1">
-                                                  The marking-policy chat unlocks once your DMI has
-                                                  questions, marks, and an answer key or rubric.{' '}
-                                                  {assessmentDmiItems.length === 0
-                                                    ? currentAssessmentDocument
-                                                      ? 'Your DMI generates automatically from the loaded document.'
-                                                      : 'Generate the DMI to begin.'
-                                                    : assessmentDmiTotalMarks === 0
-                                                      ? 'Open “Edit marks & answers” to set the marks.'
-                                                      : 'Open “Edit marks & answers” to add the answer key / rubric.'}
-                                                </p>
-                                                {canEdit && (
-                                                  <div className="mt-2 flex gap-2">
-                                                    {assessmentDmiItems.length === 0 ? (
-                                                      dmiGenerating ? (
-                                                        <span className="inline-flex items-center rounded-md bg-amber-600/80 px-2.5 py-1 font-semibold text-white">
-                                                          Generating…
-                                                        </span>
-                                                      ) : !currentAssessmentDocument ? (
-                                                        // Manual generate only when there's no document
-                                                        // to auto-generate from (text-only assessment).
-                                                        <button
-                                                          type="button"
-                                                          onClick={() =>
-                                                            handleGenerateDMI('assessment')
-                                                          }
-                                                          className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
-                                                        >
-                                                          Generate DMI
-                                                        </button>
-                                                      ) : null
-                                                    ) : (
-                                                      <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                          setDmiEditor({ source: 'assessment' })
-                                                        }
-                                                        className="rounded-md bg-amber-600 px-2.5 py-1 font-semibold text-white hover:bg-amber-700"
-                                                      >
-                                                        Edit marks &amp; answers
-                                                      </button>
-                                                    )}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-
                                             {(
                                               assessmentPciMessagesMap[loadedAssessmentId || ''] ||
                                               []
@@ -13790,7 +13622,67 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }
                                                     }}
                                                   />
-                                                  <div className="flex w-full items-center justify-end gap-2 px-2 pb-2">
+                                                  <div className="flex w-full items-center justify-between gap-2 px-2 pb-2">
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                      {dmiGenerating ? (
+                                                        <span className="inline-flex h-7 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-500">
+                                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                                          Generating…
+                                                        </span>
+                                                      ) : assessmentDmiItems.length > 0 ||
+                                                        !currentAssessmentDocument ? (
+                                                        <Button
+                                                          type="button"
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          data-pci-anchor="generate-dmi"
+                                                          className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                          disabled={!canEdit}
+                                                          onClick={() => {
+                                                            if (!canEdit) return
+                                                            const content =
+                                                              assessmentBuilder.taskContent
+                                                            const hasPdf =
+                                                              currentAssessmentDocument?.mimeType ===
+                                                              'application/pdf'
+                                                            if (!content.trim() && !hasPdf) {
+                                                              toast.error(
+                                                                'Please add content to the Assessment tab or load a PDF first'
+                                                              )
+                                                              return
+                                                            }
+                                                            handleGenerateDMI('assessment')
+                                                          }}
+                                                        >
+                                                          {assessmentDmiItems.length > 0
+                                                            ? 'Regenerate DMI'
+                                                            : 'Generate DMI'}
+                                                        </Button>
+                                                      ) : null}
+
+                                                      {assessmentDmiItems.length > 0 && (
+                                                        <Button
+                                                          type="button"
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          data-pci-anchor="edit-marks"
+                                                          className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-[#F17623] hover:bg-[#FFF4EC] hover:text-[#d9651a]"
+                                                          disabled={!canEdit}
+                                                          title="Set marks per question and review the AI answers"
+                                                          onClick={() =>
+                                                            setDmiEditor({ source: 'assessment' })
+                                                          }
+                                                        >
+                                                          Edit marks & answers
+                                                        </Button>
+                                                      )}
+
+                                                      {assessmentDmiItems.length > 0 && (
+                                                        <span className="inline-flex h-7 items-center rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-500">
+                                                          DMI ({assessmentDmiItems.length})
+                                                        </span>
+                                                      )}
+                                                    </div>
                                                     <Button
                                                       type="button"
                                                       variant="default"
@@ -14681,26 +14573,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           </DialogContent>
         </Dialog>
 
-        {/* DMI Version History Modal */}
-        <Dialog open={showDmiVersionList} onOpenChange={open => setShowDmiVersionList(open)}>
+        {/* DMI Version History Modal (task DMI versions only) */}
+        <Dialog
+          open={showDmiVersionList && mainBuilderTab === 'task'}
+          onOpenChange={open => setShowDmiVersionList(open)}
+        >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>DMI Version History</DialogTitle>
               <DialogDescription>
-                View and restore previous DMI versions for{' '}
-                {mainBuilderTab === 'task' ? 'Task' : 'Assessment'}.
+                View and restore previous DMI versions for Task.
               </DialogDescription>
             </DialogHeader>
             <div className="pt-4">
               <div className="max-h-[400px] overflow-y-auto rounded-[14px] border border-[rgba(226,232,240,0.9)] bg-white p-4 text-[#1F2933] shadow-[0_10px_24px_rgba(15,23,42,0.16)]">
-                {(mainBuilderTab === 'task' ? taskDmiVersions : assessmentDmiVersions).length ===
-                0 ? (
+                {taskDmiVersions.length === 0 ? (
                   <div className="text-muted-foreground py-6 text-center text-sm">
                     No DMI versions yet. Generate a DMI to create your first version.
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {(mainBuilderTab === 'task' ? taskDmiVersions : assessmentDmiVersions)
+                    {taskDmiVersions
                       .slice()
                       .reverse()
                       .map(version => (
@@ -14735,7 +14628,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               disabled={!canEdit}
                               onClick={() => {
                                 if (!canEdit) return
-                                handleLoadDmiVersion(version, mainBuilderTab)
+                                handleLoadDmiVersion(version)
                               }}
                             >
                               Load
@@ -14747,7 +14640,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               disabled={!canEdit}
                               onClick={() => {
                                 if (!canEdit) return
-                                handleDeleteDmiVersion(version.id, mainBuilderTab)
+                                handleDeleteDmiVersion(version.id)
                               }}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -14866,20 +14759,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
                 )
-                // Examining body + subject for the badge: the active DMI version's
-                // stored override if set, else a default derived from the course
-                // category. (A later per-paper detector will set the version value.)
-                const examVersions =
-                  dmiEditor.source === 'task' ? taskDmiVersions : assessmentDmiVersions
-                const activeExamVersionId = testPciViewMode.startsWith('dmi_')
-                  ? testPciViewMode.slice('dmi_'.length)
-                  : null
-                const activeExamVersion =
-                  examVersions.find(v => v.id === activeExamVersionId) ??
-                  examVersions[examVersions.length - 1]
+                // Examining body + subject for the badge: tasks read from the active
+                // DMI version; assessments read directly from the assessment metadata.
                 const derivedExam = deriveExamContext(designatedFolder, courseName)
-                const examBody = activeExamVersion?.examBody ?? derivedExam.examBody ?? ''
-                const examSubject = activeExamVersion?.subject ?? derivedExam.subject ?? ''
+                const activeExamVersion =
+                  dmiEditor.source === 'task'
+                    ? (() => {
+                        const examVersions = taskDmiVersions
+                        const activeExamVersionId = testPciViewMode.startsWith('dmi_')
+                          ? testPciViewMode.slice('dmi_'.length)
+                          : null
+                        return (
+                          examVersions.find(v => v.id === activeExamVersionId) ??
+                          examVersions[examVersions.length - 1]
+                        )
+                      })()
+                    : null
+                const examBody =
+                  (dmiEditor.source === 'task'
+                    ? activeExamVersion?.examBody
+                    : assessmentBuilder.dmiExamBody) ??
+                  derivedExam.examBody ??
+                  ''
+                const examSubject =
+                  (dmiEditor.source === 'task'
+                    ? activeExamVersion?.subject
+                    : assessmentBuilder.dmiSubject) ??
+                  derivedExam.subject ??
+                  ''
                 return (
                   <>
                     <DialogHeader>
@@ -15454,7 +15361,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 variant="modal-primary-dark"
                 onClick={() => {
                   if (previewDmiVersion) {
-                    handleLoadDmiVersion(previewDmiVersion, mainBuilderTab)
+                    handleLoadDmiVersion(previewDmiVersion)
                   }
                   setPreviewDmiVersion(null)
                 }}
