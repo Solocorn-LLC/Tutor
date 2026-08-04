@@ -518,6 +518,7 @@ import {
   Bot,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { useCourseBuilderState } from './hooks/useCourseBuilderState'
 import {
@@ -8742,6 +8743,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Object.entries(pci.assessments).map(([k, t]) => [k, t.specSoFar])
     )
 
+    // Auto-scroll the assessment PCI chat to the latest message / loading indicator.
+    const assessmentPciMessagesRef = useRef<HTMLDivElement>(null)
+    useEffect(() => {
+      const el = assessmentPciMessagesRef.current
+      if (!el) return
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    }, [
+      assessmentPciMessagesMap[loadedAssessmentId || '']?.length,
+      assessmentPciLoadingMap[loadedAssessmentId || ''],
+    ])
+
     const activeTaskPciMessages = activeTaskThread.messages
     // The saved PCI (marking policy) for tasks. Extensions share the base task's
     // policy, so always read from the base task.
@@ -9001,37 +9013,25 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [loadedTaskId, hasUploadedTaskDocument])
 
-    // DMI-first kickoff: once the assessment's DMI is ready (chat unlocked) and
-    // the marking-policy chat has no user messages yet, auto-start the guided flow
-    // — the agent first summarizes the assessment (using the DMI it already has)
-    // for the tutor to confirm, then walks the general marking policy. Fires
-    // once per assessment.
+    // Silent first-turn kickoff for assessment PCI: once the DMI is ready and the
+    // chat is empty, ask the server to greet the tutor by name, summarize the
+    // assessment from the DMI, and offer to continue in another language. No fake
+    // user message is shown in the UI.
     const pciKickoffRef = useRef<Set<string>>(new Set())
     useEffect(() => {
       const id = loadedAssessmentId
       if (!id || !assessmentDmiReady || !canEdit) return
       const thread = getThread(pci, { kind: 'assessment', id })
-      const hasUserMessage = thread.messages.some(m => m.role === 'user')
-      if (hasUserMessage || thread.loading) return
+      if (thread.messages.length > 0 || thread.loading) return
       if (pciKickoffRef.current.has(id)) return
       pciKickoffRef.current.add(id)
       // Defer to the next microtask so the render finishes and the once-per-target
-      // guard survives React Strict Mode's double effect run. With setTimeout, the
-      // first cleanup would clear the pending timeout and the second run would see
-      // the id already in the ref, so the kickoff would never fire in dev.
+      // guard survives React Strict Mode's double effect run.
       queueMicrotask(() => {
-        handlePciSend(
-          'assessment',
-          `Greet me as the tutor, then give me a detailed breakdown of the assessment that was generated from the loaded document.
-
-Use the DMI context I already have (questions, sections, marks, and answers). For every question, show:
-- the question reference/number and text
-- the question type
-- the marks
-- the answer or expected response that was generated, and where it came from (extracted from the source, inferred by you, etc.)
-
-After the breakdown, ask me whether I want to edit any answers, add questions, or remove questions. Do not ask me any other marking-policy questions yet; we will handle those after the DMI is correct.`
-        )
+        handlePciSend('assessment', 'Please begin.', true, {
+          init: true,
+          tutorName: session?.user?.name || 'tutor',
+        })
       })
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [loadedAssessmentId, assessmentDmiReady, canEdit])
@@ -13587,12 +13587,10 @@ After the breakdown, ask me whether I want to edit any answers, add questions, o
                                             </div>
                                           </div>
 
-                                          <div className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1">
-                                            <PciGuidance kind="assessment" />
-                                            {renderCurrentPci(
-                                              'assessment',
-                                              assessmentBuilder.taskPci
-                                            )}
+                                          <div
+                                            ref={assessmentPciMessagesRef}
+                                            className="mt-6 min-h-0 flex-1 space-y-4 overflow-y-auto p-1"
+                                          >
                                             {!assessmentDmiReady && (
                                               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-900">
                                                 <p className="font-semibold">
@@ -13644,61 +13642,71 @@ After the breakdown, ask me whether I want to edit any answers, add questions, o
                                                 )}
                                               </div>
                                             )}
-                                            <PciSpecSoFar
-                                              spec={
-                                                assessmentPciSpecSoFarMap[loadedAssessmentId || '']
-                                              }
-                                              board={pciBoard}
-                                              subject={pciCategory}
-                                              editable={canEdit}
-                                              onEditField={(key, value) =>
-                                                editSpecSoFar(
-                                                  {
-                                                    kind: 'assessment',
-                                                    id: loadedAssessmentId || '',
-                                                  },
-                                                  key,
-                                                  value
-                                                )
-                                              }
-                                            />
-                                            {assessmentDmiReady &&
-                                              (
-                                                assessmentPciMessagesMap[
-                                                  loadedAssessmentId || ''
-                                                ] || []
-                                              ).length === 0 && (
-                                                <p className="text-muted-foreground text-xs">
-                                                  Start a PCI chat to build instructions with the
-                                                  assistant.
-                                                </p>
-                                              )}
+
                                             {(
                                               assessmentPciMessagesMap[loadedAssessmentId || ''] ||
                                               []
-                                            ).map((msg, idx) => (
-                                              <div
-                                                key={idx}
-                                                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                              >
-                                                <div
-                                                  className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-                                                    msg.role === 'user'
-                                                      ? 'bg-blue-50 text-gray-900'
-                                                      : 'bg-gray-100 text-gray-800'
-                                                  }`}
+                                            ).map((msg, idx) => {
+                                              const isUser = msg.role === 'user'
+                                              const tutorInitials = session?.user?.name
+                                                ? session.user.name
+                                                    .split(' ')
+                                                    .map(n => n[0])
+                                                    .slice(0, 2)
+                                                    .join('')
+                                                    .toUpperCase()
+                                                : 'T'
+                                              return (
+                                                <motion.div
+                                                  key={idx}
+                                                  initial={{ opacity: 0, y: 12 }}
+                                                  animate={{ opacity: 1, y: 0 }}
+                                                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                                                  className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}
                                                 >
-                                                  <div className="whitespace-pre-wrap">
-                                                    {msg.content}
+                                                  {!isUser && (
+                                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white">
+                                                      <Bot className="h-4 w-4" />
+                                                    </div>
+                                                  )}
+                                                  <div
+                                                    className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
+                                                      isUser
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-gray-100 text-gray-800'
+                                                    }`}
+                                                  >
+                                                    <div className="whitespace-pre-wrap">
+                                                      {msg.content}
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              </div>
-                                            ))}
+                                                  {isUser && (
+                                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 text-[10px] font-semibold text-gray-600">
+                                                      {tutorAvatarUrl ? (
+                                                        <NextImage
+                                                          src={tutorAvatarUrl}
+                                                          alt={session?.user?.name || 'Tutor'}
+                                                          width={28}
+                                                          height={28}
+                                                          className="h-full w-full object-cover"
+                                                          unoptimized
+                                                        />
+                                                      ) : (
+                                                        tutorInitials
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                </motion.div>
+                                              )
+                                            })}
                                             {(assessmentPciLoadingMap[loadedAssessmentId || ''] ||
                                               false) && (
-                                              <div className="flex justify-start">
-                                                <div className="flex items-center gap-px rounded-lg bg-gray-100 px-px py-px text-sm">
-                                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                              <div className="flex items-end gap-2">
+                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white">
+                                                  <Bot className="h-4 w-4" />
+                                                </div>
+                                                <div className="flex items-center gap-2 rounded-2xl bg-gray-100 px-4 py-2.5 text-sm">
+                                                  <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
                                                   <span className="text-xs text-gray-600">
                                                     Thinking...
                                                   </span>
