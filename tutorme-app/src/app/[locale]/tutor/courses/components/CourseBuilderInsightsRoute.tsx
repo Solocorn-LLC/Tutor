@@ -245,13 +245,25 @@ function TutorControlsPanel({
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Start the panel centered between the category badge and the course-state
-  // indicator so it lands in the header by default.
+  // indicator so it lands in the header by default. If either anchor is missing
+  // (e.g. test-pci or live mode), center it in the viewport container instead.
   const panelX = useMotionValue(0)
   const panelY = useMotionValue(0)
   const panelOpacity = useMotionValue(0)
 
+  const centerPanel = useCallback(() => {
+    const panel = panelRef.current
+    const container = containerRef.current
+    if (!panel || !container) return
+    const containerRect = container.getBoundingClientRect()
+    const panelRect = panel.getBoundingClientRect()
+    panelX.set(containerRect.width / 2 - panelRect.width / 2)
+    panelY.set(containerRect.height / 2 - panelRect.height / 2)
+  }, [panelX, panelY])
+
   useLayoutEffect(() => {
     if (!positionAnchorRefs) {
+      centerPanel()
       panelOpacity.set(1)
       return
     }
@@ -260,6 +272,7 @@ function TutorControlsPanel({
     const panel = panelRef.current
     const container = containerRef.current
     if (!badge || !indicator || !panel || !container) {
+      centerPanel()
       panelOpacity.set(1)
       return
     }
@@ -274,7 +287,7 @@ function TutorControlsPanel({
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
-  }, [positionAnchorRefs, panelX, panelY, panelOpacity])
+  }, [positionAnchorRefs, panelX, panelY, panelOpacity, centerPanel])
 
   // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
   const modeListRef = useRef<HTMLDivElement>(null)
@@ -376,18 +389,12 @@ function TutorControlsPanel({
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
-        className={cn(
-          'pointer-events-auto absolute left-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
-          open && 'p-3'
-        )}
+        className="pointer-events-auto absolute left-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl"
       >
         {/* Header / drag handle */}
         <button
           type="button"
-          className={cn(
-            'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-            open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
-          )}
+          className="relative flex h-10 w-full cursor-grab items-center rounded-t-xl border-b border-white/10 px-3 active:cursor-grabbing"
           onPointerDown={e => dragControls.start(e)}
           onClick={() => {
             if (isDragging) return
@@ -409,184 +416,186 @@ function TutorControlsPanel({
               transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
               className="overflow-hidden"
             >
-              {/* Mode selector */}
-              <Tabs
-                value={mode}
-                onValueChange={v => onModeChange(v as ControlsMode)}
-                className="mt-2 w-full"
-              >
-                <TabsList
-                  ref={modeListRef}
-                  data-testid="builder-mode-tabs"
-                  className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
+              <div className="p-3 pt-0">
+                {/* Mode selector */}
+                <Tabs
+                  value={mode}
+                  onValueChange={v => onModeChange(v as ControlsMode)}
+                  className="mt-2 w-full"
                 >
-                  <TabsTrigger
-                    value="edit"
-                    className={cn(
-                      modeButtonBase,
-                      'relative z-10 text-slate-700',
-                      'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
-                    )}
+                  <TabsList
+                    ref={modeListRef}
+                    data-testid="builder-mode-tabs"
+                    className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
                   >
-                    <Wrench className="h-3.5 w-3.5" />
-                    Edit
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="test"
-                    className={cn(
-                      modeButtonBase,
-                      'relative z-10 text-slate-700',
-                      'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
-                    )}
-                  >
-                    <ClipboardCheck className="h-3.5 w-3.5" />
-                    Test
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="classroom"
-                    className={cn(
-                      modeButtonBase,
-                      'relative z-10 text-slate-700',
-                      'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
-                    )}
-                  >
-                    <MonitorPlay className="h-3.5 w-3.5" />
-                    Classroom
-                  </TabsTrigger>
-                  {modePill && (
-                    <div
+                    <TabsTrigger
+                      value="edit"
                       className={cn(
-                        'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
-                        mode === 'edit' && 'bg-[#2563EB]',
-                        mode === 'test' && 'bg-[#7C3AED]',
-                        mode === 'classroom' && 'bg-[#F97316]'
+                        modeButtonBase,
+                        'relative z-10 text-slate-700',
+                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
                       )}
-                      style={{
-                        left: modePill.left,
-                        width: modePill.width,
-                      }}
-                    />
+                    >
+                      <Wrench className="h-3.5 w-3.5" />
+                      Edit
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="test"
+                      className={cn(
+                        modeButtonBase,
+                        'relative z-10 text-slate-700',
+                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                      )}
+                    >
+                      <ClipboardCheck className="h-3.5 w-3.5" />
+                      Test
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="classroom"
+                      className={cn(
+                        modeButtonBase,
+                        'relative z-10 text-slate-700',
+                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                      )}
+                    >
+                      <MonitorPlay className="h-3.5 w-3.5" />
+                      Classroom
+                    </TabsTrigger>
+                    {modePill && (
+                      <div
+                        className={cn(
+                          'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
+                          mode === 'edit' && 'bg-[#2563EB]',
+                          mode === 'test' && 'bg-[#7C3AED]',
+                          mode === 'classroom' && 'bg-[#F97316]'
+                        )}
+                        style={{
+                          left: modePill.left,
+                          width: modePill.width,
+                        }}
+                      />
+                    )}
+                  </TabsList>
+                </Tabs>
+
+                {/* Action buttons */}
+                <div className="mt-[17px]">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="flex flex-col gap-2">
+                      <AnimatedControlButton
+                        icon={<Save className="h-4 w-4" />}
+                        label="Save"
+                        disabled={panelDisabled}
+                        onClick={onSave}
+                        className="bg-white text-gray-900"
+                      />
+
+                      <AnimatedControlButton
+                        icon={<Trash2 className="h-4 w-4" />}
+                        label="Delete"
+                        disabled={panelDisabled || mode !== 'edit' || !canDelete}
+                        onClick={onDelete}
+                        className="bg-white text-red-600"
+                      />
+
+                      <AnimatedControlButton
+                        icon={<Edit3 className="h-4 w-4" />}
+                        label="Edit Category"
+                        disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
+                        onClick={onEditCourse}
+                        className="bg-white text-slate-700"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <AnimatedControlButton
+                        icon={<Presentation className="h-4 w-4" />}
+                        label="Create Class"
+                        disabled={panelDisabled || mode !== 'edit' || !canGoLive}
+                        onClick={onGoLive}
+                        className="bg-white text-emerald-600"
+                      />
+
+                      <AnimatedControlButton
+                        icon={<VideoIcon className="h-4 w-4" />}
+                        label={isDemoSession ? 'Record Demo' : 'Video'}
+                        disabled={panelDisabled || !hasSession}
+                        onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
+                        className="bg-white text-slate-700"
+                      />
+
+                      <AnimatedControlButton
+                        icon={<Plus className="h-4 w-4" />}
+                        label="New Course"
+                        disabled={panelDisabled || mode !== 'edit'}
+                        onClick={onCreateCourse}
+                        className="bg-white text-blue-600"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Schedule / Create Template / End Session — full width, below the grid.
+                    During a session the End Session button replaces scheduling so tutors
+                    can't publish while in session. For Creating-mode drafts the action
+                    becomes "Create Template", which persists the draft as an unpublished
+                    DB course and keeps the tutor in the builder. */}
+                  {hasSession && onEndSession ? (
+                    <button
+                      type="button"
+                      disabled={panelDisabled || endingSession}
+                      onClick={onEndSession}
+                      className={cn(
+                        actionButtonBase,
+                        'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                      )}
+                    >
+                      {endingSession ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <PhoneOff className="h-4 w-4" />
+                      )}
+                      {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                    </button>
+                  ) : createTemplateButtonLabel ? (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={panelDisabled || mode !== 'edit' || !canSchedule}
+                            onClick={onCreateTemplate}
+                            className={cn(
+                              actionButtonBase,
+                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                            )}
+                          >
+                            <Calendar className="h-4 w-4" />
+                            {createTemplateButtonLabel}
+                          </button>
+                        </TooltipTrigger>
+                      </Tooltip>
+                    </TooltipProvider>
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            disabled={panelDisabled || mode !== 'edit' || !canSchedule}
+                            onClick={onSchedule}
+                            className={cn(
+                              actionButtonBase,
+                              'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-600 hover:text-white active:bg-blue-700'
+                            )}
+                          >
+                            <Calendar className="h-4 w-4" />
+                            Schedule & Publish
+                          </button>
+                        </TooltipTrigger>
+                      </Tooltip>
+                    </TooltipProvider>
                   )}
-                </TabsList>
-              </Tabs>
-
-              {/* Action buttons */}
-              <div className="mt-[17px] px-1">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-2">
-                    <AnimatedControlButton
-                      icon={<Save className="h-4 w-4" />}
-                      label="Save"
-                      disabled={panelDisabled}
-                      onClick={onSave}
-                      className="bg-white text-gray-900"
-                    />
-
-                    <AnimatedControlButton
-                      icon={<Trash2 className="h-4 w-4" />}
-                      label="Delete"
-                      disabled={panelDisabled || mode !== 'edit' || !canDelete}
-                      onClick={onDelete}
-                      className="bg-white text-red-600"
-                    />
-
-                    <AnimatedControlButton
-                      icon={<Edit3 className="h-4 w-4" />}
-                      label="Edit Category"
-                      disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
-                      onClick={onEditCourse}
-                      className="bg-white text-slate-700"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <AnimatedControlButton
-                      icon={<Presentation className="h-4 w-4" />}
-                      label="Create Class"
-                      disabled={panelDisabled || mode !== 'edit' || !canGoLive}
-                      onClick={onGoLive}
-                      className="bg-white text-emerald-600"
-                    />
-
-                    <AnimatedControlButton
-                      icon={<VideoIcon className="h-4 w-4" />}
-                      label={isDemoSession ? 'Record Demo' : 'Video'}
-                      disabled={panelDisabled || !hasSession}
-                      onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
-                      className="bg-white text-slate-700"
-                    />
-
-                    <AnimatedControlButton
-                      icon={<Plus className="h-4 w-4" />}
-                      label="New Course"
-                      disabled={panelDisabled || mode !== 'edit'}
-                      onClick={onCreateCourse}
-                      className="bg-white text-blue-600"
-                    />
-                  </div>
                 </div>
-
-                {/* Schedule / Create Template / End Session — full width, below the grid.
-                  During a session the End Session button replaces scheduling so tutors
-                  can't publish while in session. For Creating-mode drafts the action
-                  becomes "Create Template", which persists the draft as an unpublished
-                  DB course and keeps the tutor in the builder. */}
-                {hasSession && onEndSession ? (
-                  <button
-                    type="button"
-                    disabled={panelDisabled || endingSession}
-                    onClick={onEndSession}
-                    className={cn(
-                      actionButtonBase,
-                      'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                    )}
-                  >
-                    {endingSession ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <PhoneOff className="h-4 w-4" />
-                    )}
-                    {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
-                  </button>
-                ) : createTemplateButtonLabel ? (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={panelDisabled || mode !== 'edit' || !canSchedule}
-                          onClick={onCreateTemplate}
-                          className={cn(
-                            actionButtonBase,
-                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
-                          )}
-                        >
-                          <Calendar className="h-4 w-4" />
-                          {createTemplateButtonLabel}
-                        </button>
-                      </TooltipTrigger>
-                    </Tooltip>
-                  </TooltipProvider>
-                ) : (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={panelDisabled || mode !== 'edit' || !canSchedule}
-                          onClick={onSchedule}
-                          className={cn(
-                            actionButtonBase,
-                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-600 hover:text-white active:bg-blue-700'
-                          )}
-                        >
-                          <Calendar className="h-4 w-4" />
-                          Schedule & Publish
-                        </button>
-                      </TooltipTrigger>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
               </div>
             </motion.div>
           )}
@@ -654,6 +663,13 @@ function CourseBuilderInsightsRouteInner({
   )
   const categoryBadgeRef = useRef<HTMLSpanElement>(null)
   const courseStateIndicatorRef = useRef<HTMLDivElement>(null)
+  const positionAnchorRefs = useMemo(
+    () => ({
+      badgeRef: categoryBadgeRef,
+      indicatorRef: courseStateIndicatorRef,
+    }),
+    []
+  )
   const showWifiSignal = isClassroomMode || activeMainTab === 'live'
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   // Two-step create flow: name → category (category is required at creation).
@@ -1259,10 +1275,7 @@ function CourseBuilderInsightsRouteInner({
           <TutorControlsPanel
             mode={controlsMode}
             onModeChange={handleControlsModeChange}
-            positionAnchorRefs={{
-              badgeRef: categoryBadgeRef,
-              indicatorRef: courseStateIndicatorRef,
-            }}
+            positionAnchorRefs={positionAnchorRefs}
             onSave={async () => {
               const ref = model.courseBuilderRef.current as CourseBuilderRef | null
               if (typeof ref?.saveAll === 'function') {
