@@ -109,6 +109,7 @@ export async function GET(
         tutorFeedback: taskSubmission.tutorFeedback,
         answers: taskSubmission.answers,
         questionResults: taskSubmission.questionResults,
+        whiteboard: taskSubmission.whiteboard,
         maxScore: taskSubmission.maxScore,
         submittedAt: taskSubmission.submittedAt,
         gradedAt: taskSubmission.gradedAt,
@@ -165,6 +166,7 @@ export async function GET(
       // their per-question breakdown + the tutor's feedback (not just a score).
       existingAnswers: existing?.answers ?? null,
       existingQuestionResults: existing?.questionResults ?? null,
+      existingWhiteboard: existing?.whiteboard ?? null,
       existingMaxScore: existing?.maxScore ?? null,
       existingSubmittedAt: existing?.submittedAt ?? null,
       existingGradedAt: existing?.gradedAt ?? null,

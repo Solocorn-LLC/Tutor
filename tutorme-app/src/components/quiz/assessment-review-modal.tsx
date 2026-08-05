@@ -206,6 +206,8 @@ export interface AssessmentReviewData {
   questions: AssessmentReviewQuestion[]
   answers: Record<string, unknown> | null
   questionResults: QuestionResultItem[] | null
+  /** PNG data URL of the whiteboard the student submitted with the task, if any. */
+  whiteboard?: string | null
   /** Grounded per-question AI study hints, once generated. */
   aiFeedback?: AiQuestionFeedbackItem[] | null
   /** Tutor's reveal policy — gates worked solutions + practice ('hidden' = off). */
@@ -420,6 +422,18 @@ export function AssessmentReviewModal({
               )
             })}
           </div>
+
+          {data.whiteboard && (
+            <div className="mt-4">
+              <p className="mb-2 text-sm font-semibold text-gray-700">Your whiteboard</p>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={data.whiteboard}
+                alt="Submitted whiteboard"
+                className="w-full rounded-md border border-gray-200 bg-white"
+              />
+            </div>
+          )}
         </div>
 
         {/* Footer */}

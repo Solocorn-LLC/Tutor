@@ -84,9 +84,18 @@ export async function POST(
     const body = (await request.json().catch(() => ({}))) as {
       answers?: Record<string, unknown>
       timeSpent?: number
+      whiteboard?: string
     }
     const answers = body.answers ?? {}
     const timeSpent = typeof body.timeSpent === 'number' && body.timeSpent >= 0 ? body.timeSpent : 0
+    // Optional attached whiteboard (PNG data URL). Ignore anything that isn't a
+    // PNG data URL or is implausibly large (~8MB cap) to avoid abusive payloads.
+    const whiteboard =
+      typeof body.whiteboard === 'string' &&
+      body.whiteboard.startsWith('data:image/png;base64,') &&
+      body.whiteboard.length <= 8_000_000
+        ? body.whiteboard
+        : null
 
     // Task must exist, be published, and not deleted
     const [task] = await drizzleDb
@@ -160,6 +169,7 @@ export async function POST(
       score,
       maxScore: MAX_SCORE,
       status: 'submitted',
+      whiteboard,
       tutorApproved: false,
       // Explicit: prod's submittedAt column has drifted and lacks its DEFAULT,
       // so relying on defaultNow() would insert NULL and violate not-null.

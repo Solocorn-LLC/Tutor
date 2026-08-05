@@ -354,6 +354,9 @@ export const taskSubmission = pgTable(
     // Generated on demand and reused so we never re-run the model for a solution
     // the student already viewed.
     workedSolutions: jsonb('workedSolutions'),
+    // Optional whiteboard the student drew alongside their answers, stored as a
+    // PNG data URL. Null when they didn't use the attached whiteboard.
+    whiteboard: text('whiteboard'),
     tutorFeedback: text('tutorFeedback'),
     tutorApproved: boolean('tutorApproved').notNull(),
     submittedAt: timestamp('submittedAt', { withTimezone: true }).notNull().defaultNow(),
