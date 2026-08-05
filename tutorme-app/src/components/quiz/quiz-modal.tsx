@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { CheckCircle, XCircle, AlertCircle, PenLine } from 'lucide-react'
 import { PersonalizedFeedbackCard } from './PersonalizedFeedbackCard'
+import { TaskWhiteboard, type TaskWhiteboardHandle } from './task-whiteboard'
 
 interface Question {
   id: string
@@ -42,6 +43,8 @@ interface QuizModalProps {
     score: number
     answers: Record<string, any>
     questionResults?: QuestionResultItem[]
+    /** Optional PNG data URL of the whiteboard the student drew with their answers. */
+    whiteboard?: string | null
   }) => void | Promise<QuizServerResult | void>
   onClose: () => void
   studentId?: string // Optional student ID for personalized feedback
@@ -60,6 +63,8 @@ export function QuizModal({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, any>>({})
   const [showResults, setShowResults] = useState(false)
+  const [showWhiteboard, setShowWhiteboard] = useState(false)
+  const whiteboardRef = useRef<TaskWhiteboardHandle>(null)
   const [serverScore, setServerScore] = useState<number | null>(null)
   const [gradedAnswers, setGradedAnswers] = useState<
     Record<
@@ -95,8 +100,10 @@ export function QuizModal({
     // Non-'instant' modes: the browser has no answer key, so submit first and
     // render the server's authoritative grade. Correct answers are revealed only
     // for 'after_submit'.
+    const whiteboard = whiteboardRef.current?.exportPng() ?? null
     if (answerReveal !== 'instant') {
-      const server = (await onComplete({ answers, score: 0, questionResults: [] })) || {}
+      const server =
+        (await onComplete({ answers, score: 0, questionResults: [], whiteboard })) || {}
       const byId: Record<string, QuestionResultItem> = {}
       ;(server.questionResults || []).forEach(r => {
         byId[r.questionId] = r
@@ -192,6 +199,7 @@ export function QuizModal({
       score: Math.round((correctCount / questions.length) * 100),
       answers,
       questionResults,
+      whiteboard,
     })
   }
 
@@ -341,6 +349,22 @@ export function QuizModal({
               )}
             </div>
           )}
+
+          {/* Optional attached whiteboard — the student's drawn working, submitted
+              with the answers. Kept mounted across questions so the drawing persists. */}
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={() => setShowWhiteboard(v => !v)}
+              className="flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              <PenLine className="h-4 w-4" />
+              {showWhiteboard ? 'Hide whiteboard' : 'Add a whiteboard'}
+            </button>
+            <div className={showWhiteboard ? 'mt-3' : 'hidden'}>
+              <TaskWhiteboard ref={whiteboardRef} />
+            </div>
+          </div>
 
           <Button
             className="mt-6 w-full"
