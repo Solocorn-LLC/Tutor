@@ -77,11 +77,11 @@ export function LessonSelectorDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md border-white/30">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="h-5 w-5 text-blue-500" />
-            Select Target Lesson
+            Select lesson
           </DialogTitle>
         </DialogHeader>
         <div className="pt-4">
@@ -105,10 +105,13 @@ export function LessonSelectorDialog({
                 <SelectTrigger>
                   <SelectValue placeholder="Select a lesson" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0">
                   {allowNewLesson && (
-                    <SelectItem value={NEW_LESSON_VALUE}>
-                      <span className="flex items-center gap-1.5 font-medium text-blue-600">
+                    <SelectItem
+                      value={NEW_LESSON_VALUE}
+                      className="focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0"
+                    >
+                      <span className="flex items-center gap-1.5 font-medium text-white">
                         <Plus className="h-3.5 w-3.5" />
                         New lesson
                       </span>
