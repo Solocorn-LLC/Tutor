@@ -2,11 +2,11 @@
 
 import Link from 'next/link'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { GraduationCap, Users, Presentation, Shield } from 'lucide-react'
 import { useParams, useRouter } from 'next/navigation'
 import { useState, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const ACCESS_CODE = 'Solocorn123#'
 
@@ -131,7 +131,7 @@ function RoleCard({ role, localePrefix }: { role: RoleConfig; localePrefix: stri
   const cardContent = (
     <Card
       ref={cardRef}
-      className={`h-full cursor-pointer border ${role.borderColor} ${role.tintBg} shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${shake ? 'animate-shake' : ''}`}
+      className={`h-full cursor-pointer border ${role.borderColor} ${role.tintBg} shadow-lg transition-all duration-300 ${shake ? 'animate-shake' : ''}`}
       onClick={handleRegisterClick}
     >
       <CardContent className="p-5">
@@ -143,25 +143,41 @@ function RoleCard({ role, localePrefix }: { role: RoleConfig; localePrefix: stri
             <h2 className="text-xl font-bold text-gray-800">{role.title}</h2>
           </div>
         </div>
-        {showInput ? (
-          <form onSubmit={handleCodeSubmit} className="mt-5">
-            <Input
-              ref={inputRef}
-              type="text"
-              value={code}
-              onChange={e => setCode(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Access Code"
-              className="h-10 w-full border-0 bg-white text-center text-sm font-semibold text-gray-800 shadow-md placeholder:text-gray-400"
-            />
-          </form>
-        ) : (
-          <Button
-            className={`mt-5 h-10 w-full border-0 text-sm font-semibold text-white ${role.color} shadow-md transition-colors duration-200 hover:bg-white ${role.hoverText}`}
-          >
-            Register
-          </Button>
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          {showInput ? (
+            <motion.form
+              key="access-code-form"
+              onSubmit={handleCodeSubmit}
+              className="mt-5"
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+              transition={{ duration: 0.2, delay: 0.05 }}
+            >
+              <Input
+                ref={inputRef}
+                type="text"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Access Code"
+                className="h-10 w-full border-0 bg-white text-center text-sm font-semibold text-gray-800 shadow-md placeholder:text-gray-400"
+              />
+            </motion.form>
+          ) : (
+            <motion.button
+              key="register-button"
+              type="button"
+              className={`mt-5 h-10 w-full border-0 text-sm font-semibold text-white ${role.color} shadow-md transition-colors duration-200 hover:bg-white ${role.hoverText}`}
+              whileTap={{ scale: 0.97 }}
+              initial={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ duration: 0.2 }}
+            >
+              Register
+            </motion.button>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   )
