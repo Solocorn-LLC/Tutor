@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
     // message, so the server must drive the greeting, summary, and language offer.
     const isAssessmentInit = init && guardrailDomain === 'assessment'
     const assessmentInitInstruction = isAssessmentInit
-      ? `FIRST TURN: Greet the tutor as @${tutorUsername || 'tutor'}. Then give a concise but detailed plain-English breakdown of the assessment using the DMI already provided in the context (subject/sections, total marks, and each question with its reference, text, type, marks, generated answer or expected response, and provenance — extracted from source or inferred by you). After the breakdown, ask the tutor whether they would like to continue the conversation in a different language. Do NOT generate any message on behalf of the tutor. Do NOT ask any other marking-policy questions yet; we will handle those after the tutor confirms the DMI is correct.`
+      ? `FIRST TURN: Greet the tutor as @${tutorUsername || 'tutor'}. Then give a concise but detailed plain-English breakdown of the assessment using the DMI already provided in the context (subject/sections, total marks, and each question with its reference, text, type, marks, generated answer or expected response, and provenance — extracted from source or inferred by you). Do NOT emit any dmiEdits on this turn; the tutor has not requested changes yet. After the breakdown, ask the tutor whether they would like to continue the conversation in a different language. Do NOT generate any message on behalf of the tutor. Do NOT ask any other marking-policy questions yet; we will handle those after the tutor confirms the DMI is correct.`
       : ''
 
     const activeSystemPrompt = guardrailDomain
@@ -447,9 +447,27 @@ export async function POST(request: NextRequest) {
         specSoFar?: unknown
         dmiEdits?: unknown
       }>(response.response)
-      if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
+
+      // First-turn assessment fallback: the model sometimes dumps the generated DMI
+      // as a top-level JSON array or as an envelope whose `reply` is empty. On the
+      // first turn the tutor has not asked for edits, so never apply those edits;
+      // substitute a friendly summary instead and keep the chat conversational.
+      const fallbackFirstTurnReply = (edits: unknown[]) => {
+        const count = Array.isArray(edits) ? edits.length : 0
+        return `I've reviewed the generated assessment (${count} question${count === 1 ? '' : 's'}). Let me know if you'd like to edit any questions, add new ones, or continue in another language.`
+      }
+
+      if (Array.isArray(env)) {
+        response.response = fallbackFirstTurnReply(env)
+      } else if (env && (typeof env.reply === 'string' || typeof env.pci === 'string')) {
         if (typeof env.reply === 'string' && env.reply.trim()) {
           response.response = env.reply.trim()
+        } else if (isAssessmentInit) {
+          response.response = fallbackFirstTurnReply(
+            Array.isArray(env.dmiEdits) ? env.dmiEdits : []
+          )
+        } else {
+          response.response = 'What would you like to do next?'
         }
         if (typeof env.pci === 'string') pciDraft = env.pci.trim()
         // TASK-6: the structured mirror of the finalized rubric.
@@ -465,7 +483,9 @@ export async function POST(request: NextRequest) {
           v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
         pciSpecSoFar = normalizePciSpec({ ...asObj(env.spec), ...asObj(env.specSoFar) })
         // Forward any DMI edits the model emitted for conversational editing.
-        if (Array.isArray(env.dmiEdits)) {
+        // Skip them on the assessment first turn because the tutor hasn't requested
+        // changes yet and the model may hallucinate an "add" per question.
+        if (Array.isArray(env.dmiEdits) && !isAssessmentInit) {
           dmiEdits = env.dmiEdits
         }
       }

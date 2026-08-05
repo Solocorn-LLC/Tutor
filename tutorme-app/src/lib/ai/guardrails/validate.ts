@@ -106,7 +106,7 @@ export function validateTaskPciOutput(
 
   // TASK-15 (Output Structure): the chat reply must stay conversational — the
   // machine spec belongs in the `pci` field, never dumped into the chat.
-  if (/```|"task_title"|"final_pci"|^\s*\{\s*"reply"/im.test(reply)) {
+  if (/```|"task_title"|"final_pci"|^\s*\{\s*"reply"|^\s*\[/im.test(reply)) {
     violations.push({
       ruleId: 'TASK-15',
       severity: 'warning',
