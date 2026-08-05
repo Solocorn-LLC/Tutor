@@ -158,6 +158,10 @@ ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "followUps" jsonb;
 -- questionId, reused instead of re-running the model. Nullable jsonb.
 ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "workedSolutions" jsonb;
 
+-- Attached task whiteboard: optional PNG data URL the student drew with their
+-- answers. Nullable text (journal frozen at 0068, so ensured here).
+ALTER TABLE "TaskSubmission" ADD COLUMN IF NOT EXISTS "whiteboard" text;
+
 -- TaskDeploymentStatus enum
 DO $$
 BEGIN

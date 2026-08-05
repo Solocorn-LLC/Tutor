@@ -148,6 +148,7 @@ export default function StudentAssignmentsPage() {
           questions: data.task.questions ?? [],
           answers: data.existingAnswers ?? null,
           questionResults: data.existingQuestionResults ?? null,
+          whiteboard: data.existingWhiteboard ?? null,
           aiFeedback: data.existingAiFeedback?.items ?? null,
           answerReveal: data.task.answerReveal,
         })
@@ -258,6 +259,7 @@ export default function StudentAssignmentsPage() {
     score: number
     answers: Record<string, any>
     questionResults?: QuestionResultItem[]
+    whiteboard?: string | null
   }) => {
     if (!activeTask) return
     // Practice mode is non-graded — QuizModal already showed instant results, so
@@ -285,6 +287,7 @@ export default function StudentAssignmentsPage() {
         body: JSON.stringify({
           answers: results.answers,
           timeSpent: timeSpentSec,
+          whiteboard: results.whiteboard ?? null,
         }),
       })
 
