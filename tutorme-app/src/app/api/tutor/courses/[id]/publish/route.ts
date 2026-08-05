@@ -14,7 +14,11 @@ import {
   calendarException,
   oneOnOneBookingRequest,
   deployedMaterial,
+  tutorFollow,
+  user,
+  profile,
 } from '@/lib/db/schema'
+import { notifyMany } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -1100,6 +1104,39 @@ export const POST = withCsrf(
             }
           }
         })
+
+        // Notify the tutor's followers that a new course went live. Skip for
+        // schedules-only saves (nothing newly published) and when nothing was published.
+        if (!schedulesOnly && result.length > 0) {
+          try {
+            const followers = await drizzleDb
+              .select({ followerId: tutorFollow.followerId })
+              .from(tutorFollow)
+              .where(eq(tutorFollow.tutorId, userId))
+            if (followers.length > 0) {
+              const [me] = await drizzleDb
+                .select({ name: profile.name, handle: user.handle })
+                .from(user)
+                .leftJoin(profile, eq(user.userId, profile.userId))
+                .where(eq(user.userId, userId))
+                .limit(1)
+              const tutorName = me?.name || 'A tutor you follow'
+              const courseName = result[0]?.name
+              const label = courseName ? `“${courseName}”` : 'a new course'
+              await notifyMany({
+                userIds: followers.map(f => f.followerId),
+                type: 'course_published',
+                title: 'New course published',
+                message: `${tutorName} just published ${label}. Check it out.`,
+                actionUrl: me?.handle ? `/u/${me.handle}` : '/student/tutors',
+                data: { kind: 'course_published', tutorId: userId },
+              })
+            }
+          } catch (notifyErr) {
+            // Never fail the publish because of a notification error.
+            console.error('[publish] follower notification failed:', notifyErr)
+          }
+        }
 
         return NextResponse.json({
           success: true,
