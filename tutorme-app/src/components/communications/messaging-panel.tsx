@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MentionInput } from '@/components/mentions/MentionInput'
@@ -125,6 +125,16 @@ export default function MessagingPanel({
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set())
+  const [followers, setFollowers] = useState<
+    Array<{
+      id: string
+      name: string | null
+      handle: string | null
+      avatarUrl: string | null
+      bio: string | null
+    }>
+  >([])
+  const [followersLoading, setFollowersLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const list = emptyStates[activeSection]
@@ -139,6 +149,27 @@ export default function MessagingPanel({
   useEffect(() => {
     fetchConversations()
   }, [])
+
+  // Load the current user's followers when the Followers tab is opened.
+  useEffect(() => {
+    if (activeSection !== 'followers') return
+    let cancelled = false
+    setFollowersLoading(true)
+    fetch('/api/follows/followers', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { followers: [] }))
+      .then(d => {
+        if (!cancelled) setFollowers(d.followers || [])
+      })
+      .catch(() => {
+        if (!cancelled) setFollowers([])
+      })
+      .finally(() => {
+        if (!cancelled) setFollowersLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeSection])
 
   useEffect(() => {
     if (selectedConversation) {
@@ -395,6 +426,33 @@ export default function MessagingPanel({
                       </p>
                     </div>
                   </button>
+                ))}
+              </div>
+            </ScrollArea>
+          ) : activeSection === 'followers' && followersLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+          ) : activeSection === 'followers' && followers.length > 0 ? (
+            <ScrollArea className="h-full">
+              <div className="divide-y divide-slate-100">
+                {followers.map(f => (
+                  <div key={f.id} className="flex items-center gap-3 p-4">
+                    <Avatar className="h-10 w-10">
+                      {f.avatarUrl ? <AvatarImage src={f.avatarUrl} alt={f.name || ''} /> : null}
+                      <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
+                        {(f.name || f.handle || '?').charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-slate-800">
+                        {f.name || (f.handle ? `@${f.handle}` : 'Student')}
+                      </span>
+                      <p className="mt-0.5 truncate text-xs text-slate-500">
+                        {f.bio || (f.handle ? `@${f.handle}` : 'Follows you')}
+                      </p>
+                    </div>
+                  </div>
                 ))}
               </div>
             </ScrollArea>

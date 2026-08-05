@@ -21,6 +21,7 @@ export type NotificationType =
   | 'reminder'
   | 'achievement'
   | 'grade'
+  | 'course_published'
 
 // Types worth an OS-level browser push (time-sensitive or interruptive). Other
 // transactional types still go in-app/SSE/email but not browser push.
