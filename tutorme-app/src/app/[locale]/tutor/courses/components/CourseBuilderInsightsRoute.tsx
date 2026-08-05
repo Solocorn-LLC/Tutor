@@ -307,12 +307,12 @@ function TutorControlsPanel({
   useLayoutEffect(() => {
     const id = requestAnimationFrame(() => updateModePill())
     return () => cancelAnimationFrame(id)
-  }, [mode, updateModePill])
+  }, [mode, open, updateModePill])
 
   useEffect(() => {
     const id = setTimeout(updateModePill, 100)
     return () => clearTimeout(id)
-  }, [updateModePill])
+  }, [open, updateModePill])
 
   useEffect(() => {
     const handleResize = () => updateModePill()
@@ -326,7 +326,7 @@ function TutorControlsPanel({
     const ro = new ResizeObserver(() => updateModePill())
     ro.observe(list)
     return () => ro.disconnect()
-  }, [updateModePill])
+  }, [open, updateModePill])
 
   const modeButtonBase =
     'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
@@ -1084,7 +1084,7 @@ function CourseBuilderInsightsRouteInner({
                             <span
                               ref={categoryBadgeRef}
                               className={cn(
-                                'inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
+                                'ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
                                 colors.bg,
                                 colors.text
                               )}
