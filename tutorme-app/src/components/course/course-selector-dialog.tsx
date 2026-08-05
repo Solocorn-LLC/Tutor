@@ -447,8 +447,8 @@ export function CourseSelectorDialog({
                     data-state={tab === mode.value ? 'active' : 'inactive'}
                     onClick={() => setTab(mode.value)}
                     className={cn(
-                      'relative z-10 flex flex-1 items-center justify-center rounded-full px-2 text-xs font-medium transition-colors hover:text-white',
-                      tab === mode.value ? 'text-blue-600' : 'text-white/80'
+                      'relative z-10 flex flex-1 items-center justify-center rounded-full px-2 text-xs font-medium transition-colors',
+                      tab === mode.value ? 'text-blue-600' : 'text-white/80 hover:text-white'
                     )}
                   >
                     {mode.label}
