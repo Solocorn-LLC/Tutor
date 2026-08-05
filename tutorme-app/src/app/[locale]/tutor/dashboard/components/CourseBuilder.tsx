@@ -12779,7 +12779,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsList>
                                       <TabsContent
                                         value="content"
-                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div
                                           className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
@@ -13275,7 +13275,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsList>
                                       <TabsContent
                                         value="content"
-                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div
                                           className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
