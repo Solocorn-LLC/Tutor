@@ -1127,6 +1127,8 @@ function TutorInsightsPageInner() {
 
     const handleSessionEndingSoon = (data: { sessionId: string; minutesRemaining: number }) => {
       if (data.sessionId === sessionId && !endingAlertShown) {
+        const currentSession = sessions.find(s => s.id === sessionId)
+        if (currentSession?.sessionType === 'GO_LIVE_DEMO') return
         setEndingAlertShown(true)
         toast.warning(`Session ending in ${data.minutesRemaining} minutes!`, {
           duration: 10000,
@@ -1136,18 +1138,24 @@ function TutorInsightsPageInner() {
     }
 
     const handleSessionEnded = (data: { sessionId: string; reason?: string }) => {
-      if (data.sessionId === sessionId) {
-        // Update local session status
+      if (data.sessionId !== sessionId) return
+      // Asynchronous demo sessions never truly "end" in the live-session sense,
+      // so skip the ended toast and the recording stop timeout.
+      const currentSession = sessions.find(s => s.id === sessionId)
+      if (currentSession?.sessionType === 'GO_LIVE_DEMO') {
         setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, status: 'ended' } : s)))
-        // Auto-stop recording after 5-minute grace period
-        setTimeout(
-          () => {
-            handleStopRecording().catch(() => {})
-          },
-          5 * 60 * 1000
-        )
-        toast.info('Session has ended', { duration: 5000 })
+        return
       }
+      // Update local session status
+      setSessions(prev => prev.map(s => (s.id === sessionId ? { ...s, status: 'ended' } : s)))
+      // Auto-stop recording after 5-minute grace period
+      setTimeout(
+        () => {
+          handleStopRecording().catch(() => {})
+        },
+        5 * 60 * 1000
+      )
+      toast.info('Session has ended', { duration: 5000 })
     }
 
     const handleDeployError = (data: { error: string }) => {
@@ -1328,6 +1336,12 @@ function TutorInsightsPageInner() {
     if (!sessionId) return { ok: false, error: 'No session selected' }
     const currentSession = sessions.find(s => s.id === sessionId)
     if (!currentSession) return { ok: false, error: 'Session not found' }
+    // Asynchronous demo classes are always deployable — they have no live session
+    // lifecycle, so a status of 'ended' or a future scheduledAt should not block
+    // the tutor from dropping tasks/content for students to complete later.
+    if (currentSession.sessionType === 'GO_LIVE_DEMO') {
+      return { ok: true }
+    }
     // Homework can be dropped even after session ends
     if (source !== 'homework' && currentSession.status === 'ended') {
       return { ok: false, error: 'Session has ended' }

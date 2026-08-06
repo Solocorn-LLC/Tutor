@@ -482,6 +482,11 @@ export interface CourseBuilderProps {
    * that lesson once on mount. Value is the lesson id (courseLesson.lessonId).
    */
   focusLessonId?: string | null
+  /**
+   * True when the classroom is an asynchronous demo session. Disables live-session
+   * assumptions in child panels (e.g. the AI Assistant skips scheduling intro blocks).
+   */
+  isDemoSession?: boolean
 }
 
 export interface CourseBuilderRef {
