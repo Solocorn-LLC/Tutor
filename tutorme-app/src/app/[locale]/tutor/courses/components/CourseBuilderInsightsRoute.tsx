@@ -243,10 +243,14 @@ function TutorControlsPanel({
   // completely lost off-screen.
   const containerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLButtonElement>(null)
 
-  // Start the panel centered between the category badge and the course-state
-  // indicator so it lands in the header by default. If either anchor is missing
-  // (e.g. test-pci or live mode), center it in the viewport container instead.
+  // Anchor the panel by the *header* (drag handle) rather than the whole panel.
+  // The body expands/collapses below the header, so the header's vertical
+  // position stays stable while the panel opens and closes. This prevents the
+  // panel from appearing to jump when the body height changes.
+  // If either anchor is missing (e.g. test-pci or live mode), center the
+  // header in the viewport container instead.
   const panelX = useMotionValue(0)
   const panelY = useMotionValue(0)
   const panelOpacity = useMotionValue(0)
@@ -254,11 +258,13 @@ function TutorControlsPanel({
   const centerPanel = useCallback(() => {
     const panel = panelRef.current
     const container = containerRef.current
+    const header = headerRef.current
     if (!panel || !container) return
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
+    const headerHeight = header?.getBoundingClientRect().height ?? 40
     panelX.set(containerRect.width / 2 - panelRect.width / 2)
-    panelY.set(containerRect.height / 2 - panelRect.height / 2)
+    panelY.set(containerRect.height / 2 - headerHeight / 2)
   }, [panelX, panelY])
 
   useLayoutEffect(() => {
@@ -279,11 +285,12 @@ function TutorControlsPanel({
     const badgeRect = badge.getBoundingClientRect()
     const indicatorRect = indicator.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
+    const headerHeight = headerRef.current?.getBoundingClientRect().height ?? 40
     const containerRect = container.getBoundingClientRect()
     const midX = (badgeRect.right + indicatorRect.left) / 2
     const midY = (badgeRect.top + badgeRect.bottom) / 2
     const x = midX - containerRect.left - panelRect.width / 2
-    const y = midY - containerRect.top - panelRect.height / 2
+    const y = midY - containerRect.top - headerHeight / 2
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
@@ -393,6 +400,7 @@ function TutorControlsPanel({
       >
         {/* Header / drag handle */}
         <button
+          ref={headerRef}
           type="button"
           className="relative flex h-10 w-full cursor-grab items-center rounded-t-xl border-b border-white/10 px-3 active:cursor-grabbing"
           onPointerDown={e => dragControls.start(e)}
@@ -433,7 +441,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
                       <Wrench className="h-3.5 w-3.5" />
@@ -444,7 +452,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
                       <ClipboardCheck className="h-3.5 w-3.5" />
@@ -455,7 +463,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
