@@ -670,6 +670,213 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   )
 }
 
+/** Student-facing DMI renderer used in the tutor's Test > DMI tab and as the
+ *  Assessment side panel in the Test > Classroom tab. Shows only question text,
+ *  marks, and answer inputs — never tutor-only answers, rubrics, or grading. */
+function AssessmentStudentDmiView({
+  items,
+  className,
+}: {
+  items: DMIQuestion[]
+  className?: string
+}) {
+  const [answers, setAnswers] = useState<Record<string, string>>({})
+  if (items.length === 0) {
+    return <p className="text-muted-foreground p-4 text-sm">No questions in this assessment yet.</p>
+  }
+  return (
+    <div className={cn('space-y-4 p-4', className)}>
+      {items.map(item => {
+        const hasOptions = Array.isArray(item.options) && item.options.length > 0
+        return (
+          <div key={item.id} className="rounded-lg border bg-gray-50 p-3">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-medium text-gray-900">
+                <span className="mr-1 text-indigo-600">
+                  Q{item.questionLabel ?? item.questionNumber}:
+                </span>
+                {item.questionText}
+              </p>
+              <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                {typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1}{' '}
+                {(typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1) === 1
+                  ? 'mark'
+                  : 'marks'}
+              </span>
+            </div>
+
+            {hasOptions ? (
+              <div className="mt-2 space-y-1.5">
+                {item.options!.map((opt, idx) => (
+                  <label
+                    key={idx}
+                    className="flex cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm hover:bg-slate-50"
+                  >
+                    <input
+                      type="radio"
+                      name={`dmi-${item.id}`}
+                      value={opt}
+                      checked={answers[item.id] === opt}
+                      onChange={() => setAnswers(prev => ({ ...prev, [item.id]: opt }))}
+                      className="h-3.5 w-3.5 text-indigo-600"
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <textarea
+                value={answers[item.id] || ''}
+                onChange={e => setAnswers(prev => ({ ...prev, [item.id]: e.target.value }))}
+                rows={2}
+                placeholder="Type your answer…"
+                className="mt-2 w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Tutor Test > Classroom preview that mirrors the live student classroom for an
+ *  assessment: task/document in the main area, a chat-style input at the bottom,
+ *  and an Assessment side panel that displays the DMI. */
+function AssessmentClassroomPreview({
+  doc,
+  title,
+  content,
+  items,
+}: {
+  doc?: ImportedLearningResource | null
+  title?: string
+  content?: string
+  items: DMIQuestion[]
+}) {
+  const [rightPanelTab, setRightPanelTab] = useState<'assessment' | 'chat'>('assessment')
+  const [chatInput, setChatInput] = useState('')
+  const [messages, setMessages] = useState<{ role: 'student' | 'tutor'; text: string }[]>([])
+
+  const handleSend = () => {
+    const text = chatInput.trim()
+    if (!text) return
+    setMessages(prev => [...prev, { role: 'student', text }])
+    setChatInput('')
+  }
+
+  return (
+    <div className="flex h-full w-full flex-row overflow-hidden">
+      {/* Main classroom area */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="mx-auto max-w-3xl space-y-4">
+            {title && <h3 className="text-base font-semibold text-gray-900">{title}</h3>}
+            {content && <div className="whitespace-pre-wrap text-sm text-gray-700">{content}</div>}
+            {doc?.fileUrl || doc?.fileKey ? (
+              <div className="h-[55vh] w-full rounded-xl border border-slate-200 bg-white">
+                <PDFViewer
+                  fileUrl={doc.fileUrl || ''}
+                  fileKey={doc.fileKey}
+                  className="h-full w-full"
+                  fitToWidth
+                />
+              </div>
+            ) : doc?.extractedText ? (
+              <p className="whitespace-pre-wrap rounded-xl border border-slate-200 bg-white p-4 text-sm text-gray-700">
+                {doc.extractedText}
+              </p>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Chat-style input */}
+        <div className="shrink-0 border-t border-slate-200 bg-white p-3">
+          <div className="relative flex items-end gap-2">
+            <textarea
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  handleSend()
+                }
+              }}
+              rows={1}
+              placeholder="Type a message…"
+              className="min-h-[44px] w-full resize-none rounded-2xl border border-slate-300 bg-white px-4 py-2.5 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400"
+            />
+            <button
+              type="button"
+              disabled={!chatInput.trim()}
+              onClick={handleSend}
+              className="absolute bottom-1.5 right-2 flex h-8 w-8 items-center justify-center rounded-full bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right side panel — Assessment / Chat */}
+      <div className="flex w-[360px] shrink-0 flex-col border-l border-slate-200 bg-white">
+        <div className="flex shrink-0 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={() => setRightPanelTab('assessment')}
+            className={cn(
+              'flex-1 px-4 py-2.5 text-xs font-semibold',
+              rightPanelTab === 'assessment'
+                ? 'border-b-2 border-violet-500 text-violet-700'
+                : 'text-slate-500 hover:bg-slate-50'
+            )}
+          >
+            Assessment
+          </button>
+          <button
+            type="button"
+            onClick={() => setRightPanelTab('chat')}
+            className={cn(
+              'flex-1 px-4 py-2.5 text-xs font-semibold',
+              rightPanelTab === 'chat'
+                ? 'border-b-2 border-violet-500 text-violet-700'
+                : 'text-slate-500 hover:bg-slate-50'
+            )}
+          >
+            Chat
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {rightPanelTab === 'assessment' ? (
+            <AssessmentStudentDmiView items={items} />
+          ) : (
+            <div className="flex h-full flex-col gap-2 p-3">
+              <div className="flex-1 space-y-2 overflow-y-auto">
+                {messages.length === 0 && (
+                  <p className="text-center text-xs text-slate-400">No messages yet.</p>
+                )}
+                {messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      'max-w-[85%] rounded-lg px-3 py-2 text-sm',
+                      m.role === 'student'
+                        ? 'ml-auto bg-violet-100 text-violet-900'
+                        : 'bg-slate-100 text-slate-900'
+                    )}
+                  >
+                    {m.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   function CourseBuilder(
     {
@@ -1211,8 +1418,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           ]
         : [
             { id: 'classroom', label: 'Classroom' },
-            { id: 'student1', label: 'Test Student 1' },
-            { id: 'student2', label: 'Test Student 2' },
+            { id: 'edit', label: 'Edit' },
+            { id: 'dmi', label: 'DMI' },
           ]
     )
 
@@ -2025,8 +2232,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         mainTab === 'test-pci'
           ? [
               { id: 'classroom', label: 'Classroom' },
-              { id: 'student1', label: 'Test Student 1' },
-              { id: 'student2', label: 'Test Student 2' },
+              { id: 'edit', label: 'Edit' },
+              { id: 'dmi', label: 'DMI' },
             ]
           : mainTab === 'live'
             ? [
@@ -11819,10 +12026,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             const extKey = previewExt ? previewExt.id : 'base'
                                             const isClassroomTab = tab.id === 'classroom'
                                             const studentTabName =
-                                              tab.id === 'student1'
-                                                ? 'Test Student 1'
-                                                : tab.id === 'student2'
-                                                  ? 'Test Student 2'
+                                              tab.id === 'edit'
+                                                ? 'Edit'
+                                                : tab.id === 'dmi'
+                                                  ? 'DMI'
                                                   : 'Student'
 
                                             const isTextOnlyTaskWithoutDoc =
@@ -12120,6 +12327,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 )}
                                               </div>
                                             )
+                                          }
+
+                                          // For assessment Test tabs, dispatch to the dedicated
+                                          // Classroom preview, Edit split view, or DMI student view.
+                                          if (
+                                            mainTab === 'test-pci' &&
+                                            testPciSource === 'assessment'
+                                          ) {
+                                            if (tab.id === 'dmi') {
+                                              return (
+                                                <AssessmentStudentDmiView
+                                                  items={version?.items ?? []}
+                                                  className="h-full w-full overflow-y-auto"
+                                                />
+                                              )
+                                            }
+                                            if (tab.id === 'classroom') {
+                                              return (
+                                                <AssessmentClassroomPreview
+                                                  doc={doc}
+                                                  title={assessmentBuilder.title}
+                                                  content={assessmentBuilder.taskContent}
+                                                  items={version?.items ?? []}
+                                                />
+                                              )
+                                            }
                                           }
 
                                           // Document + DMI: use resizable panels side-by-side
@@ -12474,15 +12707,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               testPciActiveTab !== 'classroom' ? (
                                 <></>
                               ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
-                                // Assessments are answered in the DMI: test-grade per question
-                                // above (type an answer under a question and click Grade) rather
-                                // than a separate free-text box, which caused confusion.
-                                <div className="mt-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 text-xs text-slate-600">
-                                  To test grading, type a sample answer under any question above and
-                                  click <span className="font-medium text-violet-700">Grade</span> —
-                                  each answer is marked against that question&rsquo;s rubric, model
-                                  answer, and the assessment PCI.
-                                </div>
+                                testPciActiveTab === 'edit' ? (
+                                  // Assessments are answered in the DMI: test-grade per question
+                                  // above (type an answer under a question and click Grade) rather
+                                  // than a separate free-text box, which caused confusion.
+                                  <div className="mt-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 text-xs text-slate-600">
+                                    To test grading, type a sample answer under any question above
+                                    and click{' '}
+                                    <span className="font-medium text-violet-700">Grade</span> —
+                                    each answer is marked against that question&rsquo;s rubric,
+                                    model answer, and the assessment PCI.
+                                  </div>
+                                ) : (
+                                  <></>
+                                )
                               ) : (
                                 <div
                                   className={cn(
