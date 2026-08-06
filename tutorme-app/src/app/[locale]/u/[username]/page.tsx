@@ -40,8 +40,6 @@ import {
   List,
   Tags,
   CalendarDays,
-  Calendar,
-  Clock,
   DollarSign,
   Loader2,
   Video,
@@ -61,7 +59,6 @@ import {
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
-import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns'
 import { CalendarBookingDialog } from '@/components/booking/calendar-booking-dialog'
 import { GroupSessionsList } from '@/components/booking/group-sessions-list'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
@@ -1311,53 +1308,79 @@ export default function PublicTutorPage() {
                     <Link
                       key={demo.id}
                       href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
-                      className="group block rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] p-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                      className="group block h-full w-full"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <h4 className="line-clamp-2 font-semibold text-slate-100">{demo.title}</h4>
-                        <span
-                          className={cn(
-                            'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
-                            live
-                              ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
-                              : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
-                          )}
+                      <div
+                        className="h-full min-h-[clamp(190px,16vw,240px)] w-full overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                        style={{
+                          backgroundImage:
+                            'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
+                          transform: 'translateZ(0)',
+                        }}
+                      >
+                        <div
+                          className="flex h-full flex-col p-4"
+                          style={{ transform: 'translateZ(0)' }}
                         >
-                          <span
-                            className={cn(
-                              'h-1.5 w-1.5 rounded-full',
-                              live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
-                            )}
-                          />
-                          {live ? 'Live' : 'Ended'}
-                        </span>
-                      </div>
-                      {demo.description ? (
-                        <p className="mt-2 line-clamp-3 text-sm text-slate-300">
-                          {demo.description.length > 160
-                            ? `${demo.description.slice(0, 157)}...`
-                            : demo.description}
-                        </p>
-                      ) : null}
-                      <div className="mt-4 space-y-1 text-xs text-slate-300">
-                        {demo.scheduledAt ? (
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-3.5 w-3.5" />
-                            <span>{format(new Date(demo.scheduledAt), 'MMM d, yyyy h:mm a')}</span>
+                          {/* Header: Title on left, live indicator + avatar on right */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="line-clamp-2 text-sm font-semibold text-slate-50">
+                                {demo.title || 'Live Demo'}
+                              </div>
+                              <div className="mt-1 text-xs font-medium text-emerald-100/80">
+                                @{tutor.username || 'tutor'}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                                  live
+                                    ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
+                                    : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'h-1.5 w-1.5 rounded-full',
+                                    live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
+                                  )}
+                                />
+                                {live ? 'Live' : 'Ended'}
+                              </span>
+                              <div className="h-[52px] w-[52px] overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                                {tutor.avatarUrl ? (
+                                  <img
+                                    src={tutor.avatarUrl}
+                                    alt={tutor.name || 'Tutor'}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                                    <User className="h-6 w-6 opacity-50" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        ) : null}
-                        {demo.durationMinutes ? (
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>{demo.durationMinutes} min</span>
+
+                          {/* Description area */}
+                          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+                            <p className="line-clamp-4 text-xs text-emerald-50/80">
+                              {demo.description || 'Live demo class'}
+                            </p>
                           </div>
-                        ) : null}
-                        {demo.maxStudents ? (
-                          <div className="flex items-center gap-1.5">
-                            <User className="h-3.5 w-3.5" />
-                            <span>Up to {demo.maxStudents} students</span>
+
+                          {/* Bottom row: country */}
+                          <div className="mt-3 flex items-center justify-end text-xs font-semibold">
+                            {tutor.country ? (
+                              <span className="truncate text-emerald-100">
+                                <CountryFlag countryName={tutor.country} size="xs" showLabel />
+                              </span>
+                            ) : null}
                           </div>
-                        ) : null}
+                        </div>
                       </div>
                     </Link>
                   )
