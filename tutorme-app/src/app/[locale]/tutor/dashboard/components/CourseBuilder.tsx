@@ -8875,11 +8875,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 hasVariants: (q.acceptableVariants?.length ?? 0) > 0,
               }))
               .filter(q => q.rubric || typeof q.marks === 'number' || q.hasVariants)}
-            // Upload a marking scheme straight from the Guided form: fills the
-            // DMI (marks & answers) via the same flow as "Edit marks & answers",
-            // then the form auto-prefills the PCI from it.
-            onUploadMarkingScheme={file => handleMarkingSchemeFile(file, source)}
-            markingSchemeLoading={markingSchemeLoading}
             board={pciBoard}
             subject={pciCategory}
             categoryOptions={pciCategoryOptions}
@@ -14789,7 +14784,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 return (
                   <>
                     <DialogHeader>
-                      <DialogTitle>Edit marks &amp; answers</DialogTitle>
+                      <DialogTitle>
+                        {dmiEditor.source === 'task'
+                          ? taskBuilder.title || 'Edit marks & answers'
+                          : assessmentBuilder.title || 'Edit marks & answers'}
+                      </DialogTitle>
                       <DialogDescription>
                         Set the marks for each question and review the AI-suggested answers. Total:{' '}
                         {totalMarks} mark{totalMarks === 1 ? '' : 's'}.
@@ -14852,7 +14851,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         Re-detect question numbers
                       </button>
                     </div>
-                    <div ref={dmiRowsRef} className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
+                    <div
+                      ref={dmiRowsRef}
+                      className="max-h-[60vh] space-y-3 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden"
+                      style={{ scrollbarWidth: 'none' }}
+                    >
                       {editItems.map(item => {
                         const marksVal =
                           typeof item.marks === 'number' && item.marks > 0 ? item.marks : 1
