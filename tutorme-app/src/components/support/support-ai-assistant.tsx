@@ -100,7 +100,7 @@ export function SupportAiAssistant() {
             }
           }}
           placeholder="Ask a question..."
-          className="flex-1"
+          className="flex-1 rounded-lg border border-[#2563EB] bg-white placeholder:text-gray-400 focus-visible:ring-[#2563EB]"
         />
         <Button
           size="icon"
