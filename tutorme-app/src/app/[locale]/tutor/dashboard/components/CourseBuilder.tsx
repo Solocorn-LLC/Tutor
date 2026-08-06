@@ -11191,6 +11191,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               <AiAssistantPanel
                                                 mode={assistantMode}
                                                 sessionId={insightsProps.sessionId}
+                                                sessionType={
+                                                  insightsProps.sessions?.find(
+                                                    (s: any) => s.id === insightsProps.sessionId
+                                                  )?.sessionType
+                                                }
                                                 courseId={courseId}
                                                 courseName={courseName}
                                                 sessions={insightsProps.sessions?.map((s: any) => ({
@@ -13802,6 +13807,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <AiAssistantPanel
                                   mode={assistantMode}
                                   sessionId={insightsProps?.sessionId}
+                                  sessionType={
+                                    insightsProps?.sessions?.find(
+                                      (s: any) => s.id === insightsProps?.sessionId
+                                    )?.sessionType
+                                  }
                                   courseId={courseId}
                                   courseName={courseName}
                                   sessions={insightsProps?.sessions?.map((s: any) => ({

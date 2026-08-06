@@ -247,6 +247,8 @@ function TutorControlsPanel({
   // Start the panel centered between the category badge and the course-state
   // indicator so it lands in the header by default. If either anchor is missing
   // (e.g. test-pci or live mode), center it in the viewport container instead.
+  // For demo / asynchronous sessions the badge anchor is absent, so we anchor
+  // the panel to the right of the state indicator inside the top hero panel.
   const panelX = useMotionValue(0)
   const panelY = useMotionValue(0)
   const panelOpacity = useMotionValue(0)
@@ -271,23 +273,33 @@ function TutorControlsPanel({
     const indicator = positionAnchorRefs.indicatorRef.current
     const panel = panelRef.current
     const container = containerRef.current
-    if (!badge || !indicator || !panel || !container) {
+    if (!indicator || !panel || !container) {
       centerPanel()
       panelOpacity.set(1)
       return
     }
-    const badgeRect = badge.getBoundingClientRect()
     const indicatorRect = indicator.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
-    const midX = (badgeRect.right + indicatorRect.left) / 2
-    const midY = (badgeRect.top + badgeRect.bottom) / 2
-    const x = midX - containerRect.left - panelRect.width / 2
-    const y = midY - containerRect.top - panelRect.height / 2
+    let x: number
+    let y: number
+    if (badge && !isDemoSession) {
+      const badgeRect = badge.getBoundingClientRect()
+      const midX = (badgeRect.right + indicatorRect.left) / 2
+      const midY = (badgeRect.top + badgeRect.bottom) / 2
+      x = midX - containerRect.left - panelRect.width / 2
+      y = midY - containerRect.top - panelRect.height / 2
+    } else {
+      // Demo / async sessions: park the panel just to the right of the state
+      // indicator in the top hero panel while keeping it draggable.
+      const gap = 12
+      x = indicatorRect.right - containerRect.left + gap
+      y = indicatorRect.top - containerRect.top + indicatorRect.height / 2 - panelRect.height / 2
+    }
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
-  }, [positionAnchorRefs, panelX, panelY, panelOpacity, centerPanel])
+  }, [positionAnchorRefs, isDemoSession, panelX, panelY, panelOpacity, centerPanel])
 
   // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
   const modeListRef = useRef<HTMLDivElement>(null)
@@ -1111,7 +1123,7 @@ function CourseBuilderInsightsRouteInner({
                           {model.course.name}
                         </span>
                       )}
-                      {scheduledDateStr && (
+                      {scheduledDateStr && !isDemoSession && (
                         <span
                           className={cn(
                             'ml-2 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-medium shadow-sm transition-colors',

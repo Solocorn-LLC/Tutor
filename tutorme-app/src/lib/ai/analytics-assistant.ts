@@ -9,6 +9,7 @@
 import { chatWithKimi } from '@/lib/ai/kimi'
 import {
   ANALYTICS_ASSISTANT_SYSTEM_PROMPT,
+  DEMO_ANALYTICS_ASSISTANT_SYSTEM_PROMPT,
   runAnalyticsGuardrails,
   type GuardrailViolation,
 } from '@/lib/ai/guardrails'
@@ -33,6 +34,7 @@ export interface AnalyticsLiveSubmission {
 
 export interface AnalyticsContext {
   sessionId: string
+  sessionType?: string
   courseName?: string
   sessions: AnalyticsSessionInfo[]
   students: AnalyticsStudentInfo[]
@@ -63,18 +65,29 @@ interface ParsedResponse {
 function buildContextBlock(ctx: AnalyticsContext): string {
   const lines: string[] = []
   lines.push(`Session ID: ${ctx.sessionId}`)
+  if (ctx.sessionType === 'GO_LIVE_DEMO') {
+    lines.push(
+      'Session type: GO_LIVE_DEMO — this is an asynchronous demo class. It has no fixed schedule, no countdown, and no live start/end. Do not use live-session lifecycle language.'
+    )
+  } else if (ctx.sessionType) {
+    lines.push(`Session type: ${ctx.sessionType}`)
+  }
   if (ctx.courseName) lines.push(`Course: ${ctx.courseName}`)
 
   if (ctx.sessions.length > 0) {
     lines.push('Sessions:')
     for (const s of ctx.sessions) {
-      const date = new Date(s.scheduledAt).toLocaleString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
-      lines.push(`  - ${s.title} (${date}) — ${s.status}`)
+      if (ctx.sessionType === 'GO_LIVE_DEMO') {
+        lines.push(`  - ${s.title} — ${s.status}`)
+      } else {
+        const date = new Date(s.scheduledAt).toLocaleString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+        lines.push(`  - ${s.title} (${date}) — ${s.status}`)
+      }
     }
   }
 
@@ -196,8 +209,13 @@ export async function runAnalyticsAssistant(
   ctx: AnalyticsContext,
   messages: AnalyticsMessage[]
 ): Promise<AnalyticsAssistantResult> {
+  const basePrompt =
+    ctx.sessionType === 'GO_LIVE_DEMO'
+      ? DEMO_ANALYTICS_ASSISTANT_SYSTEM_PROMPT
+      : ANALYTICS_ASSISTANT_SYSTEM_PROMPT
+
   const systemMessages: LlmMessage[] = [
-    { role: 'system', content: ANALYTICS_ASSISTANT_SYSTEM_PROMPT },
+    { role: 'system', content: basePrompt },
     { role: 'system', content: buildContextBlock(ctx) },
   ]
 
