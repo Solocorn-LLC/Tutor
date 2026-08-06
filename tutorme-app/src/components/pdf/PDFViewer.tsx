@@ -134,8 +134,12 @@ export function PDFViewer({
     const cacheKey = fileKey || fileUrl
     const cached = cacheKey ? pdfBufferCache.get(cacheKey) : undefined
     if (cached) {
+      // Always pass a copy of the cached buffer. react-pdf transfers the
+      // ArrayBuffer to its worker, which detaches it; re-using the same cached
+      // instance later would throw "Cannot perform Construct on a detached
+      // ArrayBuffer".
       if (!cancelled) {
-        setPdfData(cached)
+        setPdfData(cached.slice(0))
       }
       return () => {
         cancelled = true
@@ -162,8 +166,9 @@ export function PDFViewer({
           throw new Error(message)
         }
         const buffer = await res.arrayBuffer()
+        // Cache a clone so the cached buffer is never the one react-pdf detaches.
         if (cacheKey) {
-          pdfBufferCache.set(cacheKey, buffer)
+          pdfBufferCache.set(cacheKey, buffer.slice(0))
         }
         if (!cancelled) {
           setPdfData(buffer)
