@@ -29,6 +29,9 @@ interface AiAssistantPanelProps {
   context?: CourseBuilderContext
   /** Whether the AI Assistant tab is currently active — triggers the intro animation */
   isActive?: boolean
+  /** Async demo sessions have no live lifecycle; skip the blocking info animation so
+   *  the chat input is usable immediately, matching a normal live session. */
+  isDemoSession?: boolean
 }
 
 interface ChatMessage {
@@ -76,13 +79,14 @@ export function AiAssistantPanel({
   liveSubmissions = [],
   context,
   isActive = true,
+  isDemoSession: isDemoSessionProp = false,
 }: AiAssistantPanelProps) {
   const [input, setInput] = useState('')
   const [introMessages, setIntroMessages] = useState<ChatMessage[]>([])
   const [isAnimating, setIsAnimating] = useState(false)
   const hasAnimatedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const isDemoSession = sessionType === 'GO_LIVE_DEMO'
+  const isDemoSession = isDemoSessionProp || sessionType === 'GO_LIVE_DEMO'
 
   const {
     messages: assistantMessages,
@@ -173,14 +177,23 @@ export function AiAssistantPanel({
   }, [courseName, sessions, studentsCount, liveSubmissions, isDemoSession])
 
   const introTextBlocks = useMemo(() => {
-    if (mode === 'classroom') {
+    // Demo sessions have no live lifecycle; skip the scheduling/session-info blocks
+    // so the assistant doesn't mislead with "Next Session" or "Session has ended".
+    if (mode === 'classroom' && !isDemoSession) {
       return buildCourseInfoMessages()
     }
     return [modeGreeting(mode, context, sessionType)]
-  }, [mode, context, sessionType, buildCourseInfoMessages])
+  }, [mode, context, sessionType, buildCourseInfoMessages, isDemoSession])
 
-  // Animate intro messages in one at a time from the bottom
+  // Animate intro messages in one at a time from the bottom.
+  // For demo sessions, skip the blocking animation entirely so the chat input is
+  // usable immediately, matching a normal live session.
   useEffect(() => {
+    if (isDemoSession) {
+      hasAnimatedRef.current = true
+      setIsAnimating(false)
+      return
+    }
     if (!isActive || hasAnimatedRef.current) return
 
     const infoBlocks = introTextBlocks
@@ -203,7 +216,7 @@ export function AiAssistantPanel({
         }
       }, index * 400)
     })
-  }, [isActive, introTextBlocks])
+  }, [isActive, introTextBlocks, isDemoSession])
 
   // Reset intro animation when mode/course/session changes so the greeting stays relevant
   useEffect(() => {

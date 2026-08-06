@@ -695,6 +695,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       onSyncToLiveSession,
       onUnsyncedChangesChange,
       focusLessonId,
+      isDemoSession = false,
     },
     ref
   ) {
@@ -11211,6 +11212,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   insightsProps.liveSubmissions || []
                                                 }
                                                 context={assistantContext}
+                                                isDemoSession={isDemoSession}
                                               />
                                             </div>
                                           </TabsContent>
@@ -13824,6 +13826,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   liveSubmissions={insightsProps?.liveSubmissions || []}
                                   context={assistantContext}
                                   isActive={liveRightPanelTab === 'analytics'}
+                                  isDemoSession={isDemoSession}
                                 />
                               </div>
                             ) : insightsProps ? (

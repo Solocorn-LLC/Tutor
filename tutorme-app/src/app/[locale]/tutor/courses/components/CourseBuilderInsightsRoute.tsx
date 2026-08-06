@@ -292,28 +292,31 @@ function TutorControlsPanel({
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Start the panel centered between the category badge and the course-state
-  // indicator so it lands in the header by default. If either anchor is missing
-  // (e.g. test-pci or live mode), center it in the viewport container instead.
-  // For demo / asynchronous sessions the badge anchor is absent, so we anchor
-  // the panel to the right of the state indicator inside the top hero panel.
+  // indicator so it lands in the header by default. If either anchor is missing,
+  // fall back to the top-center of the viewport container so the panel is still
+  // visible and near the hero area. For demo / asynchronous sessions the badge
+  // anchor is absent, so we anchor the panel to the right of the state indicator.
   const panelX = useMotionValue(0)
   const panelY = useMotionValue(0)
   const panelOpacity = useMotionValue(0)
+  const hasPositionedRef = useRef(false)
 
-  const centerPanel = useCallback(() => {
+  const fallbackTopCenterPanel = useCallback(() => {
     const panel = panelRef.current
     const container = containerRef.current
     if (!panel || !container) return
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
     panelX.set(containerRect.width / 2 - panelRect.width / 2)
-    panelY.set(containerRect.height / 2 - panelRect.height / 2)
+    // Keep it just below the top edge so it stays in the hero/header region.
+    panelY.set(16)
   }, [panelX, panelY])
 
-  useLayoutEffect(() => {
+  const positionPanel = useCallback(() => {
     if (!positionAnchorRefs) {
-      centerPanel()
+      fallbackTopCenterPanel()
       panelOpacity.set(1)
+      hasPositionedRef.current = true
       return
     }
     const badge = positionAnchorRefs.badgeRef.current
@@ -321,13 +324,15 @@ function TutorControlsPanel({
     const panel = panelRef.current
     const container = containerRef.current
     if (!indicator || !panel || !container) {
-      centerPanel()
+      fallbackTopCenterPanel()
       panelOpacity.set(1)
+      hasPositionedRef.current = true
       return
     }
     const indicatorRect = indicator.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
+
     let x: number
     let y: number
     if (badge && !isDemoSession) {
@@ -343,10 +348,35 @@ function TutorControlsPanel({
       x = indicatorRect.right - containerRect.left + gap
       y = indicatorRect.top - containerRect.top + indicatorRect.height / 2 - panelRect.height / 2
     }
+
+    // Clamp so the panel never starts off-screen horizontally.
+    const padding = 12
+    x = Math.max(padding, Math.min(x, containerRect.width - panelRect.width - padding))
+    // Keep the panel inside the top hero/header area.
+    y = Math.max(padding, Math.min(y, containerRect.height - panelRect.height - padding))
+
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
-  }, [positionAnchorRefs, isDemoSession, panelX, panelY, panelOpacity, centerPanel])
+    hasPositionedRef.current = true
+  }, [positionAnchorRefs, isDemoSession, panelX, panelY, panelOpacity, fallbackTopCenterPanel])
+
+  useLayoutEffect(() => {
+    positionPanel()
+  }, [positionPanel])
+
+  // Re-position on resize so the panel doesn't drift off-screen after window
+  // changes. Only reposition before the user has dragged it (we have no robust
+  // drag tracking, so we assume the first resize after mount is still setup).
+  useEffect(() => {
+    const handleResize = () => {
+      if (hasPositionedRef.current) {
+        positionPanel()
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [positionPanel])
 
   // Sliding pill state for the mode selector (mirrors SlidingPillTabsList).
   const modeListRef = useRef<HTMLDivElement>(null)
@@ -1018,6 +1048,52 @@ function CourseBuilderInsightsRouteInner({
     },
   }
 
+  /** Reusable course category badge used in builder, live, and test-pci headers so
+   *  the hero panel always shows the category and the controls panel has a stable
+   *  anchor to position itself against. Falls back to session-level category info
+   *  when the course object itself lacks categories (common for demo sessions). */
+  const CourseCategoryBadge = ({
+    course,
+    badgeRef,
+    sessionCategory,
+    sessionNationality,
+    sessionVariantName,
+  }: {
+    course: any
+    badgeRef?: React.Ref<HTMLSpanElement>
+    sessionCategory?: string | null
+    sessionNationality?: string | null
+    sessionVariantName?: string | null
+  }) => {
+    const hasCourseCategories = course?.categories?.length > 0
+    const label = sessionVariantName
+      ? sessionVariantName
+      : sessionCategory && sessionNationality
+        ? `${sessionCategory} — ${sessionNationality}`
+        : sessionCategory || sessionNationality
+
+    if (!hasCourseCategories && !label) return null
+
+    const category = hasCourseCategories ? course.categories[0] : sessionCategory
+    const board = getCategoryBoard(category)
+    const tabKey = board ? BOARD_TO_TAB_KEY[board] : 'diy'
+    const colors = TAB_COLORS[tabKey] || TAB_COLORS.diy
+    return (
+      <span
+        ref={badgeRef}
+        className={cn(
+          'ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
+          colors.bg,
+          colors.text
+        )}
+      >
+        {hasCourseCategories
+          ? [board, course.categories.join(', '), course.nationality].filter(Boolean).join(' · ')
+          : label}
+      </span>
+    )
+  }
+
   return (
     <div
       className="text-foreground flex h-full w-full flex-col items-stretch overflow-hidden bg-[#fafafc]"
@@ -1086,31 +1162,7 @@ function CourseBuilderInsightsRouteInner({
                       )}
                       {/* Full identity next to the name: Board (derived) · category ·
                           country (country appears once published, from the variant). */}
-                      {(currentCourse as any)?.categories?.length > 0 &&
-                        (() => {
-                          const category = (currentCourse as any).categories[0]
-                          const board = getCategoryBoard(category)
-                          const tabKey = board ? BOARD_TO_TAB_KEY[board] : 'diy'
-                          const colors = TAB_COLORS[tabKey] || TAB_COLORS.diy
-                          return (
-                            <span
-                              ref={categoryBadgeRef}
-                              className={cn(
-                                'ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium',
-                                colors.bg,
-                                colors.text
-                              )}
-                            >
-                              {[
-                                board,
-                                (currentCourse as any).categories.join(', '),
-                                (currentCourse as any).nationality,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')}
-                            </span>
-                          )
-                        })()}
+                      <CourseCategoryBadge course={currentCourse} badgeRef={categoryBadgeRef} />
                     </h1>
                   )}
                   {activeMainTab === 'live' && (
@@ -1123,6 +1175,13 @@ function CourseBuilderInsightsRouteInner({
                           {model.course.name}
                         </span>
                       )}
+                      <CourseCategoryBadge
+                        course={currentCourse}
+                        badgeRef={categoryBadgeRef}
+                        sessionCategory={sessionCategory}
+                        sessionNationality={sessionNationality}
+                        sessionVariantName={sessionVariantName}
+                      />
                       {scheduledDateStr && !isDemoSession && (
                         <span
                           className={cn(
@@ -1145,20 +1204,9 @@ function CourseBuilderInsightsRouteInner({
                           {model.course?.name || currentCourse?.name}
                         </span>
                       )}
+                      <CourseCategoryBadge course={currentCourse} badgeRef={categoryBadgeRef} />
                     </h1>
                   )}
-                  {activeMainTab === 'live' &&
-                    (sessionVariantName || sessionCategory || sessionNationality) && (
-                      <span className="bg-muted text-muted-foreground ml-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium">
-                        {/* Prefer the canonical variant label (same helper the
-                            student side uses) so both headers read identically. */}
-                        {sessionVariantName
-                          ? sessionVariantName
-                          : sessionCategory && sessionNationality
-                            ? `${sessionCategory} — ${sessionNationality}`
-                            : sessionCategory || sessionNationality}
-                      </span>
-                    )}
                 </div>
               </div>
             </div>
@@ -1279,6 +1327,7 @@ function CourseBuilderInsightsRouteInner({
               focusLessonId={
                 isClassroomMode ? (searchParams.get('lessonId') ?? undefined) : undefined
               }
+              isDemoSession={isDemoSession}
             />
           </PanelErrorBoundary>
         )}
