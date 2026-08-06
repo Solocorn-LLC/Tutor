@@ -57,10 +57,11 @@ const DropdownMenuSubTrigger = React.forwardRef<
   <DropdownMenuPrimitive.SubTrigger
     ref={ref}
     className={cn(
-      'flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-all hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-white/20 focus-visible:ring-0 data-[state=open]:bg-white/20',
+      'flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-white/20 focus-visible:ring-0 data-[state=open]:bg-white/20',
       inset && 'pl-8',
       className
     )}
+    style={{ outline: 'none' }}
     {...props}
   >
     {children}
@@ -118,10 +119,11 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex cursor-default select-none items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white/[0.96] outline-none transition-all hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:outline-none focus-visible:ring-0 active:scale-[0.98] data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:shadow-none data-[highlighted]:outline-none data-[highlighted]:ring-0',
+      'relative flex cursor-default select-none items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-sm font-semibold text-white/[0.96] outline-none transition-colors hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:outline-none focus-visible:ring-0 active:scale-[0.98] data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:shadow-none data-[highlighted]:outline-none data-[highlighted]:ring-0',
       inset && 'pl-8',
       className
     )}
+    style={{ outline: 'none' }}
     {...props}
   />
 ))
@@ -134,10 +136,11 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      'relative flex cursor-default select-none items-center rounded-lg py-2.5 pl-10 pr-4 text-sm font-semibold text-white/[0.96] outline-none transition-all hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:ring-0 active:scale-[0.98] data-[disabled]:pointer-events-none data-[state=checked]:border-l-[3px] data-[state=checked]:border-[#0057ff] data-[state=checked]:bg-white/[0.16] data-[disabled]:opacity-50 data-[highlighted]:shadow-none data-[highlighted]:outline-none data-[highlighted]:ring-0',
+      'relative flex cursor-default select-none items-center rounded-lg py-2.5 pl-10 pr-4 text-sm font-semibold text-white/[0.96] outline-none transition-colors hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:ring-0 active:scale-[0.98] data-[disabled]:pointer-events-none data-[state=checked]:border-l-[3px] data-[state=checked]:border-[#0057ff] data-[state=checked]:bg-white/[0.16] data-[disabled]:opacity-50 data-[highlighted]:shadow-none data-[highlighted]:outline-none data-[highlighted]:ring-0',
       className
     )}
     checked={checked}
+    style={{ outline: 'none' }}
     {...props}
   >
     <span className="absolute left-3.5 flex h-3.5 w-3.5 items-center justify-center">
@@ -157,9 +160,10 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      'relative flex cursor-default select-none items-center rounded-lg py-2.5 pl-10 pr-4 text-sm font-semibold text-white/[0.96] outline-none transition-all hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:ring-0 active:scale-[0.98] data-[disabled]:pointer-events-none data-[state=checked]:border-l-[3px] data-[state=checked]:border-[#0057ff] data-[state=checked]:bg-white/[0.16] data-[disabled]:opacity-50 data-[highlighted]:shadow-none data-[highlighted]:outline-none data-[highlighted]:ring-0',
+      'relative flex cursor-default select-none items-center rounded-lg py-2.5 pl-10 pr-4 text-sm font-semibold text-white/[0.96] outline-none transition-colors hover:bg-white/20 focus:outline-none focus:ring-0 focus-visible:bg-transparent focus-visible:ring-0 active:scale-[0.98] data-[disabled]:pointer-events-none data-[state=checked]:border-l-[3px] data-[state=checked]:border-[#0057ff] data-[state=checked]:bg-white/[0.16] data-[disabled]:opacity-50 data-[highlighted]:shadow-none data-[highlighted]:outline-none data-[highlighted]:ring-0',
       className
     )}
+    style={{ outline: 'none' }}
     {...props}
   >
     <span className="absolute left-3.5 flex h-3.5 w-3.5 items-center justify-center">
