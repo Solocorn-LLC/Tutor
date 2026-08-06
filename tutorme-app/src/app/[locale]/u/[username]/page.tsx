@@ -1301,17 +1301,17 @@ export default function PublicTutorPage() {
                 <p className="text-sm text-slate-500">{emptyMessage}</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-wrap gap-5">
                 {demoClasses.map(demo => {
                   const live = isLive(demo.status)
                   return (
                     <Link
                       key={demo.id}
                       href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
-                      className="group block h-full w-full"
+                      className="group block h-[320px] w-[320px] shrink-0"
                     >
                       <div
-                        className="h-full min-h-[clamp(190px,16vw,240px)] w-full overflow-hidden rounded-[22px] border border-[rgba(255,255,255,0.12)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_12px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                        className="h-[320px] w-[320px] overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
                         style={{
                           backgroundImage:
                             'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
