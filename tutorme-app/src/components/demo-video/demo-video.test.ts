@@ -205,10 +205,11 @@ describe('useDemoRecorder', () => {
     await waitFor(() => expect(result.current.state).toBe('stopped'))
     expect(result.current.recordedBlob).toBeTruthy()
     expect(result.current.recordedBlob?.type).toMatch(/^video\/webm/)
+    expect(result.current.recordedBlob?.size).toBeGreaterThan(0)
     expect(result.current.previewStream).toBeNull()
   })
 
-  it('auto-stops at the 10 minute limit', async () => {
+  it('auto-stops at the 10 minute limit and produces a blob', async () => {
     const { result } = renderHook(() => useDemoRecorder())
 
     await act(async () => {
@@ -216,6 +217,7 @@ describe('useDemoRecorder', () => {
     })
 
     expect(result.current.state).toBe('recording')
+    recorderInstance?.addChunk(new Blob(['chunk'], { type: 'video/webm' }))
 
     await act(async () => {
       vi.advanceTimersByTime(DEMO_RECORDING_MAX_MS + 1000)
@@ -223,6 +225,8 @@ describe('useDemoRecorder', () => {
 
     await waitFor(() => expect(result.current.state).toBe('stopped'))
     expect(result.current.elapsedMs).toBeGreaterThanOrEqual(DEMO_RECORDING_MAX_MS - 1000)
+    expect(result.current.recordedBlob).toBeTruthy()
+    expect(result.current.recordedBlob?.size).toBeGreaterThan(0)
   })
 
   it('shows a permission-denied error when getUserMedia rejects', async () => {
