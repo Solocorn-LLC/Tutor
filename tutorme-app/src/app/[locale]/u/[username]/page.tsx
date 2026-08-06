@@ -40,8 +40,6 @@ import {
   List,
   Tags,
   CalendarDays,
-  Calendar,
-  Clock,
   DollarSign,
   Loader2,
   Video,
@@ -56,11 +54,11 @@ import {
   Facebook,
   Maximize2,
   Minimize2,
+  Play,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
-import { format, parseISO, addDays, startOfWeek, isSameDay } from 'date-fns'
 import { CalendarBookingDialog } from '@/components/booking/calendar-booking-dialog'
 import { GroupSessionsList } from '@/components/booking/group-sessions-list'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
@@ -108,6 +106,20 @@ interface PublicTutorResponse {
     liveSessionsCompleted?: number
     enrollmentStatus?: 'ongoing' | 'ended'
     startDate?: string | null
+  }>
+  demoClasses: Array<{
+    id: string
+    title: string
+    description?: string | null
+    status: string
+    scheduledAt?: string | null
+    startedAt?: string | null
+    createdAt?: string | null
+    durationMinutes?: number | null
+    maxStudents?: number | null
+    roomUrl?: string | null
+    courseId?: string | null
+    demoVideoContentId?: string | null
   }>
 }
 
@@ -1237,6 +1249,150 @@ export default function PublicTutorPage() {
     )
   }
 
+  function DemoClassSection({
+    title,
+    demoClasses,
+    emptyMessage,
+    forceOpen,
+  }: {
+    title: string
+    demoClasses: PublicTutorResponse['demoClasses']
+    emptyMessage: string
+    forceOpen?: boolean
+  }) {
+    const [isOpen, setIsOpen] = useState(demoClasses.length > 0)
+    const contentRef = useAutoScrollOnExpand(isOpen, { delay: 350 })
+
+    useEffect(() => {
+      if (forceOpen !== undefined) {
+        setIsOpen(forceOpen)
+      }
+    }, [forceOpen])
+
+    const isLive = (status: string) => status !== 'ended'
+
+    return (
+      <section>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            'flex w-full items-center gap-2',
+            forceOpen !== undefined ? 'mb-2' : 'mb-4'
+          )}
+        >
+          {isOpen ? (
+            <ChevronDown className="h-5 w-5 text-slate-500" />
+          ) : (
+            <ChevronRight className="h-5 w-5 text-slate-500" />
+          )}
+          <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+        </button>
+        <div
+          className={cn(
+            'grid transition-all duration-300 ease-in-out',
+            isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          )}
+        >
+          <div className="overflow-hidden" ref={contentRef}>
+            {demoClasses.length === 0 ? (
+              <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-slate-50/50 py-12 text-center">
+                <Play className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                <p className="text-sm text-slate-500">{emptyMessage}</p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-5">
+                {demoClasses.map(demo => {
+                  const live = isLive(demo.status)
+                  return (
+                    <Link
+                      key={demo.id}
+                      href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
+                      className="group block h-[320px] w-[320px] shrink-0"
+                    >
+                      <div
+                        className="h-[320px] w-[320px] overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                        style={{
+                          backgroundImage:
+                            'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
+                          transform: 'translateZ(0)',
+                        }}
+                      >
+                        <div
+                          className="flex h-full flex-col p-4"
+                          style={{ transform: 'translateZ(0)' }}
+                        >
+                          {/* Header: Title on left, live indicator + avatar on right */}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="line-clamp-2 text-sm font-semibold text-slate-50">
+                                {demo.title || 'Live Demo'}
+                              </div>
+                              <div className="mt-1 text-xs font-medium text-emerald-100/80">
+                                @{tutor.username || 'tutor'}
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              <span
+                                className={cn(
+                                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                                  live
+                                    ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
+                                    : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    'h-1.5 w-1.5 rounded-full',
+                                    live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
+                                  )}
+                                />
+                                {live ? 'Live' : 'Ended'}
+                              </span>
+                              <div className="h-[52px] w-[52px] overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                                {tutor.avatarUrl ? (
+                                  <img
+                                    src={tutor.avatarUrl}
+                                    alt={tutor.name || 'Tutor'}
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                                    <User className="h-6 w-6 opacity-50" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Description area */}
+                          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
+                            <p className="line-clamp-4 text-xs text-emerald-50/80">
+                              {demo.description || 'Live demo class'}
+                            </p>
+                          </div>
+
+                          {/* Bottom row: country */}
+                          <div className="mt-3 flex items-center justify-end text-xs font-semibold">
+                            {tutor.country ? (
+                              <span className="truncate text-emerald-100">
+                                <CountryFlag countryName={tutor.country} size="xs" showLabel />
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <div
       className="min-h-screen w-full bg-white p-4 sm:p-6"
@@ -1673,6 +1829,12 @@ export default function PublicTutorPage() {
             courses={enrollingCourses}
             emptyMessage="No published courses found."
             forceOpen={coursesExpanded && enrollingCourses.length > 0 ? true : undefined}
+          />
+          <DemoClassSection
+            title="Demo Lessons"
+            demoClasses={data?.demoClasses ?? []}
+            emptyMessage="This tutor has no demo lessons."
+            forceOpen={coursesExpanded && (data?.demoClasses ?? []).length > 0 ? true : undefined}
           />
           <CourseSection
             title="Active"

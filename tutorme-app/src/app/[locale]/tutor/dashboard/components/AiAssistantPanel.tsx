@@ -20,6 +20,7 @@ interface SessionInfo {
 interface AiAssistantPanelProps {
   mode?: CourseBuilderMode
   sessionId?: string | null
+  sessionType?: string | null
   courseId?: string | null
   courseName?: string
   sessions?: SessionInfo[]
@@ -39,8 +40,13 @@ interface ChatMessage {
   id: string
 }
 
-function modeGreeting(mode: CourseBuilderMode, context?: CourseBuilderContext): string {
+function modeGreeting(
+  mode: CourseBuilderMode,
+  context?: CourseBuilderContext,
+  sessionType?: string | null
+): string {
   const courseName = context?.courseName?.trim() || 'this course'
+  const isDemo = sessionType === 'GO_LIVE_DEMO'
 
   switch (mode) {
     case 'first-course':
@@ -54,7 +60,9 @@ function modeGreeting(mode: CourseBuilderMode, context?: CourseBuilderContext): 
     case 'test':
       return `You're testing ${courseName}. I can review the task or assessment from a student perspective and suggest improvements.`
     case 'classroom':
-      return `Live session ready. Ask me about student progress, completion rates, or session summaries.`
+      return isDemo
+        ? `Demo class ready. Ask me about the demo content, student progress, or submission summaries.`
+        : `Live session ready. Ask me about student progress, completion rates, or session summaries.`
     default:
       return `How can I help with ${courseName}?`
   }
@@ -63,6 +71,7 @@ function modeGreeting(mode: CourseBuilderMode, context?: CourseBuilderContext): 
 export function AiAssistantPanel({
   mode = 'edit',
   sessionId,
+  sessionType,
   courseId,
   courseName,
   sessions = [],
@@ -70,13 +79,14 @@ export function AiAssistantPanel({
   liveSubmissions = [],
   context,
   isActive = true,
-  isDemoSession = false,
+  isDemoSession: isDemoSessionProp = false,
 }: AiAssistantPanelProps) {
   const [input, setInput] = useState('')
   const [introMessages, setIntroMessages] = useState<ChatMessage[]>([])
   const [isAnimating, setIsAnimating] = useState(false)
   const hasAnimatedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const isDemoSession = isDemoSessionProp || sessionType === 'GO_LIVE_DEMO'
 
   const {
     messages: assistantMessages,
@@ -86,6 +96,7 @@ export function AiAssistantPanel({
   } = useAiAssistant({
     mode,
     sessionId,
+    sessionType,
     courseId,
     context,
   })
@@ -102,52 +113,55 @@ export function AiAssistantPanel({
       const sorted = [...sessions].sort(
         (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
       )
-      const firstSession = sorted[0]
-      if (firstSession?.scheduledAt) {
-        const date = new Date(firstSession.scheduledAt)
-        blocks.push(
-          `Commencement Date: ${date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`
-        )
-      }
 
-      const scheduleItems = sorted
-        .map(s => {
-          const date = new Date(s.scheduledAt)
-          return `  • ${s.title} — ${date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })} (${s.status})`
-        })
-        .join('\n')
-      if (scheduleItems) {
-        blocks.push(`Schedule:\n${scheduleItems}`)
-      }
+      if (!isDemoSession) {
+        const firstSession = sorted[0]
+        if (firstSession?.scheduledAt) {
+          const date = new Date(firstSession.scheduledAt)
+          blocks.push(
+            `Commencement Date: ${date.toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`
+          )
+        }
 
-      const now = Date.now()
-      const upcoming = sorted.filter(s => new Date(s.scheduledAt).getTime() > now)
-      if (upcoming.length > 0) {
-        const next = upcoming[0]
-        const date = new Date(next.scheduledAt)
-        blocks.push(
-          `Next Session: ${next.title} — ${date.toLocaleDateString('en-US', {
-            weekday: 'long',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}`
-        )
-      } else {
-        blocks.push('Next Session: No upcoming sessions')
+        const scheduleItems = sorted
+          .map(s => {
+            const date = new Date(s.scheduledAt)
+            return `  • ${s.title} — ${date.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })} (${s.status})`
+          })
+          .join('\n')
+        if (scheduleItems) {
+          blocks.push(`Schedule:\n${scheduleItems}`)
+        }
+
+        const now = Date.now()
+        const upcoming = sorted.filter(s => new Date(s.scheduledAt).getTime() > now)
+        if (upcoming.length > 0) {
+          const next = upcoming[0]
+          const date = new Date(next.scheduledAt)
+          blocks.push(
+            `Next Session: ${next.title} — ${date.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`
+          )
+        } else {
+          blocks.push('Next Session: No upcoming sessions')
+        }
       }
     }
 
@@ -160,7 +174,7 @@ export function AiAssistantPanel({
     blocks.push(`Task Completion Rate: ${completionRate}%`)
 
     return blocks
-  }, [courseName, sessions, studentsCount, liveSubmissions])
+  }, [courseName, sessions, studentsCount, liveSubmissions, isDemoSession])
 
   const introTextBlocks = useMemo(() => {
     // Demo sessions have no live lifecycle; skip the scheduling/session-info blocks
@@ -168,8 +182,8 @@ export function AiAssistantPanel({
     if (mode === 'classroom' && !isDemoSession) {
       return buildCourseInfoMessages()
     }
-    return [modeGreeting(mode, context)]
-  }, [mode, context, buildCourseInfoMessages, isDemoSession])
+    return [modeGreeting(mode, context, sessionType)]
+  }, [mode, context, sessionType, buildCourseInfoMessages, isDemoSession])
 
   // Animate intro messages in one at a time from the bottom.
   // For demo sessions, skip the blocking animation entirely so the chat input is
@@ -204,12 +218,12 @@ export function AiAssistantPanel({
     })
   }, [isActive, introTextBlocks, isDemoSession])
 
-  // Reset intro animation when mode/course changes so the greeting stays relevant
+  // Reset intro animation when mode/course/session changes so the greeting stays relevant
   useEffect(() => {
     hasAnimatedRef.current = false
     setIntroMessages([])
     resetMessages()
-  }, [mode, courseId, resetMessages])
+  }, [mode, courseId, sessionType, resetMessages])
 
   // Scroll to bottom whenever new messages arrive
   useEffect(() => {

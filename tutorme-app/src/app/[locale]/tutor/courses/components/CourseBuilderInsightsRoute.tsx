@@ -120,6 +120,53 @@ function WifiSignal({ connected, error }: { connected: boolean; error: boolean }
   )
 }
 
+const modeButtonBase =
+  'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
+
+const actionButtonBase =
+  'flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
+
+function AnimatedControlButton({
+  icon,
+  label,
+  className,
+  onClick,
+  disabled: buttonDisabled,
+}: {
+  icon: React.ReactNode
+  label: string
+  className?: string
+  onClick?: () => void
+  disabled?: boolean
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <motion.button
+      type="button"
+      disabled={buttonDisabled}
+      onClick={onClick}
+      onHoverStart={() => setHovered(true)}
+      onHoverEnd={() => setHovered(false)}
+      className={cn(actionButtonBase, 'relative overflow-hidden', className)}
+    >
+      <span className="flex items-center justify-center gap-2">
+        {icon}
+        <motion.span
+          className="overflow-hidden whitespace-nowrap"
+          initial={{ opacity: 0, width: 0 }}
+          animate={{
+            opacity: hovered && !buttonDisabled ? 1 : 0,
+            width: hovered && !buttonDisabled ? 'auto' : 0,
+          }}
+          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+        >
+          {label}
+        </motion.span>
+      </span>
+    </motion.button>
+  )
+}
+
 type Props = UseCourseBuilderContentArgs & {
   insightsProps: CourseBuilderInsightsProps
   sessionCategory?: string | null
@@ -247,13 +294,14 @@ function TutorControlsPanel({
   // Start the panel centered between the category badge and the course-state
   // indicator so it lands in the header by default. If either anchor is missing,
   // fall back to the top-center of the viewport container so the panel is still
-  // visible and near the hero area.
+  // visible and near the hero area. For demo / asynchronous sessions the badge
+  // anchor is absent, so we anchor the panel to the right of the state indicator.
   const panelX = useMotionValue(0)
   const panelY = useMotionValue(0)
   const panelOpacity = useMotionValue(0)
   const hasPositionedRef = useRef(false)
 
-  const topCenterPanel = useCallback(() => {
+  const fallbackTopCenterPanel = useCallback(() => {
     const panel = panelRef.current
     const container = containerRef.current
     if (!panel || !container) return
@@ -266,35 +314,52 @@ function TutorControlsPanel({
 
   const positionPanel = useCallback(() => {
     if (!positionAnchorRefs) {
-      topCenterPanel()
+      fallbackTopCenterPanel()
       panelOpacity.set(1)
+      hasPositionedRef.current = true
       return
     }
     const badge = positionAnchorRefs.badgeRef.current
     const indicator = positionAnchorRefs.indicatorRef.current
     const panel = panelRef.current
     const container = containerRef.current
-    if (!badge || !indicator || !panel || !container) {
-      topCenterPanel()
+    if (!indicator || !panel || !container) {
+      fallbackTopCenterPanel()
       panelOpacity.set(1)
+      hasPositionedRef.current = true
       return
     }
-    const badgeRect = badge.getBoundingClientRect()
     const indicatorRect = indicator.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
     const containerRect = container.getBoundingClientRect()
-    const midX = (badgeRect.right + indicatorRect.left) / 2
-    const midY = (badgeRect.top + badgeRect.bottom) / 2
-    let x = midX - containerRect.left - panelRect.width / 2
-    let y = midY - containerRect.top - panelRect.height / 2
+
+    let x: number
+    let y: number
+    if (badge && !isDemoSession) {
+      const badgeRect = badge.getBoundingClientRect()
+      const midX = (badgeRect.right + indicatorRect.left) / 2
+      const midY = (badgeRect.top + badgeRect.bottom) / 2
+      x = midX - containerRect.left - panelRect.width / 2
+      y = midY - containerRect.top - panelRect.height / 2
+    } else {
+      // Demo / async sessions: park the panel just to the right of the state
+      // indicator in the top hero panel while keeping it draggable.
+      const gap = 12
+      x = indicatorRect.right - containerRect.left + gap
+      y = indicatorRect.top - containerRect.top + indicatorRect.height / 2 - panelRect.height / 2
+    }
+
     // Clamp so the panel never starts off-screen horizontally.
     const padding = 12
     x = Math.max(padding, Math.min(x, containerRect.width - panelRect.width - padding))
+    // Keep the panel inside the top hero/header area.
+    y = Math.max(padding, Math.min(y, containerRect.height - panelRect.height - padding))
+
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
     hasPositionedRef.current = true
-  }, [positionAnchorRefs, panelX, panelY, panelOpacity, topCenterPanel])
+  }, [positionAnchorRefs, isDemoSession, panelX, panelY, panelOpacity, fallbackTopCenterPanel])
 
   useLayoutEffect(() => {
     positionPanel()
@@ -352,54 +417,7 @@ function TutorControlsPanel({
     return () => ro.disconnect()
   }, [open, updateModePill])
 
-  const modeButtonBase =
-    'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
-
-  const actionButtonBase =
-    'flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white disabled:hover:bg-white/10'
-
   const panelDisabled = disabled || false
-
-  function AnimatedControlButton({
-    icon,
-    label,
-    className,
-    onClick,
-    disabled: buttonDisabled,
-  }: {
-    icon: React.ReactNode
-    label: string
-    className?: string
-    onClick?: () => void
-    disabled?: boolean
-  }) {
-    const [hovered, setHovered] = useState(false)
-    return (
-      <motion.button
-        type="button"
-        disabled={buttonDisabled}
-        onClick={onClick}
-        onHoverStart={() => setHovered(true)}
-        onHoverEnd={() => setHovered(false)}
-        className={cn(actionButtonBase, 'relative overflow-hidden', className)}
-      >
-        <span className="flex items-center justify-center gap-2">
-          {icon}
-          <motion.span
-            className="overflow-hidden whitespace-nowrap"
-            initial={{ opacity: 0, width: 0 }}
-            animate={{
-              opacity: hovered && !buttonDisabled ? 1 : 0,
-              width: hovered && !buttonDisabled ? 'auto' : 0,
-            }}
-            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-          >
-            {label}
-          </motion.span>
-        </span>
-      </motion.button>
-    )
-  }
 
   return (
     <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
@@ -457,7 +475,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:hover:text-white'
                       )}
                     >
                       <Wrench className="h-3.5 w-3.5" />
@@ -468,7 +486,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:hover:text-white'
                       )}
                     >
                       <ClipboardCheck className="h-3.5 w-3.5" />
@@ -479,7 +497,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:hover:text-white'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />

@@ -10,6 +10,11 @@ import { cn } from '@/lib/utils'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
+/** Module-level cache for fetched PDF buffers so switching tabs or lessons does
+ *  not trigger a network reload. Keyed by the durable fileKey when available, or
+ *  the source fileUrl otherwise. Blob URLs are never cached. */
+const pdfBufferCache = new Map<string, ArrayBuffer>()
+
 interface PDFViewerProps {
   fileUrl: string
   /** GCS object key. When present, the file is fetched by key (server downloads
@@ -126,6 +131,21 @@ export function PDFViewer({
     setFitScale(null)
     setPageNaturalWidth(null)
 
+    const cacheKey = fileKey || fileUrl
+    const cached = cacheKey ? pdfBufferCache.get(cacheKey) : undefined
+    if (cached) {
+      // Always pass a copy of the cached buffer. react-pdf transfers the
+      // ArrayBuffer to its worker, which detaches it; re-using the same cached
+      // instance later would throw "Cannot perform Construct on a detached
+      // ArrayBuffer".
+      if (!cancelled) {
+        setPdfData(cached.slice(0))
+      }
+      return () => {
+        cancelled = true
+      }
+    }
+
     const fetchPdf = async () => {
       try {
         const proxiedUrl = getProxiedPdfUrl(fileUrl, fileKey)
@@ -146,6 +166,10 @@ export function PDFViewer({
           throw new Error(message)
         }
         const buffer = await res.arrayBuffer()
+        // Cache a clone so the cached buffer is never the one react-pdf detaches.
+        if (cacheKey) {
+          pdfBufferCache.set(cacheKey, buffer.slice(0))
+        }
         if (!cancelled) {
           setPdfData(buffer)
         }

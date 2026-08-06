@@ -14,6 +14,7 @@ export interface AiAssistantMessage {
 export interface UseAiAssistantOptions {
   mode: CourseBuilderMode
   sessionId?: string | null
+  sessionType?: string | null
   courseId?: string | null
   context?: CourseBuilderContext
 }
@@ -27,7 +28,7 @@ export interface UseAiAssistantReturn {
 }
 
 export function useAiAssistant(options: UseAiAssistantOptions): UseAiAssistantReturn {
-  const { mode, sessionId, courseId, context } = options
+  const { mode, sessionId, sessionType, courseId, context } = options
 
   const [messages, setMessages] = useState<AiAssistantMessage[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -55,6 +56,7 @@ export function useAiAssistant(options: UseAiAssistantOptions): UseAiAssistantRe
           body: JSON.stringify({
             mode,
             sessionId,
+            sessionType,
             courseId,
             context,
             messages: nextMessages,

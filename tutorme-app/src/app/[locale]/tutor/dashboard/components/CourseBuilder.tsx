@@ -326,7 +326,7 @@ import {
 } from './builder-components'
 import { LessonSelectorDialog, NEW_LESSON_VALUE } from './LessonSelectorDialog'
 import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTextEditor'
-import { TaskSlideFontEditor } from './TaskSlideFontEditor'
+import { TaskSlideTextToolbar } from './TaskSlideTextToolbar'
 import { SlidePageMenu } from './SlidePageMenu'
 import {
   AssessmentBuilderModal,
@@ -2307,10 +2307,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const taskSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
     const assessmentSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
+    const [slideFontFamilyMap, setSlideFontFamilyMap] = useState<Record<string, string>>({})
     const [slideFontSizeMap, setSlideFontSizeMap] = useState<Record<string, number>>({})
     const [slideTextColorMap, setSlideTextColorMap] = useState<Record<string, string>>({})
+    const slideFontFamily = activeItemId
+      ? (slideFontFamilyMap[activeItemId] ??
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif')
+      : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     const slideFontSize = activeItemId ? (slideFontSizeMap[activeItemId] ?? 18) : 18
     const slideTextColor = activeItemId ? (slideTextColorMap[activeItemId] ?? '#000000') : '#000000'
+    const setSlideFontFamily = (val: string) => {
+      if (activeItemId) setSlideFontFamilyMap(prev => ({ ...prev, [activeItemId]: val }))
+    }
     const setSlideFontSize = (val: number) => {
       if (activeItemId) setSlideFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
     }
@@ -11184,6 +11192,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               <AiAssistantPanel
                                                 mode={assistantMode}
                                                 sessionId={insightsProps.sessionId}
+                                                sessionType={
+                                                  insightsProps.sessions?.find(
+                                                    (s: any) => s.id === insightsProps.sessionId
+                                                  )?.sessionType
+                                                }
                                                 courseId={courseId}
                                                 courseName={courseName}
                                                 sessions={insightsProps.sessions?.map((s: any) => ({
@@ -12781,7 +12794,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsList>
                                       <TabsContent
                                         value="content"
-                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div
                                           className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
@@ -12866,27 +12879,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   readOnly={!canEdit}
                                                   placeholder="Type the task content here — or load a document above to work from it."
                                                   className="h-full w-full"
-                                                  style={{
-                                                    fontSize: `${slideFontSize}px`,
-                                                    color: slideTextColor,
-                                                  }}
                                                 />
                                               </div>
-                                              <TaskSlideFontEditor
+                                              <TaskSlideTextToolbar
+                                                editorRef={taskSlideEditorRef}
+                                                fontFamily={slideFontFamily}
                                                 fontSize={slideFontSize}
-                                                onFontSizeChange={(size: number) => {
-                                                  setSlideFontSize(size)
-                                                  taskSlideEditorRef.current?.applyFormat({
-                                                    fontSize: size,
-                                                  })
-                                                }}
                                                 color={slideTextColor}
-                                                onColorChange={(color: string) => {
-                                                  setSlideTextColor(color)
-                                                  taskSlideEditorRef.current?.applyFormat({
-                                                    color,
-                                                  })
-                                                }}
+                                                onFontFamilyChange={setSlideFontFamily}
+                                                onFontSizeChange={setSlideFontSize}
+                                                onColorChange={setSlideTextColor}
                                                 className="absolute bottom-6 right-2"
                                               />
                                             </div>
@@ -13277,7 +13279,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsList>
                                       <TabsContent
                                         value="content"
-                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
+                                        className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div
                                           className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
@@ -13330,27 +13332,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     readOnly={!canEdit}
                                                     placeholder="Type your assessment questions here — or load a document above to work from it."
                                                     className="h-full w-full"
-                                                    style={{
-                                                      fontSize: `${slideFontSize}px`,
-                                                      color: slideTextColor,
-                                                    }}
                                                   />
                                                 </div>
-                                                <TaskSlideFontEditor
+                                                <TaskSlideTextToolbar
+                                                  editorRef={assessmentSlideEditorRef}
+                                                  fontFamily={slideFontFamily}
                                                   fontSize={slideFontSize}
-                                                  onFontSizeChange={(size: number) => {
-                                                    setSlideFontSize(size)
-                                                    assessmentSlideEditorRef.current?.applyFormat({
-                                                      fontSize: size,
-                                                    })
-                                                  }}
                                                   color={slideTextColor}
-                                                  onColorChange={(color: string) => {
-                                                    setSlideTextColor(color)
-                                                    assessmentSlideEditorRef.current?.applyFormat({
-                                                      color,
-                                                    })
-                                                  }}
+                                                  onFontFamilyChange={setSlideFontFamily}
+                                                  onFontSizeChange={setSlideFontSize}
+                                                  onColorChange={setSlideTextColor}
                                                   className="absolute bottom-6 right-2"
                                                 />
                                               </div>
@@ -13818,6 +13809,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <AiAssistantPanel
                                   mode={assistantMode}
                                   sessionId={insightsProps?.sessionId}
+                                  sessionType={
+                                    insightsProps?.sessions?.find(
+                                      (s: any) => s.id === insightsProps?.sessionId
+                                    )?.sessionType
+                                  }
                                   courseId={courseId}
                                   courseName={courseName}
                                   sessions={insightsProps?.sessions?.map((s: any) => ({
