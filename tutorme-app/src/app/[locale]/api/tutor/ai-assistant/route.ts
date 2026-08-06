@@ -99,6 +99,7 @@ export const POST = withCsrf(
               tutorId: liveSession.tutorId,
               title: liveSession.title,
               status: liveSession.status,
+              sessionType: liveSession.sessionType,
               scheduledAt: liveSession.scheduledAt,
               courseName: course.name,
             })
@@ -158,6 +159,7 @@ export const POST = withCsrf(
           const result = await runAnalyticsAssistant(
             {
               sessionId,
+              sessionType: sessionRow.sessionType ?? undefined,
               courseName: sessionRow.courseName ?? undefined,
               sessions: [
                 {

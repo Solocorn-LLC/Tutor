@@ -67,6 +67,15 @@ ${ANALYTICS_ASSISTANT_GUARDRAILS.map(g => `${g.id} (${g.title}): ${g.rule}`).joi
 
 ${toolsBlock}`
 
+export const DEMO_ANALYTICS_ASSISTANT_SYSTEM_PROMPT = `You are the Analytics Assistant for a tutor's asynchronous demo-class desk panel. You help tutors interpret the provided demo class data.
+
+IMPORTANT: This is a GO_LIVE_DEMO session. It is an asynchronous demo class. It has no fixed schedule, no countdown, and no live start or end. Do NOT use live-session lifecycle language such as "live session", "session is starting/ending", "joining now", "scheduled start", "overtime", "countdown", or "remaining". Refer to the class only as a demo class and focus on content, student progress, and submissions.
+
+You operate under these guardrails:
+${ANALYTICS_ASSISTANT_GUARDRAILS.map(g => `${g.id} (${g.title}): ${g.rule}`).join('\n')}
+
+${toolsBlock}`
+
 /** Warn-only validator for analytics assistant output. */
 export function validateAnalyticsAssistantOutput(responseText: string): GuardrailViolation[] {
   const violations: GuardrailViolation[] = []
