@@ -56,6 +56,7 @@ import {
   Facebook,
   Maximize2,
   Minimize2,
+  Play,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -108,6 +109,20 @@ interface PublicTutorResponse {
     liveSessionsCompleted?: number
     enrollmentStatus?: 'ongoing' | 'ended'
     startDate?: string | null
+  }>
+  demoClasses: Array<{
+    id: string
+    title: string
+    description?: string | null
+    status: string
+    scheduledAt?: string | null
+    startedAt?: string | null
+    createdAt?: string | null
+    durationMinutes?: number | null
+    maxStudents?: number | null
+    roomUrl?: string | null
+    courseId?: string | null
+    demoVideoContentId?: string | null
   }>
 }
 
@@ -1237,6 +1252,124 @@ export default function PublicTutorPage() {
     )
   }
 
+  function DemoClassSection({
+    title,
+    demoClasses,
+    emptyMessage,
+    forceOpen,
+  }: {
+    title: string
+    demoClasses: PublicTutorResponse['demoClasses']
+    emptyMessage: string
+    forceOpen?: boolean
+  }) {
+    const [isOpen, setIsOpen] = useState(demoClasses.length > 0)
+    const contentRef = useAutoScrollOnExpand(isOpen, { delay: 350 })
+
+    useEffect(() => {
+      if (forceOpen !== undefined) {
+        setIsOpen(forceOpen)
+      }
+    }, [forceOpen])
+
+    const isLive = (status: string) => status !== 'ended'
+
+    return (
+      <section>
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={cn(
+            'flex w-full items-center gap-2',
+            forceOpen !== undefined ? 'mb-2' : 'mb-4'
+          )}
+        >
+          {isOpen ? (
+            <ChevronDown className="h-5 w-5 text-slate-500" />
+          ) : (
+            <ChevronRight className="h-5 w-5 text-slate-500" />
+          )}
+          <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+        </button>
+        <div
+          className={cn(
+            'grid transition-all duration-300 ease-in-out',
+            isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+          )}
+        >
+          <div className="overflow-hidden" ref={contentRef}>
+            {demoClasses.length === 0 ? (
+              <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-slate-50/50 py-12 text-center">
+                <Play className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                <p className="text-sm text-slate-500">{emptyMessage}</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {demoClasses.map(demo => {
+                  const live = isLive(demo.status)
+                  return (
+                    <Link
+                      key={demo.id}
+                      href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
+                      className="group block rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] p-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="line-clamp-2 font-semibold text-slate-100">{demo.title}</h4>
+                        <span
+                          className={cn(
+                            'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                            live
+                              ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
+                              : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              'h-1.5 w-1.5 rounded-full',
+                              live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
+                            )}
+                          />
+                          {live ? 'Live' : 'Ended'}
+                        </span>
+                      </div>
+                      {demo.description ? (
+                        <p className="mt-2 line-clamp-3 text-sm text-slate-300">
+                          {demo.description.length > 160
+                            ? `${demo.description.slice(0, 157)}...`
+                            : demo.description}
+                        </p>
+                      ) : null}
+                      <div className="mt-4 space-y-1 text-xs text-slate-300">
+                        {demo.scheduledAt ? (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className="h-3.5 w-3.5" />
+                            <span>{format(new Date(demo.scheduledAt), 'MMM d, yyyy h:mm a')}</span>
+                          </div>
+                        ) : null}
+                        {demo.durationMinutes ? (
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>{demo.durationMinutes} min</span>
+                          </div>
+                        ) : null}
+                        {demo.maxStudents ? (
+                          <div className="flex items-center gap-1.5">
+                            <User className="h-3.5 w-3.5" />
+                            <span>Up to {demo.maxStudents} students</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    )
+  }
+
   return (
     <div
       className="min-h-screen w-full bg-white p-4 sm:p-6"
@@ -1673,6 +1806,12 @@ export default function PublicTutorPage() {
             courses={enrollingCourses}
             emptyMessage="No published courses found."
             forceOpen={coursesExpanded && enrollingCourses.length > 0 ? true : undefined}
+          />
+          <DemoClassSection
+            title="Demo Lessons"
+            demoClasses={data?.demoClasses ?? []}
+            emptyMessage="This tutor has no demo lessons."
+            forceOpen={coursesExpanded && (data?.demoClasses ?? []).length > 0 ? true : undefined}
           />
           <CourseSection
             title="Active"
