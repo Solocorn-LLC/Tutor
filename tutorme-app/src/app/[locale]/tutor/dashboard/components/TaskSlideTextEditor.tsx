@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import { sanitizeSlideHtml, isSlideHtml } from './sanitize-slide-html'
 
 export interface TaskSlideTextEditorRef {
-  applyFormat: (format: { fontSize?: number; color?: string }) => boolean
+  applyFormat: (format: { fontFamily?: string; fontSize?: number; color?: string }) => boolean
 }
 
 interface TaskSlideTextEditorProps {
@@ -17,14 +17,46 @@ interface TaskSlideTextEditorProps {
   style?: React.CSSProperties
 }
 
+function getTextOffset(container: Node, node: Node | null, offset: number): number {
+  let count = 0
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null)
+  let n: Node | null
+  while ((n = walker.nextNode())) {
+    if (n === node) return count + Math.min(offset, n.textContent?.length || 0)
+    count += n.textContent?.length || 0
+  }
+  return count
+}
+
+function setCaretAtTextOffset(container: Node, targetOffset: number): void {
+  let count = 0
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null)
+  let n: Node | null
+  while ((n = walker.nextNode())) {
+    const len = n.textContent?.length || 0
+    if (count + len >= targetOffset) {
+      const range = document.createRange()
+      range.setStart(n, Math.max(0, targetOffset - count))
+      range.collapse(true)
+      const sel = window.getSelection()
+      if (sel) {
+        sel.removeAllRanges()
+        sel.addRange(range)
+      }
+      return
+    }
+    count += len
+  }
+}
+
 export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideTextEditorProps>(
   function TaskSlideTextEditor(
     { html, onHtmlChange, readOnly, placeholder, className, style },
     ref
   ) {
     const divRef = useRef<HTMLDivElement>(null)
-    // Start with a sentinel value so the first effect always initialises the editor
-    // from the external html, even when it matches the prop on first render.
+    // Track the last HTML we emitted or wrote so we can avoid re-syncing the
+    // DOM and clobbering the user's cursor.
     const lastHtmlRef = useRef('')
 
     // Load external html changes without clobbering the editor while the user is typing.
@@ -33,10 +65,20 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
       if (!el || html === lastHtmlRef.current) return
       lastHtmlRef.current = html
 
-      if (isSlideHtml(html)) {
-        el.innerHTML = sanitizeSlideHtml(html)
-      } else {
-        el.textContent = html
+      const sanitized = isSlideHtml(html) ? sanitizeSlideHtml(html) : html
+      if (el.innerHTML === sanitized) return
+
+      // Preserve cursor position by text offset when we must rewrite innerHTML.
+      const selection = window.getSelection()
+      const savedOffset =
+        selection && selection.rangeCount > 0 && el.contains(selection.anchorNode)
+          ? getTextOffset(el, selection.anchorNode, selection.anchorOffset)
+          : null
+
+      el.innerHTML = sanitized
+
+      if (savedOffset !== null) {
+        setCaretAtTextOffset(el, savedOffset)
       }
     }, [html])
 
@@ -58,14 +100,17 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
     useImperativeHandle(
       ref,
       () => ({
-        applyFormat: ({ fontSize, color }) => {
+        applyFormat: ({ fontFamily, fontSize, color }) => {
           const el = divRef.current
           if (!el || readOnly) return false
           const selection = window.getSelection()
           if (!selection || selection.rangeCount === 0) return false
           const range = selection.getRangeAt(0)
 
+          if (!el.contains(range.commonAncestorContainer)) return false
+
           const styles: string[] = []
+          if (fontFamily !== undefined) styles.push(`font-family: ${fontFamily}`)
           if (fontSize !== undefined) styles.push(`font-size: ${fontSize}px`)
           if (color !== undefined) styles.push(`color: ${color}`)
           if (styles.length === 0) return false
@@ -73,7 +118,6 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           const styleString = styles.join('; ')
 
           if (range.collapsed) {
-            if (!el.contains(range.commonAncestorContainer)) return false
             const span = document.createElement('span')
             span.setAttribute('style', styleString)
             const anchor = document.createTextNode('\u200B')
@@ -125,7 +169,6 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
             'h-full w-full resize-none overflow-hidden border-0 bg-transparent p-6 leading-relaxed text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
             readOnly && 'cursor-default'
           )}
-          style={style}
           onPaste={handlePaste}
           onInput={emitHtml}
           onBlur={emitHtml}
@@ -139,9 +182,5 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
     )
   }
 )
-
-// Mount-time content for plain text is set via the effect so React does not warn about
-// mismatched textContent / innerHTML. We render empty __html for plain text and populate
-// it in the effect with textContent.
 
 TaskSlideTextEditor.displayName = 'TaskSlideTextEditor'

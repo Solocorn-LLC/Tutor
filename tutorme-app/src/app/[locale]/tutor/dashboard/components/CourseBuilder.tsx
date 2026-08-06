@@ -326,7 +326,7 @@ import {
 } from './builder-components'
 import { LessonSelectorDialog, NEW_LESSON_VALUE } from './LessonSelectorDialog'
 import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTextEditor'
-import { TaskSlideFontEditor } from './TaskSlideFontEditor'
+import { TaskSlideTextToolbar } from './TaskSlideTextToolbar'
 import { SlidePageMenu } from './SlidePageMenu'
 import {
   AssessmentBuilderModal,
@@ -2306,10 +2306,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const taskSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
     const assessmentSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
+    const [slideFontFamilyMap, setSlideFontFamilyMap] = useState<Record<string, string>>({})
     const [slideFontSizeMap, setSlideFontSizeMap] = useState<Record<string, number>>({})
     const [slideTextColorMap, setSlideTextColorMap] = useState<Record<string, string>>({})
+    const slideFontFamily = activeItemId
+      ? (slideFontFamilyMap[activeItemId] ??
+        'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif')
+      : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif'
     const slideFontSize = activeItemId ? (slideFontSizeMap[activeItemId] ?? 18) : 18
     const slideTextColor = activeItemId ? (slideTextColorMap[activeItemId] ?? '#000000') : '#000000'
+    const setSlideFontFamily = (val: string) => {
+      if (activeItemId) setSlideFontFamilyMap(prev => ({ ...prev, [activeItemId]: val }))
+    }
     const setSlideFontSize = (val: number) => {
       if (activeItemId) setSlideFontSizeMap(prev => ({ ...prev, [activeItemId]: val }))
     }
@@ -12864,27 +12872,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   readOnly={!canEdit}
                                                   placeholder="Type the task content here — or load a document above to work from it."
                                                   className="h-full w-full"
-                                                  style={{
-                                                    fontSize: `${slideFontSize}px`,
-                                                    color: slideTextColor,
-                                                  }}
                                                 />
                                               </div>
-                                              <TaskSlideFontEditor
+                                              <TaskSlideTextToolbar
+                                                editorRef={taskSlideEditorRef}
+                                                fontFamily={slideFontFamily}
                                                 fontSize={slideFontSize}
-                                                onFontSizeChange={(size: number) => {
-                                                  setSlideFontSize(size)
-                                                  taskSlideEditorRef.current?.applyFormat({
-                                                    fontSize: size,
-                                                  })
-                                                }}
                                                 color={slideTextColor}
-                                                onColorChange={(color: string) => {
-                                                  setSlideTextColor(color)
-                                                  taskSlideEditorRef.current?.applyFormat({
-                                                    color,
-                                                  })
-                                                }}
+                                                onFontFamilyChange={setSlideFontFamily}
+                                                onFontSizeChange={setSlideFontSize}
+                                                onColorChange={setSlideTextColor}
                                                 className="absolute bottom-6 right-2"
                                               />
                                             </div>
@@ -13328,27 +13325,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     readOnly={!canEdit}
                                                     placeholder="Type your assessment questions here — or load a document above to work from it."
                                                     className="h-full w-full"
-                                                    style={{
-                                                      fontSize: `${slideFontSize}px`,
-                                                      color: slideTextColor,
-                                                    }}
                                                   />
                                                 </div>
-                                                <TaskSlideFontEditor
+                                                <TaskSlideTextToolbar
+                                                  editorRef={assessmentSlideEditorRef}
+                                                  fontFamily={slideFontFamily}
                                                   fontSize={slideFontSize}
-                                                  onFontSizeChange={(size: number) => {
-                                                    setSlideFontSize(size)
-                                                    assessmentSlideEditorRef.current?.applyFormat({
-                                                      fontSize: size,
-                                                    })
-                                                  }}
                                                   color={slideTextColor}
-                                                  onColorChange={(color: string) => {
-                                                    setSlideTextColor(color)
-                                                    assessmentSlideEditorRef.current?.applyFormat({
-                                                      color,
-                                                    })
-                                                  }}
+                                                  onFontFamilyChange={setSlideFontFamily}
+                                                  onFontSizeChange={setSlideFontSize}
+                                                  onColorChange={setSlideTextColor}
                                                   className="absolute bottom-6 right-2"
                                                 />
                                               </div>
