@@ -12,8 +12,9 @@ import {
   courseLesson,
   courseVariant,
   tutorApplication,
+  liveSession,
 } from '@/lib/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, inArray, desc } from 'drizzle-orm'
 import { getTutorRating } from '@/lib/one-on-one/reviews'
 
 export async function GET(
@@ -239,15 +240,65 @@ export async function GET(
       }
     })
 
+    // Fetch demo lessons (GO_LIVE_DEMO sessions) for this tutor
+    const demoSessionRows = await drizzleDb
+      .select({
+        sessionId: liveSession.sessionId,
+        title: liveSession.title,
+        description: liveSession.description,
+        status: liveSession.status,
+        scheduledAt: liveSession.scheduledAt,
+        startedAt: liveSession.startedAt,
+        createdAt: liveSession.createdAt,
+        durationMinutes: liveSession.durationMinutes,
+        maxStudents: liveSession.maxStudents,
+        roomUrl: liveSession.roomUrl,
+        courseId: liveSession.courseId,
+        demoVideoContentId: liveSession.demoVideoContentId,
+      })
+      .from(liveSession)
+      .where(
+        and(
+          eq(liveSession.tutorId, tutorId),
+          eq(liveSession.sessionType, 'GO_LIVE_DEMO'),
+          inArray(liveSession.status, [
+            'scheduled',
+            'active',
+            'preparing',
+            'live',
+            'paused',
+            'ended',
+          ])
+        )
+      )
+      .orderBy(desc(liveSession.scheduledAt))
+      .limit(50)
+
+    const demoClassesResponse = demoSessionRows.map(row => ({
+      id: row.sessionId,
+      title: row.title || 'Demo Lesson',
+      description: row.description || null,
+      status: row.status,
+      scheduledAt: row.scheduledAt?.toISOString() ?? null,
+      startedAt: row.startedAt?.toISOString() ?? null,
+      createdAt: row.createdAt?.toISOString() ?? null,
+      durationMinutes: row.durationMinutes,
+      maxStudents: row.maxStudents,
+      roomUrl: row.roomUrl || null,
+      courseId: row.courseId || null,
+      demoVideoContentId: row.demoVideoContentId || null,
+    }))
+
     return NextResponse.json({
       tutor: tutorResponse,
       courses: coursesResponse,
+      demoClasses: demoClassesResponse,
       source: 'db',
     })
   } catch (error) {
     console.error('[GET /api/public/tutors/[username]] Error:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch tutor', tutor: null, courses: [] },
+      { error: 'Failed to fetch tutor', tutor: null, courses: [], demoClasses: [] },
       { status: 500 }
     )
   }

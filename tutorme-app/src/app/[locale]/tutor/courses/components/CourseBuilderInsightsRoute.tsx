@@ -445,7 +445,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:hover:text-white'
                       )}
                     >
                       <Wrench className="h-3.5 w-3.5" />
@@ -456,7 +456,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:hover:text-white'
                       )}
                     >
                       <ClipboardCheck className="h-3.5 w-3.5" />
@@ -467,7 +467,7 @@ function TutorControlsPanel({
                       className={cn(
                         modeButtonBase,
                         'relative z-10 text-slate-700',
-                        'data-[state=active]:bg-transparent data-[state=active]:text-slate-900 data-[state=active]:shadow-none'
+                        'data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:hover:text-white'
                       )}
                     >
                       <MonitorPlay className="h-3.5 w-3.5" />
