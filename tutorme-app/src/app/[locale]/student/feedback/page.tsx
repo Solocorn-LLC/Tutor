@@ -2419,7 +2419,7 @@ function StudentFeedbackContent() {
                             }
                           }
                         }}
-                        className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                        className="h-11 w-full rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white pr-10 text-sm placeholder:text-gray-400 focus-visible:ring-[rgba(241,118,35,0.5)]"
                       />
                       <Button
                         size="icon"
