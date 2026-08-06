@@ -741,11 +741,26 @@
     box-shadow: none !important;
   }
 
-  /* Belt-and-suspenders: suppress the focus-visible ring on the dropdown trigger itself.
-     The shared DropdownMenuTrigger component also injects these utilities; this rule
-     catches any edge cases where the component-level merge is bypassed. */
+  /* Belt-and-suspenders: suppress the browser focus ring on individual dropdown/select
+     items and triggers. The component classes already try to do this, but the flash can
+     still appear on hover/focus transitions; these rules guarantee it stays off. */
+  [data-radix-dropdown-menu-item]:focus,
+  [data-radix-dropdown-menu-item]:focus-visible,
+  [data-radix-dropdown-menu-sub-trigger]:focus,
+  [data-radix-dropdown-menu-sub-trigger]:focus-visible,
+  [data-radix-select-item]:focus,
+  [data-radix-select-item]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Belt-and-suspenders: suppress the focus-visible ring on the dropdown/select trigger.
+     The shared DropdownMenuTrigger / SelectTrigger components also inject these utilities;
+     these rules catch any edge cases where the component-level merge is bypassed. */
   [data-radix-dropdown-menu-trigger]:focus,
-  [data-radix-dropdown-menu-trigger]:focus-visible {
+  [data-radix-dropdown-menu-trigger]:focus-visible,
+  [data-radix-select-trigger]:focus,
+  [data-radix-select-trigger]:focus-visible {
     outline: none !important;
     box-shadow: none !important;
     --tw-ring-offset-shadow: 0 0 #0000 !important;

@@ -110,9 +110,11 @@ export function useDemoRecorder(): UseDemoRecorderReturn {
       }
 
       recorder.onstop = () => {
+        // Capture chunks before cleanup() empties the ref.
+        const recordedChunks = chunksRef.current.slice()
         cleanup()
         if (!isMountedRef.current) return
-        const blob = new Blob(chunksRef.current, { type: mimeType })
+        const blob = new Blob(recordedChunks, { type: mimeType })
         setRecordedBlob(blob)
         setState('stopped')
         setPreviewStream(null)
