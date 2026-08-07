@@ -468,7 +468,6 @@ import {
   ChevronLeft,
   Save,
   Wand2,
-  BookOpen,
   Layers,
   Upload,
   CheckCircle,
@@ -4428,19 +4427,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return firstMcq > 1500 ? raw.slice(firstMcq) : raw
     }
 
-    // Per-question DMI edits, row add/remove, reference backfill and the badge's
-    // board/subject — all live in their own hook.
-    const { applyDmiEdit, reextractRefs, removeDmiItem, addDmiItem, setExamContext } = useDmiEditor(
-      {
-        taskDmiItems,
-        assessmentDmiItems,
-        setTaskDmiItems,
-        setAssessmentDmiItems,
-        setTaskDmiVersions,
-        setAssessmentExamContext: patch => setAssessmentBuilder(prev => ({ ...prev, ...patch })),
-        testPciViewMode,
-      }
-    )
+    // Per-question DMI edits, row add/remove, and the board/subject context
+    // all live in their own hook (reextractRefs is kept available there).
+    const { applyDmiEdit, removeDmiItem, addDmiItem, setExamContext } = useDmiEditor({
+      taskDmiItems,
+      assessmentDmiItems,
+      setTaskDmiItems,
+      setAssessmentDmiItems,
+      setTaskDmiVersions,
+      setAssessmentExamContext: patch => setAssessmentBuilder(prev => ({ ...prev, ...patch })),
+      testPciViewMode,
+    })
 
     // Marking-scheme upload (extract → parse → fill/append) lives in its own hook.
     const {
@@ -4674,17 +4671,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             pdfPages,
             questionSpec,
             documentKindOverride,
-            // Board/subject context from the course category so generation
-            // follows the right exam conventions (a hint, not a source override).
-            // Honour the tutor's manual Board override if they set one.
-            examBody:
-              pciBoardOverride ||
-              deriveExamContext(pciCategory || null, courseName).examBody ||
-              undefined,
-            subject:
-              deriveExamContext(pciCategory || null, courseName).subject ||
-              pciCategory ||
-              undefined,
+            // Board override is the only context sent; subject and course category
+            // are intentionally omitted so the model infers everything from the
+            // uploaded document rather than relying on course metadata.
+            examBody: pciBoardOverride || undefined,
           }),
         })
 
@@ -4822,13 +4812,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setAssessmentSourceReferenceOnly(false)
         }
 
-        // Seed the Board/Subject onto the new DMI from the course category so the
-        // DMI carries them as real data (not just a derived-on-the-fly badge).
-        // Board is assessment-only; honour a manual Board override; both are
-        // derived from the tutor's own category — never fabricated.
-        const seedExam = deriveExamContext(pciCategory || null, courseName)
-        const examBody = !isTask ? pciBoardOverride || seedExam.examBody || undefined : undefined
-        const subject = seedExam.subject || pciCategory || undefined
+        // Infer board/subject from the uploaded document itself so a Cambridge
+        // IGCSE paper is not mislabelled by the course category. Only a manual
+        // board override is honoured; course category is no longer a fallback.
+        const docProbe = [
+          sourceDoc?.fileName,
+          builder.title,
+          (sourceDoc?.extractedText || '').slice(0, 1200),
+        ]
+          .filter(Boolean)
+          .join('\n')
+        const inferredExam = deriveExamContext(docProbe || null)
+        const examBody = pciBoardOverride || inferredExam.examBody || undefined
+        const subject = inferredExam.subject || undefined
 
         // Remember how this DMI was classified so the tutor can override a wrong
         // call (see the "Detected as …" banner) without needing the model to be
@@ -4847,6 +4843,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             items: dmiItems,
             createdAt: Date.now(),
             taskId: loadedTaskId || undefined,
+            examBody,
             subject,
             // ASMT-4: section grouping + total marks derived from the questions.
             sections: deriveSections(dmiItems),
@@ -15082,34 +15079,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
                 )
-                // Examining body + subject for the badge: tasks read from the active
-                // DMI version; assessments read directly from the assessment metadata.
-                const derivedExam = deriveExamContext(designatedFolder, courseName)
-                const activeExamVersion =
-                  dmiEditor.source === 'task'
-                    ? (() => {
-                        const examVersions = taskDmiVersions
-                        const activeExamVersionId = testPciViewMode.startsWith('dmi_')
-                          ? testPciViewMode.slice('dmi_'.length)
-                          : null
-                        return (
-                          examVersions.find(v => v.id === activeExamVersionId) ??
-                          examVersions[examVersions.length - 1]
-                        )
-                      })()
-                    : null
-                const examBody =
-                  (dmiEditor.source === 'task'
-                    ? activeExamVersion?.examBody
-                    : assessmentBuilder.dmiExamBody) ??
-                  derivedExam.examBody ??
-                  ''
-                const examSubject =
-                  (dmiEditor.source === 'task'
-                    ? activeExamVersion?.subject
-                    : assessmentBuilder.dmiSubject) ??
-                  derivedExam.subject ??
-                  ''
                 return (
                   <>
                     <DialogHeader>
@@ -15123,15 +15092,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         {totalMarks} mark{totalMarks === 1 ? '' : 's'}.
                       </DialogDescription>
                     </DialogHeader>
-                    {/* Board & subject are set in the Guided PCI form now (single
-                        source of truth, shared with Course details). Shown here
-                        read-only for reference; they drive board-specific marking. */}
-                    <div className="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900">
-                      <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
-                      {examBody || '—'}
-                      <span className="text-indigo-300">·</span>
-                      {examSubject || '—'}
-                    </div>
                     {/* Upload marking scheme: AI matches each question number to
                         its answer (capturing the scheme's acceptable variations). */}
                     <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
@@ -15159,20 +15119,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       >
                         {markingSchemeLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                         Upload marking scheme
-                      </button>
-                    </div>
-                    {/* Backfill the paper's real question numbers (1a, 1b…) from the
-                        question text — for older DMIs that were re-serialized, so a
-                        marking scheme lines up. */}
-                    <div className="-mt-1 flex justify-end">
-                      <button
-                        type="button"
-                        disabled={!canEdit}
-                        onClick={() => reextractRefs(dmiEditor.source)}
-                        title="Backfill question numbers (e.g. 1a, 1b) from the question text — useful for older assessments before a marking scheme upload"
-                        className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline disabled:opacity-50"
-                      >
-                        Re-detect question numbers
                       </button>
                     </div>
                     <div

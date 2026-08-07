@@ -43,9 +43,9 @@ export const maxDuration = 60
 const GenerateDmiRequestSchema = z.object({
   type: z.enum(['task', 'assessment']),
   title: z.string().max(200).optional(),
-  // Board/subject context carried from the course category (e.g. "AP",
-  // "Biology"). A hint so generation follows the right exam conventions — it
-  // never overrides the source paper's wording, marks, or answers.
+  // Manual board override from the tutor. No longer derived from the course
+  // category; used only as a board label hint. The document is the sole source
+  // for wording, marks, and rubrics.
   examBody: z.string().max(60).optional(),
   subject: z.string().max(120).optional(),
   // Up to ~80k chars (~20k tokens) so a full multi-section paper's questions fit
@@ -151,12 +151,15 @@ Rules:
   - If the request includes an "Answer-key research results" block from a web search, use it as the primary
     source for answers and rubrics when it is trustworthy. Match questions by number/reference and fill
     in the corresponding "answer" field.
-  - If no answer key is found, use your own analysis and reasoning to produce a best-effort answer and
-    concise marking guidance.
+  - If no answer key is found, derive marking guidance STRICTLY from the wording and mark scheme clues
+    present in the document itself. Do NOT emit generic board-level statements such as
+    "Content and language assessment as per IELTS guidelines" or similar placeholders. If the document gives
+    no specific marking guidance for a part, set "rubric" to an empty string rather than inventing policy.
   - For study_material, you authored the questions so you know the key.
   - "answer" = the correct answer — for mcq/true_false give the correct option's LETTER (A, B, C, …);
     for short/fill_blank the expected answer; for long a concise model answer.
-  - "rubric" = one short sentence of marking guidance for open-ended (short/long) items.
+  - "rubric" = one short sentence of marking guidance for open-ended (short/long) items, grounded in the
+    document's own instructions or mark allocations. Empty string when none can be inferred.
 - "wordLimit": a recommended MAXIMUM word count for the student's response. ONLY include it for textual
   response types: "short", "long", and "fill_blank". OMIT it entirely for mcq, true_false, multiple_response,
   matching, ordering, hotspot, and drag_drop.
@@ -551,17 +554,13 @@ export async function POST(request: NextRequest) {
           ? `\n\nThe tutor has confirmed this document is study material (not a question paper). Set documentKind to "study_material".`
           : ''
 
-    // Board/Subject context from the course category. A hint only — the source
-    // paper still governs wording, marks, and answers; never invent policy from
-    // this. Mirrors the pattern parse-marking-scheme already uses.
-    const examContextInstruction =
-      examBody || subject
-        ? `\n\nThe tutor indicates this ${type} is ${[examBody, subject]
-            .filter(Boolean)
-            .join(
-              ' '
-            )} — follow that board's conventions where relevant, but do NOT change question wording or invent marks/answers that the source doesn't support.`
-        : ''
+    // Board override from the tutor (if any). We no longer pass course-category
+    // subject because board conventions were leaking into rubrics. When supplied,
+    // examBody is only a board label hint; answers, marks, and rubrics must still
+    // come from the document itself.
+    const examContextInstruction = examBody
+      ? `\n\nThe tutor indicates this ${type} is ${examBody}. Use this only as a board label; do NOT apply generic ${examBody} rubrics, conventions, or assumptions. Every answer, mark, and rubric must be grounded in the document's own content.`
+      : ''
 
     // Web search: try to find a readily accessible answer key / mark scheme for
     // assessments before asking the model to prepopulate answers. Search is best-
