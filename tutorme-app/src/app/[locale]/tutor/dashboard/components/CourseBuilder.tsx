@@ -14935,16 +14935,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     {/* Board & subject are set in the Guided PCI form now (single
                         source of truth, shared with Course details). Shown here
                         read-only for reference; they drive board-specific marking. */}
-                    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-900">
-                        <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
-                        {examBody || '—'}
-                        <span className="text-indigo-300">·</span>
-                        {examSubject || '—'}
-                      </span>
-                      <span className="ml-auto text-[11px] text-indigo-500">
-                        Set in the Guided PCI form
-                      </span>
+                    <div className="inline-flex flex-wrap items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-900">
+                      <BookOpen className="h-3.5 w-3.5 text-indigo-600" />
+                      {examBody || '—'}
+                      <span className="text-indigo-300">·</span>
+                      {examSubject || '—'}
                     </div>
                     {/* Upload marking scheme: AI matches each question number to
                         its answer (capturing the scheme's acceptable variations). */}
