@@ -376,6 +376,9 @@ function TutorInsightsPageInner() {
         categories: [...courses, ...draftCourses].find(c => c.id === courseId)?.categories,
         detachedCourseName,
         isAutoSave: options?.isAutoSave,
+        // DB-backed courses must never be re-created; passing this explicitly
+        // guards against a stale/derived mode ever reaching the creation path.
+        isExistingDbCourse: isDbCourse,
         propagateToVariants,
         setIndependent,
       })
