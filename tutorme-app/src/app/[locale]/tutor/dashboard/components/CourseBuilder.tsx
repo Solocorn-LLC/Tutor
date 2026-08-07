@@ -232,7 +232,7 @@ import { TestTaskChat, type TestTaskChatState, type TestTaskChatMsg } from './Te
 import type { TaskChatMessagePayload } from '@/lib/socket'
 import { splitDocIntoSections } from '@/lib/documents/split-sections'
 import { assessmentDmiReadiness } from '@/lib/assessment/dmi-readiness'
-import { type AutoGradeResult } from '@/lib/grading/auto-grade'
+import { type AutoGradeResult, type AutoGradeQuestionResult } from '@/lib/grading/auto-grade'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
@@ -1713,6 +1713,218 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [taskDmiItems, setTaskDmiItems] = useState<DMIQuestion[]>([])
     const [assessmentDmiItems, setAssessmentDmiItems] = useState<DMIQuestion[]>([])
 
+    // Assessment Test-mode preview state: shared between the Test Student and
+    // Assessment tabs so answers typed in either place are reflected in the other.
+    const [assessmentPreviewAnswers, setAssessmentPreviewAnswers] = useState<
+      Record<string, string>
+    >({})
+    const [assessmentPreviewResult, setAssessmentPreviewResult] = useState<{
+      score: number | null
+      questionResults: AutoGradeQuestionResult[] | null
+      pointsEarned: number
+      pointsPossible: number
+    } | null>(null)
+    const [assessmentPreviewRightTab, setAssessmentPreviewRightTab] = useState<
+      'lessons' | 'interactions' | 'dmi' | 'my-board'
+    >('dmi')
+
+    // Helper: renders the student-classroom right panel (Lessons/Interact/Assessment/My Board)
+    // used by both the Test Student and Assessment preview tabs.
+    const renderAssessmentPreviewRightPanel = ({
+      showCompleteButton = false,
+      onComplete,
+      result,
+    }: {
+      showCompleteButton?: boolean
+      onComplete?: () => void
+      result?: {
+        score: number | null
+        questionResults: AutoGradeQuestionResult[] | null
+        pointsEarned: number
+        pointsPossible: number
+      } | null
+    }) => {
+      const items = assessmentDmiItems
+      const tabButton = (key: 'lessons' | 'interactions' | 'dmi' | 'my-board', label: string) => (
+        <Button
+          key={key}
+          variant="ghost"
+          size="sm"
+          onClick={() => setAssessmentPreviewRightTab(key)}
+          className={cn(
+            'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
+            assessmentPreviewRightTab === key
+              ? 'bg-gray-800 text-white'
+              : 'text-gray-500 hover:bg-white hover:text-gray-900'
+          )}
+        >
+          {label}
+        </Button>
+      )
+
+      return (
+        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
+              {tabButton('lessons', 'Lessons')}
+              {tabButton('interactions', 'Interact')}
+              {tabButton('dmi', 'Assessment')}
+              {tabButton('my-board', 'My Board')}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-hidden">
+            {assessmentPreviewRightTab === 'dmi' ? (
+              <div className="h-full overflow-y-auto p-4">
+                {result && (
+                  <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                    <p className="font-semibold text-emerald-900">
+                      Assessment complete
+                      {result.score !== null && (
+                        <span className="ml-2">— Score: {result.score}%</span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 text-emerald-800">
+                      {result.pointsEarned}/{result.pointsPossible} marks
+                      {result.questionResults &&
+                        ` • ${result.questionResults.filter(r => r.correct).length} correct, ${result.questionResults.filter(r => r.needsReview).length} needs review`}
+                    </p>
+                  </div>
+                )}
+
+                {items.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    No questions in this assessment yet. Generate the DMI to preview the student
+                    answer form.
+                  </p>
+                ) : (
+                  <div className="mx-auto max-w-3xl space-y-4">
+                    {items.map((item, idx) => {
+                      const qType = normalizeDmiQuestionType(item.questionType)
+                      const prevSection = idx > 0 ? items[idx - 1]?.section : undefined
+                      const showSection = !!item.section && item.section !== prevSection
+                      return (
+                        <Fragment key={item.id}>
+                          {showSection && (
+                            <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                              {item.section}
+                            </div>
+                          )}
+                          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                            <div className="mb-2 flex items-start justify-between gap-2">
+                              <p className="text-sm font-medium text-gray-800">
+                                {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                  ? item.questionText
+                                  : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
+                              </p>
+                              <div className="flex shrink-0 items-center gap-1">
+                                {typeof item.marks === 'number' && item.marks > 0 && (
+                                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                    {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
+                                  </span>
+                                )}
+                                {qType !== 'long' && (
+                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                    {DMI_QUESTION_TYPE_LABELS[qType]}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <DmiAnswerField
+                              item={builderDmiToAnswerFieldItem(item)}
+                              value={assessmentPreviewAnswers[item.id] ?? ''}
+                              onInteract={() => {
+                                // Preview only — no live session side effects.
+                              }}
+                              onValueChange={next =>
+                                setAssessmentPreviewAnswers(prev => ({ ...prev, [item.id]: next }))
+                              }
+                            />
+                          </div>
+                        </Fragment>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex h-full items-center justify-center p-4 text-sm text-gray-500">
+                {assessmentPreviewRightTab === 'lessons'
+                  ? 'Lessons are managed by the tutor during a live session.'
+                  : assessmentPreviewRightTab === 'interactions'
+                    ? 'Interactions such as polls appear here during a live session.'
+                    : 'My Board is the student whiteboard during a live session.'}
+              </div>
+            )}
+          </div>
+
+          {showCompleteButton && (
+            <div className="flex items-center justify-end border-t border-gray-200 bg-white p-3">
+              <Button
+                onClick={onComplete}
+                disabled={items.length === 0}
+                className="rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+              >
+                Assessment Complete
+              </Button>
+            </div>
+          )}
+        </div>
+      )
+    }
+
+    const handleAssessmentComplete = useCallback(async () => {
+      const items = assessmentDmiItems
+      if (items.length === 0) return
+      try {
+        const res = await fetchWithCsrf('/api/tutor/auto-grade-preview', {
+          method: 'POST',
+          body: JSON.stringify({
+            items: items.map(item => ({
+              id: item.id,
+              answer: item.answer,
+              acceptableVariants: item.acceptableVariants,
+              questionText: item.questionText,
+              marks: item.marks,
+            })),
+            answers: assessmentPreviewAnswers,
+          }),
+        })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ error: 'Grading failed' }))
+          throw new Error(err.error || `Grading failed (${res.status})`)
+        }
+        const result = (await res.json()) as AutoGradeResult
+        setAssessmentPreviewResult({
+          score: result.score,
+          questionResults: result.questionResults,
+          pointsEarned: result.pointsEarned,
+          pointsPossible: result.pointsPossible,
+        })
+        // Show the result in the Test Student tab.
+        setTestPciActiveTab('classroom')
+      } catch (err) {
+        console.error('[handleAssessmentComplete] preview grading failed:', err)
+        toast.error(err instanceof Error ? err.message : 'Failed to grade assessment preview')
+      }
+    }, [assessmentDmiItems, assessmentPreviewAnswers, fetchWithCsrf, toast])
+
+    // Reset preview answers/result whenever a new assessment DMI is loaded so
+    // the tutor starts from a clean preview.
+    const prevAssessmentDmiItemsRef = useRef<DMIQuestion[]>([])
+    useEffect(() => {
+      const prev = prevAssessmentDmiItemsRef.current
+      const next = assessmentDmiItems
+      const prevIds = prev.map(d => d.id).join(',')
+      const nextIds = next.map(d => d.id).join(',')
+      if (prevIds !== nextIds) {
+        setAssessmentPreviewAnswers({})
+        setAssessmentPreviewResult(null)
+        setAssessmentPreviewRightTab('dmi')
+        prevAssessmentDmiItemsRef.current = next
+      }
+    }, [assessmentDmiItems])
+
     // DMI Version history (tasks only; assessments have a single DMI)
     const [taskDmiVersions, setTaskDmiVersions] = useState<DMIVersion[]>([])
     const [showDmiVersionList, setShowDmiVersionList] = useState(false)
@@ -2054,6 +2266,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         mainTab === 'live' ? testPciTabs.filter(tab => tab.id !== 'insights') : testPciTabs
       if (mainTab === 'test-pci' && testPciSource === 'assessment') {
         return tabs.map(t => {
+          if (t.id === 'classroom') return { ...t, label: 'Test Student' }
           if (t.id === 'student1') return { ...t, label: 'Assessment' }
           if (t.id === 'student2') return { ...t, label: 'Editor' }
           return t
@@ -12028,8 +12241,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             )
                                           }
 
-                                          // Assessment test-mode preview: Classroom = document only,
-                                          // Assessment (student1) = student-facing DMI answer form,
+                                          // Assessment test-mode preview:
+                                          // Test Student = two-column student classroom (doc + right panel)
+                                          // Assessment = full-width student right panel with Assessment Complete button
                                           // Editor (student2) = split document + DMI view below.
                                           if (
                                             mainTab === 'test-pci' &&
@@ -12037,109 +12251,58 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           ) {
                                             if (tab.id === 'classroom') {
                                               return (
-                                                <div className="relative min-h-0 w-full flex-1">
-                                                  {doc?.fileUrl || doc?.fileKey ? (
-                                                    <PDFViewer
-                                                      key={doc.fileUrl || doc.fileKey || 'doc'}
-                                                      fileUrl={doc.fileUrl || ''}
-                                                      fileKey={doc.fileKey}
-                                                      className="absolute inset-0 h-full w-full"
-                                                      fitToWidth
-                                                    />
-                                                  ) : (
-                                                    <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-4 text-sm">
-                                                      {doc?.extractedText || ''}
-                                                    </p>
-                                                  )}
+                                                <div className="h-full min-h-0 w-full">
+                                                  <ResizablePanelGroup
+                                                    orientation="horizontal"
+                                                    className="h-full w-full"
+                                                  >
+                                                    <ResizablePanel
+                                                      defaultSize={50}
+                                                      minSize={20}
+                                                      className="h-full"
+                                                    >
+                                                      <div className="relative h-full w-full pr-1">
+                                                        {doc?.fileUrl || doc?.fileKey ? (
+                                                          <PDFViewer
+                                                            key={
+                                                              doc.fileUrl || doc.fileKey || 'doc'
+                                                            }
+                                                            fileUrl={doc.fileUrl || ''}
+                                                            fileKey={doc.fileKey}
+                                                            className="absolute inset-0 h-full w-full"
+                                                            fitToWidth
+                                                          />
+                                                        ) : (
+                                                          <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
+                                                            {doc?.extractedText || ''}
+                                                          </p>
+                                                        )}
+                                                      </div>
+                                                    </ResizablePanel>
+                                                    <ResizableHandle withHandle />
+                                                    <ResizablePanel
+                                                      defaultSize={50}
+                                                      minSize={20}
+                                                      className="h-full"
+                                                    >
+                                                      {renderAssessmentPreviewRightPanel({
+                                                        showCompleteButton: false,
+                                                        result: assessmentPreviewResult,
+                                                      })}
+                                                    </ResizablePanel>
+                                                  </ResizablePanelGroup>
                                                 </div>
                                               )
                                             }
 
                                             if (tab.id === 'student1') {
-                                              const items = version?.items ?? []
-                                              if (items.length === 0) {
-                                                return (
-                                                  <div className="flex h-full min-h-0 w-full items-center justify-center overflow-y-auto p-4 text-sm text-slate-500">
-                                                    No questions in this assessment yet. Generate
-                                                    the DMI to preview the student answer form.
-                                                  </div>
-                                                )
-                                              }
                                               return (
-                                                <div className="h-full min-h-0 w-full overflow-y-auto bg-white p-4">
-                                                  <div className="mx-auto max-w-3xl space-y-4">
-                                                    {items.map((item, idx) => {
-                                                      const qType = normalizeDmiQuestionType(
-                                                        item.questionType
-                                                      )
-                                                      const prevSection =
-                                                        idx > 0
-                                                          ? items[idx - 1]?.section
-                                                          : undefined
-                                                      const showSection =
-                                                        !!item.section &&
-                                                        item.section !== prevSection
-                                                      return (
-                                                        <Fragment key={item.id}>
-                                                          {showSection && (
-                                                            <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                                                              {item.section}
-                                                            </div>
-                                                          )}
-                                                          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                                                            <div className="mb-2 flex items-start justify-between gap-2">
-                                                              <p className="text-sm font-medium text-gray-800">
-                                                                {/^\s*(?:question\b|\d)/i.test(
-                                                                  item.questionText
-                                                                )
-                                                                  ? item.questionText
-                                                                  : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
-                                                              </p>
-                                                              <div className="flex shrink-0 items-center gap-1">
-                                                                {typeof item.marks === 'number' &&
-                                                                  item.marks > 0 && (
-                                                                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
-                                                                      {item.marks}{' '}
-                                                                      {item.marks === 1
-                                                                        ? 'mark'
-                                                                        : 'marks'}
-                                                                    </span>
-                                                                  )}
-                                                                {qType !== 'long' && (
-                                                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                                                                    {
-                                                                      DMI_QUESTION_TYPE_LABELS[
-                                                                        qType
-                                                                      ]
-                                                                    }
-                                                                  </span>
-                                                                )}
-                                                              </div>
-                                                            </div>
-                                                            <DmiAnswerField
-                                                              item={builderDmiToAnswerFieldItem(
-                                                                item
-                                                              )}
-                                                              value={
-                                                                testDmiAnswers[
-                                                                  `${tab.id}:${item.id}`
-                                                                ] ?? ''
-                                                              }
-                                                              onInteract={() => {
-                                                                // Preview only — no live session side effects.
-                                                              }}
-                                                              onValueChange={next =>
-                                                                setTestDmiAnswers(prev => ({
-                                                                  ...prev,
-                                                                  [`${tab.id}:${item.id}`]: next,
-                                                                }))
-                                                              }
-                                                            />
-                                                          </div>
-                                                        </Fragment>
-                                                      )
-                                                    })}
-                                                  </div>
+                                                <div className="h-full min-h-0 w-full">
+                                                  {renderAssessmentPreviewRightPanel({
+                                                    showCompleteButton: true,
+                                                    onComplete: handleAssessmentComplete,
+                                                    result: null,
+                                                  })}
                                                 </div>
                                               )
                                             }
