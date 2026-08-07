@@ -906,30 +906,16 @@ function TutorDashboardContent() {
                           className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
                         >
                           <div className="min-w-0 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate font-semibold text-white">
-                                {course.nationality && course.nationality !== 'Global' ? (
-                                  <span className="inline-flex items-center gap-1">
-                                    {course.name} —{' '}
-                                    {course.variantCategory ||
-                                      (course.categories || [])[0] ||
-                                      'General'}{' '}
-                                    —{' '}
-                                    <CountryFlag
-                                      countryName={course.nationality}
-                                      size="xs"
-                                      showLabel
-                                    />
-                                  </span>
-                                ) : (
-                                  course.name
-                                )}
-                              </p>
-                            </div>
+                            <p className="truncate font-semibold text-white">{course.name}</p>
                             <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
                               <span className="text-white">
-                                {(course.categories || [])[0] || 'Untitled'}
+                                {course.variantCategory ||
+                                  (course.categories || [])[0] ||
+                                  'Untitled'}
                               </span>
+                              {course.nationality && course.nationality !== 'Global' && (
+                                <CountryFlag countryName={course.nationality} size="xs" showLabel />
+                              )}
                               {course.price ? (
                                 <span className="text-white/70">
                                   • {course.currency ?? 'USD'} {course.price}
@@ -1206,7 +1192,12 @@ function TutorDashboardContent() {
                       >
                         <div className="flex min-w-0 flex-col justify-center gap-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate font-semibold text-white">{demo.title}</p>
+                            <p className="truncate font-semibold text-white">
+                              {demo.title
+                                ?.replace(/\s*[—-]\s*Live Session$/i, '')
+                                .replace(/^Live Session\s*[—-]\s*/i, '')
+                                .trim() || 'Demo Class'}
+                            </p>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
                             <span>{demo.subject}</span>
@@ -1301,26 +1292,7 @@ function TutorDashboardContent() {
               <DialogDescription className="text-white/80">
                 {selectedCourseForCancel && (
                   <>
-                    Manage sessions for{' '}
-                    <strong>
-                      {selectedCourseForCancel.nationality &&
-                      selectedCourseForCancel.nationality !== 'Global' ? (
-                        <span className="inline-flex items-center gap-1">
-                          {selectedCourseForCancel.name} —{' '}
-                          {selectedCourseForCancel.variantCategory ||
-                            (selectedCourseForCancel.categories || [])[0] ||
-                            'General'}{' '}
-                          —{' '}
-                          <CountryFlag
-                            countryName={selectedCourseForCancel.nationality}
-                            size="xs"
-                            showLabel
-                          />
-                        </span>
-                      ) : (
-                        selectedCourseForCancel.name
-                      )}
-                    </strong>
+                    Manage sessions for <strong>{selectedCourseForCancel.name}</strong>
                   </>
                 )}
               </DialogDescription>
@@ -1415,22 +1387,7 @@ function TutorDashboardContent() {
                           <div className="min-w-0 flex-1 space-y-1">
                             <div className="flex flex-wrap items-center gap-2">
                               <p className="truncate font-medium text-gray-900">
-                                {sessionsCourseMeta?.name
-                                  ? (() => {
-                                      const [cat, nat] = sessionsCourseMeta.variantName
-                                        ? sessionsCourseMeta.variantName.split(' — ')
-                                        : []
-                                      if (nat && nat !== 'Global') {
-                                        return (
-                                          <span className="inline-flex items-center gap-1">
-                                            {sessionsCourseMeta.name} — {cat} —{' '}
-                                            <CountryFlag countryName={nat} size="xs" showLabel />
-                                          </span>
-                                        )
-                                      }
-                                      return `${sessionsCourseMeta.name}${cat ? ` — ${cat}` : ''}`
-                                    })()
-                                  : session.title}
+                                {sessionsCourseMeta?.name || session.title || 'Untitled Session'}
                               </p>
                               <Badge
                                 variant="outline"

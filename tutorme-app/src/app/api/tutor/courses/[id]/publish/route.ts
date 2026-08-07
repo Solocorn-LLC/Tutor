@@ -168,7 +168,8 @@ const DAY_MAP: Record<string, number> = {
 function generateSessionDates(
   schedule: ScheduleItem[],
   weeksAhead = 8,
-  timeZone = 'UTC'
+  timeZone = 'UTC',
+  courseName?: string
 ): Array<{ scheduledAt: Date; title: string; durationMinutes: number }> {
   const sessions: Array<{ scheduledAt: Date; title: string; durationMinutes: number }> = []
   const cutoffMs = Date.now() + 60 * 60 * 1000 // skip sessions within the next hour
@@ -207,7 +208,7 @@ function generateSessionDates(
       if (sessionDate.getTime() < cutoffMs) continue
       sessions.push({
         scheduledAt: sessionDate,
-        title: `Live Session — ${slot.date} ${slot.startTime}`,
+        title: courseName || `${slot.date} ${slot.startTime}`,
         durationMinutes: slot.durationMinutes || 60,
       })
       continue
@@ -233,7 +234,7 @@ function generateSessionDates(
       if (isNaN(sessionDate.getTime())) continue
       sessions.push({
         scheduledAt: sessionDate,
-        title: `Live Session — ${slot.dayOfWeek} ${slot.startTime}`,
+        title: courseName || `${slot.dayOfWeek} ${slot.startTime}`,
         durationMinutes: slot.durationMinutes || 60,
       })
     }
@@ -683,7 +684,8 @@ export const POST = withCsrf(
               const sessionDates = generateSessionDates(
                 scheduleItems,
                 s.weeksToSchedule || 8,
-                tutorTimeZone
+                tutorTimeZone,
+                courseName
               )
 
               // Each schedule is an independent offering that walks the whole

@@ -142,9 +142,7 @@ export default function TutorSessionInsightsPage() {
                 </button>
                 <div>
                   <h1 className="text-2xl font-bold tracking-tight text-[#344054]">
-                    {session.courseName
-                      ? `${session.courseName}${session.variantName ? ` — ${session.variantName}` : ''}`
-                      : session.title || 'Untitled Session'}
+                    {session.courseName || session.title || 'Untitled Session'}
                   </h1>
                   <p className="mt-1 text-sm text-[#7F7C77]">
                     {[
