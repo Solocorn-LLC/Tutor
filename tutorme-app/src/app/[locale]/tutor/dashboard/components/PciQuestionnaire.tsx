@@ -15,6 +15,7 @@ import { toast } from 'sonner'
 import { PCI_SPEC_FIELDS, pciSpecToText, type PciSpec } from '@/lib/assessment/pci-spec'
 import { EXAM_BOARDS } from '@/lib/assessment/marking-scheme'
 import { cn } from '@/lib/utils'
+import { WordLimitStep, buildResponseLengthPolicy } from './WordLimitStep'
 
 /**
  * Per-field help: a plain-language explanation plus a set of ready-to-use
@@ -134,12 +135,22 @@ const FIELD_HELP: Record<
     explain:
       'How the AI should answer student follow-up questions after the task is completed — including what to explain and what to avoid.',
     examples: [
-      'Answer only questions about the task and the student’s answers; explain errors without revealing the answer.',
-      'Allow follow-ups about the task; use the student’s own answers and the marking policy as the only source.',
+      "Answer only questions about the task and the student's answers; explain errors without revealing the answer.",
+      "Allow follow-ups about the task; use the student's own answers and the marking policy as the only source.",
       'Answer follow-ups briefly; if a question is off-topic, redirect the student back to the task.',
       'Use related previous tasks only when they directly help explain the current task.',
     ],
-    placeholder: 'e.g. Answer only questions about the task and the student’s answers',
+    placeholder: "e.g. Answer only questions about the task and the student's answers",
+  },
+  responseLengthPolicy: {
+    explain:
+      'Maximum word counts for textual responses, usually set from the paper or answer sheet and confirmed by you in the word-limit step.',
+    examples: [
+      'Short answers: up to 30 words; long answers: up to 150 words.',
+      '1-mark questions: 20 words; 2–3-mark questions: 80 words; 4+ marks: 200 words.',
+      'No word limits — responses may be any length.',
+    ],
+    placeholder: 'e.g. Short answers up to 30 words; long answers up to 150 words',
   },
 }
 
@@ -256,6 +267,10 @@ interface PciQuestionnaireProps {
   canEdit: boolean
   onSave: (specText: string, spec: PciSpec) => void
   onClose: () => void
+  /** Current DMI items, used by the word-limit confirmation step. */
+  dmiItems?: import('./builder-types').DMIQuestion[]
+  /** Called when the tutor confirms word limits so the parent can patch DMI items. */
+  onConfirmWordLimits?: (limits: Record<string, number | null>) => void
 }
 
 export function PciQuestionnaire({
@@ -273,9 +288,13 @@ export function PciQuestionnaire({
   canEdit,
   onSave,
   onClose,
+  dmiItems,
+  onConfirmWordLimits,
 }: PciQuestionnaireProps) {
   const [spec, setSpec] = useState<PciSpec>({})
   const [prefilling, setPrefilling] = useState(false)
+  const [activeStep, setActiveStep] = useState<'policy' | 'word-limits'>('policy')
+  const [wordLimits, setWordLimits] = useState<Record<string, number | null>>({})
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   // Set right after an upload so the auto-prefill fires once the DMI (and thus
   // the markingScheme prop) has repopulated from the parsed scheme.
@@ -350,7 +369,11 @@ export function PciQuestionnaire({
       toast.error('Fill at least one field before saving')
       return
     }
-    onSave(text, spec)
+    onConfirmWordLimits?.(wordLimits)
+    const policy = dmiItems?.length
+      ? buildResponseLengthPolicy(dmiItems, wordLimits)
+      : 'No word limits — textual responses may be any length.'
+    onSave(text, { ...spec, responseLengthPolicy: policy })
   }
 
   const filledCount = Object.keys(spec).length
@@ -433,96 +456,133 @@ export function PciQuestionnaire({
         ) : null}
       </p>
 
-      {onExamContextChange && (
-        <div
+      <div className="mb-2 flex items-center gap-1 rounded-md border border-slate-200 bg-white/70 p-1">
+        <button
+          type="button"
+          onClick={() => setActiveStep('policy')}
           className={cn(
-            'mb-3 grid gap-2 rounded-md border border-slate-200 bg-white/70 p-2',
-            // Board (AP, IB, SAT…) applies to assessments only; tasks show subject alone.
-            source === 'assessment' ? 'grid-cols-2' : 'grid-cols-1'
+            'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+            activeStep === 'policy'
+              ? 'bg-indigo-600 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
           )}
         >
-          {source === 'assessment' && (
-            <div>
-              <label
-                htmlFor={`pci-board-${source}`}
-                className="block text-[11px] font-medium text-slate-700"
-              >
-                Board
-              </label>
-              <select
-                id={`pci-board-${source}`}
-                value={board ?? ''}
-                disabled={!canEdit}
-                onChange={e => onExamContextChange({ board: e.target.value })}
-                className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
-              >
-                <option value="">—</option>
-                {EXAM_BOARDS.map(b => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
+          Marking policy
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveStep('word-limits')}
+          className={cn(
+            'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
+            activeStep === 'word-limits'
+              ? 'bg-indigo-600 text-white'
+              : 'text-slate-600 hover:bg-slate-100'
+          )}
+        >
+          Response length
+        </button>
+      </div>
+
+      {activeStep === 'policy' ? (
+        <>
+          {onExamContextChange && (
+            <div
+              className={cn(
+                'mb-3 grid gap-2 rounded-md border border-slate-200 bg-white/70 p-2',
+                // Board (AP, IB, SAT…) applies to assessments only; tasks show subject alone.
+                source === 'assessment' ? 'grid-cols-2' : 'grid-cols-1'
+              )}
+            >
+              {source === 'assessment' && (
+                <div>
+                  <label
+                    htmlFor={`pci-board-${source}`}
+                    className="block text-[11px] font-medium text-slate-700"
+                  >
+                    Board
+                  </label>
+                  <select
+                    id={`pci-board-${source}`}
+                    value={board ?? ''}
+                    disabled={!canEdit}
+                    onChange={e => onExamContextChange({ board: e.target.value })}
+                    className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
+                  >
+                    <option value="">—</option>
+                    {EXAM_BOARDS.map(b => (
+                      <option key={b} value={b}>
+                        {b}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label
+                  htmlFor={`pci-subject-${source}`}
+                  className="block text-[11px] font-medium text-slate-700"
+                >
+                  Subject / category
+                </label>
+                <input
+                  id={`pci-subject-${source}`}
+                  list={`pci-subject-list-${source}`}
+                  value={subject ?? ''}
+                  disabled={!canEdit}
+                  onChange={e => onExamContextChange({ category: e.target.value })}
+                  placeholder="Search the catalog…"
+                  className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
+                />
+                <datalist id={`pci-subject-list-${source}`}>
+                  {(categoryOptions ?? []).map(c => (
+                    <option key={c} value={c} />
+                  ))}
+                </datalist>
+              </div>
+              <p className="col-span-2 text-[10px] leading-snug text-slate-600">
+                Shared with Course details — set it here for a new course, or it shows the published
+                course&rsquo;s category. Board auto-fills from the subject; override if needed.
+              </p>
             </div>
           )}
-          <div>
-            <label
-              htmlFor={`pci-subject-${source}`}
-              className="block text-[11px] font-medium text-slate-700"
-            >
-              Subject / category
-            </label>
-            <input
-              id={`pci-subject-${source}`}
-              list={`pci-subject-list-${source}`}
-              value={subject ?? ''}
-              disabled={!canEdit}
-              onChange={e => onExamContextChange({ category: e.target.value })}
-              placeholder="Search the catalog…"
-              className="mt-0.5 w-full rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900"
-            />
-            <datalist id={`pci-subject-list-${source}`}>
-              {(categoryOptions ?? []).map(c => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
-          <p className="col-span-2 text-[10px] leading-snug text-slate-600">
-            Shared with Course details — set it here for a new course, or it shows the published
-            course&rsquo;s category. Board auto-fills from the subject; override if needed.
-          </p>
-        </div>
-      )}
 
-      <div className="space-y-2">
-        {PCI_SPEC_FIELDS.map(({ key, label }) => (
-          <div key={key}>
-            <div className="flex items-center justify-between gap-1">
-              <label
-                htmlFor={`pci-field-${source}-${key}`}
-                className="block text-[11px] font-medium text-slate-700"
-              >
-                {label}
-              </label>
-              <FieldHelp
-                explain={FIELD_HELP[key].explain}
-                examples={FIELD_HELP[key].examples}
-                disabled={!canEdit}
-                onUse={value => setField(key, value)}
-              />
-            </div>
-            <textarea
-              id={`pci-field-${source}-${key}`}
-              value={spec[key] ?? ''}
-              readOnly={!canEdit}
-              onChange={e => setField(key, e.target.value)}
-              placeholder={FIELD_HELP[key].placeholder}
-              rows={1}
-              className="mt-0.5 min-h-[32px] w-full resize-y rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900 placeholder:text-slate-500"
-            />
+          <div className="space-y-2">
+            {PCI_SPEC_FIELDS.map(({ key, label }) => (
+              <div key={key}>
+                <div className="flex items-center justify-between gap-1">
+                  <label
+                    htmlFor={`pci-field-${source}-${key}`}
+                    className="block text-[11px] font-medium text-slate-700"
+                  >
+                    {label}
+                  </label>
+                  <FieldHelp
+                    explain={FIELD_HELP[key].explain}
+                    examples={FIELD_HELP[key].examples}
+                    disabled={!canEdit}
+                    onUse={value => setField(key, value)}
+                  />
+                </div>
+                <textarea
+                  id={`pci-field-${source}-${key}`}
+                  value={spec[key] ?? ''}
+                  readOnly={!canEdit}
+                  onChange={e => setField(key, e.target.value)}
+                  placeholder={FIELD_HELP[key].placeholder}
+                  rows={1}
+                  className="mt-0.5 min-h-[32px] w-full resize-y rounded-md border border-gray-300 p-1.5 text-[11px] text-gray-900 placeholder:text-slate-500"
+                />
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      ) : (
+        <WordLimitStep
+          items={dmiItems ?? []}
+          canEdit={canEdit}
+          onChange={limits => setWordLimits(limits)}
+        />
+      )}
 
       {canEdit && (
         <div className="mt-3 flex items-center justify-between gap-2">

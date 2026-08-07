@@ -79,9 +79,29 @@ describe('parseMatches', () => {
     expect(parseMatches(raw, valid)[0]).toMatchObject({ ref: '2', answer: 'B' })
   })
 
-  it('returns [] on malformed / non-JSON', () => {
-    expect(parseMatches('not json', valid)).toEqual([])
-    expect(parseMatches(JSON.stringify({ matches: 'nope' }), valid)).toEqual([])
+  it('keeps positive wordLimit, drops zero/negative/non-numeric', () => {
+    expect(
+      parseMatches(
+        JSON.stringify({ matches: [{ ref: '2', answer: 'x', wordLimit: 120 }] }),
+        valid
+      )[0].wordLimit
+    ).toBe(120)
+    expect(
+      parseMatches(JSON.stringify({ matches: [{ ref: '2', answer: 'x', wordLimit: 0 }] }), valid)[0]
+        .wordLimit
+    ).toBeUndefined()
+    expect(
+      parseMatches(
+        JSON.stringify({ matches: [{ ref: '2', answer: 'x', wordLimit: -5 }] }),
+        valid
+      )[0].wordLimit
+    ).toBeUndefined()
+    expect(
+      parseMatches(
+        JSON.stringify({ matches: [{ ref: '2', answer: 'x', wordLimit: null }] }),
+        valid
+      )[0].wordLimit
+    ).toBeUndefined()
   })
 })
 

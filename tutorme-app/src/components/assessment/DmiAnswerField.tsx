@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect } from 'react'
 import { DrawingPad } from '@/components/answer/DrawingPad'
 import { MathText } from '@/components/answer/MathText'
 import { cn, resolvePublicUrl } from '@/lib/utils'
@@ -28,6 +28,8 @@ export interface DmiAnswerFieldItem {
   /** Right-side bank for matching / drag_drop. */
   matchBank?: string[]
   section?: string
+  /** Maximum word count for textual responses; omitted for non-text types. */
+  wordLimit?: number | null
 }
 
 function parseWrittenAnswer(value: string): {
@@ -70,6 +72,7 @@ function WrittenAnswer({
   multiline,
   placeholder,
   baseField,
+  wordLimit,
 }: {
   value: string
   onValueChange: (next: string) => void
@@ -77,15 +80,30 @@ function WrittenAnswer({
   multiline: boolean
   placeholder: string
   baseField: string
+  wordLimit?: number | null
 }) {
   const { text, converted, drawing } = parseWrittenAnswer(value)
   const [showDraw, setShowDraw] = useState(!!drawing || !!converted)
   const [converting, setConverting] = useState(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const wordCount = useMemo(() => {
+    if (!text.trim()) return 0
+    return text.trim().split(/\s+/).length
+  }, [text])
 
   const update = (nextText: string, nextConverted: string, nextDrawing: string) => {
     onInteract()
     onValueChange(serializeWrittenAnswer(nextText, nextConverted, nextDrawing))
   }
+
+  // Auto-grow the textarea to fit content without a scrollbar.
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [text])
 
   const convertHandwriting = async () => {
     if (!drawing || converting) return
@@ -118,14 +136,34 @@ function WrittenAnswer({
 
   return (
     <div className="space-y-1.5">
-      <textarea
-        value={text}
-        onFocus={onInteract}
-        onChange={e => update(e.target.value, converted, drawing)}
-        placeholder={placeholder}
-        rows={multiline ? 4 : 2}
-        className={`${multiline ? 'min-h-[96px]' : 'min-h-[56px]'} resize-y ${baseField}`}
-      />
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={text}
+          onFocus={onInteract}
+          onChange={e => update(e.target.value, converted, drawing)}
+          placeholder={placeholder}
+          rows={multiline ? 4 : 2}
+          className={cn(
+            'block w-full resize-none overflow-hidden',
+            multiline ? 'min-h-[96px]' : 'min-h-[56px]',
+            baseField
+          )}
+        />
+        <span
+          className={cn(
+            'absolute bottom-1.5 right-2 text-[10px] font-medium tabular-nums',
+            wordLimit && wordCount > wordLimit
+              ? 'text-red-500'
+              : wordLimit && wordCount >= wordLimit * 0.9
+                ? 'text-amber-500'
+                : 'text-gray-400'
+          )}
+        >
+          {wordCount}
+          {typeof wordLimit === 'number' ? ` / ${wordLimit}` : ''} words
+        </span>
+      </div>
 
       {converted && (
         <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2">
@@ -290,6 +328,7 @@ export function DmiAnswerField({
         multiline={false}
         placeholder={type === 'fill_blank' ? 'Fill in the blank…' : 'Type your answer…'}
         baseField={baseField}
+        wordLimit={item.wordLimit}
       />
     )
   }
@@ -554,6 +593,7 @@ export function DmiAnswerField({
       multiline
       placeholder="Type your answer…"
       baseField={baseField}
+      wordLimit={item.wordLimit}
     />
   )
 }
@@ -585,5 +625,6 @@ export function builderDmiToAnswerFieldItem(item: DMIQuestion): DmiAnswerFieldIt
     matchPrompts,
     matchBank,
     section: item.section,
+    wordLimit: item.wordLimit,
   }
 }

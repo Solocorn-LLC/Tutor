@@ -116,6 +116,7 @@ export function useDmiEditor(deps: DmiEditorDeps) {
       answer: partial.answer?.trim() || '',
       questionType: (partial.questionType as DMIQuestion['questionType']) ?? 'short',
       marks: typeof partial.marks === 'number' && partial.marks >= 0 ? partial.marks : 1,
+      wordLimit: partial.wordLimit ?? null,
       rubric: partial.rubric,
       acceptableVariants: partial.acceptableVariants,
       options: partial.options,
