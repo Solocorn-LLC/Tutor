@@ -1218,8 +1218,8 @@ function TutorDashboardContent() {
                             )}
                           </div>
                         </div>
-                        <div className="h-16 w-[480px] self-center rounded-md bg-white px-3 py-2">
-                          <p className="line-clamp-3 text-xs text-gray-700">
+                        <div className="h-10 w-[480px] self-center rounded-md bg-white px-3 py-2">
+                          <p className="line-clamp-1 text-xs text-gray-700">
                             {demo.description || 'No description'}
                           </p>
                         </div>
