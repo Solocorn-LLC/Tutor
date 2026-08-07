@@ -2976,6 +2976,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const loadTaskIntoBuilder = useCallback(
       (task: Task, activeExtensionId: string | null = null) => {
+        // Avoid reloading the same task/extension: repeated sidebar clicks (and
+        // tab switches that land back on the same item) would otherwise reset the
+        // document/PDF viewer state and trigger a fresh load of the source doc.
+        if (loadedTaskId === task.id && taskBuilder.activeExtensionId === activeExtensionId) {
+          return
+        }
+
         // Prioritize description over sourceDocument - description holds edited content
         const content = task.description || task.sourceDocument?.extractedText || ''
         setTaskBuilder({
@@ -3032,65 +3039,73 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setTaskSourceDocument(task.sourceDocument)
         setTaskBuilderActiveTab('content')
       },
-      []
+      [loadedTaskId, taskBuilder.activeExtensionId]
     )
 
     // Load assessment data into assessmentBuilder
-    const loadAssessmentIntoBuilder = useCallback((assessment: Assessment) => {
-      const fallbackContent =
-        assessment.description || assessment.sourceDocument?.extractedText || ''
-      const pages =
-        assessment.pages && assessment.pages.length > 0 ? assessment.pages : [fallbackContent]
-      // Legacy single-DMI migration: old courses may store the DMI inside a
-      // one-entry `dmiVersions` array. Prefer the new flat fields if present.
-      const legacyVersion = assessment.dmiVersions?.length
-        ? (assessment.dmiVersions.find(v => v.id === assessment.activeDmiVersionId) ??
-          assessment.dmiVersions[0])
-        : null
-      const migratedDmiItems =
-        assessment.dmiItems && assessment.dmiItems.length > 0
-          ? assessment.dmiItems
-          : (legacyVersion?.items ?? [])
-      setAssessmentBuilder({
-        title: assessment.title || '',
-        taskContent: pages.join('\n\n---PAGE BREAK---\n\n'),
-        taskPci: assessment.instructions || '',
-        pciSpec: assessment.pciSpec,
-        pciHistory: assessment.pciHistory,
-        pciThread: assessment.pciThread,
-        details: '',
-        sourceDocument: assessment.sourceDocument,
-        extensions: [],
-        activeExtensionId: null,
-        pages,
-        activePageIndex: 0,
-        dmiExamBody: assessment.dmiExamBody ?? legacyVersion?.examBody ?? undefined,
-        dmiSubject: assessment.dmiSubject ?? legacyVersion?.subject ?? undefined,
-      })
-      setAssessmentDmiItems(migratedDmiItems)
-      // Rehydrate the DMI source kind so the PCI-chat study-material variant
-      // applies for a returning tutor, not just in the generation session.
-      setDmiDocumentKind(prev => ({
-        ...prev,
-        // Backfill pre-fix DMIs (no saved kind) from answer provenance.
-        assessment:
-          assessment.documentKind ??
-          inferDocumentKindFromProvenance((migratedDmiItems ?? []).map(i => i.answerProvenance)),
-      }))
-      setTestPciSource('assessment')
-      setTestPciViewMode(migratedDmiItems.length > 0 ? 'dmi' : 'pdf')
-      setLoadedAssessmentId(assessment.id)
-      setAssessmentUploadedFiles(
-        assessment.sourceDocument
-          ? [{ id: 'source', name: assessment.sourceDocument.fileName }]
-          : []
-      )
-      setAssessmentSourceDocument(assessment.sourceDocument)
-      setAssessmentSourceReferenceOnly(false)
-      setAssessmentBuilderActiveTab('content')
-    }, [])
+    const loadAssessmentIntoBuilder = useCallback(
+      (assessment: Assessment) => {
+        // Avoid reloading the same assessment: repeated sidebar clicks (and tab
+        // switches that land back on the same item) would otherwise reset the
+        // document/PDF viewer state and trigger a fresh load of the source doc.
+        if (loadedAssessmentId === assessment.id) {
+          return
+        }
 
-    // Multi-page assessment slide actions
+        const fallbackContent =
+          assessment.description || assessment.sourceDocument?.extractedText || ''
+        const pages =
+          assessment.pages && assessment.pages.length > 0 ? assessment.pages : [fallbackContent]
+        // Legacy single-DMI migration: old courses may store the DMI inside a
+        // one-entry `dmiVersions` array. Prefer the new flat fields if present.
+        const legacyVersion = assessment.dmiVersions?.length
+          ? (assessment.dmiVersions.find(v => v.id === assessment.activeDmiVersionId) ??
+            assessment.dmiVersions[0])
+          : null
+        const migratedDmiItems =
+          assessment.dmiItems && assessment.dmiItems.length > 0
+            ? assessment.dmiItems
+            : (legacyVersion?.items ?? [])
+        setAssessmentBuilder({
+          title: assessment.title || '',
+          taskContent: pages.join('\n\n---PAGE BREAK---\n\n'),
+          taskPci: assessment.instructions || '',
+          pciSpec: assessment.pciSpec,
+          pciHistory: assessment.pciHistory,
+          pciThread: assessment.pciThread,
+          details: '',
+          sourceDocument: assessment.sourceDocument,
+          extensions: [],
+          activeExtensionId: null,
+          pages,
+          activePageIndex: 0,
+          dmiExamBody: assessment.dmiExamBody ?? legacyVersion?.examBody ?? undefined,
+          dmiSubject: assessment.dmiSubject ?? legacyVersion?.subject ?? undefined,
+        })
+        setAssessmentDmiItems(migratedDmiItems)
+        // Rehydrate the DMI source kind so the PCI-chat study-material variant
+        // applies for a returning tutor, not just in the generation session.
+        setDmiDocumentKind(prev => ({
+          ...prev,
+          // Backfill pre-fix DMIs (no saved kind) from answer provenance.
+          assessment:
+            assessment.documentKind ??
+            inferDocumentKindFromProvenance((migratedDmiItems ?? []).map(i => i.answerProvenance)),
+        }))
+        setTestPciSource('assessment')
+        setTestPciViewMode(migratedDmiItems.length > 0 ? 'dmi' : 'pdf')
+        setLoadedAssessmentId(assessment.id)
+        setAssessmentUploadedFiles(
+          assessment.sourceDocument
+            ? [{ id: 'source', name: assessment.sourceDocument.fileName }]
+            : []
+        )
+        setAssessmentSourceDocument(assessment.sourceDocument)
+        setAssessmentSourceReferenceOnly(false)
+        setAssessmentBuilderActiveTab('content')
+      },
+      [loadedAssessmentId]
+    )
     const addAssessmentPage = useCallback(() => {
       setAssessmentBuilder(prev => {
         const nextIndex = prev.pages.length
