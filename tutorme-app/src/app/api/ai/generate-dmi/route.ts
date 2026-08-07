@@ -78,7 +78,7 @@ Return ONLY a JSON object (no prose, no markdown, no code fences) with EXACTLY t
 {
   "documentKind": "question_paper" | "study_material" | "uncertain",
   "fields": [
-    { "label": "Question 1(a)", "type": "short", "marks": 2, "answer": "7", "rubric": "Award 1 mark for method, 1 mark for correct final answer." },
+    { "label": "Question 1(a)", "type": "short", "marks": 2, "answer": "7", "rubric": "Award 1 mark for method, 1 mark for correct final answer.", "wordLimit": 20 },
     { "label": "Question 2", "type": "mcq", "options": ["A", "B", "C", "D", "E"], "answer": "C", "marks": 1 }
   ]
 }
@@ -160,6 +160,15 @@ Rules:
     for short/fill_blank the expected answer; for long a concise model answer.
   - "rubric" = one short sentence of marking guidance for open-ended (short/long) items, grounded in the
     document's own instructions or mark allocations. Empty string when none can be inferred.
+- "wordLimit": a recommended MAXIMUM word count for the student's response. ONLY include it for textual
+  response types: "short", "long", and "fill_blank". OMIT it entirely for mcq, true_false, multiple_response,
+  matching, ordering, hotspot, and drag_drop.
+  - If the paper explicitly states a word count ("in no more than N words", "write about N words"), use that.
+  - If there is no explicit instruction but the response is textual, infer an optimal limit from the marks
+    and expected depth: ~20 words for 1-mark short answers, ~50–80 words for 2–3-mark short answers,
+    ~100–250 words for longer explanations/essays. Keep the value realistic for the marks allocated.
+  - If the response genuinely needs to be paragraph-length and no word guidance is present, set "wordLimit" to null
+    or omit it, so the field grows freely.
 
 EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b). Correct JSON:
 {"documentKind":"question_paper","fields":[
@@ -191,6 +200,7 @@ interface ParsedDmiQuestion {
   answer: string
   marks?: number
   rubric?: string
+  wordLimit?: number | null
   questionType: DmiQuestionType
   options?: string[]
   pairs?: { left: string; right: string }[]
@@ -251,6 +261,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         responseType?: unknown
         sourceDependencies?: unknown
         rubric?: unknown
+        wordLimit?: unknown
       }>
     }
     if (!Array.isArray(obj.fields) || obj.fields.length === 0) return null
@@ -288,6 +299,13 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         // a clean letter even if the model returned "C) Paris" or the option text.
         const answerStr = qType === 'mcq' ? normalizeMcqAnswer(rawAnswer, options) : rawAnswer
         const rubricStr = String(f.rubric ?? '').trim()
+        const rawWordLimit = f.wordLimit === null ? null : Number(f.wordLimit)
+        const wordLimit =
+          f.wordLimit === null
+            ? null
+            : Number.isFinite(rawWordLimit) && (rawWordLimit as number) > 0
+              ? Math.round(rawWordLimit as number)
+              : undefined
         return {
           questionNumber: i + 1,
           questionLabel: extractQuestionRef(label),
@@ -295,6 +313,7 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           answer: answerStr,
           marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
           rubric: rubricStr || undefined,
+          wordLimit,
           questionType: qType,
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
@@ -615,6 +634,7 @@ export async function POST(request: NextRequest) {
     // model didn't return usable JSON.
     const parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
     const { documentKind: modelKind, questions } = parsedResult
+    console.log('[generate-dmi] parsed questions:', questions.length, { modelKind })
 
     // Tag AI-generated answers so the builder can distinguish them from tutor-edited
     // or uploaded-marking-scheme answers.

@@ -325,14 +325,17 @@ export class CourseBuilderService {
         // Server-side enforcement of the delete guard (the builder blocks this
         // client-side, but a direct save must not slip a deployed lesson
         // through). DeployedMaterial.lessonId has no FK cascade, so removing a
-        // deployed lesson would orphan references.
+        // deployed lesson would orphan references. Instead of rejecting the
+        // whole save, preserve deployed lessons and only soft-delete the rest.
+        let safeToDeleteIds = idsToDelete
         if (guardDeletions) {
           const usage = await getLessonUsage(courseId, idsToDelete)
           const blocked = idsToDelete.filter(id => usage[id]?.hasDeployments)
           if (blocked.length > 0) {
-            throw new Error(
-              `${LESSON_DEPLOYED_ERROR}: cannot delete ${blocked.length} lesson(s) with material ` +
-                `deployed from them in a class. Remove or reassign the deployed tasks/assessments first.`
+            safeToDeleteIds = idsToDelete.filter(id => !blocked.includes(id))
+            console.warn(
+              `[CourseBuilderService] Preserving ${blocked.length} lesson(s) with deployed material ` +
+                `instead of deleting: ${blocked.join(', ')}`
             )
           }
         }
@@ -340,11 +343,13 @@ export class CourseBuilderService {
         // filters isNull(deletedAt), so the lesson leaves the tree while its row
         // — and any DeployedMaterial / progress / submission that references its
         // id — stays intact and recoverable.
-        softDeletedIds = idsToDelete
-        await tx
-          .update(courseLesson)
-          .set({ deletedAt: new Date() })
-          .where(inArray(courseLesson.lessonId, idsToDelete))
+        if (safeToDeleteIds.length > 0) {
+          softDeletedIds = safeToDeleteIds
+          await tx
+            .update(courseLesson)
+            .set({ deletedAt: new Date() })
+            .where(inArray(courseLesson.lessonId, safeToDeleteIds))
+        }
       }
 
       for (const [idx, les] of incomingLessons.entries()) {

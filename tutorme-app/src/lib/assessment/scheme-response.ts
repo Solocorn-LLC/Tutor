@@ -13,6 +13,8 @@ export interface SchemeMatch {
   variants?: string[]
   marks?: number
   rubric?: string
+  /** Recommended maximum word count for textual responses. */
+  wordLimit?: number | null
   /** True when this reference is NOT among the DMI's questions — a candidate new
    *  row the tutor can add. */
   extra?: boolean
@@ -59,6 +61,7 @@ export function parseMatches(raw: string, validRefs: Map<string, string>): Schem
         variants?: unknown
         marks?: unknown
         rubric?: unknown
+        wordLimit?: unknown
       }>
     }
     if (!Array.isArray(obj.matches)) return []
@@ -99,6 +102,12 @@ export function parseMatches(raw: string, validRefs: Map<string, string>): Schem
         variants: variants.length > 0 ? variants : undefined,
         marks,
         rubric: rubric || undefined,
+        wordLimit:
+          m?.wordLimit === null || m?.wordLimit === undefined
+            ? undefined
+            : Number.isFinite(Number(m.wordLimit)) && Number(m.wordLimit) > 0
+              ? Math.round(Number(m.wordLimit))
+              : undefined,
         ...(isExtra ? { extra: true } : {}),
       })
     }
