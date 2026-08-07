@@ -76,6 +76,7 @@ import type {
   ChatMessage,
 } from '@/lib/socket'
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
+import { type AutoGradeQuestionResult } from '@/lib/grading/auto-grade'
 import { TaskAiHelper } from './TaskAiHelper'
 import {
   TestTaskChat,
@@ -1760,6 +1761,44 @@ function StudentFeedbackContent() {
       }
     }
 
+    const handleTaskGraded = (payload: {
+      taskId: string
+      studentId: string
+      score: number | null
+      questionResults: AutoGradeQuestionResult[] | null
+      correctAnswers?: Record<string, string> | null
+    }) => {
+      if (payload.studentId !== session?.user?.id) return
+      const results = payload.questionResults
+      const parts: string[] = []
+      if (typeof payload.score === 'number') {
+        parts.push(`Score: ${payload.score}%`)
+      }
+      if (Array.isArray(results)) {
+        const earned = results.reduce((sum, r) => sum + (r.pointsEarned ?? 0), 0)
+        const possible = results.reduce((sum, r) => sum + (r.pointsMax ?? 0), 0)
+        const correct = results.filter(r => r.correct).length
+        const review = results.filter(r => r.needsReview).length
+        if (possible > 0) parts.push(`${earned}/${possible} marks`)
+        if (correct > 0) parts.push(`${correct} correct`)
+        if (review > 0) parts.push(`${review} needs review`)
+      }
+      const text =
+        parts.length > 0
+          ? `Assessment complete — ${parts.join(' • ')}`
+          : 'Assessment complete — your submission has been received.'
+      const aiMessage: ChatMessage = {
+        id: `graded-${payload.taskId}-${Date.now()}`,
+        userId: 'ai-tutor',
+        name: 'AI Tutor',
+        text,
+        timestamp: Date.now(),
+        isAI: true,
+      }
+      setChatMessages(prev => [...prev.slice(-19), aiMessage])
+      toast.success(text)
+    }
+
     const handleTutorWhiteboardUpdate = (board: {
       pages?: any[]
       pageIndex?: number
@@ -1796,6 +1835,7 @@ function StudentFeedbackContent() {
     socket.on('student:direct_message', handleStudentDirectMessage)
     socket.on('homework:received', handleHomeworkReceived)
     socket.on('task:completed', handleTaskCompleted)
+    socket.on('task:graded', handleTaskGraded)
     socket.on('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
     socket.on('whiteboard:state:response', handleWhiteboardStateResponse)
 
@@ -1809,6 +1849,7 @@ function StudentFeedbackContent() {
       socket.off('student:direct_message', handleStudentDirectMessage)
       socket.off('homework:received', handleHomeworkReceived)
       socket.off('task:completed', handleTaskCompleted)
+      socket.off('task:graded', handleTaskGraded)
       socket.off('tutor:whiteboard:update', handleTutorWhiteboardUpdate)
       socket.off('whiteboard:state:response', handleWhiteboardStateResponse)
     }
@@ -2863,6 +2904,46 @@ function StudentFeedbackContent() {
                       subject={sessionContext?.courseCategory || 'General'}
                     />
                   )}
+
+                  {activeTask &&
+                    Array.isArray(activeTask.dmiItems) &&
+                    activeTask.dmiItems.length > 0 && (
+                      <div className="flex justify-end pt-2">
+                        <Button
+                          className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                          disabled={!activeTaskId || !socket || !selectedSessionId}
+                          onClick={() => {
+                            if (!activeTaskId || !socket || !selectedSessionId) return
+                            const answers = (activeTask.dmiItems ?? []).reduce(
+                              (acc, item) => {
+                                const a = taskAnswers[item.id]
+                                if (a && a.trim()) acc[item.id] = a.trim()
+                                return acc
+                              },
+                              {} as Record<string, string>
+                            )
+                            socket
+                              .timeout(20000)
+                              .emit(
+                                'task:complete',
+                                { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                                (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                                  if (err || !resp?.ok) {
+                                    toast.error(
+                                      resp?.error ||
+                                        'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                    )
+                                    return
+                                  }
+                                  toast.success('Assessment submitted')
+                                }
+                              )
+                          }}
+                        >
+                          Assessment Complete
+                        </Button>
+                      </div>
+                    )}
                 </div>
               ) : rightPanelTab === 'my-board' ? (
                 <div className="flex h-full min-h-0 flex-col overflow-hidden">
