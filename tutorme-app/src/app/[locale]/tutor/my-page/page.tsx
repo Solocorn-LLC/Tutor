@@ -58,6 +58,7 @@ import {
   ExternalLink,
   Settings,
   CalendarClock,
+  Play,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
@@ -168,11 +169,29 @@ interface Course {
   variantCategory?: string | null
 }
 
+interface DemoClass {
+  id: string
+  courseId?: string | null
+  title: string
+  description?: string | null
+  status: string
+  sessionType?: string | null
+  scheduledAt?: string | null
+  createdAt?: string | null
+  startedAt?: string | null
+  endedAt?: string | null
+  duration?: number | null
+  maxStudents?: number | null
+  enrolledStudents?: number
+}
+
 function MyCoursesSection() {
   const [courses, setCourses] = useState<Course[]>([])
+  const [demoClasses, setDemoClasses] = useState<DemoClass[]>([])
+  const [demoLoading, setDemoLoading] = useState(false)
   const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'active' | 'pending' | 'unpublished' | 'catalogued'>(
+  const [activeTab, setActiveTab] = useState<'active' | 'enrolling' | 'catalogued' | 'demoClasses'>(
     'active'
   )
   const [isExpanded, setIsExpanded] = useState(true)
@@ -181,17 +200,19 @@ function MyCoursesSection() {
   const [measuredMaxHeight, setMeasuredMaxHeight] = useState(400)
   const measureRefs = {
     active: useRef<HTMLDivElement>(null),
-    pending: useRef<HTMLDivElement>(null),
-    unpublished: useRef<HTMLDivElement>(null),
+    enrolling: useRef<HTMLDivElement>(null),
     catalogued: useRef<HTMLDivElement>(null),
+    demoClasses: useRef<HTMLDivElement>(null),
   }
   const router = useRouter()
+  const params = useParams<{ locale?: string }>()
+  const locale = typeof params?.locale === 'string' ? params.locale : 'en'
 
   const TAB_LABELS: Record<typeof activeTab, string> = {
     active: 'Active',
-    pending: 'Pending',
-    unpublished: 'Templates',
+    enrolling: 'Enrolling',
     catalogued: 'Catalogued',
+    demoClasses: 'Demo Classes',
   }
 
   const loadCourses = useCallback(async () => {
@@ -212,29 +233,41 @@ function MyCoursesSection() {
     }
   }, [])
 
+  const loadDemoClasses = useCallback(async () => {
+    setDemoLoading(true)
+    try {
+      const res = await fetch('/api/tutor/classes?includeDemoClasses=1&includeEnded=1', {
+        credentials: 'include',
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setDemoClasses(
+          (data.classes || []).filter((c: DemoClass) => c.sessionType === 'GO_LIVE_DEMO')
+        )
+      }
+    } catch {
+      toast.error('Failed to load demo classes')
+    } finally {
+      setDemoLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     loadCourses()
-  }, [loadCourses])
+    loadDemoClasses()
+  }, [loadCourses, loadDemoClasses])
 
   // Measure the tallest category list so the panel height stays stable across tabs.
   useEffect(() => {
     if (loading) return
     const heights = [
       measureRefs.active.current?.scrollHeight ?? 0,
-      measureRefs.pending.current?.scrollHeight ?? 0,
-      measureRefs.unpublished.current?.scrollHeight ?? 0,
+      measureRefs.enrolling.current?.scrollHeight ?? 0,
       measureRefs.catalogued.current?.scrollHeight ?? 0,
     ]
     const maxHeight = Math.max(...heights)
     setMeasuredMaxHeight(Math.max(400, Math.min(720, maxHeight)))
-  }, [
-    loading,
-    courses,
-    measureRefs.active,
-    measureRefs.pending,
-    measureRefs.unpublished,
-    measureRefs.catalogued,
-  ])
+  }, [loading, courses, measureRefs.active, measureRefs.enrolling, measureRefs.catalogued])
 
   const handleDeleteCourse = async (course: Course) => {
     if (!confirm('Are you sure you want to delete this course?')) return
@@ -300,26 +333,23 @@ function MyCoursesSection() {
   // Categorize courses based on session status
   const categorizeCourses = useMemo(() => {
     const active: Course[] = []
-    const pending: Course[] = []
-    const unpublished: Course[] = []
+    const enrolling: Course[] = []
     const catalogued: Course[] = []
 
     for (const course of courses) {
-      if (!course.isPublished) {
-        unpublished.push(course)
-      } else if (!course.upcomingSessionsCount && (course.hasSessions || course.hasStudents)) {
+      if (!course.upcomingSessionsCount && (course.hasSessions || course.hasStudents)) {
         // Course was published and had sessions or students in the past,
         // but has no upcoming sessions
         catalogued.push(course)
       } else if (!course.lastSessionDate) {
         // Published but has not completed a session yet (enrollment period)
-        pending.push(course)
+        enrolling.push(course)
       } else {
         active.push(course)
       }
     }
 
-    return { active, pending, unpublished, catalogued }
+    return { active, enrolling, catalogued }
   }, [courses])
 
   // Filter courses based on tab
@@ -327,12 +357,12 @@ function MyCoursesSection() {
     switch (activeTab) {
       case 'active':
         return categorizeCourses.active
-      case 'pending':
-        return categorizeCourses.pending
-      case 'unpublished':
-        return categorizeCourses.unpublished
+      case 'enrolling':
+        return categorizeCourses.enrolling
       case 'catalogued':
         return categorizeCourses.catalogued
+      case 'demoClasses':
+        return []
       default:
         return []
     }
@@ -341,12 +371,84 @@ function MyCoursesSection() {
   const courseCounts = useMemo(
     () => ({
       active: categorizeCourses.active.length,
-      pending: categorizeCourses.pending.length,
-      unpublished: categorizeCourses.unpublished.length,
+      enrolling: categorizeCourses.enrolling.length,
       catalogued: categorizeCourses.catalogued.length,
+      demoClasses: demoClasses.length,
     }),
-    [categorizeCourses]
+    [categorizeCourses, demoClasses]
   )
+
+  const renderDemoClassRow = (demo: DemoClass) => {
+    const live = ['live', 'active', 'preparing'].includes(demo.status)
+    const isScheduled = demo.status === 'scheduled'
+    const formattedDate = demo.scheduledAt
+      ? new Date(demo.scheduledAt).toLocaleString()
+      : 'No schedule'
+    return (
+      <div
+        key={demo.id}
+        className="rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+      >
+        <div className="flex items-stretch gap-4">
+          {/* Left: title + metadata */}
+          <div className="flex w-[220px] min-w-0 flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <h4 className="truncate font-medium text-white">{demo.title || 'Demo Lesson'}</h4>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-xs font-medium',
+                  live
+                    ? 'bg-emerald-50 text-emerald-600'
+                    : isScheduled
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'bg-gray-100 text-gray-600'
+                )}
+              >
+                {live ? 'Live' : isScheduled ? 'Scheduled' : 'Ended'}
+              </span>
+            </div>
+            <p className="mt-0.5 text-xs text-slate-300">{formattedDate}</p>
+            {demo.enrolledStudents !== undefined && (
+              <p className="mt-0.5 text-xs text-slate-400">
+                {demo.enrolledStudents} enrolled
+                {demo.maxStudents ? ` / ${demo.maxStudents} max` : ''}
+              </p>
+            )}
+          </div>
+
+          {/* Middle: description */}
+          {demo.description ? (
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full rounded-md bg-white p-3 text-sm text-[#36454F]">
+                {demo.description}
+              </div>
+            </div>
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full rounded-md border border-dashed border-white/30 p-3 text-sm text-slate-400">
+                No description provided.
+              </div>
+            </div>
+          )}
+
+          {/* Right: action buttons */}
+          <div className="flex w-[180px] shrink-0 items-center justify-end">
+            <div className="flex items-center divide-x divide-white/20">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push(`/${locale}/call/${encodeURIComponent(demo.id)}`)}
+                className="text-slate-200 hover:bg-white/10 hover:text-white"
+              >
+                <Play className="mr-1 h-4 w-4" />
+                View
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const renderCourseRow = (course: Course, tab: typeof activeTab) => {
     const hasDesc = course.isPublished && course.description
@@ -356,109 +458,111 @@ function MyCoursesSection() {
         key={course.id}
         className="rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
       >
-        {(() => {
-          return (
-            <div className="flex items-center gap-4">
-              {/* Left: title + metadata */}
-              <div className="flex min-w-0 flex-col justify-center">
-                <div className="flex items-center gap-2">
-                  <h4 className="truncate font-medium text-white">{course.name}</h4>
-                  {tab === 'catalogued' ? (
-                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      Catalogued
-                    </span>
-                  ) : course.isPublished ? (
-                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                      Published
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-                      Draft
-                    </span>
-                  )}
-                </div>
-                {showNationality && (
-                  <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-blue-400">
-                    {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
-                    <CountryFlag countryName={course.nationality} size="xs" showLabel />
-                  </p>
-                )}
-                <p className="mt-0.5 text-xs text-slate-300">
-                  {showNationality
-                    ? `${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`
-                    : `${(course.categories || [])[0] || 'Untitled'} • ${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`}
-                </p>
-                {tab === 'catalogued' && course.lastSessionDate && (
-                  <p className="mt-0.5 text-xs text-slate-400">
-                    Last session: {new Date(course.lastSessionDate).toLocaleDateString()}
-                  </p>
-                )}
-              </div>
-
-              {/* Middle: description */}
-              {hasDesc && (
-                <>
-                  <div className="h-8 w-px bg-white/20" />
-                  <p className="min-w-0 flex-1 truncate text-sm text-slate-300">
-                    {course.description}
-                  </p>
-                </>
+        <div className="flex items-stretch gap-4">
+          {/* Left: title + metadata */}
+          <div className="flex w-[220px] min-w-0 flex-col justify-center">
+            <div className="flex items-center gap-2">
+              <h4 className="truncate font-medium text-white">{course.name}</h4>
+              {tab === 'catalogued' ? (
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                  Catalogued
+                </span>
+              ) : course.isPublished ? (
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                  Published
+                </span>
+              ) : (
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
+                  Draft
+                </span>
               )}
+            </div>
+            {showNationality && (
+              <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-blue-400">
+                {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
+                <CountryFlag countryName={course.nationality} size="xs" showLabel />
+              </p>
+            )}
+            <p className="mt-0.5 text-xs text-slate-300">
+              {showNationality
+                ? `${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`
+                : `${(course.categories || [])[0] || 'Untitled'} • ${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`}
+            </p>
+            {tab === 'catalogued' && course.lastSessionDate && (
+              <p className="mt-0.5 text-xs text-slate-400">
+                Last session: {new Date(course.lastSessionDate).toLocaleDateString()}
+              </p>
+            )}
+          </div>
 
-              {/* Right: action buttons */}
-              <div className="h-8 w-px bg-white/20" />
-              <div className="flex shrink-0 items-center divide-x divide-white/20">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const prefix = window.location.pathname.replace(/\/tutor\/my-page\/?$/, '')
-                    router.push(`${prefix}/tutor/insights?tab=builder&courseId=${course.id}`)
-                  }}
-                  className="text-blue-400 hover:bg-white/10 hover:text-white"
-                >
-                  <Edit3 className="mr-1 h-4 w-4" />
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setScheduleCourse({ id: course.id, name: course.name })}
-                  className="text-slate-200 hover:bg-white/10 hover:text-white"
-                >
-                  <CalendarClock className="mr-1 h-4 w-4" />
-                  Schedule
-                </Button>
-                {tab !== 'catalogued' && !course.isPublished && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handlePublishCourse(course)}
-                    className="text-emerald-400 hover:bg-white/10 hover:text-white"
-                  >
-                    <Eye className="mr-1 h-4 w-4" />
-                    Publish
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={course.studentCount ? course.studentCount > 0 : false}
-                  title={
-                    course.studentCount && course.studentCount > 0
-                      ? 'Cannot delete a course with enrolled students'
-                      : undefined
-                  }
-                  onClick={() => handleDeleteCourse(course)}
-                  className="text-red-400 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  <Trash2 className="mr-1 h-4 w-4" />
-                  Delete
-                </Button>
+          {/* Middle: description */}
+          {hasDesc ? (
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full rounded-md bg-white p-3 text-sm text-[#36454F]">
+                {course.description}
               </div>
             </div>
-          )
-        })()}
+          ) : (
+            <div className="flex min-w-0 flex-1 items-center">
+              <div className="w-full rounded-md border border-dashed border-white/30 p-3 text-sm text-slate-400">
+                No description provided.
+              </div>
+            </div>
+          )}
+
+          {/* Right: action buttons */}
+          <div className="flex w-[180px] shrink-0 items-center justify-end">
+            <div className="flex items-center divide-x divide-white/20">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const prefix = window.location.pathname.replace(/\/tutor\/my-page\/?$/, '')
+                  router.push(`${prefix}/tutor/insights?tab=builder&courseId=${course.id}`)
+                }}
+                className="text-blue-400 hover:bg-white/10 hover:text-white"
+              >
+                <Edit3 className="mr-1 h-4 w-4" />
+                Edit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setScheduleCourse({ id: course.id, name: course.name })}
+                className="text-slate-200 hover:bg-white/10 hover:text-white"
+              >
+                <CalendarClock className="mr-1 h-4 w-4" />
+                Schedule
+              </Button>
+              {tab !== 'catalogued' && !course.isPublished && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handlePublishCourse(course)}
+                  className="text-emerald-400 hover:bg-white/10 hover:text-white"
+                >
+                  <Eye className="mr-1 h-4 w-4" />
+                  Publish
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={course.studentCount ? course.studentCount > 0 : false}
+                title={
+                  course.studentCount && course.studentCount > 0
+                    ? 'Cannot delete a course with enrolled students'
+                    : undefined
+                }
+                onClick={() => handleDeleteCourse(course)}
+                className="text-red-400 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <Trash2 className="mr-1 h-4 w-4" />
+                Delete
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -483,7 +587,7 @@ function MyCoursesSection() {
         <CardContent spacing="none" className="space-y-4 px-5 pb-5">
           {/* Tabs */}
           <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
-            {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
+            {(['active', 'enrolling', 'catalogued', 'demoClasses'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -511,7 +615,22 @@ function MyCoursesSection() {
             )}
             style={isExpanded ? { height: measuredMaxHeight } : undefined}
           >
-            {loading ? (
+            {activeTab === 'demoClasses' ? (
+              demoLoading ? (
+                <div className="flex h-full items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
+                </div>
+              ) : demoClasses.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <Play className="h-12 w-12 text-[#CBD5E1]" />
+                  <p className="mt-2 text-sm text-[#64748B]">No demo classes</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {demoClasses.slice(0, 10).map(demo => renderDemoClassRow(demo))}
+                </div>
+              )
+            ) : loading ? (
               <div className="flex h-full items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
               </div>
@@ -521,11 +640,9 @@ function MyCoursesSection() {
                 <p className="mt-2 text-sm text-[#64748B]">
                   {activeTab === 'active'
                     ? 'No active courses yet'
-                    : activeTab === 'pending'
-                      ? 'No pending courses'
-                      : activeTab === 'unpublished'
-                        ? 'No templates'
-                        : 'No catalogued courses'}
+                    : activeTab === 'enrolling'
+                      ? 'No enrolling courses'
+                      : 'No catalogued courses'}
                 </p>
               </div>
             ) : (
@@ -541,7 +658,7 @@ function MyCoursesSection() {
             aria-hidden="true"
           >
             <div className="px-5 pb-5">
-              {(['active', 'pending', 'unpublished', 'catalogued'] as const).map(tab => (
+              {(['active', 'enrolling', 'catalogued'] as const).map(tab => (
                 <div key={tab} ref={measureRefs[tab]} className="space-y-3 pr-2">
                   {categorizeCourses[tab].slice(0, 10).map(course => renderCourseRow(course, tab))}
                 </div>
