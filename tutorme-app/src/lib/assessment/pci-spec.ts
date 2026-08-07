@@ -33,6 +33,8 @@ export interface PciSpec {
   instructionalTone?: string
   /** How follow-up questions should be answered after task completion. */
   followUpBehavior?: string
+  /** How long student textual responses should be (word limits, per question). */
+  responseLengthPolicy?: string
 }
 
 /** The canonical field order + human labels for prompts and UI. */
@@ -49,6 +51,7 @@ export const PCI_SPEC_FIELDS: { key: keyof PciSpec; label: string }[] = [
   { key: 'answerRevealPolicy', label: 'Answer-reveal policy' },
   { key: 'instructionalTone', label: 'Instructional tone' },
   { key: 'followUpBehavior', label: 'Follow-up behaviour' },
+  { key: 'responseLengthPolicy', label: 'Response length policy' },
 ]
 
 /** Values that mean "the tutor didn't define this" — dropped, not fabricated. */

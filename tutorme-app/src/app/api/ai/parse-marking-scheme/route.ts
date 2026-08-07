@@ -80,7 +80,8 @@ Return ONLY a JSON object (no prose, no markdown, no code fences):
   "answer": "<canonical correct answer>",
   "variants": ["<every other accepted answer form>", ...],
   "marks": <total points this question is worth>,
-  "rubric": "<how the marks are awarded, faithful to the scheme>"
+  "rubric": "<how the marks are awarded, faithful to the scheme>",
+  "wordLimit": <recommended maximum word count for textual responses, or null>
 } ] }
 
 Detect "examBody" and "subject" from the scheme's own header / branding / style. Leave them "" if genuinely unclear — do not guess wildly.
@@ -104,6 +105,9 @@ Rules:
   marks (M1/A1), per-criterion points, partial-credit rules, "allow / accept / do not accept / condone"
   notes, OR holistic band descriptors (what makes a response Essentially correct vs Partially correct vs
   Incorrect). Keep it concise but do not drop award rules.
+- "wordLimit": if the marking scheme states a word limit ("max N words", "about N words", "no more than
+  N words") for an open-ended/textual response, include that integer. Otherwise set it to null or omit it.
+  Answer-sheet word limits take precedence over any value inferred from the question paper.
 - Include EVERY question / part whose answer you can actually find in the scheme: the references listed
   above AND any ADDITIONAL numbered questions or sub-parts present in the scheme that are NOT in that list
   (e.g. the list has 3(a),3(b) but the scheme also marks 3(c)). For each, use its OWN reference as "ref".

@@ -1304,6 +1304,10 @@ export default function PublicTutorPage() {
               <div className="flex flex-wrap gap-5">
                 {demoClasses.map(demo => {
                   const live = isLive(demo.status)
+                  const title = (demo.title || 'Live Demo')
+                    .replace(/\s*[—-]\s*Live Session$/i, '')
+                    .replace(/^Live Session\s*[—-]\s*/i, '')
+                    .trim()
                   return (
                     <Link
                       key={demo.id}
@@ -1318,24 +1322,19 @@ export default function PublicTutorPage() {
                           transform: 'translateZ(0)',
                         }}
                       >
-                        <div
-                          className="flex h-full flex-col p-4"
-                          style={{ transform: 'translateZ(0)' }}
-                        >
-                          {/* Header: Title on left, live indicator + avatar on right */}
-                          <div className="flex items-start justify-between gap-3">
+                        <div className="flex h-full flex-col p-3.5">
+                          {/* Header: title, username, live indicator and avatar */}
+                          <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex-1">
-                              <div className="line-clamp-2 text-sm font-semibold text-slate-50">
-                                {demo.title || 'Live Demo'}
-                              </div>
-                              <div className="mt-1 text-xs font-medium text-emerald-100/80">
+                              <h3 className="line-clamp-2 text-[15px] font-semibold text-slate-50">
+                                {title}
+                              </h3>
+                              <p className="mt-0.5 text-xs font-medium text-emerald-100/80">
                                 @{tutor.username || 'tutor'}
-                              </div>
-                            </div>
-                            <div className="flex shrink-0 flex-col items-end gap-2">
+                              </p>
                               <span
                                 className={cn(
-                                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                                  'mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
                                   live
                                     ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
                                     : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
@@ -1349,31 +1348,35 @@ export default function PublicTutorPage() {
                                 />
                                 {live ? 'Live' : 'Ended'}
                               </span>
-                              <div className="h-[52px] w-[52px] overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
-                                {tutor.avatarUrl ? (
-                                  <img
-                                    src={tutor.avatarUrl}
-                                    alt={tutor.name || 'Tutor'}
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
-                                    <User className="h-6 w-6 opacity-50" />
-                                  </div>
-                                )}
-                              </div>
+                            </div>
+                            <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                              {tutor.avatarUrl ? (
+                                <img
+                                  src={tutor.avatarUrl}
+                                  alt={tutor.name || 'Tutor'}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                                  <User className="h-6 w-6 opacity-50" />
+                                </div>
+                              )}
                             </div>
                           </div>
 
-                          {/* Description area */}
-                          <div className="mt-3 h-[clamp(60px,7vw,88px)] shrink-0 overflow-hidden rounded-[14px] border border-[rgba(255,255,255,0.10)] bg-[rgba(255,255,255,0.06)] px-3 py-2">
-                            <p className="line-clamp-4 text-xs text-emerald-50/80">
-                              {demo.description || 'Live demo class'}
-                            </p>
-                          </div>
+                          {/* Description area — same white box style as course cards */}
+                          {demo.description ? (
+                            <div className="mt-2 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
+                              <p className="line-clamp-4 text-[12px] leading-[1.3] text-slate-800">
+                                {demo.description}
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-[11px] text-slate-300/80">Live demo class</p>
+                          )}
 
                           {/* Bottom row: country */}
-                          <div className="mt-3 flex items-center justify-end text-xs font-semibold">
+                          <div className="mt-auto flex items-center justify-end text-xs font-semibold">
                             {tutor.country ? (
                               <span className="truncate text-emerald-100">
                                 <CountryFlag countryName={tutor.country} size="xs" showLabel />
