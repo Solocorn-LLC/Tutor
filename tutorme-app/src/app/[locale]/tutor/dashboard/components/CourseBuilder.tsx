@@ -4503,6 +4503,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           return
         }
 
+        console.log('[handleGenerateDMI] questions from API:', questions.length)
         const items: DMIQuestion[] = questions.map((q: any) => ({
           id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           questionNumber: q.questionNumber || 1,
@@ -4619,6 +4620,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setTestPciViewMode(`dmi_${newVersion.id}`)
           toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
         } else {
+          console.log('[handleGenerateDMI] setting assessmentDmiItems:', dmiItems.length)
           setAssessmentDmiItems(dmiItems)
           setAssessmentBuilder(prev => ({
             ...prev,
@@ -14749,6 +14751,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             {dmiEditor &&
               (() => {
                 const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
+                console.log('[DMI editor] editItems.length:', editItems.length)
                 const totalMarks = editItems.reduce(
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
