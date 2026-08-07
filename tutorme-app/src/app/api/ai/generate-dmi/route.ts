@@ -616,6 +616,7 @@ export async function POST(request: NextRequest) {
     // model didn't return usable JSON.
     const parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
     const { documentKind: modelKind, questions } = parsedResult
+    console.log('[generate-dmi] parsed questions:', questions.length, { modelKind })
 
     // Tag AI-generated answers so the builder can distinguish them from tutor-edited
     // or uploaded-marking-scheme answers.

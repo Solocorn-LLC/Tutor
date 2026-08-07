@@ -200,6 +200,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   DMI_QUESTION_TYPES,
   DMI_QUESTION_TYPE_LABELS,
+  normalizeDmiQuestionType,
   type DmiQuestionType,
 } from '@/lib/assessment/question-types'
 import { deriveExamContext } from '@/lib/assessment/marking-scheme'
@@ -211,6 +212,7 @@ import { buildStudentDeployPayload, type RawDeployDmiItem } from '@/lib/assessme
 import { revealPolicyToDeployMode } from '@/lib/assessment/reveal-policy'
 import { dmiOptionLetter, dmiSelectedOptionLetters } from '@/lib/assessment/mcq-answer'
 import { nextDmiGate } from '@/lib/assessment/dmi-generate-gate'
+import { DmiAnswerField, builderDmiToAnswerFieldItem } from '@/components/assessment/DmiAnswerField'
 import { resolveDocPaneVisibility } from '@/lib/courses/doc-pane-visibility'
 import {
   shouldRehydrateBuilder,
@@ -2047,10 +2049,18 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       )
     }, [insightsActive, mainTab])
 
-    const visibleTestPciTabs = useMemo(
-      () => (mainTab === 'live' ? testPciTabs.filter(tab => tab.id !== 'insights') : testPciTabs),
-      [mainTab, testPciTabs]
-    )
+    const visibleTestPciTabs = useMemo(() => {
+      const tabs =
+        mainTab === 'live' ? testPciTabs.filter(tab => tab.id !== 'insights') : testPciTabs
+      if (mainTab === 'test-pci' && testPciSource === 'assessment') {
+        return tabs.map(t => {
+          if (t.id === 'student1') return { ...t, label: 'Assessment' }
+          if (t.id === 'student2') return { ...t, label: 'Editor' }
+          return t
+        })
+      }
+      return tabs
+    }, [mainTab, testPciSource, testPciTabs])
 
     useEffect(() => {
       if (mainTab !== 'live') return
@@ -4503,6 +4513,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           return
         }
 
+        console.log('[handleGenerateDMI] questions from API:', questions.length)
         const items: DMIQuestion[] = questions.map((q: any) => ({
           id: `dmi-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
           questionNumber: q.questionNumber || 1,
@@ -4619,6 +4630,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setTestPciViewMode(`dmi_${newVersion.id}`)
           toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
         } else {
+          console.log('[handleGenerateDMI] setting assessmentDmiItems:', dmiItems.length)
           setAssessmentDmiItems(dmiItems)
           setAssessmentBuilder(prev => ({
             ...prev,
@@ -12016,6 +12028,126 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             )
                                           }
 
+                                          // Assessment test-mode preview: Classroom = document only,
+                                          // Assessment (student1) = student-facing DMI answer form,
+                                          // Editor (student2) = split document + DMI view below.
+                                          if (
+                                            mainTab === 'test-pci' &&
+                                            testPciSource === 'assessment'
+                                          ) {
+                                            if (tab.id === 'classroom') {
+                                              return (
+                                                <div className="relative min-h-0 w-full flex-1">
+                                                  {doc?.fileUrl || doc?.fileKey ? (
+                                                    <PDFViewer
+                                                      key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                      fileUrl={doc.fileUrl || ''}
+                                                      fileKey={doc.fileKey}
+                                                      className="absolute inset-0 h-full w-full"
+                                                      fitToWidth
+                                                    />
+                                                  ) : (
+                                                    <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-4 text-sm">
+                                                      {doc?.extractedText || ''}
+                                                    </p>
+                                                  )}
+                                                </div>
+                                              )
+                                            }
+
+                                            if (tab.id === 'student1') {
+                                              const items = version?.items ?? []
+                                              if (items.length === 0) {
+                                                return (
+                                                  <div className="flex h-full min-h-0 w-full items-center justify-center overflow-y-auto p-4 text-sm text-slate-500">
+                                                    No questions in this assessment yet. Generate
+                                                    the DMI to preview the student answer form.
+                                                  </div>
+                                                )
+                                              }
+                                              return (
+                                                <div className="h-full min-h-0 w-full overflow-y-auto bg-white p-4">
+                                                  <div className="mx-auto max-w-3xl space-y-4">
+                                                    {items.map((item, idx) => {
+                                                      const qType = normalizeDmiQuestionType(
+                                                        item.questionType
+                                                      )
+                                                      const prevSection =
+                                                        idx > 0
+                                                          ? items[idx - 1]?.section
+                                                          : undefined
+                                                      const showSection =
+                                                        !!item.section &&
+                                                        item.section !== prevSection
+                                                      return (
+                                                        <Fragment key={item.id}>
+                                                          {showSection && (
+                                                            <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                                                              {item.section}
+                                                            </div>
+                                                          )}
+                                                          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                                                            <div className="mb-2 flex items-start justify-between gap-2">
+                                                              <p className="text-sm font-medium text-gray-800">
+                                                                {/^\s*(?:question\b|\d)/i.test(
+                                                                  item.questionText
+                                                                )
+                                                                  ? item.questionText
+                                                                  : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
+                                                              </p>
+                                                              <div className="flex shrink-0 items-center gap-1">
+                                                                {typeof item.marks === 'number' &&
+                                                                  item.marks > 0 && (
+                                                                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                                                      {item.marks}{' '}
+                                                                      {item.marks === 1
+                                                                        ? 'mark'
+                                                                        : 'marks'}
+                                                                    </span>
+                                                                  )}
+                                                                {qType !== 'long' && (
+                                                                  <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                                                    {
+                                                                      DMI_QUESTION_TYPE_LABELS[
+                                                                        qType
+                                                                      ]
+                                                                    }
+                                                                  </span>
+                                                                )}
+                                                              </div>
+                                                            </div>
+                                                            <DmiAnswerField
+                                                              item={builderDmiToAnswerFieldItem(
+                                                                item
+                                                              )}
+                                                              value={
+                                                                testDmiAnswers[
+                                                                  `${tab.id}:${item.id}`
+                                                                ] ?? ''
+                                                              }
+                                                              onInteract={() => {
+                                                                // Preview only — no live session side effects.
+                                                              }}
+                                                              onValueChange={next =>
+                                                                setTestDmiAnswers(prev => ({
+                                                                  ...prev,
+                                                                  [`${tab.id}:${item.id}`]: next,
+                                                                }))
+                                                              }
+                                                            />
+                                                          </div>
+                                                        </Fragment>
+                                                      )
+                                                    })}
+                                                  </div>
+                                                </div>
+                                              )
+                                            }
+
+                                            // student2 (Editor) falls through to the split
+                                            // document + DMI view below.
+                                          }
+
                                           // Live classroom chat task: use the same TestTaskChat
                                           // component as Test mode so the tutor sees identical
                                           // document popup / avatars / SAI summary behavior.
@@ -12469,15 +12601,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               testPciActiveTab !== 'classroom' ? (
                                 <></>
                               ) : mainTab === 'test-pci' && testPciSource === 'assessment' ? (
-                                // Assessments are answered in the DMI: test-grade per question
-                                // above (type an answer under a question and click Grade) rather
-                                // than a separate free-text box, which caused confusion.
-                                <div className="mt-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 text-xs text-slate-600">
-                                  To test grading, type a sample answer under any question above and
-                                  click <span className="font-medium text-violet-700">Grade</span> —
-                                  each answer is marked against that question&rsquo;s rubric, model
-                                  answer, and the assessment PCI.
-                                </div>
+                                // Assessment Classroom = document only, Assessment tab = student
+                                // answer form with no composer, Editor = split DMI view where
+                                // grading can be tested.
+                                testPciActiveTab === 'student1' ? (
+                                  <></>
+                                ) : (
+                                  <div className="mt-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 text-xs text-slate-600">
+                                    To test grading, type a sample answer under any question above
+                                    and click{' '}
+                                    <span className="font-medium text-violet-700">Grade</span> —
+                                    each answer is marked against that question&rsquo;s rubric,
+                                    model answer, and the assessment PCI.
+                                  </div>
+                                )
                               ) : (
                                 <div
                                   className={cn(
@@ -14749,6 +14886,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             {dmiEditor &&
               (() => {
                 const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
+                console.log('[DMI editor] editItems.length:', editItems.length)
                 const totalMarks = editItems.reduce(
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
