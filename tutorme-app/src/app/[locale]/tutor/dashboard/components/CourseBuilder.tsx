@@ -9105,6 +9105,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             categoryOptions={pciCategoryOptions}
             onExamContextChange={patch => handlePciExamContextChange(source, patch)}
             canEdit={canEdit}
+            dmiItems={source === 'task' ? taskDmiItems : assessmentDmiItems}
+            onConfirmWordLimits={limits => {
+              const items = source === 'task' ? taskDmiItems : assessmentDmiItems
+              for (const q of items) {
+                if (q.id in limits && q.wordLimit !== limits[q.id]) {
+                  applyDmiEdit(source, q.id, { wordLimit: limits[q.id] })
+                }
+              }
+            }}
             onSave={(specText, spec) => {
               setCurrentPci(source, specText, {
                 approvedPci: specText,
@@ -15213,6 +15222,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       applyDmiEdit(dmiEditor.source, item.id, { marks: n })
                                     }}
                                     className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900"
+                                  />
+                                </label>
+                                <label className="flex items-center gap-1 text-xs text-gray-600">
+                                  Word limit
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    step={1}
+                                    value={item.wordLimit ?? ''}
+                                    disabled={!canEdit}
+                                    placeholder="∞"
+                                    onChange={e => {
+                                      const raw = e.target.value
+                                      const wordLimit =
+                                        raw === ''
+                                          ? null
+                                          : Math.max(1, Math.round(Number(raw) || 1))
+                                      applyDmiEdit(dmiEditor.source, item.id, { wordLimit })
+                                    }}
+                                    className="w-16 rounded-md border border-gray-300 px-2 py-1 text-sm text-gray-900 placeholder:text-gray-400"
                                   />
                                 </label>
                                 <button

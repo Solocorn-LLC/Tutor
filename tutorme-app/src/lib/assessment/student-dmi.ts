@@ -19,6 +19,8 @@ export interface DeployableDmiItem {
   questionLabel?: string
   questionText: string
   marks?: number
+  /** Recommended maximum word count for textual responses (delivery-layer). */
+  wordLimit?: number | null
   questionType?: DmiQuestionType
   options?: string[]
   /** Correct left↔right pairing for matching/drag_drop — answer key. */
@@ -37,6 +39,8 @@ export interface StudentDmiItem {
   questionLabel?: string
   questionText: string
   marks?: number
+  /** Recommended maximum word count for textual responses (delivery-layer). */
+  wordLimit?: number | null
   questionType?: DmiQuestionType
   options?: string[]
   hotspotImageUrl?: string
@@ -64,6 +68,7 @@ export function toStudentDmiItem(item: DeployableDmiItem): StudentDmiItem {
     questionLabel: item.questionLabel,
     questionText: item.questionText,
     marks: item.marks,
+    wordLimit: item.wordLimit,
     questionType: item.questionType,
     options: item.options,
     hotspotImageUrl: item.hotspotImageUrl,

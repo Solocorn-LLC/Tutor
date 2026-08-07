@@ -45,6 +45,30 @@ describe('toStudentDmiItem (ASMT-10/13 layer separation)', () => {
   })
 })
 
+describe('toStudentDmiItem — wordLimit passthrough (ASMT-5)', () => {
+  it('carries wordLimit to the student payload', () => {
+    const safe = toStudentDmiItem({
+      id: 'q1',
+      questionNumber: 1,
+      questionText: 'Explain.',
+      questionType: 'long',
+      wordLimit: 150,
+    })
+    expect(safe.wordLimit).toBe(150)
+  })
+
+  it('preserves an explicit null wordLimit', () => {
+    const safe = toStudentDmiItem({
+      id: 'q1',
+      questionNumber: 1,
+      questionText: 'Explain.',
+      questionType: 'long',
+      wordLimit: null,
+    })
+    expect(safe.wordLimit).toBeNull()
+  })
+})
+
 describe('toStudentDmiItem — section passthrough (ASMT-4)', () => {
   it('carries the section title (delivery-layer, safe to show)', () => {
     const safe = toStudentDmiItem({

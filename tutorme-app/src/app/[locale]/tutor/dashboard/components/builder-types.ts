@@ -85,6 +85,10 @@ export interface DMIQuestion {
    *  this captures the award structure verbatim-faithfully (method marks, or
    *  holistic E/P/I band descriptors). Tutor-only — never sent to students. */
   rubric?: string
+  /** Recommended maximum word count for textual responses. `null` or missing
+   *  means no limit — the field grows freely. Set from the document, answer
+   *  sheet, or PCI confirmation step. */
+  wordLimit?: number | null
   /** Where the answer came from (ASMT-5). `answer_sheet_extracted` when filled
    *  from an uploaded marking scheme. Tutor-only evaluation layer. */
   answerProvenance?: 'tutor_provided' | 'answer_sheet_extracted' | 'llm_inferred' | 'tutor_edited'
