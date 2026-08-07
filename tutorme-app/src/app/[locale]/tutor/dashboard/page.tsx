@@ -1283,7 +1283,7 @@ function TutorDashboardContent() {
             setCancelModalOpen(open)
           }}
         >
-          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border border-slate-200 shadow-2xl">
+          <DialogContent className="max-w-2xl border border-slate-200 shadow-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-white">
                 <Calendar className="text-primary h-5 w-5" />
@@ -1346,7 +1346,7 @@ function TutorDashboardContent() {
                       {courseSessions.length} sessions
                     </p>
                   )}
-                  <div className="space-y-3">
+                  <div className="scrollbar-hide h-[520px] space-y-3 overflow-y-auto pr-2">
                     {courseSessions.map(session => {
                       const isVirtual = session.isVirtual === true
                       const _isPassedSession =

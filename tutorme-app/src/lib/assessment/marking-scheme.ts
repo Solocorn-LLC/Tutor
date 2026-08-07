@@ -119,6 +119,8 @@ export interface SchemeMatchInput {
   variants?: string[]
   marks?: number
   rubric?: string
+  /** Recommended maximum word count for textual responses. */
+  wordLimit?: number | null
   /** True when the scheme covers a reference the DMI doesn't have yet. */
   extra?: boolean
 }
@@ -156,6 +158,7 @@ export function applySchemeMatches(
       : {}),
     ...(typeof m.marks === 'number' && m.marks > 0 ? { marks: m.marks } : {}),
     ...(m.rubric ? { rubric: m.rubric } : {}),
+    ...(m.wordLimit !== undefined ? { wordLimit: m.wordLimit } : {}),
   })
 
   const validRefs = new Set(items.map(it => refKey(it.questionLabel ?? it.questionNumber)))
