@@ -10025,25 +10025,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 >
                                                                   Duplicate
                                                                 </DropdownMenuItem>
-                                                                <DropdownMenuItem
-                                                                  className="text-red-500"
-                                                                  onClick={e => {
-                                                                    e.stopPropagation()
-                                                                    if (
-                                                                      !confirm(
-                                                                        `Delete "${task.title}"?`
+                                                                {saveMode !== 'live' && (
+                                                                  <DropdownMenuItem
+                                                                    className="text-red-500"
+                                                                    onClick={e => {
+                                                                      e.stopPropagation()
+                                                                      if (
+                                                                        !confirm(
+                                                                          `Delete "${task.title}"?`
+                                                                        )
                                                                       )
-                                                                    )
-                                                                      return
-                                                                    deleteTask(
-                                                                      node.id,
-                                                                      primaryLesson.id,
-                                                                      task.id
-                                                                    )
-                                                                  }}
-                                                                >
-                                                                  Delete
-                                                                </DropdownMenuItem>
+                                                                        return
+                                                                      deleteTask(
+                                                                        node.id,
+                                                                        primaryLesson.id,
+                                                                        task.id
+                                                                      )
+                                                                    }}
+                                                                  >
+                                                                    Delete
+                                                                  </DropdownMenuItem>
+                                                                )}
                                                               </>
                                                             )}
                                                           </DropdownMenuContent>
@@ -10592,25 +10594,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                               >
                                                                 Duplicate
                                                               </DropdownMenuItem>
-                                                              <DropdownMenuItem
-                                                                className="text-red-500"
-                                                                onClick={e => {
-                                                                  e.stopPropagation()
-                                                                  if (
-                                                                    !confirm(
-                                                                      `Delete "${hw.title}"?`
+                                                              {saveMode !== 'live' && (
+                                                                <DropdownMenuItem
+                                                                  className="text-red-500"
+                                                                  onClick={e => {
+                                                                    e.stopPropagation()
+                                                                    if (
+                                                                      !confirm(
+                                                                        `Delete "${hw.title}"?`
+                                                                      )
                                                                     )
-                                                                  )
-                                                                    return
-                                                                  deleteAssessment(
-                                                                    node.id,
-                                                                    primaryLesson.id,
-                                                                    hw.id
-                                                                  )
-                                                                }}
-                                                              >
-                                                                Delete
-                                                              </DropdownMenuItem>
+                                                                      return
+                                                                    deleteAssessment(
+                                                                      node.id,
+                                                                      primaryLesson.id,
+                                                                      hw.id
+                                                                    )
+                                                                  }}
+                                                                >
+                                                                  Delete
+                                                                </DropdownMenuItem>
+                                                              )}
                                                             </>
                                                           )}
                                                         </DropdownMenuContent>
