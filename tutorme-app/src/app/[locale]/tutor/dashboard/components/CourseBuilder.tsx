@@ -3429,7 +3429,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             dmiDocumentKind.assessment
           ).nextNodes
 
-          const lessonsToSave = flushedNodes.map(n => n.lessons[0] || ({} as any))
+          const lessonsToSave = flushedNodes.flatMap(n => n.lessons || [])
           console.log('[CourseBuilder doSave] nodes count:', nodes.length, 'lessons count:', lessonsToSave.length)
           console.log('[CourseBuilder doSave] lesson ids:', lessonsToSave.map((l: any) => l.id))
           console.log('[CourseBuilder doSave] task counts per lesson:', lessonsToSave.map((l: any) => (l.tasks || []).length))
@@ -3613,7 +3613,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             assessmentDmiItems,
             dmiDocumentKind.assessment
           ).nextNodes
-          return flushedNodes.map(n => n.lessons[0])
+          return flushedNodes.flatMap(n => n.lessons || [])
         },
         openVideo: () => {
           if (!sessionContext?.roomUrl) return
@@ -6286,7 +6286,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         dmiDocumentKind.assessment
       ).nextNodes
 
-      const lessonsToSave = flushedNodes.map(n => n.lessons[0] || ({} as any))
+      const lessonsToSave = flushedNodes.flatMap(n => n.lessons || [])
       console.log('[CourseBuilder saveNodesIfPossible] nodes count:', nextNodes.length, 'lessons count:', lessonsToSave.length)
       console.log('[CourseBuilder saveNodesIfPossible] lesson ids:', lessonsToSave.map((l: any) => l.id))
       console.log('[CourseBuilder saveNodesIfPossible] task counts per lesson:', lessonsToSave.map((l: any) => (l.tasks || []).length))
@@ -9382,7 +9382,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ).nextNodes
 
       onSave(
-        flushedNodes.map(n => n.lessons[0] || ({} as any)),
+        flushedNodes.flatMap(n => n.lessons || []),
         { developmentMode: devMode, previewDifficulty }
       )
     }
@@ -9448,7 +9448,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         ).nextNodes
 
         onSave(
-          flushedNodes.map(n => n.lessons[0] || ({} as any)),
+          flushedNodes.flatMap(n => n.lessons || []),
           {
             developmentMode: devMode,
             previewDifficulty,
@@ -14954,7 +14954,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     ).nextNodes
 
                     onSave(
-                      flushedNodes.map(n => n.lessons[0] || ({} as any)),
+                      flushedNodes.flatMap(n => n.lessons || []),
                       {
                         developmentMode: devMode,
                         previewDifficulty,
