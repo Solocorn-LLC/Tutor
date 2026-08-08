@@ -15,6 +15,7 @@ import {
   courseLesson,
   courseSchedule,
   courseVariant,
+  calendarAvailability,
 } from '@/lib/db/schema'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
 import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
@@ -133,11 +134,21 @@ export const GET = withAuth(
       // course.schedule JSON for unpublished drafts.
       const schedule = await resolveCourseScheduleSlots(courseId, courseRow?.schedule)
 
+      // The tutor's timezone — the same wall clock the publish path materializes
+      // sessions in. Projecting virtual sessions in any other zone shifts their
+      // instants off the real ones, breaking de-dup (double counting).
+      const [tutorTzRow] = await drizzleDb
+        .select({ timezone: calendarAvailability.timezone })
+        .from(calendarAvailability)
+        .where(eq(calendarAvailability.tutorId, tutorId))
+        .limit(1)
+      const tutorTimeZone = tutorTzRow?.timezone || 'UTC'
+
       const virtualSessions = generateUpcomingSessions(
         schedule,
         courseRow?.name || 'Class',
         courseRow?.category?.[0] || 'General',
-        { count: 12, maxStudents: 50 }
+        { count: 12, maxStudents: 50, timeZone: tutorTimeZone }
       )
 
       const merged = mergeSessions(formattedReal, virtualSessions)

@@ -2,12 +2,22 @@
  * Generate upcoming session instances from a recurring weekly schedule.
  * Virtual sessions are computed from schedule slots until they are "realized"
  * by a tutor launching them (creating a liveSession row).
+ *
+ * IMPORTANT: virtual session times MUST be computed in the same timezone the
+ * publish path materializes real sessions in (the tutor's timezone, via
+ * `zonedWallClockToUtc`). Otherwise a real session and its schedule slot land on
+ * different UTC instants and `mergeSessions` fails to de-dupe them — showing each
+ * session twice (once real, once virtual) and inflating the count.
  */
+
+import { zonedWallClockToUtc, zonedDateParts, zonedWeekday } from '@/lib/time/tz'
 
 export interface ScheduleSlot {
   dayOfWeek: string
   startTime: string
   durationMinutes: number
+  /** Manual one-off date "YYYY-MM-DD" (the HH:MM is the tutor's local wall clock). */
+  date?: string
 }
 
 export interface VirtualSession {
@@ -66,30 +76,15 @@ function parseTime(timeStr: string): { hours: number; minutes: number } {
   return { hours: h || 0, minutes: m || 0 }
 }
 
-function getNextOccurrence(
-  dayOfWeek: number,
-  hours: number,
-  minutes: number,
-  fromDate: Date
-): Date {
-  const result = new Date(fromDate)
-  result.setSeconds(0, 0)
-  result.setHours(hours, minutes)
-
-  const currentDay = result.getDay()
-  let daysUntil = dayOfWeek - currentDay
-
-  if (daysUntil < 0) {
-    daysUntil += 7
-  }
-
-  // If same day but time has already passed, move to next week
-  if (daysUntil === 0 && result.getTime() <= fromDate.getTime()) {
-    daysUntil = 7
-  }
-
-  result.setDate(result.getDate() + daysUntil)
-  return result
+/** Add `n` days to a wall-clock date (Y/1-based-M/D) → new Y/M/D, without tz drift. */
+function addDays(
+  year: number,
+  month: number,
+  day: number,
+  n: number
+): { year: number; month: number; day: number } {
+  const t = new Date(Date.UTC(year, month - 1, day + n))
+  return { year: t.getUTCFullYear(), month: t.getUTCMonth() + 1, day: t.getUTCDate() }
 }
 
 /**
@@ -104,64 +99,76 @@ export function generateUpcomingSessions(
     count?: number
     fromDate?: Date
     maxStudents?: number
+    /** The tutor's timezone — the wall clock the "HH:MM" slots are expressed in.
+     *  MUST match the publish path so virtual instants line up with real ones. */
+    timeZone?: string
   } = {}
 ): VirtualSession[] {
-  const { count = 10, fromDate = new Date(), maxStudents = 50 } = options
+  const { count = 10, fromDate = new Date(), maxStudents = 50, timeZone = 'UTC' } = options
 
   if (!schedule || schedule.length === 0) return []
 
   const sessions: VirtualSession[] = []
   const now = fromDate.getTime()
+  const todayZ = zonedDateParts(fromDate, timeZone)
+  const todayWeekday = zonedWeekday(fromDate, timeZone)
 
-  // Generate up to 12 weeks of occurrences to ensure we get enough
-  for (let weekOffset = 0; weekOffset < 12; weekOffset++) {
-    for (const slot of schedule) {
-      const dayNum = parseDayOfWeek(slot.dayOfWeek)
-      const { hours, minutes } = parseTime(slot.startTime)
+  const pushOccurrence = (occ: Date, durationMinutes: number) => {
+    if (isNaN(occ.getTime())) return
+    const scheduledAt = occ.toISOString()
+    const scheduledMs = occ.getTime()
+    const minutesSinceStart = (now - scheduledMs) / 60000
+    const minutesUntilStart = -minutesSinceStart
 
-      const baseDate = new Date(fromDate)
-      baseDate.setDate(baseDate.getDate() + weekOffset * 7)
+    let status: VirtualSession['status'] = 'virtual'
+    if (minutesSinceStart > durationMinutes) status = 'ended'
+    else if (minutesSinceStart >= 0) status = 'active'
+    else if (minutesUntilStart <= 60) status = 'scheduled'
 
-      const occurrence = getNextOccurrence(dayNum, hours, minutes, baseDate)
-      const scheduledAt = occurrence.toISOString()
+    sessions.push({
+      id: `virtual-${scheduledAt}`,
+      title: courseName,
+      status,
+      scheduledAt,
+      startedAt: status === 'active' || status === 'ended' ? scheduledAt : null,
+      endedAt:
+        status === 'ended' ? new Date(scheduledMs + durationMinutes * 60000).toISOString() : null,
+      durationMinutes: durationMinutes || 60,
+      isVirtual: true,
+      roomId: null,
+      roomUrl: null,
+      maxStudents,
+      category: courseCategory || 'General',
+    })
+  }
 
-      // Determine virtual status based on time
-      const scheduledMs = occurrence.getTime()
-      const elapsed = now - scheduledMs
-      const minutesSinceStart = elapsed / 60000
-      const minutesUntilStart = -elapsed / 60000
+  for (const slot of schedule) {
+    const { hours, minutes } = parseTime(slot.startTime)
+    const durationMinutes = slot.durationMinutes || 60
 
-      let status: VirtualSession['status'] = 'virtual'
+    // Manual one-off date: the HH:MM is the tutor's local wall clock.
+    if (slot.date) {
+      const [y, m, d] = slot.date.split('-').map(Number)
+      if (y && m && d)
+        pushOccurrence(zonedWallClockToUtc(y, m, d, hours, minutes, timeZone), durationMinutes)
+      continue
+    }
 
-      if (minutesSinceStart > slot.durationMinutes) {
-        status = 'ended' // Past the duration — tutor missed it
-      } else if (minutesSinceStart >= 0) {
-        status = 'active' // Within the scheduled window
-      } else if (minutesUntilStart <= 60) {
-        status = 'scheduled' // Within 1 hour — about to start
-      }
-
-      sessions.push({
-        id: `virtual-${scheduledAt}`,
-        title: courseName,
-        status,
-        scheduledAt,
-        startedAt: status === 'active' || status === 'ended' ? scheduledAt : null,
-        endedAt:
-          status === 'ended'
-            ? new Date(scheduledMs + slot.durationMinutes * 60000).toISOString()
-            : null,
-        durationMinutes: slot.durationMinutes || 60,
-        isVirtual: true,
-        roomId: null,
-        roomUrl: null,
-        maxStudents,
-        category: courseCategory || 'General',
-      })
+    // Weekly recurrence: find this/next occurrence of the weekday in the tutor's
+    // timezone, then convert each week's wall-clock slot to UTC (same as publish).
+    const targetDay = parseDayOfWeek(slot.dayOfWeek)
+    const daysUntil = (targetDay - todayWeekday + 7) % 7
+    const first = addDays(todayZ.year, todayZ.month, todayZ.day, daysUntil)
+    for (let w = 0; w < 12; w++) {
+      const wk = addDays(first.year, first.month, first.day, w * 7)
+      pushOccurrence(
+        zonedWallClockToUtc(wk.year, wk.month, wk.day, hours, minutes, timeZone),
+        durationMinutes
+      )
     }
   }
 
-  // Sort by scheduled time and deduplicate (same timestamp)
+  // Sort by scheduled time and deduplicate (same instant)
   const unique = new Map<string, VirtualSession>()
   sessions.forEach(s => unique.set(s.scheduledAt, s))
 
@@ -172,46 +179,36 @@ export function generateUpcomingSessions(
 
 /**
  * Merge real live sessions with virtual schedule-based sessions.
- * Real sessions take precedence over virtual ones at the same time slot.
+ *
+ * Two de-dup rules keep the count honest:
+ *  1. A virtual (schedule-projected) session is dropped when a real session already
+ *     covers that slot — matched by proximity in time (works once virtual and real
+ *     instants are computed in the same timezone; see `generateUpcomingSessions`).
+ *  2. When real sessions exist (a published course materializes its full schedule),
+ *     virtuals PAST the last real session are dropped — they are phantom future
+ *     projections beyond what was actually scheduled. Drafts (no real sessions yet)
+ *     keep all virtuals so the schedule can still be previewed.
  */
 export function mergeSessions(
   realSessions: RealSession[],
   virtualSessions: VirtualSession[]
 ): (RealSession | VirtualSession)[] {
-  const merged = new Map<string, RealSession | VirtualSession>()
+  const TOLERANCE_MS = 30 * 60 * 1000
+  const realTimes = realSessions
+    .map(rs => (rs.scheduledAt ? new Date(rs.scheduledAt).getTime() : NaN))
+    .filter(t => !Number.isNaN(t))
+  // Cap virtual projection at the materialized window. Infinity when there are no
+  // real sessions (a draft) so its schedule still previews.
+  const lastRealTime = realTimes.length > 0 ? Math.max(...realTimes) : Infinity
 
-  // Add virtual sessions first
-  virtualSessions.forEach(vs => {
-    merged.set(vs.scheduledAt, vs)
+  const keptVirtual = virtualSessions.filter(vs => {
+    if (!vs.scheduledAt) return true
+    const vt = new Date(vs.scheduledAt).getTime()
+    if (vt > lastRealTime) return false // phantom future projection beyond the schedule
+    return !realTimes.some(rt => Math.abs(rt - vt) <= TOLERANCE_MS)
   })
 
-  // Real sessions override virtual ones if they match closely in time
-  realSessions.forEach(rs => {
-    if (!rs.scheduledAt) {
-      merged.set(`real-${rs.id}`, rs)
-      return
-    }
-    const realTime = rs.scheduledAt ? new Date(rs.scheduledAt).getTime() : 0
-
-    // Find a virtual session within 30 minutes of this real one
-    let matched = false
-    for (const [key, vs] of merged) {
-      if (vs.isVirtual && vs.scheduledAt) {
-        const virtTime = new Date(vs.scheduledAt).getTime()
-        if (Math.abs(realTime - virtTime) <= 30 * 60 * 1000) {
-          merged.set(key, rs)
-          matched = true
-          break
-        }
-      }
-    }
-
-    if (!matched) {
-      merged.set(`real-${rs.id}`, rs)
-    }
-  })
-
-  return Array.from(merged.values()).sort(
+  return [...realSessions, ...keptVirtual].sort(
     (a, b) => new Date(a.scheduledAt || 0).getTime() - new Date(b.scheduledAt || 0).getTime()
   )
 }

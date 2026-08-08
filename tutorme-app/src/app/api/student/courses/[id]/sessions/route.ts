@@ -9,6 +9,7 @@ import {
   courseEnrollment,
   course,
   courseLesson,
+  calendarAvailability,
 } from '@/lib/db/schema'
 import { or, isNull } from 'drizzle-orm'
 import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
@@ -44,6 +45,7 @@ export const GET = withAuth(
           name: course.name,
           category: course.categories,
           schedule: course.schedule,
+          creatorId: course.creatorId,
         })
         .from(course)
         .where(eq(course.courseId, courseId))
@@ -108,6 +110,18 @@ export const GET = withAuth(
         enrolledScheduleId
       )
 
+      // The course tutor's timezone — virtual slots must be projected in the same
+      // zone the publish path materialized real sessions in, or de-dup breaks.
+      let tutorTimeZone = 'UTC'
+      if (courseRow?.creatorId) {
+        const [tutorTzRow] = await drizzleDb
+          .select({ timezone: calendarAvailability.timezone })
+          .from(calendarAvailability)
+          .where(eq(calendarAvailability.tutorId, courseRow.creatorId))
+          .limit(1)
+        tutorTimeZone = tutorTzRow?.timezone || 'UTC'
+      }
+
       const virtualSessions = generateUpcomingSessions(
         schedule,
         courseRow?.name || 'Class',
@@ -115,6 +129,7 @@ export const GET = withAuth(
         {
           count: 12,
           maxStudents: 50,
+          timeZone: tutorTimeZone,
         }
       )
 
