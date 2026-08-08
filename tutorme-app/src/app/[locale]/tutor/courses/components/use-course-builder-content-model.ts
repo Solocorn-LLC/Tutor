@@ -78,6 +78,7 @@ export function useCourseBuilderContentModel({
   const [loadedLessons, setLoadedLessons] = useState<CourseBuilderLesson[] | null>(null)
   const [savedVariants, setSavedVariants] = useState<AdaptiveVariantLink[]>([])
   const courseBuilderRef = useRef<CourseBuilderRef>(null)
+  const loadRunIdRef = useRef(0)
   const router = useRouter()
 
   const [themeId, setThemeId] = useState('current')
@@ -99,6 +100,8 @@ export function useCourseBuilderContentModel({
 
   const loadCourse = useCallback(async () => {
     if (!courseId) return
+    loadRunIdRef.current += 1
+    const runId = loadRunIdRef.current
     setLoading(true)
     // Reset lessons immediately to prevent stale data from previous course
     setLoadedLessons(null)
@@ -117,62 +120,72 @@ export function useCourseBuilderContentModel({
           try {
             const parsed = JSON.parse(stored) as { lessons?: CourseBuilderLesson[] }
             if (Array.isArray(parsed.lessons) && parsed.lessons.length > 0) {
-              setLoadedLessons(parsed.lessons)
+              if (runId === loadRunIdRef.current) {
+                console.log(
+                  '[useCourseBuilderContentModel] loaded lessons from localStorage:',
+                  parsed.lessons.length
+                )
+                setLoadedLessons(parsed.lessons)
+              }
               return
             }
           } catch {
             // ignore malformed local draft
           }
         }
-        // No local draft yet. For real courses, fall back to the API so the tutor sees
-        // existing content before making draft edits. Draft sentinels stay empty.
-        if (!isDraftCourseId(courseId)) {
-          try {
-            const res = await fetch(`/api/tutor/courses/${courseId}`, { credentials: 'include' })
-            if (res.ok) {
-              const data = await res.json()
-              setCourse(data.course)
-            }
+      }
 
-            const currRes = await fetch(`/api/tutor/courses/${courseId}/course`, {
-              credentials: 'include',
-            })
-            if (currRes.ok) {
-              const currData = await currRes.json()
-              if (Array.isArray(currData.lessons)) {
-                setLoadedLessons(currData.lessons)
-              }
-            }
-          } catch {
-            setLoadedLessons(null)
+      // Load from API for default mode, or for detached mode when no local draft exists
+      // (and the course is a real DB course, not a draft sentinel).
+      if (!isDetached || !isDraftCourseId(courseId)) {
+        const res = await fetch(`/api/tutor/courses/${courseId}`, { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          if (runId === loadRunIdRef.current) {
+            setCourse(data.course)
           }
         }
-        return
-      }
-      const res = await fetch(`/api/tutor/courses/${courseId}`, { credentials: 'include' })
-      if (res.ok) {
-        const data = await res.json()
-        setCourse(data.course)
-      }
 
-      const currRes = await fetch(`/api/tutor/courses/${courseId}/course`, {
-        credentials: 'include',
-      })
-      if (currRes.ok) {
-        const currData = await currRes.json()
-        if (Array.isArray(currData.lessons)) {
-          setLoadedLessons(currData.lessons)
+        const currRes = await fetch(`/api/tutor/courses/${courseId}/course`, {
+          credentials: 'include',
+        })
+        if (currRes.ok) {
+          const currData = await currRes.json()
+          if (runId === loadRunIdRef.current) {
+            if (Array.isArray(currData.lessons)) {
+              console.log(
+                '[useCourseBuilderContentModel] loaded lessons from API:',
+                currData.lessons.length
+              )
+              setLoadedLessons(currData.lessons)
+            } else {
+              console.warn(
+                '[useCourseBuilderContentModel] API response lessons is not an array:',
+                currData
+              )
+              setLoadedLessons([])
+            }
+          }
+        } else if (runId === loadRunIdRef.current) {
+          console.warn(
+            '[useCourseBuilderContentModel] API load failed:',
+            currRes.status,
+            await currRes.text().catch(() => '')
+          )
+          setLoadedLessons(null)
         }
-      } else {
-        // Explicitly null out on API failure so we don't show stale lessons
+      }
+    } catch (err) {
+      if (runId === loadRunIdRef.current) {
+        console.error('[useCourseBuilderContentModel] load error:', err)
         setLoadedLessons(null)
       }
-    } catch {
-      setLoadedLessons(null)
     } finally {
-      setLoading(false)
+      if (runId === loadRunIdRef.current) {
+        setLoading(false)
+      }
     }
-  }, [courseId, detachedCourseName, detachedStorageKey])
+  }, [courseId, dataMode, detachedCourseName, detachedStorageKey])
 
   useEffect(() => {
     if (shouldShowCoursePickerEmpty) {
