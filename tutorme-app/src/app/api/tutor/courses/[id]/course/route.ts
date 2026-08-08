@@ -54,6 +54,24 @@ export const PUT = withCsrf(
 
       const body = await req.json().catch(() => ({}))
       const lessons = (body as { lessons?: unknown }).lessons
+      console.log(
+        '[CourseBuilder PUT] received lessons count:',
+        Array.isArray(lessons) ? lessons.length : 'not array'
+      )
+      if (Array.isArray(lessons)) {
+        console.log(
+          '[CourseBuilder PUT] received lesson ids:',
+          lessons.map((l: any) => l.id)
+        )
+        console.log(
+          '[CourseBuilder PUT] received task counts:',
+          lessons.map((l: any) => (l.tasks || []).length)
+        )
+        console.log(
+          '[CourseBuilder PUT] received homework counts:',
+          lessons.map((l: any) => (l.homework || []).length)
+        )
+      }
       const description = (body as { description?: string }).description
       const propagateToVariants =
         (body as { propagateToVariants?: boolean }).propagateToVariants === true

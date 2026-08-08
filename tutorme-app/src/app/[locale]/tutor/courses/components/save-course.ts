@@ -220,6 +220,16 @@ export async function saveCourse(options: SaveCourseOptions): Promise<SaveCourse
   }
 
   try {
+    console.log('[saveCourse] PUT /api/tutor/courses/' + targetCourseId + '/course with', {
+      lessonCount: lessons.length,
+      lessonIds: lessons.map((l: any) => l.id),
+      taskCounts: lessons.map((l: any) => (l.tasks || []).length),
+      homeworkCounts: lessons.map((l: any) => (l.homework || []).length),
+      developmentMode,
+      previewDifficulty,
+      propagateToVariants,
+      setIndependent,
+    })
     const saveRes = await fetchWithCsrf(`/api/tutor/courses/${targetCourseId}/course`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },

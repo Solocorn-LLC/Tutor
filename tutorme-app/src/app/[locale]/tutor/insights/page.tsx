@@ -450,6 +450,26 @@ function TutorInsightsPageInner() {
 
   const handleSave = useCallback(
     async (lessons: any[], options?: any) => {
+      console.log(
+        '[Insights handleSave] received lessons count:',
+        lessons.length,
+        'isAutoSave:',
+        options?.isAutoSave,
+        'isPublishedVariant:',
+        isPublishedVariant
+      )
+      console.log(
+        '[Insights handleSave] lesson ids:',
+        lessons.map((l: any) => l.id)
+      )
+      console.log(
+        '[Insights handleSave] task counts per lesson:',
+        lessons.map((l: any) => (l.tasks || []).length)
+      )
+      console.log(
+        '[Insights handleSave] homework counts per lesson:',
+        lessons.map((l: any) => (l.homework || []).length)
+      )
       // For published variants, propagate edits to sibling variants (those
       // published with this course, NOT all tutor courses) — but ONLY on an
       // explicit manual Save. Autosave is debounced and silent (no toast), so

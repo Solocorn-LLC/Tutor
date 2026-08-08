@@ -3429,17 +3429,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             dmiDocumentKind.assessment
           ).nextNodes
 
-          return onSave(
-            flushedNodes.map(n => n.lessons[0] || ({} as any)),
-            {
-              developmentMode: devMode,
-              previewDifficulty,
-              courseName: coursePropsModal.name || courseName,
-              courseDescription: coursePropsModal.description,
-              isLive: coursePropsModal.isLive,
-              isAutoSave,
-            }
+          const lessonsToSave = flushedNodes.flatMap(n => n.lessons || [])
+          console.log(
+            '[CourseBuilder doSave] nodes count:',
+            nodes.length,
+            'lessons count:',
+            lessonsToSave.length
           )
+          console.log(
+            '[CourseBuilder doSave] lesson ids:',
+            lessonsToSave.map((l: any) => l.id)
+          )
+          console.log(
+            '[CourseBuilder doSave] task counts per lesson:',
+            lessonsToSave.map((l: any) => (l.tasks || []).length)
+          )
+          console.log(
+            '[CourseBuilder doSave] homework counts per lesson:',
+            lessonsToSave.map((l: any) => (l.homework || []).length)
+          )
+
+          return onSave(lessonsToSave, {
+            developmentMode: devMode,
+            previewDifficulty,
+            courseName: coursePropsModal.name || courseName,
+            courseDescription: coursePropsModal.description,
+            isLive: coursePropsModal.isLive,
+            isAutoSave,
+          })
         }
       },
       [
@@ -3608,7 +3625,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             assessmentDmiItems,
             dmiDocumentKind.assessment
           ).nextNodes
-          return flushedNodes.map(n => n.lessons[0])
+          return flushedNodes.flatMap(n => n.lessons || [])
         },
         openVideo: () => {
           if (!sessionContext?.roomUrl) return
@@ -6281,16 +6298,33 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         dmiDocumentKind.assessment
       ).nextNodes
 
-      await onSave(
-        flushedNodes.map(n => n.lessons[0] || ({} as any)),
-        {
-          developmentMode: devMode,
-          previewDifficulty,
-          courseName: coursePropsModal.name || courseName,
-          courseDescription: coursePropsModal.description,
-          isLive: coursePropsModal.isLive,
-        }
+      const lessonsToSave = flushedNodes.flatMap(n => n.lessons || [])
+      console.log(
+        '[CourseBuilder saveNodesIfPossible] nodes count:',
+        nextNodes.length,
+        'lessons count:',
+        lessonsToSave.length
       )
+      console.log(
+        '[CourseBuilder saveNodesIfPossible] lesson ids:',
+        lessonsToSave.map((l: any) => l.id)
+      )
+      console.log(
+        '[CourseBuilder saveNodesIfPossible] task counts per lesson:',
+        lessonsToSave.map((l: any) => (l.tasks || []).length)
+      )
+      console.log(
+        '[CourseBuilder saveNodesIfPossible] homework counts per lesson:',
+        lessonsToSave.map((l: any) => (l.homework || []).length)
+      )
+
+      await onSave(lessonsToSave, {
+        developmentMode: devMode,
+        previewDifficulty,
+        courseName: coursePropsModal.name || courseName,
+        courseDescription: coursePropsModal.description,
+        isLive: coursePropsModal.isLive,
+      })
     }
 
     // Block deleting a lesson that has had material deployed from it in a live
@@ -9372,7 +9406,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       ).nextNodes
 
       onSave(
-        flushedNodes.map(n => n.lessons[0] || ({} as any)),
+        flushedNodes.flatMap(n => n.lessons || []),
         { developmentMode: devMode, previewDifficulty }
       )
     }
@@ -9438,7 +9472,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         ).nextNodes
 
         onSave(
-          flushedNodes.map(n => n.lessons[0] || ({} as any)),
+          flushedNodes.flatMap(n => n.lessons || []),
           {
             developmentMode: devMode,
             previewDifficulty,
@@ -14944,7 +14978,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     ).nextNodes
 
                     onSave(
-                      flushedNodes.map(n => n.lessons[0] || ({} as any)),
+                      flushedNodes.flatMap(n => n.lessons || []),
                       {
                         developmentMode: devMode,
                         previewDifficulty,
