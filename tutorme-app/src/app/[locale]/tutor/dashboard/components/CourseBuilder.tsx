@@ -4839,7 +4839,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setTaskDmiVersions(prev => [...prev, newVersion])
           setTestPciSource('task')
           setTestPciViewMode(`dmi_${newVersion.id}`)
-          toast.success(`DMI form v${nextVersionNumber} created with ${dmiItems.length} questions`)
+          toast.success('DMI complete')
         } else {
           console.log('[handleGenerateDMI] setting assessmentDmiItems:', dmiItems.length)
           setAssessmentDmiItems(dmiItems)
@@ -4850,7 +4850,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }))
           setTestPciSource('assessment')
           setTestPciViewMode('dmi')
-          toast.success(`DMI created with ${dmiItems.length} questions`)
+          toast.success('DMI complete')
         }
 
         // Open the DMI editor so the tutor can review and edit the AI-prepopulated
