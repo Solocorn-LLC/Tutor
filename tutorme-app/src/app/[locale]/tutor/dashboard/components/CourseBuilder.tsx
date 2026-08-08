@@ -2970,6 +2970,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // tab switches that land back on the same item) would otherwise reset the
         // document/PDF viewer state and trigger a fresh load of the source doc.
         if (loadedTaskId === task.id && taskBuilder.activeExtensionId === activeExtensionId) {
+          // Re-selecting the same task must still flip the Test/Live source to
+          // 'task', otherwise a previously loaded assessment can stay active and
+          // the wrong content renders in Test mode.
+          setTestPciSource('task')
+          setMainBuilderTab('task')
           return
         }
 
@@ -3039,6 +3044,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // switches that land back on the same item) would otherwise reset the
         // document/PDF viewer state and trigger a fresh load of the source doc.
         if (loadedAssessmentId === assessment.id) {
+          // Re-selecting the same assessment must still flip the Test/Live source
+          // to 'assessment', otherwise a previously loaded task can stay active
+          // and the wrong content renders in Test mode.
+          setTestPciSource('assessment')
+          setMainBuilderTab('assessment')
           return
         }
 
@@ -5292,6 +5302,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstTask) ensureSectionExpanded(nodeId, 'task')
       setLoadedTaskId(newTask.id)
+      setMainBuilderTab('task')
+      setTestPciSource('task')
       setTaskBuilder({
         title: newTask.title,
         taskContent: '',
@@ -5302,7 +5314,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       })
       toast.success('New task created')
       return newTask
-    }, [nodes, ensureFirstLessonContext])
+    }, [nodes, ensureFirstLessonContext, setMainBuilderTab, setTestPciSource])
 
     // Auto-create assessment when typing in Assessment Builder without loaded assessment
     const autoCreateAssessment = useCallback(() => {
@@ -5321,6 +5333,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstAssessment) ensureSectionExpanded(nodeId, 'assessment')
       setLoadedAssessmentId(newAssessment.id)
+      setMainBuilderTab('assessment')
+      setTestPciSource('assessment')
       setAssessmentBuilder({
         title: newAssessment.title,
         taskContent: '',
@@ -5333,7 +5347,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       })
       toast.success('New assessment created')
       return newAssessment
-    }, [nodes, ensureFirstLessonContext])
+    }, [nodes, ensureFirstLessonContext, setMainBuilderTab, setTestPciSource])
 
     // Auto-load the first task/assessment when a course is loaded into the
     // builder. If the course has neither, create a default task and save it.
