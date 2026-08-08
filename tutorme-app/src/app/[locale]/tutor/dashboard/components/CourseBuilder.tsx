@@ -844,6 +844,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       nodesRef.current = nodes
     }, [nodes])
 
+    useEffect(() => {
+      console.log('[CourseBuilder nodes] state sizes', {
+        builderNodes: builderNodes.length,
+        liveNodes: liveNodes.length,
+        nodes: nodes.length,
+        mainTab,
+      })
+    }, [builderNodes.length, liveNodes.length, nodes.length, mainTab])
+
     const setCourseBuilderNodes = useCallback(
       (updater: React.SetStateAction<CourseBuilderNode[]>) => {
         if (mainTab === 'live') {
@@ -4961,7 +4970,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [moveTarget, setMoveTarget] = useState<string>('')
 
     useEffect(() => {
-      if (lastInitialCourseBuilderNodesKeyRef.current === initialCourseBuilderNodesKey) return
+      console.log('[CourseBuilder hydration] effect run', {
+        courseId,
+        initialLessonsLength: initialLessons?.length,
+        resolvedNodesLength: resolvedInitialCourseBuilderNodes.length,
+        key: initialCourseBuilderNodesKey,
+        lastKey: lastInitialCourseBuilderNodesKeyRef.current,
+      })
+      if (lastInitialCourseBuilderNodesKeyRef.current === initialCourseBuilderNodesKey) {
+        console.log('[CourseBuilder hydration] skipping: same key')
+        return
+      }
       lastInitialCourseBuilderNodesKeyRef.current = initialCourseBuilderNodesKey
 
       const courseChanged = lastHydratedCourseIdRef.current !== (courseId ?? null)
@@ -4974,20 +4993,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setLiveNodes(isStudentView || saveMode !== 'draft' ? cloneNodes(nodes) : [])
 
       if (courseChanged) {
-        // Switched to a different course (or first mount): replace wholesale.
-        // Don't merge — builderNodes still holds the previous course's lessons.
+        console.log(
+          '[CourseBuilder hydration] course changed; replacing builderNodes with',
+          normalized.length
+        )
         mergedRealLoadCourseIdRef.current = normalized.length > 0 ? (courseId ?? null) : null
         setBuilderNodes(normalized)
         hydrateLive(normalized)
         return
       }
 
-      // Same course. The FIRST time real (non-empty) loaded data lands — the
-      // background load finishing AFTER the builder opened empty — MERGE it with
-      // any lessons the tutor added during the load window. Skipping it (as #1127
-      // did) would leave builderNodes without the DB lessons, and the next
-      // delete-missing save would soft-delete them (the "lessons disappear" bug).
       if (normalized.length > 0 && mergedRealLoadCourseIdRef.current !== (courseId ?? null)) {
+        console.log('[CourseBuilder hydration] merging loaded with pending edits', {
+          loaded: normalized.length,
+          pending: builderNodes.length,
+        })
         mergedRealLoadCourseIdRef.current = courseId ?? null
         const merged = mergeLoadedWithPendingEdits(normalized, builderNodes)
         setBuilderNodes(merged)
@@ -4995,11 +5015,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return
       }
 
-      // A later re-fetch for the same course must NOT clobber in-progress edits;
-      // only re-hydrate while the builder is still empty. builderNodes is read
-      // (not depended on) intentionally: the effect only re-runs on key/course
-      // change, at which point it reflects the latest edits.
-      if (!shouldRehydrateBuilder(courseChanged, builderNodes.length)) return
+      if (!shouldRehydrateBuilder(courseChanged, builderNodes.length)) {
+        console.log('[CourseBuilder hydration] rehydrate blocked', {
+          courseChanged,
+          builderNodesLength: builderNodes.length,
+        })
+        return
+      }
+      console.log('[CourseBuilder hydration] rehydrating builderNodes with', normalized.length)
       setBuilderNodes(normalized)
       hydrateLive(normalized)
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5368,6 +5391,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Auto-load the first task/assessment when a course is loaded into the
     // builder. If the course has neither, create a default task and save it.
+    // This effect intentionally reads from `initialLessons` / the resolved
+    // initial nodes, not from the current `nodes` state, because the hydration
+    // effect may not have committed its state update when this effect fires. Using
+    // `nodes` caused a race where the loaded lessons were overwritten by a blank
+    // default task.
     useEffect(() => {
       if (mainTab !== 'builder') return
       if (!didBlankSlateRef.current) return
@@ -5376,16 +5404,43 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (loadedTaskId || loadedAssessmentId) return
       if (autoLoadedCourseIdRef.current === courseId) return
 
-      const firstNode = nodes[0]
-      const firstLesson = firstNode?.lessons?.[0]
+      autoLoadedCourseIdRef.current = courseId
 
+      const hasLoadedLessons = Array.isArray(initialLessons) && initialLessons.length > 0
+
+      // No DB/local draft content yet — seed a default task so the builder is never
+      // stuck on an empty state.
+      if (!hasLoadedLessons) {
+        const newTask = DEFAULT_TASK(0)
+        const newLesson = DEFAULT_LESSON(0)
+        const newNode = DEFAULT_NODE(0)
+
+        setBuilderNodes(prev => {
+          if (prev.length > 0) return prev
+          return [{ ...newNode, lessons: [{ ...newLesson, tasks: [newTask] }] }]
+        })
+        setExpandedCourseBuilderNodes(prev => new Set([...prev, newNode.id]))
+        loadTaskIntoBuilder(newTask)
+        setMainBuilderTab('task')
+        ensureSectionExpanded(newNode.id, 'task')
+        setSelectedItem({ type: 'task', id: newTask.id })
+        revealCurriculumItem('task', newTask.id)
+        window.setTimeout(() => {
+          doSave(true)
+        }, 0)
+        return
+      }
+
+      // initialLessons has content. Resolve the first task or assessment from the
+      // loaded data (not the still-empty `nodes` state) and load it into the builder.
+      const firstNode = resolvedInitialCourseBuilderNodes[0]
+      const firstLesson = firstNode?.lessons?.[0]
       if (firstLesson?.tasks && firstLesson.tasks.length > 0) {
         const firstTask = firstLesson.tasks[0]
         loadTaskIntoBuilder(firstTask)
         setMainBuilderTab('task')
         ensureSectionExpanded(firstNode.id, 'task')
         setSelectedItem({ type: 'task', id: firstTask.id })
-        autoLoadedCourseIdRef.current = courseId
         return
       }
 
@@ -5398,41 +5453,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setMainBuilderTab('assessment')
         ensureSectionExpanded(firstNode.id, 'assessment')
         setSelectedItem({ type: 'homework', id: firstAssessment.id })
-        autoLoadedCourseIdRef.current = courseId
         return
       }
 
-      // No lessons, no tasks, no assessments — create a default task, fully load
-      // it into the builder, and persist it so there is never an empty state.
+      // Loaded lessons exist but have no tasks/assessments yet. Seed a default task
+      // so the user sees something actionable.
       const newTask = DEFAULT_TASK(0)
-      const newLesson = DEFAULT_LESSON(0)
-      const newNode = DEFAULT_NODE(0)
-
-      const updatedNodes = (() => {
-        let next = [...nodes]
+      setBuilderNodes(prev => {
+        const next = [...prev]
         if (next.length === 0) {
-          next = [{ ...newNode, lessons: [newLesson] }]
-        } else if (next[0].lessons.length === 0) {
-          next[0] = { ...next[0], lessons: [newLesson] }
+          const newLesson = DEFAULT_LESSON(0)
+          const newNode = DEFAULT_NODE(0)
+          return [{ ...newNode, lessons: [{ ...newLesson, tasks: [newTask] }] }]
         }
-        next[0] = {
-          ...next[0],
-          lessons: next[0].lessons.map((lesson, idx) =>
-            idx === 0 ? { ...lesson, tasks: [...lesson.tasks, newTask] } : lesson
-          ),
-        }
+        next[0] = { ...next[0] }
+        next[0].lessons = next[0].lessons.map((lesson, idx) =>
+          idx === 0 ? { ...lesson, tasks: [...lesson.tasks, newTask] } : lesson
+        )
         return next
-      })()
-
-      const targetNodeId = updatedNodes[0].id
-      setBuilderNodes(updatedNodes)
+      })
+      const targetNodeId = resolvedInitialCourseBuilderNodes[0]?.id || newTask.id
       setExpandedCourseBuilderNodes(prev => new Set([...prev, targetNodeId]))
       loadTaskIntoBuilder(newTask)
       setMainBuilderTab('task')
       ensureSectionExpanded(targetNodeId, 'task')
       setSelectedItem({ type: 'task', id: newTask.id })
       revealCurriculumItem('task', newTask.id)
-      autoLoadedCourseIdRef.current = courseId
       window.setTimeout(() => {
         doSave(true)
       }, 0)
@@ -5441,9 +5487,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       mainTab,
       courseId,
       initialLessons,
+      resolvedInitialCourseBuilderNodes,
       loadedTaskId,
       loadedAssessmentId,
-      nodes,
       loadTaskIntoBuilder,
       loadAssessmentIntoBuilder,
       setMainBuilderTab,
