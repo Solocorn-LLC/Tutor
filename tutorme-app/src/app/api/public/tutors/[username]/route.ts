@@ -254,6 +254,7 @@ export async function GET(
         maxStudents: liveSession.maxStudents,
         roomUrl: liveSession.roomUrl,
         courseId: liveSession.courseId,
+        category: liveSession.category,
         demoVideoContentId: liveSession.demoVideoContentId,
       })
       .from(liveSession)
@@ -286,6 +287,7 @@ export async function GET(
       maxStudents: row.maxStudents,
       roomUrl: row.roomUrl || null,
       courseId: row.courseId || null,
+      category: row.category || null,
       demoVideoContentId: row.demoVideoContentId || null,
     }))
 
