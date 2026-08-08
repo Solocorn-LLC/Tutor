@@ -367,6 +367,7 @@ import {
   formatDuration,
   deepCloneSourceDocument,
 } from './builder-utils'
+import { buildTaskFlushedNodes, buildAssessmentFlushedNodes } from './builder-flush'
 
 // --- Tiered PCI context helpers -------------------------------------------
 
@@ -3264,77 +3265,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       }
     }, [courseAssets, saveAssetsToApi])
 
-    // Auto-save task on the fly (debounced)
+    // Auto-save task on the fly. Runs immediately when task builder state changes
+    // so the lesson tree is never stale when the tutor hits Save. The helper
+    // returns the previous array reference when nothing changed, keeping the
+    // live-session unsynced-changes detector stable.
     useEffect(() => {
       if (!canEdit) return
       if (!loadedTaskId) return
 
-      const timeoutId = setTimeout(() => {
-        // Equality-guarded write: if nothing about the loaded task actually
-        // changed, return `prev` unchanged so `nodes` keeps its identity. A new
-        // identity would trip the live-session edit detector (setHasUnsyncedChanges
-        // -> onUnsyncedChangesChange -> parent re-render -> new insightsProps ->
-        // re-render -> re-arm), which with DMI items present never converges and
-        // throws React #185 (max update depth).
-        setCourseBuilderNodes(prev => {
-          let changed = false
-          const next = prev.map(mod => ({
-            ...mod,
-            lessons: mod.lessons.map(lesson => ({
-              ...lesson,
-              tasks: lesson.tasks.map(task => {
-                if (task.id !== loadedTaskId) return task
-                const nextActiveDmiVersionId =
-                  testPciSource === 'task' && testPciViewMode.startsWith('dmi_')
-                    ? testPciViewMode.replace('dmi_', '')
-                    : task.activeDmiVersionId
-                if (
-                  task.title === taskBuilder.title &&
-                  task.shortDescription === taskBuilder.details &&
-                  task.description === taskBuilder.taskContent &&
-                  task.instructions === taskBuilder.taskPci &&
-                  task.pciHistory === taskBuilder.pciHistory &&
-                  task.pciSpec === taskBuilder.pciSpec &&
-                  task.pciThread === taskBuilder.pciThread &&
-                  task.extensions === taskBuilder.extensions &&
-                  task.dmiItems === taskDmiItems &&
-                  task.documentKind === (dmiDocumentKind.task ?? task.documentKind) &&
-                  task.dmiVersions === taskDmiVersions &&
-                  task.activeDmiVersionId === nextActiveDmiVersionId &&
-                  task.sourceDocument === taskBuilder.sourceDocument
-                ) {
-                  return task
-                }
-                changed = true
-                return {
-                  ...task,
-                  title: taskBuilder.title,
-                  shortDescription: taskBuilder.details,
-                  description: taskBuilder.taskContent,
-                  instructions: taskBuilder.taskPci,
-                  // TASK-18: persist the PCI approval audit log with the task.
-                  pciHistory: taskBuilder.pciHistory,
-                  // TASK-6: persist the current approved structured spec.
-                  pciSpec: taskBuilder.pciSpec,
-                  // Full PCI conversation thread (messages, draft, specSoFar) so it
-                  // survives reloads and device changes.
-                  pciThread: taskBuilder.pciThread,
-                  extensions: taskBuilder.extensions,
-                  dmiItems: taskDmiItems,
-                  // Preserve the persisted kind when the session hasn't set one.
-                  documentKind: dmiDocumentKind.task ?? task.documentKind,
-                  dmiVersions: taskDmiVersions,
-                  activeDmiVersionId: nextActiveDmiVersionId,
-                  sourceDocument: taskBuilder.sourceDocument,
-                }
-              }),
-            })),
-          }))
-          return changed ? next : prev
-        })
-      }, 1000) // Auto-save after 1 second of inactivity
-
-      return () => clearTimeout(timeoutId)
+      setCourseBuilderNodes(prev => {
+        const { nextNodes, changed } = buildTaskFlushedNodes(
+          prev,
+          loadedTaskId,
+          taskBuilder,
+          taskDmiItems,
+          taskDmiVersions,
+          dmiDocumentKind.task,
+          testPciSource,
+          testPciViewMode
+        )
+        return changed ? nextNodes : prev
+      })
     }, [
       taskBuilder.title,
       taskBuilder.details,
@@ -3353,68 +3304,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       loadedTaskId,
     ])
 
-    // Auto-save assessment on the fly (debounced)
+    // Auto-save assessment on the fly. Runs immediately when assessment builder
+    // state changes so the lesson tree is never stale when the tutor hits Save.
+    // The helper returns the previous array reference when nothing changed, keeping
+    // the live-session unsynced-changes detector stable.
     useEffect(() => {
       if (!canEdit) return
       if (!loadedAssessmentId) return
 
-      const timeoutId = setTimeout(() => {
-        // Equality-guarded write — see the task auto-save above. Returning `prev`
-        // when the assessment is unchanged keeps `nodes` identity stable and
-        // prevents the live-session unsynced-changes feedback loop (React #185)
-        // that fires once a loaded DMI has items.
-        setCourseBuilderNodes(prev => {
-          let changed = false
-          const next = prev.map(mod => ({
-            ...mod,
-            lessons: mod.lessons.map(lesson => ({
-              ...lesson,
-              homework: lesson.homework.map(hw => {
-                if (hw.id !== loadedAssessmentId) return hw
-                if (
-                  hw.title === assessmentBuilder.title &&
-                  hw.description === assessmentBuilder.taskContent &&
-                  hw.instructions === assessmentBuilder.taskPci &&
-                  hw.pciHistory === assessmentBuilder.pciHistory &&
-                  hw.pciSpec === assessmentBuilder.pciSpec &&
-                  hw.pciThread === assessmentBuilder.pciThread &&
-                  hw.dmiItems === assessmentDmiItems &&
-                  hw.documentKind === (dmiDocumentKind.assessment ?? hw.documentKind) &&
-                  hw.dmiExamBody === assessmentBuilder.dmiExamBody &&
-                  hw.dmiSubject === assessmentBuilder.dmiSubject &&
-                  hw.sourceDocument === assessmentBuilder.sourceDocument &&
-                  hw.pages === assessmentBuilder.pages
-                ) {
-                  return hw
-                }
-                changed = true
-                return {
-                  ...hw,
-                  title: assessmentBuilder.title,
-                  description: assessmentBuilder.taskContent,
-                  instructions: assessmentBuilder.taskPci,
-                  pciHistory: assessmentBuilder.pciHistory,
-                  pciSpec: assessmentBuilder.pciSpec,
-                  pciThread: assessmentBuilder.pciThread,
-                  dmiItems: assessmentDmiItems,
-                  // Preserve the persisted kind when the session hasn't set one.
-                  documentKind: dmiDocumentKind.assessment ?? hw.documentKind,
-                  dmiExamBody: assessmentBuilder.dmiExamBody,
-                  dmiSubject: assessmentBuilder.dmiSubject,
-                  // Legacy version fields are no longer written for assessments.
-                  dmiVersions: undefined,
-                  activeDmiVersionId: undefined,
-                  sourceDocument: assessmentBuilder.sourceDocument,
-                  pages: assessmentBuilder.pages,
-                }
-              }),
-            })),
-          }))
-          return changed ? next : prev
-        })
-      }, 1000) // Auto-save after 1 second of inactivity
-
-      return () => clearTimeout(timeoutId)
+      setCourseBuilderNodes(prev => {
+        const { nextNodes, changed } = buildAssessmentFlushedNodes(
+          prev,
+          loadedAssessmentId,
+          assessmentBuilder,
+          assessmentDmiItems,
+          dmiDocumentKind.assessment
+        )
+        return changed ? nextNodes : prev
+      })
     }, [
       assessmentBuilder.title,
       assessmentBuilder.taskContent,
@@ -3501,8 +3408,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
 
         if (onSave) {
+          // Flush any pending task/assessment builder edits into the lesson tree
+          // before serializing, so a manual Save can never lose edits that haven't
+          // been synced yet.
+          const taskFlushed = buildTaskFlushedNodes(
+            nodes,
+            loadedTaskId,
+            taskBuilder,
+            taskDmiItems,
+            taskDmiVersions,
+            dmiDocumentKind.task,
+            testPciSource,
+            testPciViewMode
+          )
+          const flushedNodes = buildAssessmentFlushedNodes(
+            taskFlushed.nextNodes,
+            loadedAssessmentId,
+            assessmentBuilder,
+            assessmentDmiItems,
+            dmiDocumentKind.assessment
+          ).nextNodes
+
           return onSave(
-            nodes.map(n => n.lessons[0] || ({} as any)),
+            flushedNodes.map(n => n.lessons[0] || ({} as any)),
             {
               developmentMode: devMode,
               previewDifficulty,
@@ -3522,6 +3450,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         devMode,
         previewDifficulty,
         onSave,
+        loadedTaskId,
+        taskBuilder,
+        taskDmiItems,
+        taskDmiVersions,
+        dmiDocumentKind,
+        testPciSource,
+        testPciViewMode,
+        loadedAssessmentId,
+        assessmentBuilder,
+        assessmentDmiItems,
       ]
     )
 
@@ -3650,7 +3588,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         saveAll: (isAuto = false) =>
           insightsProps?.sessionId && onSyncToLiveSession ? triggerSync(isAuto) : doSave(isAuto),
         syncToLive: handleSyncToLive,
-        getLessons: () => nodes.map(n => n.lessons[0]),
+        getLessons: () => {
+          // Return the lesson tree with any pending task/assessment builder edits
+          // applied, so callers (e.g. template creation) see the latest state.
+          const taskFlushed = buildTaskFlushedNodes(
+            nodes,
+            loadedTaskId,
+            taskBuilder,
+            taskDmiItems,
+            taskDmiVersions,
+            dmiDocumentKind.task,
+            testPciSource,
+            testPciViewMode
+          )
+          const flushedNodes = buildAssessmentFlushedNodes(
+            taskFlushed.nextNodes,
+            loadedAssessmentId,
+            assessmentBuilder,
+            assessmentDmiItems,
+            dmiDocumentKind.assessment
+          ).nextNodes
+          return flushedNodes.map(n => n.lessons[0])
+        },
         openVideo: () => {
           if (!sessionContext?.roomUrl) return
           openVideoOverlay({
@@ -3676,6 +3635,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         sessionContext?.token,
         isStudentView,
         openVideoOverlay,
+        loadedTaskId,
+        taskBuilder,
+        taskDmiItems,
+        taskDmiVersions,
+        dmiDocumentKind,
+        testPciSource,
+        testPciViewMode,
+        loadedAssessmentId,
+        assessmentBuilder,
+        assessmentDmiItems,
       ]
     )
 
@@ -6287,8 +6256,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return
       }
 
+      // Flush any pending task/assessment builder edits into the tree before
+      // serializing, so modal saves (lesson/task/assessment) don't lose the
+      // latest builder state.
+      const taskFlushed = buildTaskFlushedNodes(
+        nextNodes,
+        loadedTaskId,
+        taskBuilder,
+        taskDmiItems,
+        taskDmiVersions,
+        dmiDocumentKind.task,
+        testPciSource,
+        testPciViewMode
+      )
+      const flushedNodes = buildAssessmentFlushedNodes(
+        taskFlushed.nextNodes,
+        loadedAssessmentId,
+        assessmentBuilder,
+        assessmentDmiItems,
+        dmiDocumentKind.assessment
+      ).nextNodes
+
       await onSave(
-        nextNodes.map(n => n.lessons[0] || ({} as any)),
+        flushedNodes.map(n => n.lessons[0] || ({} as any)),
         {
           developmentMode: devMode,
           previewDifficulty,
@@ -9355,8 +9345,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const handleSaveAll = () => {
       if (!onSave) return
+
+      // Flush any pending task/assessment builder edits into the lesson tree
+      // before the manual Save serializes it, preventing newly loaded DMIs from
+      // being dropped when the tutor saves quickly after editing.
+      const taskFlushed = buildTaskFlushedNodes(
+        nodes,
+        loadedTaskId,
+        taskBuilder,
+        taskDmiItems,
+        taskDmiVersions,
+        dmiDocumentKind.task,
+        testPciSource,
+        testPciViewMode
+      )
+      const flushedNodes = buildAssessmentFlushedNodes(
+        taskFlushed.nextNodes,
+        loadedAssessmentId,
+        assessmentBuilder,
+        assessmentDmiItems,
+        dmiDocumentKind.assessment
+      ).nextNodes
+
       onSave(
-        nodes.map(n => n.lessons[0] || ({} as any)),
+        flushedNodes.map(n => n.lessons[0] || ({} as any)),
         { developmentMode: devMode, previewDifficulty }
       )
     }
@@ -9401,8 +9413,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (!onSave) return
 
       const timeoutId = setTimeout(() => {
+        // Flush any pending task/assessment builder edits into the lesson tree
+        // before auto-saving, so background saves don't drop recent edits.
+        const taskFlushed = buildTaskFlushedNodes(
+          nodes,
+          loadedTaskId,
+          taskBuilder,
+          taskDmiItems,
+          taskDmiVersions,
+          dmiDocumentKind.task,
+          testPciSource,
+          testPciViewMode
+        )
+        const flushedNodes = buildAssessmentFlushedNodes(
+          taskFlushed.nextNodes,
+          loadedAssessmentId,
+          assessmentBuilder,
+          assessmentDmiItems,
+          dmiDocumentKind.assessment
+        ).nextNodes
+
         onSave(
-          nodes.map(n => n.lessons[0] || ({} as any)),
+          flushedNodes.map(n => n.lessons[0] || ({} as any)),
           {
             developmentMode: devMode,
             previewDifficulty,
@@ -9423,6 +9455,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       courseName,
       onSave,
       autoSaveEnabled,
+      loadedTaskId,
+      taskBuilder,
+      taskDmiItems,
+      taskDmiVersions,
+      dmiDocumentKind,
+      testPciSource,
+      testPciViewMode,
+      loadedAssessmentId,
+      assessmentBuilder,
+      assessmentDmiItems,
     ])
 
     const filteredCourseBuilderNodes = useMemo(() => {
@@ -14873,8 +14915,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 onClick={() => {
                   setCoursePropsModal(prev => ({ ...prev, isOpen: false }))
                   if (onSave) {
+                    // Flush any pending task/assessment builder edits into the
+                    // lesson tree before the modal Save serializes it.
+                    const taskFlushed = buildTaskFlushedNodes(
+                      nodes,
+                      loadedTaskId,
+                      taskBuilder,
+                      taskDmiItems,
+                      taskDmiVersions,
+                      dmiDocumentKind.task,
+                      testPciSource,
+                      testPciViewMode
+                    )
+                    const flushedNodes = buildAssessmentFlushedNodes(
+                      taskFlushed.nextNodes,
+                      loadedAssessmentId,
+                      assessmentBuilder,
+                      assessmentDmiItems,
+                      dmiDocumentKind.assessment
+                    ).nextNodes
+
                     onSave(
-                      nodes.map(n => n.lessons[0] || ({} as any)),
+                      flushedNodes.map(n => n.lessons[0] || ({} as any)),
                       {
                         developmentMode: devMode,
                         previewDifficulty,
