@@ -3429,8 +3429,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             dmiDocumentKind.assessment
           ).nextNodes
 
-          return onSave(
-            flushedNodes.map(n => n.lessons[0] || ({} as any)),
+          const lessonsToSave = flushedNodes.map(n => n.lessons[0] || ({} as any))
+          console.log('[CourseBuilder doSave] nodes count:', nodes.length, 'lessons count:', lessonsToSave.length)
+          console.log('[CourseBuilder doSave] lesson ids:', lessonsToSave.map((l: any) => l.id))
+          console.log('[CourseBuilder doSave] task counts per lesson:', lessonsToSave.map((l: any) => (l.tasks || []).length))
+          console.log('[CourseBuilder doSave] homework counts per lesson:', lessonsToSave.map((l: any) => (l.homework || []).length))
+
+          return onSave(lessonsToSave,
             {
               developmentMode: devMode,
               previewDifficulty,
@@ -6281,8 +6286,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         dmiDocumentKind.assessment
       ).nextNodes
 
-      await onSave(
-        flushedNodes.map(n => n.lessons[0] || ({} as any)),
+      const lessonsToSave = flushedNodes.map(n => n.lessons[0] || ({} as any))
+      console.log('[CourseBuilder saveNodesIfPossible] nodes count:', nextNodes.length, 'lessons count:', lessonsToSave.length)
+      console.log('[CourseBuilder saveNodesIfPossible] lesson ids:', lessonsToSave.map((l: any) => l.id))
+      console.log('[CourseBuilder saveNodesIfPossible] task counts per lesson:', lessonsToSave.map((l: any) => (l.tasks || []).length))
+      console.log('[CourseBuilder saveNodesIfPossible] homework counts per lesson:', lessonsToSave.map((l: any) => (l.homework || []).length))
+
+      await onSave(lessonsToSave,
         {
           developmentMode: devMode,
           previewDifficulty,

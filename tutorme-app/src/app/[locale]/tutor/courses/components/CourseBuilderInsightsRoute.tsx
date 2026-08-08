@@ -56,7 +56,8 @@ import {
   useCourseBuilderContentModel,
   type UseCourseBuilderContentArgs,
 } from './use-course-builder-content-model'
-import { resolveLessonDmis } from './save-course'
+import { resolveLessonDmis, isDraftCourseId } from './save-course'
+import { preSaveDecision } from '@/lib/courses/course-builder-guards'
 import type { ScheduleItem } from '../[id]/constants'
 import { CountryFlag } from '@/components/country-flag'
 
@@ -713,6 +714,29 @@ function CourseBuilderInsightsRouteInner({
     []
   )
   const showWifiSignal = isClassroomMode || activeMainTab === 'live'
+
+  // Safety gate: never hand a delete-missing save to the backend while the initial
+  // DB load is still pending. The builder's local tree does not yet reflect the
+  // database, so a save in this window would soft-delete every not-yet-loaded lesson.
+  const gatedOnSaveCourse = useCallback(
+    async (lessons: any[], options?: any) => {
+      const gate = preSaveDecision({
+        isDetached: dataMode === 'detached',
+        isDraftCourse: isDraftCourseId(courseId),
+        loadedLessonsIsNull: model.loadedLessons === null,
+        isAutoSave: !!options?.isAutoSave,
+      })
+      if (gate !== 'proceed') {
+        if (gate === 'block-warn') {
+          toast.error('Lessons haven’t finished loading yet — reload the course before saving.')
+        }
+        return
+      }
+      return onSaveCourse?.(lessons, options)
+    },
+    [dataMode, courseId, model.loadedLessons, onSaveCourse]
+  )
+
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
   // Two-step create flow: name → category (category is required at creation).
   const [createStep, setCreateStep] = useState<'name' | 'category'>('name')
@@ -1304,7 +1328,7 @@ function CourseBuilderInsightsRouteInner({
               initialLessons={model.loadedLessons ?? undefined}
               hideDirectorySearch
               directoryMenusAlwaysVisible
-              onSave={onSaveCourse}
+              onSave={gatedOnSaveCourse}
               insightsProps={{
                 ...insightsProps,
                 // Expose drafts too so the builder can resolve the course's
