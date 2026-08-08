@@ -119,6 +119,7 @@ interface PublicTutorResponse {
     maxStudents?: number | null
     roomUrl?: string | null
     courseId?: string | null
+    category?: string | null
     demoVideoContentId?: string | null
   }>
 }
@@ -733,8 +734,7 @@ export default function PublicTutorPage() {
   const CourseCardStrip = ({ courses }: { courses: typeof enrollingCourses }) => {
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 4
-    const CARD_WIDTH = 320
-    const CARD_GAP = 20
+    const CARD_WIDTH = 340
     const totalPages = Math.max(1, Math.ceil(courses.length / PAGE_SIZE))
     const currentPage = Math.min(page, totalPages - 1)
     const canPrev = currentPage > 0
@@ -772,14 +772,6 @@ export default function PublicTutorPage() {
                       ? `${liveDone} live session(s) completed`
                       : 'No live sessions on record yet'
                 const description = course.description?.trim() || ''
-                const hasDescription = description.length > 0
-                const descriptionText = hasDescription
-                  ? description
-                  : 'No description provided for this course yet.'
-                const descriptionPreview =
-                  descriptionText.length > 200
-                    ? `${descriptionText.slice(0, 197)}...`
-                    : descriptionText
                 const isList = false
                 const isCompact = false
 
@@ -827,22 +819,18 @@ export default function PublicTutorPage() {
                             </p>
                             <Badge
                               variant="secondary"
-                              className="mt-2 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
+                              title={course.variantCategory || course.categories[0] || 'general'}
+                              className="mt-2 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
                             >
-                              {course.country && course.country !== 'Global' ? (
-                                <>
-                                  {course.variantCategory || course.categories[0] || 'general'} —{' '}
-                                  <CountryFlag countryName={course.country} size="xs" showLabel />
-                                </>
-                              ) : (
-                                course.categories[0] || 'general'
-                              )}
+                              <span className="truncate whitespace-nowrap">
+                                {course.variantCategory || course.categories[0] || 'general'}
+                              </span>
                             </Badge>
                           </div>
 
-                          <div className="min-w-0 flex-1 rounded-[12px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.045)] px-[18px] py-[14px] text-[rgba(255,255,255,0.86)]">
-                            <p className="line-clamp-3 text-sm leading-[1.45]">
-                              {descriptionPreview}
+                          <div className="min-w-0 flex-1 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-[18px] py-[14px] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
+                            <p className="line-clamp-3 text-sm leading-[1.45] text-slate-800">
+                              {description || 'No description'}
                             </p>
                           </div>
                         </div>
@@ -868,19 +856,15 @@ export default function PublicTutorPage() {
                               </p>
                               <Badge
                                 variant="secondary"
+                                title={course.variantCategory || course.categories[0] || 'general'}
                                 className={cn(
-                                  'mt-1.5 w-fit border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
+                                  'mt-1.5 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
                                   isCompact && 'mt-1.5'
                                 )}
                               >
-                                {course.country && course.country !== 'Global' ? (
-                                  <>
-                                    {course.variantCategory || course.categories[0] || 'general'} —{' '}
-                                    <CountryFlag countryName={course.country} size="xs" showLabel />
-                                  </>
-                                ) : (
-                                  course.categories[0] || 'general'
-                                )}
+                                <span className="truncate whitespace-nowrap">
+                                  {course.variantCategory || course.categories[0] || 'general'}
+                                </span>
                               </Badge>
                             </div>
 
@@ -906,32 +890,21 @@ export default function PublicTutorPage() {
                             </div>
                           </div>
 
-                          {hasDescription ? (
-                            <div
-                              className={cn(
-                                'mt-2 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
-                                isCompact && 'mt-2 rounded-[12px] px-3 py-2'
-                              )}
-                            >
-                              <p
-                                className={cn(
-                                  'line-clamp-4 text-[12px] leading-[1.3] text-slate-800',
-                                  isCompact && 'text-[11px]'
-                                )}
-                              >
-                                {description}
-                              </p>
-                            </div>
-                          ) : (
+                          <div
+                            className={cn(
+                              'mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
+                              isCompact && 'mt-2 h-[64px] rounded-[12px] px-3 py-2'
+                            )}
+                          >
                             <p
                               className={cn(
-                                'mt-2 text-[11px] text-slate-300/80',
-                                isCompact && 'mt-2 text-[11px]'
+                                'line-clamp-4 text-[12px] leading-[1.3] text-slate-800',
+                                isCompact && 'text-[11px]'
                               )}
                             >
-                              No description yet.
+                              {description || 'No description'}
                             </p>
-                          )}
+                          </div>
 
                           <div
                             className={cn(
@@ -1191,6 +1164,145 @@ export default function PublicTutorPage() {
     )
   }
 
+  const DemoClassCardStrip = ({
+    demoClasses,
+  }: {
+    demoClasses: PublicTutorResponse['demoClasses']
+  }) => {
+    const [page, setPage] = useState(0)
+    const PAGE_SIZE = 4
+    const CARD_WIDTH = 320
+    const totalPages = Math.max(1, Math.ceil(demoClasses.length / PAGE_SIZE))
+    const currentPage = Math.min(page, totalPages - 1)
+    const canPrev = currentPage > 0
+    const canNext = currentPage < totalPages - 1
+    const visible = demoClasses.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE)
+    const placeholders = Math.max(0, PAGE_SIZE - visible.length)
+
+    const isLive = (status: string) => status !== 'ended'
+
+    return (
+      <div className="flex w-full items-stretch">
+        <div className="flex shrink-0 items-center pr-3">
+          <TriangleArrow
+            direction="left"
+            disabled={!canPrev}
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            label="Previous demo lessons"
+          />
+        </div>
+        <div className="flex-1 overflow-hidden py-3">
+          <div className="flex gap-5">
+            {visible.map(demo => {
+              const live = isLive(demo.status)
+              const title = (demo.title || 'Live Demo')
+                .replace(/\s*[—-]\s*Live Session$/i, '')
+                .replace(/^Live Session\s*[—-]\s*/i, '')
+                .trim()
+              const category = demo.category || 'Demo'
+              return (
+                <Link
+                  key={demo.id}
+                  href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
+                  className="group block shrink-0"
+                  style={{ width: CARD_WIDTH, height: CARD_WIDTH, flexShrink: 0 }}
+                >
+                  <div
+                    className="h-full w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
+                      transform: 'translateZ(0)',
+                    }}
+                  >
+                    <div className="flex h-full flex-col p-3.5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <h3 className="line-clamp-2 text-[15px] font-semibold text-slate-50">
+                            {title}
+                          </h3>
+                          <p className="mt-0.5 text-xs font-medium text-emerald-100/80">
+                            @{tutor.username || 'tutor'}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            <span
+                              title={category}
+                              className="inline-flex max-w-full items-center truncate whitespace-nowrap rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white"
+                            >
+                              {category}
+                            </span>
+                            <span
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                                live
+                                  ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
+                                  : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
+                              )}
+                            >
+                              <span
+                                className={cn(
+                                  'h-1.5 w-1.5 rounded-full',
+                                  live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
+                                )}
+                              />
+                              {live ? 'Live' : 'Ended'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                          {tutor.avatarUrl ? (
+                            <img
+                              src={tutor.avatarUrl}
+                              alt={tutor.name || 'Tutor'}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
+                              <User className="h-6 w-6 opacity-50" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
+                        <p className="line-clamp-4 text-[12px] leading-[1.3] text-slate-800">
+                          {demo.description?.trim() || 'No description'}
+                        </p>
+                      </div>
+
+                      <div className="mt-auto flex items-center justify-end text-xs font-semibold">
+                        {tutor.country ? (
+                          <span className="truncate text-emerald-100">
+                            <CountryFlag countryName={tutor.country} size="xs" showLabel />
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              )
+            })}
+            {Array.from({ length: placeholders }).map((_, i) => (
+              <div
+                key={`demo-placeholder-${i}`}
+                style={{ width: CARD_WIDTH, height: CARD_WIDTH, flexShrink: 0 }}
+                aria-hidden="true"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center pl-3">
+          <TriangleArrow
+            direction="right"
+            disabled={!canNext}
+            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+            label="Next demo lessons"
+          />
+        </div>
+      </div>
+    )
+  }
+
   function CourseSection({
     title,
     courses,
@@ -1269,8 +1381,6 @@ export default function PublicTutorPage() {
       }
     }, [forceOpen])
 
-    const isLive = (status: string) => status !== 'ended'
-
     return (
       <section>
         <button
@@ -1301,94 +1411,7 @@ export default function PublicTutorPage() {
                 <p className="text-sm text-slate-500">{emptyMessage}</p>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-5">
-                {demoClasses.map(demo => {
-                  const live = isLive(demo.status)
-                  const title = (demo.title || 'Live Demo')
-                    .replace(/\s*[—-]\s*Live Session$/i, '')
-                    .replace(/^Live Session\s*[—-]\s*/i, '')
-                    .trim()
-                  return (
-                    <Link
-                      key={demo.id}
-                      href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
-                      className="group block h-[320px] w-[320px] shrink-0"
-                    >
-                      <div
-                        className="h-[320px] w-[320px] overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
-                        style={{
-                          backgroundImage:
-                            'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
-                          transform: 'translateZ(0)',
-                        }}
-                      >
-                        <div className="flex h-full flex-col p-3.5">
-                          {/* Header: title, username, live indicator and avatar */}
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0 flex-1">
-                              <h3 className="line-clamp-2 text-[15px] font-semibold text-slate-50">
-                                {title}
-                              </h3>
-                              <p className="mt-0.5 text-xs font-medium text-emerald-100/80">
-                                @{tutor.username || 'tutor'}
-                              </p>
-                              <span
-                                className={cn(
-                                  'mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
-                                  live
-                                    ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
-                                    : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
-                                )}
-                              >
-                                <span
-                                  className={cn(
-                                    'h-1.5 w-1.5 rounded-full',
-                                    live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
-                                  )}
-                                />
-                                {live ? 'Live' : 'Ended'}
-                              </span>
-                            </div>
-                            <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
-                              {tutor.avatarUrl ? (
-                                <img
-                                  src={tutor.avatarUrl}
-                                  alt={tutor.name || 'Tutor'}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
-                                  <User className="h-6 w-6 opacity-50" />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Description area — same white box style as course cards */}
-                          {demo.description ? (
-                            <div className="mt-2 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
-                              <p className="line-clamp-4 text-[12px] leading-[1.3] text-slate-800">
-                                {demo.description}
-                              </p>
-                            </div>
-                          ) : (
-                            <p className="mt-2 text-[11px] text-slate-300/80">Live demo class</p>
-                          )}
-
-                          {/* Bottom row: country */}
-                          <div className="mt-auto flex items-center justify-end text-xs font-semibold">
-                            {tutor.country ? (
-                              <span className="truncate text-emerald-100">
-                                <CountryFlag countryName={tutor.country} size="xs" showLabel />
-                              </span>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  )
-                })}
-              </div>
+              <DemoClassCardStrip demoClasses={demoClasses} />
             )}
           </div>
         </div>
