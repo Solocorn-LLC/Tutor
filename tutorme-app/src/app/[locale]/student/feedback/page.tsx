@@ -66,6 +66,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
+import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
@@ -989,6 +990,13 @@ function StudentFeedbackContent() {
     setTaskChatInitial(undefined)
   }, [activeTaskId])
   const [taskChatIncoming, setTaskChatIncoming] = useState<TestTaskChatMsg[]>([])
+  // Graded result message for DMI-bearing assessments, shown as a tutor/AI input
+  // in the Classroom tab after the student clicks "Assessment Complete".
+  const [assessmentGradedMessage, setAssessmentGradedMessage] = useState<{
+    taskId: string
+    content: string
+    timestamp: number
+  } | null>(null)
   const [sessionContext, setSessionContext] = useState<{
     topic: string | null
     objectives: string[] | null
@@ -1941,9 +1949,48 @@ function StudentFeedbackContent() {
     }
   }, [socket, activeTaskId])
 
+  // Listen for auto-grade results after the student submits an assessment, so
+  // the result can be displayed in the Classroom tab as a tutor/AI input.
+  useEffect(() => {
+    if (!socket || !activeTaskId) return
+    const handleTaskGraded = (payload: {
+      taskId: string
+      score?: number | null
+      questionResults?: Array<{
+        correct?: boolean
+        needsReview?: boolean
+        itemId?: string
+      }> | null
+    }) => {
+      if (payload.taskId !== activeTaskId) return
+      const parts: string[] = []
+      if (typeof payload.score === 'number') {
+        parts.push(`Assessment complete — score: ${payload.score}%.`)
+      } else {
+        parts.push('Assessment complete.')
+      }
+      if (payload.questionResults) {
+        const correct = payload.questionResults.filter(r => r.correct).length
+        const needsReview = payload.questionResults.filter(r => r.needsReview).length
+        const incorrect = payload.questionResults.length - correct - needsReview
+        parts.push(`${correct} correct, ${incorrect} incorrect, ${needsReview} needs review.`)
+      }
+      setAssessmentGradedMessage({
+        taskId: payload.taskId,
+        content: parts.join(' '),
+        timestamp: Date.now(),
+      })
+    }
+    socket.on('task:graded', handleTaskGraded)
+    return () => {
+      socket.off('task:graded', handleTaskGraded)
+    }
+  }, [socket, activeTaskId])
+
   // Clear cross-task message relay when the active chat task changes.
   useEffect(() => {
     setTaskChatIncoming([])
+    setAssessmentGradedMessage(null)
   }, [activeTaskId])
 
   const currentSession = sessions.find(s => s.id === selectedSessionId) || null
@@ -2366,6 +2413,20 @@ function StudentFeedbackContent() {
                           {activeTask.content && (
                             <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
                               {activeTask.content}
+                            </div>
+                          )}
+
+                          {/* Auto-grade result surfaced in the Classroom tab as a
+                              tutor/AI message after the student submits. */}
+                          {assessmentGradedMessage?.taskId === activeTaskId && (
+                            <div className="mb-4">
+                              <ChatMessageBubble
+                                sender="ai"
+                                name="AI Tutor"
+                                content={assessmentGradedMessage.content}
+                                timestamp={new Date(assessmentGradedMessage.timestamp)}
+                                studentOnRight
+                              />
                             </div>
                           )}
 
