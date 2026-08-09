@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable'
@@ -140,13 +140,7 @@ export function useCourseBuilderState(options: UseCourseBuilderStateOptions) {
 
   const resolvedInitialCourseBuilderNodes = useMemo(() => {
     const lessons = initialLessons || []
-    const { sanitized: sanitizedLessons, removedPaths } = sanitizeBlobUrls(lessons, 'lessons')
-    if (removedPaths.length > 0) {
-      console.warn('[CourseBuilder] Removed blob URLs from loaded lessons:', removedPaths)
-      toast.error(
-        `Some attached documents were not properly saved (blob URLs detected in ${removedPaths.length} location${removedPaths.length === 1 ? '' : 's'}). Please re-upload them.`
-      )
-    }
+    const { sanitized: sanitizedLessons } = sanitizeBlobUrls(lessons, 'lessons')
     const safeLessons = Array.isArray(sanitizedLessons) ? sanitizedLessons : lessons
     return safeLessons.map((lesson: any, idx: number) => ({
       id: `node-${lesson.id || idx}`,
@@ -160,6 +154,21 @@ export function useCourseBuilderState(options: UseCourseBuilderStateOptions) {
       quizzes: [],
     }))
   }, [initialLessons])
+
+  const blobUrlWarning = useMemo(() => {
+    if (!initialLessons) return { count: 0, paths: [] as string[] }
+    const { removedPaths } = sanitizeBlobUrls(initialLessons, 'lessons')
+    return { count: removedPaths.length, paths: removedPaths }
+  }, [initialLessons])
+
+  useEffect(() => {
+    if (blobUrlWarning.count > 0) {
+      console.warn('[CourseBuilder] Removed blob URLs from loaded lessons:', blobUrlWarning.paths)
+      toast.error(
+        `Some attached documents were not properly saved (blob URLs detected in ${blobUrlWarning.count} location${blobUrlWarning.count === 1 ? '' : 's'}). Please re-upload them.`
+      )
+    }
+  }, [blobUrlWarning])
 
   const initialCourseBuilderNodesKey = useMemo(() => {
     try {
