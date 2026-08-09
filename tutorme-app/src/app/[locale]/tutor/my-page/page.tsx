@@ -330,22 +330,24 @@ function MyCoursesSection() {
     }
   }
 
-  // Categorize courses based on session status
+  // Categorize courses based on session status.
+  // Active = has upcoming live sessions; Enrolling = no sessions yet;
+  // Catalogued = had sessions but none are upcoming (archived/ended).
   const categorizeCourses = useMemo(() => {
     const active: Course[] = []
     const enrolling: Course[] = []
     const catalogued: Course[] = []
 
     for (const course of courses) {
-      if (!course.upcomingSessionsCount && (course.hasSessions || course.hasStudents)) {
-        // Course was published and had sessions or students in the past,
-        // but has no upcoming sessions
-        catalogued.push(course)
-      } else if (!course.lastSessionDate) {
-        // Published but has not completed a session yet (enrollment period)
-        enrolling.push(course)
-      } else {
+      const hasUpcoming = (course.upcomingSessionsCount ?? 0) > 0
+      const hasAnySessions = course.hasSessions
+
+      if (hasUpcoming) {
         active.push(course)
+      } else if (hasAnySessions) {
+        catalogued.push(course)
+      } else {
+        enrolling.push(course)
       }
     }
 
