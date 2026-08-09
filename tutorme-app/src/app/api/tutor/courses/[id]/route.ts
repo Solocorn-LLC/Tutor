@@ -171,13 +171,21 @@ export const PATCH = withAuth(
       }
 
       const [currentCourseRow] = await drizzleDb
-        .select({ isPublished: course.isPublished })
+        .select({ isPublished: course.isPublished, categories: course.categories })
         .from(course)
         .where(eq(course.courseId, id))
         .limit(1)
 
       if (!currentCourseRow) {
         return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+      }
+
+      // Category has its own explicit guard so callers can show a specific message.
+      if (parsedBody.categories !== undefined && currentCourseRow.isPublished) {
+        return NextResponse.json(
+          { error: 'Category cannot be changed for a published course' },
+          { status: 400 }
+        )
       }
 
       // One-way publish: templates may be published, but published courses can
@@ -189,7 +197,7 @@ export const PATCH = withAuth(
         return NextResponse.json({ error: 'Course is already published' }, { status: 400 })
       }
 
-      // Published courses are immutable except for content (lessons/tasks) which
+      // Published courses are immutable except for content (lessons/tasks), which
       // is propagated through the publish route.
       if (
         currentCourseRow.isPublished &&

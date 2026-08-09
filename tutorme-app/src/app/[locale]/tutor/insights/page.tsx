@@ -582,6 +582,13 @@ function TutorInsightsPageInner() {
   // Persist an edited course name/categories from the control-panel Edit button.
   const handleUpdateCourse = useCallback(
     async (id: string, patch: { name: string; categories: string[] }) => {
+      // Identity fields cannot change once a course is published.
+      const target = courses.find(c => c.id === id) ?? draftCourses.find(c => c.id === id)
+      if (target?.isPublished && patch.categories) {
+        toast.error('Category cannot be changed for a published course')
+        return
+      }
+
       // Optimistic local update so the builder header reflects it immediately.
       setCourses(prev =>
         prev.map(c => (c.id === id ? { ...c, name: patch.name, categories: patch.categories } : c))

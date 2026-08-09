@@ -28,6 +28,7 @@ export function buildTaskFlushedNodes(
     pciThread?: import('./hooks/pci-reducer').PciThread
     extensions: NonNullable<Task['extensions']>
     sourceDocument?: ImportedLearningResource
+    linkPreviews?: import('@/lib/link-preview/types').LinkPreviewItem[]
   },
   taskDmiItems: DMIQuestion[],
   taskDmiVersions: DMIVersion[],
@@ -60,7 +61,8 @@ export function buildTaskFlushedNodes(
           task.documentKind === (dmiDocumentKindTask ?? task.documentKind) &&
           task.dmiVersions === taskDmiVersions &&
           task.activeDmiVersionId === nextActiveDmiVersionId &&
-          task.sourceDocument === taskBuilder.sourceDocument
+          task.sourceDocument === taskBuilder.sourceDocument &&
+          task.linkPreviews === taskBuilder.linkPreviews
         ) {
           return task
         }
@@ -80,6 +82,7 @@ export function buildTaskFlushedNodes(
           dmiVersions: taskDmiVersions,
           activeDmiVersionId: nextActiveDmiVersionId,
           sourceDocument: taskBuilder.sourceDocument,
+          linkPreviews: taskBuilder.linkPreviews,
         }
       }),
     })),
@@ -106,6 +109,7 @@ export function buildAssessmentFlushedNodes(
     pages?: string[]
     dmiExamBody?: string
     dmiSubject?: string
+    linkPreviews?: import('@/lib/link-preview/types').LinkPreviewItem[]
   },
   assessmentDmiItems: DMIQuestion[],
   dmiDocumentKindAssessment: 'question_paper' | 'study_material' | undefined
@@ -130,7 +134,8 @@ export function buildAssessmentFlushedNodes(
           hw.dmiExamBody === assessmentBuilder.dmiExamBody &&
           hw.dmiSubject === assessmentBuilder.dmiSubject &&
           hw.sourceDocument === assessmentBuilder.sourceDocument &&
-          hw.pages === assessmentBuilder.pages
+          hw.pages === assessmentBuilder.pages &&
+          hw.linkPreviews === assessmentBuilder.linkPreviews
         ) {
           return hw
         }
@@ -151,6 +156,7 @@ export function buildAssessmentFlushedNodes(
           activeDmiVersionId: undefined,
           sourceDocument: assessmentBuilder.sourceDocument,
           pages: assessmentBuilder.pages,
+          linkPreviews: assessmentBuilder.linkPreviews,
         }
       }),
     })),

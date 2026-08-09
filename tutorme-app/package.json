@@ -47,6 +47,7 @@
     "db:seed": "tsx src/scripts/seed-db.ts",
     "db:seed:admin": "tsx src/scripts/seed-admin.ts",
     "backfill:group-course": "tsx scripts/backfill-group-session-course.ts",
+    "backfill:published-course-categories": "tsx scripts/backfill-published-course-categories.ts",
     "audit:orphaned-courses": "tsx scripts/audit-orphaned-courses.ts",
     "cleanup:orphaned-courses": "tsx scripts/cleanup-orphaned-courses.ts",
     "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
