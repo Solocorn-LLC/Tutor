@@ -2,6 +2,7 @@ import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 import type { PciThread } from './hooks/pci-reducer'
 import type { PciAuditRecord } from '@/lib/assessment/pci'
+import type { LinkPreviewItem } from '@/lib/link-preview/types'
 
 // ============================================
 // HIERARCHICAL STRUCTURE TYPES
@@ -192,6 +193,8 @@ export interface Task extends WithDifficultyVariants {
   /** When false, not visible to students (draft) */
   isPublished?: boolean
   sourceDocument?: ImportedLearningResource
+  /** Visual link-preview cards overlaid on the task slide canvas. */
+  linkPreviews?: LinkPreviewItem[]
 }
 
 export interface Assessment extends WithDifficultyVariants {
@@ -251,6 +254,8 @@ export interface Assessment extends WithDifficultyVariants {
   /** Multi-page slide content for the assessment builder. When absent, falls back
    *  to `instructions` as a single page. */
   pages?: string[]
+  /** Visual link-preview cards overlaid on the assessment slide canvas. */
+  linkPreviews?: LinkPreviewItem[]
 }
 
 export interface QuizQuestion {
