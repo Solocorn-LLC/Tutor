@@ -40,7 +40,7 @@ export const GET = withAuth(
           .split(',')
           .map(s => s.trim())
           .filter(Boolean)
-      : ['scheduled', 'active']
+      : []
 
     try {
       // Get course schedule
