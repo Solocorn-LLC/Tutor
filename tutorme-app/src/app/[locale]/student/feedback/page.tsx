@@ -54,6 +54,7 @@ import {
   Pencil,
   Lock,
   Flag,
+  X,
 } from 'lucide-react'
 import {
   Dialog,
@@ -977,6 +978,12 @@ function StudentFeedbackContent() {
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
   const [chatInput, setChatInput] = useState('')
   const [viewerZoom, setViewerZoom] = useState(1)
+  const [documentPopupDoc, setDocumentPopupDoc] = useState<{
+    fileName?: string | null
+    fileUrl?: string | null
+    fileKey?: string | null
+    mimeType?: string | null
+  } | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   // Restored state + tutor messages for the live chat-task flow (mirrors Test mode).
   const [taskChatInitial, setTaskChatInitial] = useState<TestTaskChatState | undefined>(undefined)
@@ -2432,17 +2439,52 @@ function StudentFeedbackContent() {
 
                           {/* For a chat task the document lives inside the chat panel
                               (it collapses into a pinned card after the first message),
-                              so only render the standalone viewer for non-chat tasks. */}
+                              so only render the standalone viewer for non-chat tasks.
+                              For assessments and non-chat tasks, show the document as a
+                              chat-style document card that can be clicked to open the
+                              full PDF viewer. */}
                           {!isChatTask && activeTask.sourceDocument && (
-                            // Same renderer the chat flow uses (via TaskDocumentCard),
-                            // in its non-collapsible mode — one code path for the PDF/
-                            // image viewer and the "document unavailable" fallback.
-                            <div className="mb-4 h-[55vh] w-full">
-                              <TaskDocumentCard
-                                sourceDocument={activeTask.sourceDocument}
-                                alwaysOpen
-                              />
-                            </div>
+                            <>
+                              <div className="mb-4 flex justify-start">
+                                <ChatMessageBubble
+                                  sender="tutor"
+                                  name="Tutor"
+                                  content=""
+                                  avatarUrl={sessionContext?.tutorId ? undefined : undefined}
+                                  isDocument
+                                  document={activeTask.sourceDocument}
+                                  onDocumentClick={() =>
+                                    setDocumentPopupDoc(activeTask.sourceDocument || null)
+                                  }
+                                  studentOnRight
+                                />
+                              </div>
+                              {documentPopupDoc && (
+                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                                  <div className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                                    <div className="flex items-center justify-between border-b px-4 py-3">
+                                      <span className="truncate text-sm font-semibold text-gray-800">
+                                        {documentPopupDoc.fileName || 'Document'}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => setDocumentPopupDoc(null)}
+                                        className="grid h-8 w-8 place-items-center rounded-lg text-gray-600 hover:bg-gray-100"
+                                        aria-label="Close document"
+                                      >
+                                        <X className="h-5 w-5" />
+                                      </button>
+                                    </div>
+                                    <div className="min-h-0 flex-1 p-4">
+                                      <TaskDocumentCard
+                                        sourceDocument={documentPopupDoc}
+                                        alwaysOpen
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
                           )}
 
                           {/* The questions + answer inputs live in the right-hand
