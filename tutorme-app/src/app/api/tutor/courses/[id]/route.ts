@@ -170,6 +170,21 @@ export const PATCH = withAuth(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
       }
 
+      // Published courses are immutable for identity fields: category cannot be changed.
+      if (parsedBody.categories !== undefined) {
+        const [currentCourseRow] = await drizzleDb
+          .select({ isPublished: course.isPublished, categories: course.categories })
+          .from(course)
+          .where(eq(course.courseId, id))
+          .limit(1)
+        if (currentCourseRow?.isPublished) {
+          return NextResponse.json(
+            { error: 'Category cannot be changed for a published course' },
+            { status: 400 }
+          )
+        }
+      }
+
       // One-way publish: templates may be published, but published courses can
       // never be unpublished again.
       if (parsedBody.isPublished === false) {
