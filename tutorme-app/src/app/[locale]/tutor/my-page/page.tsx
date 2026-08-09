@@ -51,17 +51,14 @@ import {
   MoreVertical,
   Trash2,
   Edit3,
-  Eye,
   User,
   Link2,
   Tags,
   ExternalLink,
   Settings,
-  CalendarClock,
   Play,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { DEFAULT_LOCALE } from '@/lib/i18n/config'
 import {
   REGIONS,
@@ -165,6 +162,8 @@ interface Course {
   hasStudents?: boolean
   lastSessionDate?: string | null
   upcomingSessionsCount?: number
+  liveSessionsTotal?: number
+  liveSessionsCompleted?: number
   nationality?: string | null
   variantCategory?: string | null
 }
@@ -189,7 +188,6 @@ function MyCoursesSection() {
   const [courses, setCourses] = useState<Course[]>([])
   const [demoClasses, setDemoClasses] = useState<DemoClass[]>([])
   const [demoLoading, setDemoLoading] = useState(false)
-  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'active' | 'enrolling' | 'catalogued' | 'demoClasses'>(
     'active'
@@ -302,50 +300,24 @@ function MyCoursesSection() {
     }
   }
 
-  const handlePublishCourse = async (course: Course) => {
-    try {
-      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-      const csrfData = await csrfRes.json().catch(() => ({}))
-      const csrfToken = csrfData?.token ?? null
-
-      const res = await fetch(`/api/tutor/courses/${course.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-        },
-        credentials: 'include',
-        body: JSON.stringify({ isPublished: true }),
-      })
-
-      if (res.ok) {
-        setCourses(prev => prev.map(c => (c.id === course.id ? { ...c, isPublished: true } : c)))
-        toast.success('Course published')
-      } else {
-        const data = await res.json().catch(() => ({}))
-        toast.error(data?.error || 'Failed to publish course')
-      }
-    } catch {
-      toast.error('Failed to publish course')
-    }
-  }
-
-  // Categorize courses based on session status.
-  // Active = has upcoming live sessions; Enrolling = no sessions yet;
-  // Catalogued = had sessions but none are upcoming (archived/ended).
+  // Categorize published courses based on live-session progress.
+  // Enrolling = no live sessions completed yet (even if some are scheduled);
+  // Active = at least one live session completed and at least one remains;
+  // Catalogued = all live sessions are completed/no remaining sessions.
+  // Draft courses are managed in the builder and are not shown here.
   const categorizeCourses = useMemo(() => {
     const active: Course[] = []
     const enrolling: Course[] = []
     const catalogued: Course[] = []
 
-    for (const course of courses) {
-      const hasUpcoming = (course.upcomingSessionsCount ?? 0) > 0
-      const hasAnySessions = course.hasSessions
+    for (const course of courses.filter(c => c.isPublished)) {
+      const total = course.liveSessionsTotal ?? 0
+      const completed = course.liveSessionsCompleted ?? 0
 
-      if (hasUpcoming) {
-        active.push(course)
-      } else if (hasAnySessions) {
+      if (total > 0 && completed >= total) {
         catalogued.push(course)
+      } else if (completed > 0) {
+        active.push(course)
       } else {
         enrolling.push(course)
       }
@@ -530,26 +502,6 @@ function MyCoursesSection() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setScheduleCourse({ id: course.id, name: course.name })}
-                className="text-slate-200 hover:bg-white/10 hover:text-white"
-              >
-                <CalendarClock className="mr-1 h-4 w-4" />
-                Schedule
-              </Button>
-              {tab !== 'catalogued' && !course.isPublished && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handlePublishCourse(course)}
-                  className="text-emerald-400 hover:bg-white/10 hover:text-white"
-                >
-                  <Eye className="mr-1 h-4 w-4" />
-                  Publish
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="sm"
                 disabled={course.studentCount ? course.studentCount > 0 : false}
                 title={
                   course.studentCount && course.studentCount > 0
@@ -668,11 +620,6 @@ function MyCoursesSection() {
             </div>
           </div>
         </CardContent>
-        <ScheduleViewModal
-          courseId={scheduleCourse?.id ?? null}
-          courseName={scheduleCourse?.name}
-          onClose={() => setScheduleCourse(null)}
-        />
       </Card>
     </div>
   )

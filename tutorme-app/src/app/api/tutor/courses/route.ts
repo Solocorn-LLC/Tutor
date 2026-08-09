@@ -10,7 +10,7 @@ import {
 } from '@/lib/db/schema'
 import { CreateCourseSchema } from '@/lib/validation/schemas'
 import { ZodError } from 'zod'
-import { sql, inArray, and, eq } from 'drizzle-orm'
+import { sql, inArray, and, eq, isNull } from 'drizzle-orm'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -18,7 +18,8 @@ export const GET = withAuth(
       const hideTemplatesWithPublishedVariants =
         req.nextUrl.searchParams.get('hideTemplatesWithPublishedVariants') !== 'false'
       const coursesData = await drizzleDb.query.course.findMany({
-        where: (course, { eq }) => eq(course.creatorId, session.user.id),
+        where: (course, { eq, and, isNull }) =>
+          and(eq(course.creatorId, session.user.id), isNull(course.deletedAt)),
         orderBy: (course, { desc }) => [desc(course.createdAt)],
         columns: {
           courseId: true,
@@ -46,7 +47,8 @@ export const GET = withAuth(
                   .where(
                     and(
                       inArray(courseVariant.templateCourseId, courseIds),
-                      eq(courseTable.isPublished, true)
+                      eq(courseTable.isPublished, true),
+                      isNull(courseTable.deletedAt)
                     )
                   )
               ).map(r => r.templateCourseId)
@@ -65,6 +67,11 @@ export const GET = withAuth(
                 upcomingSessionsCount:
                   sql<number>`count(*) filter (where ${liveSession.scheduledAt} > now())`.as(
                     'upcomingSessionsCount'
+                  ),
+                liveSessionsTotal: sql<number>`count(*)::int`.as('liveSessionsTotal'),
+                liveSessionsCompleted:
+                  sql<number>`count(*) filter (where ${liveSession.status} = 'ended')::int`.as(
+                    'liveSessionsCompleted'
                   ),
               })
               .from(liveSession)
@@ -134,6 +141,8 @@ export const GET = withAuth(
             },
             lastSessionDate: sessionMeta?.lastSessionDate ?? null,
             upcomingSessionsCount: sessionMeta?.upcomingSessionsCount ?? 0,
+            liveSessionsTotal: sessionMeta?.liveSessionsTotal ?? 0,
+            liveSessionsCompleted: sessionMeta?.liveSessionsCompleted ?? 0,
             nationality: variant?.nationality ?? undefined,
             variantCategory: variant?.category ?? undefined,
             isVariant: variant !== undefined,

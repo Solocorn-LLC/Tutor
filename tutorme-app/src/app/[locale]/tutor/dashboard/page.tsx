@@ -218,7 +218,11 @@ function TutorDashboardContent() {
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [scheduleCourse, setScheduleCourse] = useState<{ id: string; name: string } | null>(null)
+  const [scheduleCourse, setScheduleCourse] = useState<{
+    id: string
+    name: string
+    isPublished: boolean
+  } | null>(null)
   // Course name + variant for the sessions modal (from the sessions API).
   const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
     name: string | null
@@ -1047,7 +1051,11 @@ function TutorDashboardContent() {
                               size="sm"
                               className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-purple-500"
                               onClick={() =>
-                                setScheduleCourse({ id: course.id, name: course.name })
+                                setScheduleCourse({
+                                  id: course.id,
+                                  name: course.name,
+                                  isPublished: course.isPublished ?? false,
+                                })
                               }
                             >
                               <CalendarClock className="mr-1 h-3 w-3" />
@@ -1569,7 +1577,7 @@ function TutorDashboardContent() {
       <ScheduleViewModal
         courseId={scheduleCourse?.id ?? null}
         courseName={scheduleCourse?.name}
-        canCreate
+        canCreate={!scheduleCourse?.isPublished}
         onClose={() => setScheduleCourse(null)}
       />
       {rescheduleRequestId && (

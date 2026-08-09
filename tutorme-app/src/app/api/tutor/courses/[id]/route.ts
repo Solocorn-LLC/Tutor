@@ -170,19 +170,22 @@ export const PATCH = withAuth(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
       }
 
-      // Published courses are immutable for identity fields: category cannot be changed.
-      if (parsedBody.categories !== undefined) {
-        const [currentCourseRow] = await drizzleDb
-          .select({ isPublished: course.isPublished, categories: course.categories })
-          .from(course)
-          .where(eq(course.courseId, id))
-          .limit(1)
-        if (currentCourseRow?.isPublished) {
-          return NextResponse.json(
-            { error: 'Category cannot be changed for a published course' },
-            { status: 400 }
-          )
-        }
+      const [currentCourseRow] = await drizzleDb
+        .select({ isPublished: course.isPublished, categories: course.categories })
+        .from(course)
+        .where(eq(course.courseId, id))
+        .limit(1)
+
+      if (!currentCourseRow) {
+        return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+      }
+
+      // Category has its own explicit guard so callers can show a specific message.
+      if (parsedBody.categories !== undefined && currentCourseRow.isPublished) {
+        return NextResponse.json(
+          { error: 'Category cannot be changed for a published course' },
+          { status: 400 }
+        )
       }
 
       // One-way publish: templates may be published, but published courses can
@@ -190,15 +193,27 @@ export const PATCH = withAuth(
       if (parsedBody.isPublished === false) {
         return NextResponse.json({ error: 'Unpublishing a course is not allowed' }, { status: 400 })
       }
-      if (parsedBody.isPublished === true) {
-        const [currentCourseRow] = await drizzleDb
-          .select({ isPublished: course.isPublished })
-          .from(course)
-          .where(eq(course.courseId, id))
-          .limit(1)
-        if (currentCourseRow?.isPublished) {
-          return NextResponse.json({ error: 'Course is already published' }, { status: 400 })
-        }
+      if (parsedBody.isPublished === true && currentCourseRow.isPublished) {
+        return NextResponse.json({ error: 'Course is already published' }, { status: 400 })
+      }
+
+      // Published courses are immutable except for content (lessons/tasks), which
+      // is propagated through the publish route.
+      if (
+        currentCourseRow.isPublished &&
+        (parsedBody.name !== undefined ||
+          parsedBody.description !== undefined ||
+          parsedBody.languageOfInstruction !== undefined ||
+          parsedBody.price !== undefined ||
+          parsedBody.currency !== undefined ||
+          parsedBody.isFree !== undefined ||
+          parsedBody.categories !== undefined ||
+          parsedBody.schedule !== undefined)
+      ) {
+        return NextResponse.json(
+          { error: 'Published course details cannot be edited' },
+          { status: 400 }
+        )
       }
 
       // Build update object with only provided fields
