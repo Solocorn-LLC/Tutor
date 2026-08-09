@@ -854,29 +854,6 @@ export default function PublicTutorPage() {
                               <p className="mt-0.5 text-xs font-medium text-slate-300">
                                 @{tutor.username}
                               </p>
-                              <Badge
-                                variant="secondary"
-                                title={
-                                  (course.variantCategory || course.categories[0] || 'general') +
-                                  (course.country && course.country !== 'Global'
-                                    ? ` — ${course.country}`
-                                    : '')
-                                }
-                                className={cn(
-                                  'mt-1.5 flex w-full max-w-full justify-between border-0 bg-blue-600 px-2.5 py-0.5 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
-                                  isCompact && 'mt-1.5'
-                                )}
-                              >
-                                <span className="min-w-0 truncate">
-                                  {course.variantCategory || course.categories[0] || 'general'}
-                                </span>
-                                {course.country && course.country !== 'Global' && (
-                                  <span className="inline-flex shrink-0 items-center gap-1 pl-2">
-                                    <CountryFlag countryName={course.country} size="xs" />
-                                    <span className="whitespace-nowrap">{course.country}</span>
-                                  </span>
-                                )}
-                              </Badge>
                             </div>
 
                             <div
@@ -901,6 +878,30 @@ export default function PublicTutorPage() {
                             </div>
                           </div>
 
+                          <Badge
+                            variant="secondary"
+                            title={`${course.variantCategory || course.categories[0] || 'general'}${course.country && course.country !== 'Global' ? ` • ${course.country}` : ''}`}
+                            className={cn(
+                              'mt-2 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
+                              isCompact && 'mt-1.5'
+                            )}
+                          >
+                            <span className="flex items-center gap-1 truncate whitespace-nowrap">
+                              {course.variantCategory || course.categories[0] || 'general'}
+                              {course.country && course.country !== 'Global' && (
+                                <>
+                                  <span className="mx-0.5 text-[9px] opacity-70">•</span>
+                                  <CountryFlag
+                                    countryName={course.country}
+                                    size="xs"
+                                    className="shrink-0"
+                                  />
+                                  <span className="truncate">{course.country}</span>
+                                </>
+                              )}
+                            </span>
+                          </Badge>
+
                           <div
                             className={cn(
                               'mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
@@ -915,32 +916,6 @@ export default function PublicTutorPage() {
                             >
                               {description || 'No description'}
                             </p>
-                          </div>
-
-                          <div
-                            className={cn(
-                              'mt-2 flex items-baseline gap-3 text-[11px] text-slate-300',
-                              isCompact && 'mt-2 text-[11px]'
-                            )}
-                          >
-                            <div className="flex items-center gap-1 font-medium text-slate-200">
-                              <BookOpen className="h-3.5 w-3.5 text-slate-400" />
-                              {course.lessonCount} sessions
-                            </div>
-                            <div className="h-3.5 w-px self-center bg-[rgba(255,255,255,0.12)]" />
-                            <div className="min-w-0">
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.preventDefault()
-                                  setScheduleCourse(course)
-                                }}
-                                className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
-                              >
-                                <CalendarDays className="h-3.5 w-3.5" />
-                                View schedules <ExternalLink className="h-3 w-3" />
-                              </button>
-                            </div>
                           </div>
                         </div>
                       )}
@@ -1011,6 +986,28 @@ export default function PublicTutorPage() {
                         isCompact && 'gap-2 px-3 py-2'
                       )}
                     >
+                      {!isList && (
+                        <div className="flex w-full items-center gap-3 text-[11px] text-slate-300">
+                          <div className="flex items-center gap-1 font-medium text-slate-200">
+                            <BookOpen className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{course.lessonCount} sessions</span>
+                          </div>
+                          <div className="h-3.5 w-px bg-[rgba(255,255,255,0.12)]" />
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.preventDefault()
+                              setScheduleCourse(course)
+                            }}
+                            className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                          >
+                            <CalendarDays className="h-3.5 w-3.5" />
+                            <span>View schedules</span>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+
                       {!isList && (
                         <div className="flex w-full flex-wrap items-center justify-between gap-2">
                           <Badge
