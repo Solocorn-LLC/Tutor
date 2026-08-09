@@ -14,7 +14,7 @@ import {
   tutorApplication,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, inArray, desc } from 'drizzle-orm'
+import { eq, and, inArray, desc, sql } from 'drizzle-orm'
 import { getTutorRating } from '@/lib/one-on-one/reviews'
 
 export async function GET(
@@ -170,6 +170,33 @@ export async function GET(
       {} as Record<string, number>
     )
 
+    // Fetch live-session counts so the public page can categorize courses the same
+    // way the tutor My Page does.
+    const liveSessionCounts =
+      courseIds.length > 0
+        ? await drizzleDb
+            .select({
+              courseId: liveSession.courseId,
+              total: sql<number>`count(*)::int`.as('total'),
+              completed:
+                sql<number>`count(*) filter (where ${liveSession.status} = 'ended')::int`.as(
+                  'completed'
+                ),
+            })
+            .from(liveSession)
+            .where(inArray(liveSession.courseId, courseIds))
+            .groupBy(liveSession.courseId)
+        : []
+
+    const liveSessionCountMap = liveSessionCounts.reduce(
+      (acc, row) => {
+        if (!row.courseId) return acc
+        acc[row.courseId] = { total: row.total, completed: row.completed }
+        return acc
+      },
+      {} as Record<string, { total: number; completed: number }>
+    )
+
     // Normalize social links from tutor application
     const rawSocial =
       tutorApp?.socialLinks && typeof tutorApp.socialLinks === 'object'
@@ -213,6 +240,7 @@ export async function GET(
       const scheduleArray = Array.isArray(c.schedule) ? c.schedule : []
       const scheduleSummary =
         scheduleArray.length > 0 ? `${scheduleArray.length} time slot(s)` : null
+      const liveCounts = liveSessionCountMap[c.courseId] || { total: 0, completed: 0 }
 
       return {
         id: c.courseId,
@@ -234,8 +262,8 @@ export async function GET(
         scheduleSummary,
         country: c.country,
         variantCategory: c.variantCategory,
-        liveSessionsTotal: 0,
-        liveSessionsCompleted: 0,
+        liveSessionsTotal: liveCounts.total,
+        liveSessionsCompleted: liveCounts.completed,
         enrollmentStatus: 'ongoing' as const,
       }
     })

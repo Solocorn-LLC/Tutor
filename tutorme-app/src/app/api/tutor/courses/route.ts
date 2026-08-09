@@ -66,6 +66,11 @@ export const GET = withAuth(
                   sql<number>`count(*) filter (where ${liveSession.scheduledAt} > now())`.as(
                     'upcomingSessionsCount'
                   ),
+                liveSessionsTotal: sql<number>`count(*)::int`.as('liveSessionsTotal'),
+                liveSessionsCompleted:
+                  sql<number>`count(*) filter (where ${liveSession.status} = 'ended')::int`.as(
+                    'liveSessionsCompleted'
+                  ),
               })
               .from(liveSession)
               .where(inArray(liveSession.courseId, courseIds))
@@ -134,6 +139,8 @@ export const GET = withAuth(
             },
             lastSessionDate: sessionMeta?.lastSessionDate ?? null,
             upcomingSessionsCount: sessionMeta?.upcomingSessionsCount ?? 0,
+            liveSessionsTotal: sessionMeta?.liveSessionsTotal ?? 0,
+            liveSessionsCompleted: sessionMeta?.liveSessionsCompleted ?? 0,
             nationality: variant?.nationality ?? undefined,
             variantCategory: variant?.category ?? undefined,
             isVariant: variant !== undefined,
