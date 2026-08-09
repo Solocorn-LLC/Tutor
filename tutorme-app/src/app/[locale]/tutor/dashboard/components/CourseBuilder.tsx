@@ -13286,6 +13286,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsList>
                                       <TabsContent
                                         value="content"
+                                        forceMount
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div
@@ -13601,6 +13602,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsContent>
                                       <TabsContent
                                         value="pci"
+                                        forceMount
                                         className="mt-0.5 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                       >
                                         <div
@@ -13771,6 +13773,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsList>
                                       <TabsContent
                                         value="content"
+                                        forceMount
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div
@@ -13950,6 +13953,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </TabsContent>
                                       <TabsContent
                                         value="pci"
+                                        forceMount
                                         className="mt-2 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                       >
                                         <div
