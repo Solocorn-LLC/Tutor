@@ -263,6 +263,13 @@ export default function TutorCoursePage() {
       return false
     }
 
+    // Published courses are immutable except for classroom content/tasks, which
+    // are propagated through the publish route, not this details form.
+    if (course?.isPublished) {
+      toast.info('Published course details cannot be edited')
+      return true
+    }
+
     setSaving(true)
     try {
       const payload: Record<string, unknown> = {
@@ -433,7 +440,8 @@ export default function TutorCoursePage() {
                           value={courseName}
                           onChange={e => setCourseName(e.target.value)}
                           placeholder="Course name"
-                          className="bg-white"
+                          disabled={course?.isPublished}
+                          className="bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                         />
                         <div className="mt-3 flex items-center gap-3 text-sm text-slate-700">
                           <span className="font-semibold">No. of Lessons</span>
@@ -468,7 +476,8 @@ export default function TutorCoursePage() {
                           placeholder="What will students learn in this course?"
                           rows={2}
                           maxLength={200}
-                          className="h-full min-h-[80px] resize-none bg-white text-slate-900"
+                          disabled={course?.isPublished}
+                          className="h-full min-h-[80px] resize-none bg-white text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                         />
                       </div>
                     </div>
@@ -487,8 +496,12 @@ export default function TutorCoursePage() {
                         <div className="grid gap-4 sm:grid-cols-[220px_1fr]">
                           <div className="space-y-2">
                             <Label className="text-xs font-semibold text-slate-700">Region</Label>
-                            <Select value={selectedRegion} onValueChange={handleRegionChange}>
-                              <SelectTrigger className="bg-white">
+                            <Select
+                              value={selectedRegion}
+                              onValueChange={handleRegionChange}
+                              disabled={course?.isPublished}
+                            >
+                              <SelectTrigger className="bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
                                 <SelectValue placeholder="Select a region" />
                               </SelectTrigger>
                               <SelectContent>
@@ -513,6 +526,7 @@ export default function TutorCoursePage() {
                                   <Checkbox
                                     checked={selectedCountryCodes.includes(c.code)}
                                     onCheckedChange={() => toggleCountry(c.code)}
+                                    disabled={course?.isPublished}
                                   />
                                   {c.name}
                                 </label>
@@ -563,11 +577,12 @@ export default function TutorCoursePage() {
                   await variantManagerRef.current?.saveSchedules()
                 }
               }}
-              disabled={saving}
+              disabled={saving || course?.isPublished}
+              title={course?.isPublished ? 'Published course details cannot be edited' : undefined}
               className="h-11 w-full rounded-full border-2 border-transparent bg-gradient-to-r from-[#2563eb] to-[#1d4ed8] px-8 text-white shadow-[0_6px_16px_rgba(37,99,235,0.16),0_2px_4px_rgba(0,0,0,0.08)] transition-all duration-200 ease-in-out hover:translate-y-0 hover:border-[#2563eb] hover:bg-white hover:text-[#2563eb] hover:shadow-[0_8px_18px_rgba(37,99,235,0.18)] hover:[background-image:none] active:bg-gradient-to-r active:from-[#1d4ed8] active:to-[#1e40af] active:shadow-[0_4px_10px_rgba(37,99,235,0.16)] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none sm:w-[220px]"
             >
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : course?.isPublished ? 'Published' : 'Save'}
             </Button>
             <Button
               size="lg"

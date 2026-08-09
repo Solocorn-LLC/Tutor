@@ -685,7 +685,12 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                     variant="outline"
                     size="sm"
                     onClick={applyGlobalsToAll}
-                    disabled={variants.length === 0}
+                    disabled={variants.length === 0 || variants.every(v => v.isPublished)}
+                    title={
+                      variants.every(v => v.isPublished)
+                        ? 'Published variants cannot be edited'
+                        : undefined
+                    }
                   >
                     <SlidersHorizontal className="mr-2 h-4 w-4" />
                     Apply to all variants
@@ -736,6 +741,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                         </span>
                         <Switch
                           checked={variant.isPublished}
+                          disabled={variant.isPublished}
                           onCheckedChange={checked =>
                             updateVariant(index, v => ({ ...v, isPublished: checked }))
                           }
@@ -752,6 +758,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                             </span>
                             <Switch
                               checked={variant.isFree}
+                              disabled={variant.isPublished}
                               onCheckedChange={checked =>
                                 updateVariant(index, v => ({
                                   ...v,
@@ -778,8 +785,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                                 }))
                               }}
                               placeholder="0.00"
-                              disabled={variant.isFree}
-                              className="bg-white"
+                              disabled={variant.isFree || variant.isPublished}
+                              className="bg-white disabled:cursor-not-allowed disabled:bg-slate-100"
                             />
                           </div>
                         </div>
@@ -792,8 +799,9 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                             onValueChange={val =>
                               updateVariant(index, v => ({ ...v, currency: val }))
                             }
+                            disabled={variant.isPublished}
                           >
-                            <SelectTrigger className="bg-white">
+                            <SelectTrigger className="bg-white disabled:cursor-not-allowed disabled:bg-slate-100">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -822,7 +830,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                                 }))
                               }
                               placeholder="e.g. English"
-                              className="bg-white"
+                              disabled={variant.isPublished}
+                              className="bg-white disabled:cursor-not-allowed disabled:bg-slate-100"
                             />
                           </div>
                         </div>
@@ -853,7 +862,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                                     })
                                   }}
                                   placeholder={`Schedule ${sch.scheduleIndex}`}
-                                  className="w-full max-w-[200px] bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:border-b focus:border-indigo-300"
+                                  disabled={variant.isPublished}
+                                  className="w-full max-w-[200px] bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:border-b focus:border-indigo-300 disabled:cursor-not-allowed disabled:text-slate-500"
                                 />
                                 <p className="mt-0.5 text-xs text-slate-500">
                                   {Array.isArray(sch.schedule) && sch.schedule.length > 0
@@ -873,64 +883,68 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
-                                onClick={() => {
-                                  updateVariant(index, v => ({
-                                    ...v,
-                                    schedules: v.schedules.filter((_, i) => i !== schIdx),
-                                  }))
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                className="min-w-[140px] border-slate-200 bg-white hover:border-[#1F2933] hover:bg-[#1F2933] hover:text-white"
-                                onClick={() => openScheduleDialog(index, schIdx)}
-                              >
-                                {Array.isArray(sch.schedule) && sch.schedule.length > 0
-                                  ? 'Edit Schedule'
-                                  : 'Add Session'}
-                              </Button>
-                            </div>
+                            {!variant.isPublished && (
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 p-0 text-slate-400 hover:text-red-500"
+                                  onClick={() => {
+                                    updateVariant(index, v => ({
+                                      ...v,
+                                      schedules: v.schedules.filter((_, i) => i !== schIdx),
+                                    }))
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="min-w-[140px] border-slate-200 bg-white hover:border-[#1F2933] hover:bg-[#1F2933] hover:text-white"
+                                  onClick={() => openScheduleDialog(index, schIdx)}
+                                >
+                                  {Array.isArray(sch.schedule) && sch.schedule.length > 0
+                                    ? 'Edit Schedule'
+                                    : 'Add Session'}
+                                </Button>
+                              </div>
+                            )}
                           </div>
                         ))}
 
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="w-full text-sm text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
-                          onClick={() => {
-                            updateVariant(index, v => {
-                              const nextIndex =
-                                v.schedules.length > 0
-                                  ? Math.max(...v.schedules.map(s => s.scheduleIndex)) + 1
-                                  : 1
-                              return {
-                                ...v,
-                                schedules: [
-                                  ...v.schedules,
-                                  {
-                                    scheduleIndex: nextIndex,
-                                    name: null,
-                                    schedule: [],
-                                    weeksToSchedule: 8,
-                                    maxStudents: null,
-                                  },
-                                ],
-                              }
-                            })
-                          }}
-                        >
-                          <Plus className="mr-1 h-4 w-4" />
-                          Add Schedule
-                        </Button>
+                        {!variant.isPublished && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="w-full text-sm text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700"
+                            onClick={() => {
+                              updateVariant(index, v => {
+                                const nextIndex =
+                                  v.schedules.length > 0
+                                    ? Math.max(...v.schedules.map(s => s.scheduleIndex)) + 1
+                                    : 1
+                                return {
+                                  ...v,
+                                  schedules: [
+                                    ...v.schedules,
+                                    {
+                                      scheduleIndex: nextIndex,
+                                      name: null,
+                                      schedule: [],
+                                      weeksToSchedule: 8,
+                                      maxStudents: null,
+                                    },
+                                  ],
+                                }
+                              })
+                            }}
+                          >
+                            <Plus className="mr-1 h-4 w-4" />
+                            Add Schedule
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

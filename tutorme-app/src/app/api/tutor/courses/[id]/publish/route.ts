@@ -420,10 +420,14 @@ export const POST = withCsrf(
             if (existing) {
               // Update existing course row
               publishedCourseId = existing.publishedCourseId
-              // In schedules-only mode we still allow the variant course name to
-              // be edited from the schedule dialog, but we leave all other
-              // publish details untouched.
-              if (!schedulesOnly) {
+
+              // Published variants are immutable for metadata and schedules.
+              // Only unpublished variants may have their course details and
+              // schedules changed; all existing variants may receive lesson/
+              // content updates when the publish route is run normally.
+              const canEditDetails = !existing.isPublished
+
+              if (!schedulesOnly && canEditDetails) {
                 await tx
                   .update(course)
                   .set({
@@ -439,6 +443,9 @@ export const POST = withCsrf(
                     isFree,
                   })
                   .where(eq(course.courseId, publishedCourseId))
+              }
+
+              if (!schedulesOnly) {
                 // Propagate the template's lesson edits into this already-
                 // published variant. Publish previously copied lessons only when
                 // a variant was first created, so re-publishing never updated the
@@ -531,11 +538,6 @@ export const POST = withCsrf(
                       .where(inArray(courseLesson.lessonId, deletableIds))
                   }
                 }
-              } else if (v.name && v.name.trim()) {
-                await tx
-                  .update(course)
-                  .set({ name: courseName, updatedAt: now })
-                  .where(eq(course.courseId, publishedCourseId))
               }
 
               result.push({
@@ -603,414 +605,293 @@ export const POST = withCsrf(
               })
             }
 
-            // Sync CourseSchedule rows for this published course
             const schedules = Array.isArray(v.schedules) ? v.schedules : []
-            const existingSchedules = await tx
-              .select({
-                scheduleId: courseSchedule.scheduleId,
-                scheduleIndex: courseSchedule.scheduleIndex,
-                enrolledCount: courseSchedule.enrolledCount,
-              })
-              .from(courseSchedule)
-              .where(eq(courseSchedule.courseId, publishedCourseId))
-              .orderBy(courseSchedule.scheduleIndex)
-
-            // Update or create schedules, remembering each row's id so the
-            // sessions we materialize below can be linked back to their schedule.
             const scheduleIdByPayload = new Map<unknown, string>()
-            for (let i = 0; i < schedules.length; i++) {
-              const s = schedules[i]
-              const existingSch = existingSchedules.find(es => es.scheduleIndex === s.scheduleIndex)
-              if (existingSch) {
-                await tx
-                  .update(courseSchedule)
-                  .set({
+
+            // Schedule changes are not allowed for already-published variants.
+            if (!existing || !existing.isPublished) {
+              // Sync CourseSchedule rows for this published course
+              const existingSchedules = await tx
+                .select({
+                  scheduleId: courseSchedule.scheduleId,
+                  scheduleIndex: courseSchedule.scheduleIndex,
+                  enrolledCount: courseSchedule.enrolledCount,
+                })
+                .from(courseSchedule)
+                .where(eq(courseSchedule.courseId, publishedCourseId))
+                .orderBy(courseSchedule.scheduleIndex)
+              for (let i = 0; i < schedules.length; i++) {
+                const s = schedules[i]
+                const existingSch = existingSchedules.find(
+                  es => es.scheduleIndex === s.scheduleIndex
+                )
+                if (existingSch) {
+                  await tx
+                    .update(courseSchedule)
+                    .set({
+                      name: s.name ?? null,
+                      schedule: s.schedule || [],
+                      weeksToSchedule: s.weeksToSchedule || 8,
+                      maxStudents: s.maxStudents ?? null,
+                      updatedAt: now,
+                    })
+                    .where(eq(courseSchedule.scheduleId, existingSch.scheduleId))
+                  scheduleIdByPayload.set(s, existingSch.scheduleId)
+                } else {
+                  const newScheduleId = crypto.randomUUID()
+                  await tx.insert(courseSchedule).values({
+                    scheduleId: newScheduleId,
+                    courseId: publishedCourseId,
+                    scheduleIndex: s.scheduleIndex || i + 1,
                     name: s.name ?? null,
                     schedule: s.schedule || [],
                     weeksToSchedule: s.weeksToSchedule || 8,
                     maxStudents: s.maxStudents ?? null,
+                    enrolledCount: 0,
+                    createdAt: now,
                     updatedAt: now,
                   })
-                  .where(eq(courseSchedule.scheduleId, existingSch.scheduleId))
-                scheduleIdByPayload.set(s, existingSch.scheduleId)
-              } else {
-                const newScheduleId = crypto.randomUUID()
-                await tx.insert(courseSchedule).values({
-                  scheduleId: newScheduleId,
-                  courseId: publishedCourseId,
-                  scheduleIndex: s.scheduleIndex || i + 1,
-                  name: s.name ?? null,
-                  schedule: s.schedule || [],
-                  weeksToSchedule: s.weeksToSchedule || 8,
-                  maxStudents: s.maxStudents ?? null,
-                  enrolledCount: 0,
-                  createdAt: now,
-                  updatedAt: now,
-                })
-                scheduleIdByPayload.set(s, newScheduleId)
+                  scheduleIdByPayload.set(s, newScheduleId)
+                }
               }
-            }
 
-            // Remove extra schedules that are no longer in the payload
-            const sentIndices = new Set(schedules.map(s => s.scheduleIndex || 0))
-            for (const es of existingSchedules) {
-              if (!sentIndices.has(es.scheduleIndex)) {
-                // Only delete if no enrollments
-                if (es.enrolledCount === 0) {
-                  await tx
-                    .delete(courseSchedule)
-                    .where(eq(courseSchedule.scheduleId, es.scheduleId))
+              // Remove extra schedules that are no longer in the payload
+              const sentIndices = new Set(schedules.map(s => s.scheduleIndex || 0))
+              for (const es of existingSchedules) {
+                if (!sentIndices.has(es.scheduleIndex)) {
+                  // Only delete if no enrollments
+                  if (es.enrolledCount === 0) {
+                    await tx
+                      .delete(courseSchedule)
+                      .where(eq(courseSchedule.scheduleId, es.scheduleId))
+                  }
                 }
               }
             }
 
-            // Published lessons in course order — each schedule's sessions are
-            // auto-assigned a lesson sequentially (session 1 → Lesson 1, session 2
-            // → Lesson 2, …) so a schedule no longer collapses everything into
-            // Lesson 1. Sessions beyond the last lesson are left unassigned (null)
-            // for the tutor to fill in via the per-session lesson picker.
-            const publishedLessons = await tx
-              .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
-              .from(courseLesson)
-              .where(
-                and(eq(courseLesson.courseId, publishedCourseId), isNull(courseLesson.deletedAt))
-              )
-              .orderBy(courseLesson.order)
+            // Live sessions are only generated for new or still-draft variants.
+            // Published variants keep their existing schedule and sessions.
+            if (!existing || !existing.isPublished) {
+              // Published lessons in course order — each schedule's sessions are
+              // auto-assigned a lesson sequentially (session 1 → Lesson 1, session 2
+              // → Lesson 2, …) so a schedule no longer collapses everything into
+              // Lesson 1. Sessions beyond the last lesson are left unassigned (null)
+              // for the tutor to fill in via the per-session lesson picker.
+              const publishedLessons = await tx
+                .select({ lessonId: courseLesson.lessonId, order: courseLesson.order })
+                .from(courseLesson)
+                .where(
+                  and(eq(courseLesson.courseId, publishedCourseId), isNull(courseLesson.deletedAt))
+                )
+                .orderBy(courseLesson.order)
 
-            // Generate live sessions from all schedules
-            for (const s of schedules) {
-              const scheduleItems = Array.isArray(s.schedule) ? s.schedule : []
-              if (scheduleItems.length === 0) continue
-              const sessionDates = generateSessionDates(
-                scheduleItems,
-                s.weeksToSchedule || 8,
-                tutorTimeZone,
-                courseName
-              )
+              // Generate live sessions from all schedules
+              for (const s of schedules) {
+                const scheduleItems = Array.isArray(s.schedule) ? s.schedule : []
+                if (scheduleItems.length === 0) continue
+                const sessionDates = generateSessionDates(
+                  scheduleItems,
+                  s.weeksToSchedule || 8,
+                  tutorTimeZone,
+                  courseName
+                )
 
-              // Each schedule is an independent offering that walks the whole
-              // course, so the lesson cursor restarts at Lesson 1 per schedule.
-              // It only advances when a session is actually materialized, so
-              // skipped (conflicting/out-of-availability) slots don't burn a lesson.
-              let lessonCursor = 0
+                // Each schedule is an independent offering that walks the whole
+                // course, so the lesson cursor restarts at Lesson 1 per schedule.
+                // It only advances when a session is actually materialized, so
+                // skipped (conflicting/out-of-availability) slots don't burn a lesson.
+                let lessonCursor = 0
 
-              const scheduledAts = sessionDates.map(s => s.scheduledAt).filter(Boolean)
-              const minScheduledAt =
-                scheduledAts.length > 0
-                  ? new Date(Math.min(...scheduledAts.map(d => d.getTime())))
+                const scheduledAts = sessionDates.map(s => s.scheduledAt).filter(Boolean)
+                const minScheduledAt =
+                  scheduledAts.length > 0
+                    ? new Date(Math.min(...scheduledAts.map(d => d.getTime())))
+                    : null
+                const maxScheduledAt =
+                  scheduledAts.length > 0
+                    ? new Date(Math.max(...scheduledAts.map(d => d.getTime())))
+                    : null
+
+                // Fetch all existing sessions/events that could overlap with the generated range
+                const sessionEndMax = maxScheduledAt
+                  ? new Date(
+                      maxScheduledAt.getTime() +
+                        Math.max(...sessionDates.map(s => s.durationMinutes || 60)) * 60000
+                    )
                   : null
-              const maxScheduledAt =
-                scheduledAts.length > 0
-                  ? new Date(Math.max(...scheduledAts.map(d => d.getTime())))
-                  : null
 
-              // Fetch all existing sessions/events that could overlap with the generated range
-              const sessionEndMax = maxScheduledAt
-                ? new Date(
-                    maxScheduledAt.getTime() +
-                      Math.max(...sessionDates.map(s => s.durationMinutes || 60)) * 60000
-                  )
-                : null
+                const [existingLiveSessions, existingCalendarEvents, existingOneOnOnes] =
+                  await Promise.all([
+                    minScheduledAt && maxScheduledAt
+                      ? tx
+                          .select({
+                            sessionId: liveSession.sessionId,
+                            scheduledAt: liveSession.scheduledAt,
+                            durationMinutes: liveSession.durationMinutes,
+                            courseId: liveSession.courseId,
+                            roomUrl: liveSession.roomUrl,
+                            lessonId: liveSession.lessonId,
+                          })
+                          .from(liveSession)
+                          .where(
+                            and(
+                              eq(liveSession.tutorId, userId),
+                              inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
+                              gte(liveSession.scheduledAt, minScheduledAt),
+                              lte(liveSession.scheduledAt, maxScheduledAt)
+                            )
+                          )
+                      : Promise.resolve([]),
+                    minScheduledAt && sessionEndMax
+                      ? tx
+                          .select({
+                            startTime: calendarEvent.startTime,
+                            endTime: calendarEvent.endTime,
+                          })
+                          .from(calendarEvent)
+                          .where(
+                            and(
+                              eq(calendarEvent.tutorId, userId),
+                              eq(calendarEvent.isCancelled, false),
+                              isNull(calendarEvent.deletedAt),
+                              lt(calendarEvent.startTime, sessionEndMax),
+                              gt(calendarEvent.endTime, minScheduledAt)
+                            )
+                          )
+                      : Promise.resolve([]),
+                    minScheduledAt && sessionEndMax
+                      ? tx
+                          .select({
+                            requestedDate: oneOnOneBookingRequest.requestedDate,
+                            startTime: oneOnOneBookingRequest.startTime,
+                            endTime: oneOnOneBookingRequest.endTime,
+                            durationMinutes: oneOnOneBookingRequest.durationMinutes,
+                          })
+                          .from(oneOnOneBookingRequest)
+                          .where(
+                            and(
+                              eq(oneOnOneBookingRequest.tutorId, userId),
+                              inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID']),
+                              gte(oneOnOneBookingRequest.requestedDate, minScheduledAt),
+                              lte(oneOnOneBookingRequest.requestedDate, sessionEndMax)
+                            )
+                          )
+                      : Promise.resolve([]),
+                  ])
 
-              const [existingLiveSessions, existingCalendarEvents, existingOneOnOnes] =
-                await Promise.all([
+                // Tutor availability (recurring available windows) + date exceptions,
+                // so the server enforces the same availability rules the scheduler UI
+                // shows (out-of-availability / blocked sessions are skipped, not
+                // silently published). Matches VariantScheduleEditor.getSlotStatus.
+                const [availabilityWindows, dateExceptions] = await Promise.all([
+                  tx
+                    .select({
+                      dayOfWeek: calendarAvailability.dayOfWeek,
+                      startTime: calendarAvailability.startTime,
+                      endTime: calendarAvailability.endTime,
+                      // Include the flag: tutors store BLOCKED times as
+                      // isAvailable=false. Filtering to true only left no windows,
+                      // so blocked slots were never enforced on publish.
+                      isAvailable: calendarAvailability.isAvailable,
+                    })
+                    .from(calendarAvailability)
+                    .where(
+                      and(
+                        eq(calendarAvailability.tutorId, userId),
+                        or(
+                          isNull(calendarAvailability.validUntil),
+                          gte(calendarAvailability.validUntil, now)
+                        )
+                      )
+                    ),
                   minScheduledAt && maxScheduledAt
                     ? tx
                         .select({
-                          sessionId: liveSession.sessionId,
-                          scheduledAt: liveSession.scheduledAt,
-                          durationMinutes: liveSession.durationMinutes,
-                          courseId: liveSession.courseId,
-                          roomUrl: liveSession.roomUrl,
-                          lessonId: liveSession.lessonId,
+                          date: calendarException.date,
+                          startTime: calendarException.startTime,
+                          endTime: calendarException.endTime,
+                          isAvailable: calendarException.isAvailable,
                         })
-                        .from(liveSession)
+                        .from(calendarException)
                         .where(
                           and(
-                            eq(liveSession.tutorId, userId),
-                            inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
-                            gte(liveSession.scheduledAt, minScheduledAt),
-                            lte(liveSession.scheduledAt, maxScheduledAt)
-                          )
-                        )
-                    : Promise.resolve([]),
-                  minScheduledAt && sessionEndMax
-                    ? tx
-                        .select({
-                          startTime: calendarEvent.startTime,
-                          endTime: calendarEvent.endTime,
-                        })
-                        .from(calendarEvent)
-                        .where(
-                          and(
-                            eq(calendarEvent.tutorId, userId),
-                            eq(calendarEvent.isCancelled, false),
-                            isNull(calendarEvent.deletedAt),
-                            lt(calendarEvent.startTime, sessionEndMax),
-                            gt(calendarEvent.endTime, minScheduledAt)
-                          )
-                        )
-                    : Promise.resolve([]),
-                  minScheduledAt && sessionEndMax
-                    ? tx
-                        .select({
-                          requestedDate: oneOnOneBookingRequest.requestedDate,
-                          startTime: oneOnOneBookingRequest.startTime,
-                          endTime: oneOnOneBookingRequest.endTime,
-                          durationMinutes: oneOnOneBookingRequest.durationMinutes,
-                        })
-                        .from(oneOnOneBookingRequest)
-                        .where(
-                          and(
-                            eq(oneOnOneBookingRequest.tutorId, userId),
-                            inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID']),
-                            gte(oneOnOneBookingRequest.requestedDate, minScheduledAt),
-                            lte(oneOnOneBookingRequest.requestedDate, sessionEndMax)
+                            eq(calendarException.tutorId, userId),
+                            gte(calendarException.date, minScheduledAt),
+                            lte(calendarException.date, sessionEndMax ?? maxScheduledAt)
                           )
                         )
                     : Promise.resolve([]),
                 ])
 
-              // Tutor availability (recurring available windows) + date exceptions,
-              // so the server enforces the same availability rules the scheduler UI
-              // shows (out-of-availability / blocked sessions are skipped, not
-              // silently published). Matches VariantScheduleEditor.getSlotStatus.
-              const [availabilityWindows, dateExceptions] = await Promise.all([
-                tx
-                  .select({
-                    dayOfWeek: calendarAvailability.dayOfWeek,
-                    startTime: calendarAvailability.startTime,
-                    endTime: calendarAvailability.endTime,
-                    // Include the flag: tutors store BLOCKED times as
-                    // isAvailable=false. Filtering to true only left no windows,
-                    // so blocked slots were never enforced on publish.
-                    isAvailable: calendarAvailability.isAvailable,
-                  })
-                  .from(calendarAvailability)
-                  .where(
-                    and(
-                      eq(calendarAvailability.tutorId, userId),
-                      or(
-                        isNull(calendarAvailability.validUntil),
-                        gte(calendarAvailability.validUntil, now)
-                      )
-                    )
-                  ),
-                minScheduledAt && maxScheduledAt
-                  ? tx
-                      .select({
-                        date: calendarException.date,
-                        startTime: calendarException.startTime,
-                        endTime: calendarException.endTime,
-                        isAvailable: calendarException.isAvailable,
-                      })
-                      .from(calendarException)
-                      .where(
-                        and(
-                          eq(calendarException.tutorId, userId),
-                          gte(calendarException.date, minScheduledAt),
-                          lte(calendarException.date, sessionEndMax ?? maxScheduledAt)
-                        )
-                      )
-                  : Promise.resolve([]),
-              ])
+                // Wall-clock helpers in the TUTOR's timezone — availability/exception
+                // times are stored as the tutor's local "HH:MM", so the session
+                // instant must be read in the same zone (not UTC) to compare.
+                const hhmm = (d: Date) => formatInZone(d, tutorTimeZone).time
+                const dateKeyOf = (d: Date) => formatInZone(d, tutorTimeZone).date
+                const timesOverlapStr = (s1: string, e1: string, s2: string, e2: string) =>
+                  s1 < e2 && e1 > s2
 
-              // Wall-clock helpers in the TUTOR's timezone — availability/exception
-              // times are stored as the tutor's local "HH:MM", so the session
-              // instant must be read in the same zone (not UTC) to compare.
-              const hhmm = (d: Date) => formatInZone(d, tutorTimeZone).time
-              const dateKeyOf = (d: Date) => formatInZone(d, tutorTimeZone).date
-              const timesOverlapStr = (s1: string, e1: string, s2: string, e2: string) =>
-                s1 < e2 && e1 > s2
-
-              // Returns a skip reason if the session falls outside availability or
-              // on a blocked exception, else null.
-              function availabilityBlock(
-                start: Date,
-                end: Date
-              ): 'outside_availability' | 'exception' | null {
-                const dow = zonedWeekday(start, tutorTimeZone)
-                const sStr = hhmm(start)
-                const eStr = hhmm(end)
-                const dateKey = dateKeyOf(start)
-                const dayWindows = availabilityWindows.filter(a => a.dayOfWeek === dow)
-                // "Available unless blocked": a session overlapping a blocked
-                // (isAvailable=false) window is out of availability. isAvailable=true
-                // and absent rows both mean available, so they never restrict.
-                const blocked = dayWindows.filter(a => a.isAvailable === false)
-                if (blocked.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))) {
-                  return 'outside_availability'
-                }
-                for (const ex of dateExceptions) {
-                  if (dateKeyOf(new Date(ex.date)) !== dateKey) continue
-                  if (!ex.isAvailable) return 'exception'
-                  if (
-                    ex.startTime &&
-                    ex.endTime &&
-                    timesOverlapStr(sStr, eStr, ex.startTime, ex.endTime)
-                  ) {
-                    return 'exception'
+                // Returns a skip reason if the session falls outside availability or
+                // on a blocked exception, else null.
+                function availabilityBlock(
+                  start: Date,
+                  end: Date
+                ): 'outside_availability' | 'exception' | null {
+                  const dow = zonedWeekday(start, tutorTimeZone)
+                  const sStr = hhmm(start)
+                  const eStr = hhmm(end)
+                  const dateKey = dateKeyOf(start)
+                  const dayWindows = availabilityWindows.filter(a => a.dayOfWeek === dow)
+                  // "Available unless blocked": a session overlapping a blocked
+                  // (isAvailable=false) window is out of availability. isAvailable=true
+                  // and absent rows both mean available, so they never restrict.
+                  const blocked = dayWindows.filter(a => a.isAvailable === false)
+                  if (blocked.some(a => timesOverlapStr(sStr, eStr, a.startTime, a.endTime))) {
+                    return 'outside_availability'
                   }
-                }
-                return null
-              }
-
-              // Helper: check if a generated session overlaps with an existing event
-              function overlaps(
-                start: Date,
-                end: Date,
-                existing: {
-                  startTime?: Date | null
-                  endTime?: Date | null
-                  scheduledAt?: Date | null
-                  durationMinutes?: number | null
-                }
-              ): boolean {
-                const existingStart = existing.scheduledAt || existing.startTime
-                if (!existingStart) return false
-                const existingEnd =
-                  existing.endTime ||
-                  new Date(existingStart.getTime() + (existing.durationMinutes || 60) * 60000)
-                return start < existingEnd && end > existingStart
-              }
-
-              for (const session of sessionDates) {
-                const sessionStart = session.scheduledAt
-                const sessionEnd = new Date(
-                  sessionStart.getTime() + session.durationMinutes * 60000
-                )
-
-                // Enforce tutor availability server-side (the scheduler UI guard
-                // is not authoritative on its own).
-                const availReason = availabilityBlock(sessionStart, sessionEnd)
-                if (availReason) {
-                  const recs = await findAlternativeSlots(
-                    userId,
-                    session.scheduledAt,
-                    session.durationMinutes
-                  )
-                  skippedSessions.push({
-                    scheduledAt: session.scheduledAt,
-                    durationMinutes: session.durationMinutes,
-                    reason: availReason,
-                    recommendations: recs,
-                  })
-                  continue
-                }
-
-                const conflictingLs = existingLiveSessions.find(ls =>
-                  overlaps(sessionStart, sessionEnd, ls)
-                )
-                const conflictingCe = existingCalendarEvents.find(ce =>
-                  overlaps(sessionStart, sessionEnd, ce)
-                )
-
-                if (conflictingCe) {
-                  // Hard conflict with another CalendarEvent — skip and recommend
-                  const recs = await findAlternativeSlots(
-                    userId,
-                    session.scheduledAt,
-                    session.durationMinutes
-                  )
-                  skippedSessions.push({
-                    scheduledAt: session.scheduledAt,
-                    durationMinutes: session.durationMinutes,
-                    reason: 'calendar_event',
-                    conflictWith: { start: conflictingCe.startTime, end: conflictingCe.endTime },
-                    recommendations: recs,
-                  })
-                  continue
-                }
-
-                const conflictingOo = existingOneOnOnes.find((oo: any) => {
-                  const ooStart = oo.requestedDate
-                  const ooEnd = new Date(
-                    oo.requestedDate.getTime() + (oo.durationMinutes || 60) * 60000
-                  )
-                  return sessionStart < ooEnd && sessionEnd > ooStart
-                })
-                if (conflictingOo) {
-                  const recs = await findAlternativeSlots(
-                    userId,
-                    session.scheduledAt,
-                    session.durationMinutes
-                  )
-                  skippedSessions.push({
-                    scheduledAt: session.scheduledAt,
-                    durationMinutes: session.durationMinutes,
-                    reason: 'one_on_one',
-                    conflictWith: {
-                      start: conflictingOo.requestedDate,
-                      end: new Date(
-                        conflictingOo.requestedDate.getTime() +
-                          (conflictingOo.durationMinutes || 60) * 60000
-                      ),
-                    },
-                    recommendations: recs,
-                  })
-                  continue
-                }
-
-                if (conflictingLs) {
-                  if (conflictingLs.courseId === publishedCourseId) {
-                    // Same-course existing session: ensure it has a CalendarEvent
-                    const [existingCe] = await tx
-                      .select({ eventId: calendarEvent.eventId })
-                      .from(calendarEvent)
-                      .where(
-                        and(
-                          eq(calendarEvent.externalId, conflictingLs.sessionId),
-                          isNull(calendarEvent.deletedAt)
-                        )
-                      )
-                      .limit(1)
-
-                    if (!existingCe && conflictingLs.scheduledAt) {
-                      const lsEndTime = new Date(
-                        conflictingLs.scheduledAt.getTime() +
-                          (conflictingLs.durationMinutes || 60) * 60000
-                      )
-                      await tx.insert(calendarEvent).values({
-                        eventId: crypto.randomUUID(),
-                        tutorId: userId,
-                        title: session.title,
-                        description: templateCourse.description ?? undefined,
-                        type: 'LESSON',
-                        status: 'CONFIRMED',
-                        startTime: conflictingLs.scheduledAt,
-                        endTime: lsEndTime,
-                        timezone: 'UTC',
-                        isAllDay: false,
-                        isRecurring: false,
-                        isVirtual: true,
-                        location: 'Online',
-                        meetingUrl: conflictingLs.roomUrl,
-                        courseId: publishedCourseId,
-                        maxAttendees: 50,
-                        createdBy: userId,
-                        isCancelled: false,
-                        externalId: conflictingLs.sessionId,
-                      })
+                  for (const ex of dateExceptions) {
+                    if (dateKeyOf(new Date(ex.date)) !== dateKey) continue
+                    if (!ex.isAvailable) return 'exception'
+                    if (
+                      ex.startTime &&
+                      ex.endTime &&
+                      timesOverlapStr(sStr, eStr, ex.startTime, ex.endTime)
+                    ) {
+                      return 'exception'
                     }
-                    // Backfill the lesson on a session created before lesson
-                    // linkage existed (or a re-publish), keeping the sequence
-                    // aligned. Only set it when currently empty so a tutor's
-                    // manual re-assignment is never overwritten.
-                    const backfillLessonId =
-                      lessonCursor < publishedLessons.length
-                        ? publishedLessons[lessonCursor].lessonId
-                        : null
-                    if (!conflictingLs.lessonId && backfillLessonId) {
-                      await tx
-                        .update(liveSession)
-                        .set({ lessonId: backfillLessonId })
-                        .where(eq(liveSession.sessionId, conflictingLs.sessionId))
-                    }
-                    // Existing same-course session occupies this slot → advance.
-                    lessonCursor++
-                    continue
-                  } else {
-                    // Conflict with a different course — skip and recommend
+                  }
+                  return null
+                }
+
+                // Helper: check if a generated session overlaps with an existing event
+                function overlaps(
+                  start: Date,
+                  end: Date,
+                  existing: {
+                    startTime?: Date | null
+                    endTime?: Date | null
+                    scheduledAt?: Date | null
+                    durationMinutes?: number | null
+                  }
+                ): boolean {
+                  const existingStart = existing.scheduledAt || existing.startTime
+                  if (!existingStart) return false
+                  const existingEnd =
+                    existing.endTime ||
+                    new Date(existingStart.getTime() + (existing.durationMinutes || 60) * 60000)
+                  return start < existingEnd && end > existingStart
+                }
+
+                for (const session of sessionDates) {
+                  const sessionStart = session.scheduledAt
+                  const sessionEnd = new Date(
+                    sessionStart.getTime() + session.durationMinutes * 60000
+                  )
+
+                  // Enforce tutor availability server-side (the scheduler UI guard
+                  // is not authoritative on its own).
+                  const availReason = availabilityBlock(sessionStart, sessionEnd)
+                  if (availReason) {
                     const recs = await findAlternativeSlots(
                       userId,
                       session.scheduledAt,
@@ -1019,54 +900,182 @@ export const POST = withCsrf(
                     skippedSessions.push({
                       scheduledAt: session.scheduledAt,
                       durationMinutes: session.durationMinutes,
-                      reason: 'other_course_live_session',
-                      conflictWith: { start: conflictingLs.scheduledAt, end: null },
+                      reason: availReason,
                       recommendations: recs,
                     })
                     continue
                   }
-                }
 
-                const assignedLessonId =
-                  lessonCursor < publishedLessons.length
-                    ? publishedLessons[lessonCursor].lessonId
-                    : undefined
+                  const conflictingLs = existingLiveSessions.find(ls =>
+                    overlaps(sessionStart, sessionEnd, ls)
+                  )
+                  const conflictingCe = existingCalendarEvents.find(ce =>
+                    overlaps(sessionStart, sessionEnd, ce)
+                  )
 
-                try {
-                  await createSession(
-                    {
-                      tutorId: userId,
-                      title: session.title,
+                  if (conflictingCe) {
+                    // Hard conflict with another CalendarEvent — skip and recommend
+                    const recs = await findAlternativeSlots(
+                      userId,
+                      session.scheduledAt,
+                      session.durationMinutes
+                    )
+                    skippedSessions.push({
                       scheduledAt: session.scheduledAt,
                       durationMinutes: session.durationMinutes,
-                      category: v.category,
-                      type: 'COURSE',
-                      courseId: publishedCourseId,
-                      scheduleId: scheduleIdByPayload.get(s) ?? undefined,
-                      lessonId: assignedLessonId,
-                      description: templateCourse.description ?? undefined,
-                      status: 'scheduled',
-                      maxStudents: s.maxStudents ?? 50,
-                      timezone: 'UTC',
-                    },
-                    tx
-                  )
-                  // Session materialized → advance to the next lesson.
-                  lessonCursor++
-                } catch (insertError: any) {
-                  const pgError = insertError?.cause || insertError
-                  const msg = insertError?.message || String(insertError)
-                  const pgMsg = pgError?.message || msg
-                  console.error('[publish] createSession failed:', {
-                    message: msg,
-                    pgMessage: pgMsg,
-                    pgCode: pgError?.code,
-                    pgDetail: pgError?.detail,
+                      reason: 'calendar_event',
+                      conflictWith: { start: conflictingCe.startTime, end: conflictingCe.endTime },
+                      recommendations: recs,
+                    })
+                    continue
+                  }
+
+                  const conflictingOo = existingOneOnOnes.find((oo: any) => {
+                    const ooStart = oo.requestedDate
+                    const ooEnd = new Date(
+                      oo.requestedDate.getTime() + (oo.durationMinutes || 60) * 60000
+                    )
+                    return sessionStart < ooEnd && sessionEnd > ooStart
                   })
-                  throw new Error(
-                    `createSession failed: ${pgMsg} (code: ${pgError?.code || 'unknown'}). ` +
-                      `Run: npm run db:apply-schema`
-                  )
+                  if (conflictingOo) {
+                    const recs = await findAlternativeSlots(
+                      userId,
+                      session.scheduledAt,
+                      session.durationMinutes
+                    )
+                    skippedSessions.push({
+                      scheduledAt: session.scheduledAt,
+                      durationMinutes: session.durationMinutes,
+                      reason: 'one_on_one',
+                      conflictWith: {
+                        start: conflictingOo.requestedDate,
+                        end: new Date(
+                          conflictingOo.requestedDate.getTime() +
+                            (conflictingOo.durationMinutes || 60) * 60000
+                        ),
+                      },
+                      recommendations: recs,
+                    })
+                    continue
+                  }
+
+                  if (conflictingLs) {
+                    if (conflictingLs.courseId === publishedCourseId) {
+                      // Same-course existing session: ensure it has a CalendarEvent
+                      const [existingCe] = await tx
+                        .select({ eventId: calendarEvent.eventId })
+                        .from(calendarEvent)
+                        .where(
+                          and(
+                            eq(calendarEvent.externalId, conflictingLs.sessionId),
+                            isNull(calendarEvent.deletedAt)
+                          )
+                        )
+                        .limit(1)
+
+                      if (!existingCe && conflictingLs.scheduledAt) {
+                        const lsEndTime = new Date(
+                          conflictingLs.scheduledAt.getTime() +
+                            (conflictingLs.durationMinutes || 60) * 60000
+                        )
+                        await tx.insert(calendarEvent).values({
+                          eventId: crypto.randomUUID(),
+                          tutorId: userId,
+                          title: session.title,
+                          description: templateCourse.description ?? undefined,
+                          type: 'LESSON',
+                          status: 'CONFIRMED',
+                          startTime: conflictingLs.scheduledAt,
+                          endTime: lsEndTime,
+                          timezone: 'UTC',
+                          isAllDay: false,
+                          isRecurring: false,
+                          isVirtual: true,
+                          location: 'Online',
+                          meetingUrl: conflictingLs.roomUrl,
+                          courseId: publishedCourseId,
+                          maxAttendees: 50,
+                          createdBy: userId,
+                          isCancelled: false,
+                          externalId: conflictingLs.sessionId,
+                        })
+                      }
+                      // Backfill the lesson on a session created before lesson
+                      // linkage existed (or a re-publish), keeping the sequence
+                      // aligned. Only set it when currently empty so a tutor's
+                      // manual re-assignment is never overwritten.
+                      const backfillLessonId =
+                        lessonCursor < publishedLessons.length
+                          ? publishedLessons[lessonCursor].lessonId
+                          : null
+                      if (!conflictingLs.lessonId && backfillLessonId) {
+                        await tx
+                          .update(liveSession)
+                          .set({ lessonId: backfillLessonId })
+                          .where(eq(liveSession.sessionId, conflictingLs.sessionId))
+                      }
+                      // Existing same-course session occupies this slot → advance.
+                      lessonCursor++
+                      continue
+                    } else {
+                      // Conflict with a different course — skip and recommend
+                      const recs = await findAlternativeSlots(
+                        userId,
+                        session.scheduledAt,
+                        session.durationMinutes
+                      )
+                      skippedSessions.push({
+                        scheduledAt: session.scheduledAt,
+                        durationMinutes: session.durationMinutes,
+                        reason: 'other_course_live_session',
+                        conflictWith: { start: conflictingLs.scheduledAt, end: null },
+                        recommendations: recs,
+                      })
+                      continue
+                    }
+                  }
+
+                  const assignedLessonId =
+                    lessonCursor < publishedLessons.length
+                      ? publishedLessons[lessonCursor].lessonId
+                      : undefined
+
+                  try {
+                    await createSession(
+                      {
+                        tutorId: userId,
+                        title: session.title,
+                        scheduledAt: session.scheduledAt,
+                        durationMinutes: session.durationMinutes,
+                        category: v.category,
+                        type: 'COURSE',
+                        courseId: publishedCourseId,
+                        scheduleId: scheduleIdByPayload.get(s) ?? undefined,
+                        lessonId: assignedLessonId,
+                        description: templateCourse.description ?? undefined,
+                        status: 'scheduled',
+                        maxStudents: s.maxStudents ?? 50,
+                        timezone: 'UTC',
+                      },
+                      tx
+                    )
+                    // Session materialized → advance to the next lesson.
+                    lessonCursor++
+                  } catch (insertError: any) {
+                    const pgError = insertError?.cause || insertError
+                    const msg = insertError?.message || String(insertError)
+                    const pgMsg = pgError?.message || msg
+                    console.error('[publish] createSession failed:', {
+                      message: msg,
+                      pgMessage: pgMsg,
+                      pgCode: pgError?.code,
+                      pgDetail: pgError?.detail,
+                    })
+                    throw new Error(
+                      `createSession failed: ${pgMsg} (code: ${pgError?.code || 'unknown'}). ` +
+                        `Run: npm run db:apply-schema`
+                    )
+                  }
                 }
               }
             }
