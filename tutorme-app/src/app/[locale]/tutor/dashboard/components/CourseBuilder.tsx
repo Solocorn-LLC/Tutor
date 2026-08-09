@@ -239,6 +239,7 @@ import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
+import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1871,6 +1872,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [previewDmiVersion, setPreviewDmiVersion] = useState<DMIVersion | null>(null)
     // Floating "view DMI" modal available from the Classroom (live) view.
     const [showLiveDmiModal, setShowLiveDmiModal] = useState(false)
+    // Floating document viewer for live assessment documents shown as chat cards.
+    const [liveDocPopup, setLiveDocPopup] = useState<{
+      fileName?: string | null
+      fileUrl?: string | null
+      fileKey?: string | null
+      mimeType?: string | null
+    } | null>(null)
     // Answer key hidden by default — the tutor's screen is shared with students
     // during live, so reveal answers/rubrics only on explicit toggle.
     const [showLiveDmiAnswers, setShowLiveDmiAnswers] = useState(false)
@@ -12551,11 +12559,36 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           }
 
                                           // Document-only: render directly without ResizablePanelGroup
-                                          // so the PDF fills the entire tab area.
+                                          // so the PDF fills the entire tab area. For live assessments,
+                                          // show the document as a chat-style card instead so the
+                                          // tutor classroom mirrors the student chat layout.
                                           if (hasDoc && !hasDmi) {
+                                            const isLiveAssessmentClassroom =
+                                              mainTab === 'live' &&
+                                              testPciSource === 'assessment' &&
+                                              tab.id === 'classroom'
                                             return (
                                               <div className="relative min-h-0 w-full flex-1">
-                                                {doc?.fileUrl || doc?.fileKey ? (
+                                                {isLiveAssessmentClassroom ? (
+                                                  <div className="flex h-full flex-col p-4">
+                                                    <div className="flex-1 overflow-y-auto">
+                                                      <div className="flex justify-start">
+                                                        <ChatMessageBubble
+                                                          sender="tutor"
+                                                          name="Tutor"
+                                                          content=""
+                                                          avatarUrl={tutorAvatarUrl}
+                                                          isDocument
+                                                          document={doc}
+                                                          onDocumentClick={() =>
+                                                            setLiveDocPopup(doc)
+                                                          }
+                                                          isClassroom
+                                                        />
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ) : doc?.fileUrl || doc?.fileKey ? (
                                                   <PDFViewer
                                                     key={doc.fileUrl || doc.fileKey || 'doc'}
                                                     fileUrl={doc.fileUrl || ''}
@@ -15962,6 +15995,37 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               </>
             )
           })()}
+
+        {/* Live assessment document popup — opened from the chat-style document
+            card in the live classroom view. */}
+        <Dialog
+          open={!!liveDocPopup}
+          onOpenChange={open => {
+            if (!open) setLiveDocPopup(null)
+          }}
+        >
+          <DialogContent className="flex h-[85vh] w-[90vw] max-w-4xl flex-col p-0 sm:max-w-4xl">
+            <DialogHeader className="px-4 pt-4">
+              <DialogTitle>{liveDocPopup?.fileName || 'Document'}</DialogTitle>
+            </DialogHeader>
+            <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
+              {liveDocPopup?.fileUrl || liveDocPopup?.fileKey ? (
+                <PDFViewer
+                  fileUrl={liveDocPopup?.fileUrl || ''}
+                  fileKey={liveDocPopup?.fileKey ?? undefined}
+                  className="h-full w-full"
+                  fitToScreen
+                />
+              ) : (
+                <p className="text-muted-foreground h-full overflow-y-auto whitespace-pre-wrap p-4 text-sm">
+                  {liveDocPopup?.fileName
+                    ? 'This document is unavailable. Re-upload it.'
+                    : 'No document to display.'}
+                </p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* PPT Upload Options Dialog */}
         <Dialog
