@@ -1387,7 +1387,7 @@ function CourseBuilderInsightsRouteInner({
               ref?.triggerSync?.()
             }}
             onCreateCourse={onCreateCourse}
-            onEditCourse={courseId ? openEditCourse : undefined}
+            onEditCourse={courseId && !currentCourse?.isPublished ? openEditCourse : undefined}
             canDelete={!!(courseId && courseId !== 'insights-draft' && onDeleteCourse)}
             // Schedule & Publish is available for any selected DB course. Creating-mode
             // drafts show "Create Template" instead, which persists to the DB in place.

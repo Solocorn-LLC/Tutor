@@ -854,18 +854,6 @@ export default function PublicTutorPage() {
                               <p className="mt-0.5 text-xs font-medium text-slate-300">
                                 @{tutor.username}
                               </p>
-                              <Badge
-                                variant="secondary"
-                                title={course.variantCategory || course.categories[0] || 'general'}
-                                className={cn(
-                                  'mt-1.5 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
-                                  isCompact && 'mt-1.5'
-                                )}
-                              >
-                                <span className="truncate whitespace-nowrap">
-                                  {course.variantCategory || course.categories[0] || 'general'}
-                                </span>
-                              </Badge>
                             </div>
 
                             <div
@@ -890,6 +878,30 @@ export default function PublicTutorPage() {
                             </div>
                           </div>
 
+                          <Badge
+                            variant="secondary"
+                            title={`${course.variantCategory || course.categories[0] || 'general'}${course.country && course.country !== 'Global' ? ` • ${course.country}` : ''}`}
+                            className={cn(
+                              'mt-2 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
+                              isCompact && 'mt-1.5'
+                            )}
+                          >
+                            <span className="flex items-center gap-1 truncate whitespace-nowrap">
+                              {course.variantCategory || course.categories[0] || 'general'}
+                              {course.country && course.country !== 'Global' && (
+                                <>
+                                  <span className="mx-0.5 text-[9px] opacity-70">•</span>
+                                  <CountryFlag
+                                    countryName={course.country}
+                                    size="xs"
+                                    className="shrink-0"
+                                  />
+                                  <span className="truncate">{course.country}</span>
+                                </>
+                              )}
+                            </span>
+                          </Badge>
+
                           <div
                             className={cn(
                               'mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
@@ -904,37 +916,6 @@ export default function PublicTutorPage() {
                             >
                               {description || 'No description'}
                             </p>
-                          </div>
-
-                          <div
-                            className={cn(
-                              'mt-2 flex items-baseline gap-3 text-[11px] text-slate-300',
-                              isCompact && 'mt-2 text-[11px]'
-                            )}
-                          >
-                            <div className="flex items-center gap-1 font-medium text-slate-200">
-                              <BookOpen className="h-3.5 w-3.5 text-slate-400" />
-                              {course.lessonCount} sessions
-                            </div>
-                            <div className="h-3.5 w-px self-center bg-[rgba(255,255,255,0.12)]" />
-                            <div className="min-w-0">
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.preventDefault()
-                                  setScheduleCourse(course)
-                                }}
-                                className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
-                              >
-                                <CalendarDays className="h-3.5 w-3.5" />
-                                View schedules <ExternalLink className="h-3 w-3" />
-                              </button>
-                            </div>
-                            {course.country && course.country !== 'Global' && (
-                              <div className="ml-auto flex items-center">
-                                <CountryFlag countryName={course.country} size="xs" />
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}
@@ -1005,6 +986,28 @@ export default function PublicTutorPage() {
                         isCompact && 'gap-2 px-3 py-2'
                       )}
                     >
+                      {!isList && (
+                        <div className="flex w-full items-center gap-3 text-[11px] text-slate-300">
+                          <div className="flex items-center gap-1 font-medium text-slate-200">
+                            <BookOpen className="h-3.5 w-3.5 text-slate-400" />
+                            <span>{course.lessonCount} sessions</span>
+                          </div>
+                          <div className="h-3.5 w-px bg-[rgba(255,255,255,0.12)]" />
+                          <button
+                            type="button"
+                            onClick={e => {
+                              e.preventDefault()
+                              setScheduleCourse(course)
+                            }}
+                            className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                          >
+                            <CalendarDays className="h-3.5 w-3.5" />
+                            <span>View schedules</span>
+                            <ExternalLink className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+
                       {!isList && (
                         <div className="flex w-full flex-wrap items-center justify-between gap-2">
                           <Badge
@@ -1179,8 +1182,6 @@ export default function PublicTutorPage() {
     const visible = demoClasses.slice(currentPage * PAGE_SIZE, currentPage * PAGE_SIZE + PAGE_SIZE)
     const placeholders = Math.max(0, PAGE_SIZE - visible.length)
 
-    const isLive = (status: string) => status !== 'ended'
-
     return (
       <div className="flex w-full items-stretch">
         <div className="flex shrink-0 items-center pr-3">
@@ -1194,7 +1195,6 @@ export default function PublicTutorPage() {
         <div className="flex-1 overflow-hidden py-3">
           <div className="flex gap-5">
             {visible.map(demo => {
-              const live = isLive(demo.status)
               const title = (demo.title || 'Live Demo')
                 .replace(/\s*[—-]\s*Live Session$/i, '')
                 .replace(/^Live Session\s*[—-]\s*/i, '')
@@ -1224,6 +1224,9 @@ export default function PublicTutorPage() {
                           <p className="mt-0.5 text-xs font-medium text-emerald-100/80">
                             @{tutor.username || 'tutor'}
                           </p>
+                          <p className="mt-0.5 text-xs font-medium text-emerald-100">
+                            {tutor.name}
+                          </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                             <span
                               title={category}
@@ -1231,25 +1234,9 @@ export default function PublicTutorPage() {
                             >
                               {category}
                             </span>
-                            <span
-                              className={cn(
-                                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
-                                live
-                                  ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
-                                  : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
-                              )}
-                            >
-                              <span
-                                className={cn(
-                                  'h-1.5 w-1.5 rounded-full',
-                                  live ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
-                                )}
-                              />
-                              {live ? 'Live' : 'Ended'}
-                            </span>
                           </div>
                         </div>
-                        <div className="h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
+                        <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] sm:h-[86px] sm:w-[86px]">
                           {tutor.avatarUrl ? (
                             <img
                               src={tutor.avatarUrl}
@@ -1258,19 +1245,28 @@ export default function PublicTutorPage() {
                             />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center bg-[rgba(255,255,255,0.05)] text-slate-300">
-                              <User className="h-6 w-6 opacity-50" />
+                              <User className="h-8 w-8 opacity-50" />
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
-                        <p className="line-clamp-4 text-[12px] leading-[1.3] text-slate-800">
-                          {demo.description?.trim() || 'No description'}
-                        </p>
+                      <div className="flex flex-1 flex-col justify-center">
+                        <div className="h-[120px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
+                          <p className="line-clamp-6 text-[12px] leading-[1.3] text-slate-800">
+                            {demo.description?.trim() || 'No description'}
+                          </p>
+                        </div>
                       </div>
 
-                      <div className="mt-auto flex items-center justify-end text-xs font-semibold">
+                      <div className="mt-auto flex items-center justify-between text-xs font-semibold">
+                        {tutor.tutorSince ? (
+                          <span className="text-emerald-100">
+                            Tutor since {new Date(tutor.tutorSince).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
                         {tutor.country ? (
                           <span className="truncate text-emerald-100">
                             <CountryFlag countryName={tutor.country} size="xs" showLabel />

@@ -30,6 +30,22 @@ WHERE "courseId" IS NULL
 `)
 
 /**
+ * Backfill published-course categories that were mutated after publish.
+ * PR #1440 locks the UI/API going forward; this repair already-changed rows.
+ * Source of truth is the CourseVariant row created at publish time. Idempotent:
+ * only touches rows whose current categories differ from the variant category.
+ */
+const BACKFILL_PUBLISHED_COURSE_CATEGORY_SQL = sql.raw(`
+UPDATE "Course" c
+SET "categories" = ARRAY[cv."category"],
+    "updatedAt" = NOW()
+FROM "CourseVariant" cv
+WHERE cv."publishedCourseId" = c."id"
+  AND c."isPublished" = true
+  AND (c."categories" IS NULL OR c."categories" <> ARRAY[cv."category"]);
+`)
+
+/**
  * Backfill CourseLesson.sourceLessonId for published-variant lessons that
  * predate the linkage (drizzle/0066). We use the historical correlation —
  * template↔published lessons at the same `order` — which is the best we have for
@@ -73,6 +89,21 @@ export async function applyStartupDataCleanup(): Promise<void> {
   } catch (err) {
     console.error(
       '⚠️ [Server] sourceLessonId backfill skipped:',
+      err instanceof Error ? err.message : err
+    )
+  }
+
+  try {
+    const result = await drizzleDb.execute(BACKFILL_PUBLISHED_COURSE_CATEGORY_SQL)
+    const count = (result as { rowCount?: number })?.rowCount ?? 0
+    if (count > 0) {
+      console.log(
+        `[Server] Data cleanup: restored original category on ${count} published course(s).`
+      )
+    }
+  } catch (err) {
+    console.error(
+      '⚠️ [Server] Published-course category backfill skipped:',
       err instanceof Error ? err.message : err
     )
   }
