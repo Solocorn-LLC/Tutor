@@ -331,6 +331,10 @@ import { LessonSelectorDialog, NEW_LESSON_VALUE } from './LessonSelectorDialog'
 import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTextEditor'
 import { TaskSlideTextToolbar } from './TaskSlideTextToolbar'
 import { SlidePageMenu } from './SlidePageMenu'
+import { useLinkPreview } from '@/hooks/use-link-preview'
+import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
+import { detectUrls, isValidPreviewUrl } from '@/lib/link-preview/detect-urls'
+import type { LinkPreviewItem } from '@/lib/link-preview/types'
 import {
   AssessmentBuilderModal,
   TaskBuilderModal,
@@ -1276,6 +1280,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         pciThread?: PciThread
       }[]
       activeExtensionId: string | null
+      linkPreviews: LinkPreviewItem[]
     }>({
       title: '',
       taskContent: '', // Base task content (never overwritten by extensions)
@@ -1284,6 +1289,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // Extensions have their own content stored separately
       extensions: [],
       activeExtensionId: null, // null = viewing task, string = viewing extension
+      linkPreviews: [],
     })
 
     const [assessmentBuilder, setAssessmentBuilder] = useState<{
@@ -1324,6 +1330,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       dmiExamBody?: string
       /** Subject detected from the assessment source (no DMI versioning). */
       dmiSubject?: string
+      linkPreviews: LinkPreviewItem[]
     }>({
       title: '',
       taskContent: '',
@@ -1333,6 +1340,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       activeExtensionId: null,
       pages: [''],
       activePageIndex: 0,
+      linkPreviews: [],
     })
 
     // Keep the legacy `taskContent` field in sync with the multi-page slide array
@@ -1345,6 +1353,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return { ...prev, taskContent: joined }
       })
     }, [assessmentBuilder.pages])
+
+    // URLs the tutor has explicitly dismissed from the link-preview layer so they
+    // don't keep reappearing while the text still contains them.
+    const [dismissedTaskLinkUrls, setDismissedTaskLinkUrls] = useState<Set<string>>(new Set())
+    const [dismissedAssessmentLinkUrls, setDismissedAssessmentLinkUrls] = useState<Set<string>>(
+      new Set()
+    )
+
     // after its deps such as autoCreateTask are defined). The loaders and the
     // blank-slate reset need its dispatchers before that point, so bridge them
     // through refs that are pointed at the hook once it's created.
@@ -2143,6 +2159,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         details: '',
         extensions: [],
         activeExtensionId: null,
+        linkPreviews: [],
       })
       setAssessmentBuilder({
         title: '',
@@ -2153,7 +2170,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activeExtensionId: null,
         pages: [''],
         activePageIndex: 0,
+        linkPreviews: [],
       })
+      setDismissedTaskLinkUrls(new Set())
+      setDismissedAssessmentLinkUrls(new Set())
       setTaskBuilderActiveTab('content')
       setAssessmentBuilderActiveTab('content')
       setMainBuilderTab('task')
@@ -3026,7 +3046,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             pciThread: ext.pciThread,
           })),
           activeExtensionId,
+          linkPreviews: task.linkPreviews || [],
         })
+        setDismissedTaskLinkUrls(new Set())
         setTaskDmiItems(task.dmiItems || [])
         // Rehydrate the DMI source kind so the PCI-chat study-material variant
         // applies for a returning tutor, not just in the generation session.
@@ -3107,7 +3129,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           activePageIndex: 0,
           dmiExamBody: assessment.dmiExamBody ?? legacyVersion?.examBody ?? undefined,
           dmiSubject: assessment.dmiSubject ?? legacyVersion?.subject ?? undefined,
+          linkPreviews: assessment.linkPreviews || [],
         })
+        setDismissedAssessmentLinkUrls(new Set())
         setAssessmentDmiItems(migratedDmiItems)
         // Rehydrate the DMI source kind so the PCI-chat study-material variant
         // applies for a returning tutor, not just in the generation session.
@@ -3169,6 +3193,163 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         return { ...prev, pages: newPages }
       })
     }, [])
+
+    // ===========================================================
+    // Link preview layer for task/assessment slides
+    // ===========================================================
+    const activeTaskContentText = useMemo(() => {
+      const html = taskBuilder.activeExtensionId
+        ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)?.content || ''
+        : taskBuilder.taskContent
+      return html
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }, [taskBuilder.activeExtensionId, taskBuilder.extensions, taskBuilder.taskContent])
+
+    const activeAssessmentContentText = useMemo(() => {
+      const html = assessmentBuilder.pages[assessmentBuilder.activePageIndex] ?? ''
+      return html
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }, [assessmentBuilder.pages, assessmentBuilder.activePageIndex])
+
+    const taskFetchedPreviews = useLinkPreview(activeTaskContentText)
+    const assessmentFetchedPreviews = useLinkPreview(activeAssessmentContentText)
+
+    function applyPreviewMetadata(
+      item: LinkPreviewItem,
+      meta: import('@/lib/link-preview/types').LinkPreviewMetadata | undefined
+    ): LinkPreviewItem {
+      if (!meta) return item
+      return {
+        ...item,
+        title: meta.title,
+        description: meta.description,
+        imageUrl: meta.imageUrl,
+        faviconUrl: meta.faviconUrl,
+        siteName: meta.siteName,
+        contentType: meta.contentType,
+        isFile: meta.isFile,
+        fileName: meta.fileName,
+        fileType: meta.fileType,
+      }
+    }
+
+    function isPreviewChanged(a: LinkPreviewItem, b: LinkPreviewItem): boolean {
+      return (
+        a.title !== b.title ||
+        a.description !== b.description ||
+        a.imageUrl !== b.imageUrl ||
+        a.faviconUrl !== b.faviconUrl ||
+        a.siteName !== b.siteName ||
+        a.contentType !== b.contentType ||
+        a.isFile !== b.isFile ||
+        a.fileName !== b.fileName ||
+        a.fileType !== b.fileType
+      )
+    }
+
+    useEffect(() => {
+      const urls = detectUrls(activeTaskContentText).filter(
+        u => isValidPreviewUrl(u) && !dismissedTaskLinkUrls.has(u)
+      )
+      const existingByUrl = new Map(taskBuilder.linkPreviews.map(p => [p.url, p]))
+      let changed = false
+      const nextPreviews: LinkPreviewItem[] = []
+
+      urls.forEach((url, idx) => {
+        const existing = existingByUrl.get(url)
+        const fetched = taskFetchedPreviews.find(p => p.url === url)
+        const meta = fetched?.metadata
+        if (existing) {
+          const updated = applyPreviewMetadata(existing, meta)
+          if (isPreviewChanged(existing, updated)) changed = true
+          nextPreviews.push(updated)
+        } else {
+          changed = true
+          const offset = (idx % 6) * 24
+          nextPreviews.push({
+            id: utilsGenerateId(),
+            url,
+            x: 24 + offset,
+            y: 24 + offset,
+            width: 280,
+            height: 160,
+            title: meta?.title,
+            description: meta?.description,
+            imageUrl: meta?.imageUrl,
+            faviconUrl: meta?.faviconUrl,
+            siteName: meta?.siteName,
+            contentType: meta?.contentType,
+            isFile: meta?.isFile ?? false,
+            fileName: meta?.fileName,
+            fileType: meta?.fileType,
+          })
+        }
+      })
+
+      if (taskBuilder.linkPreviews.length !== nextPreviews.length) changed = true
+      if (changed) {
+        setTaskBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
+      }
+    }, [
+      activeTaskContentText,
+      taskFetchedPreviews,
+      dismissedTaskLinkUrls,
+      taskBuilder.linkPreviews,
+    ])
+
+    useEffect(() => {
+      const urls = detectUrls(activeAssessmentContentText).filter(
+        u => isValidPreviewUrl(u) && !dismissedAssessmentLinkUrls.has(u)
+      )
+      const existingByUrl = new Map(assessmentBuilder.linkPreviews.map(p => [p.url, p]))
+      let changed = false
+      const nextPreviews: LinkPreviewItem[] = []
+
+      urls.forEach((url, idx) => {
+        const existing = existingByUrl.get(url)
+        const fetched = assessmentFetchedPreviews.find(p => p.url === url)
+        const meta = fetched?.metadata
+        if (existing) {
+          const updated = applyPreviewMetadata(existing, meta)
+          if (isPreviewChanged(existing, updated)) changed = true
+          nextPreviews.push(updated)
+        } else {
+          changed = true
+          const offset = (idx % 6) * 24
+          nextPreviews.push({
+            id: utilsGenerateId(),
+            url,
+            x: 24 + offset,
+            y: 24 + offset,
+            width: 280,
+            height: 160,
+            title: meta?.title,
+            description: meta?.description,
+            imageUrl: meta?.imageUrl,
+            faviconUrl: meta?.faviconUrl,
+            siteName: meta?.siteName,
+            contentType: meta?.contentType,
+            isFile: meta?.isFile ?? false,
+            fileName: meta?.fileName,
+            fileType: meta?.fileType,
+          })
+        }
+      })
+
+      if (assessmentBuilder.linkPreviews.length !== nextPreviews.length) changed = true
+      if (changed) {
+        setAssessmentBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
+      }
+    }, [
+      activeAssessmentContentText,
+      assessmentFetchedPreviews,
+      dismissedAssessmentLinkUrls,
+      assessmentBuilder.linkPreviews,
+    ])
 
     // Load tutor assets from API on mount
     useEffect(() => {
@@ -3322,6 +3503,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.pciThread,
       taskBuilder.extensions,
       taskBuilder.sourceDocument,
+      taskBuilder.linkPreviews,
       taskDmiItems,
       taskDmiVersions,
       dmiDocumentKind.task,
@@ -3359,6 +3541,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.pages,
       assessmentBuilder.dmiExamBody,
       assessmentBuilder.dmiSubject,
+      assessmentBuilder.linkPreviews,
       assessmentDmiItems,
       dmiDocumentKind.assessment,
       testPciSource,
@@ -3902,6 +4085,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             details: '',
             extensions: [],
             activeExtensionId: null,
+            linkPreviews: [],
           })
         } else {
           if (loadedAssessmentId === item.id) {
@@ -3918,6 +4102,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             activeExtensionId: null,
             pages: [''],
             activePageIndex: 0,
+            linkPreviews: [],
           })
         }
 
@@ -5368,6 +5553,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         details: newTask.shortDescription || '',
         extensions: [],
         activeExtensionId: null,
+        linkPreviews: [],
       })
       toast.success('New task created')
       return newTask
@@ -5401,6 +5587,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activeExtensionId: null,
         pages: [''],
         activePageIndex: 0,
+        linkPreviews: [],
       })
       toast.success('New assessment created')
       return newAssessment
@@ -6430,10 +6617,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         details: '',
         extensions: [],
         activeExtensionId: null,
+        linkPreviews: [],
       })
       setTaskDmiItems([])
       setTaskDmiVersions([])
       setTaskSourceDocument(undefined)
+      setDismissedTaskLinkUrls(new Set())
     }, [])
     const resetAssessmentBuilderState = useCallback(() => {
       setLoadedAssessmentId(null)
@@ -6446,10 +6635,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activeExtensionId: null,
         pages: [''],
         activePageIndex: 0,
+        linkPreviews: [],
       })
       setAssessmentDmiItems([])
       setAssessmentSourceDocument(undefined)
       setAssessmentSourceReferenceOnly(false)
+      setDismissedAssessmentLinkUrls(new Set())
     }, [])
 
     const deleteCourseBuilderNode = async (nodeId: string) => {
@@ -13335,7 +13526,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             // Text-only task: locked 1100 x 620 slide canvas.
                                             // No PDF preview here; the snapshot is generated only when entering Test/Live.
                                             <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                              <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                              <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
                                                 <TaskSlideTextEditor
                                                   ref={taskSlideEditorRef}
                                                   html={
@@ -13373,6 +13564,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   placeholder="Type the task content here — or load a document above to work from it."
                                                   className="h-full w-full"
                                                 />
+                                                {taskBuilder.linkPreviews.map(preview => (
+                                                  <LinkPreviewCard
+                                                    key={preview.id}
+                                                    item={preview}
+                                                    containerWidth={1100}
+                                                    containerHeight={620}
+                                                    onChange={updates =>
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        linkPreviews: prev.linkPreviews.map(p =>
+                                                          p.id === preview.id
+                                                            ? { ...p, ...updates }
+                                                            : p
+                                                        ),
+                                                      }))
+                                                    }
+                                                    onRemove={() => {
+                                                      setTaskBuilder(prev => ({
+                                                        ...prev,
+                                                        linkPreviews: prev.linkPreviews.filter(
+                                                          p => p.id !== preview.id
+                                                        ),
+                                                      }))
+                                                      setDismissedTaskLinkUrls(
+                                                        prev => new Set([...prev, preview.url])
+                                                      )
+                                                    }}
+                                                  />
+                                                ))}
                                               </div>
                                               <TaskSlideTextToolbar
                                                 editorRef={taskSlideEditorRef}
@@ -13807,7 +14027,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               )}
                                             >
                                               <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                                <div className="h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
+                                                <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
                                                   <TaskSlideTextEditor
                                                     ref={assessmentSlideEditorRef}
                                                     html={
@@ -13828,6 +14048,35 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     placeholder="Type your assessment questions here — or load a document above to work from it."
                                                     className="h-full w-full"
                                                   />
+                                                  {assessmentBuilder.linkPreviews.map(preview => (
+                                                    <LinkPreviewCard
+                                                      key={preview.id}
+                                                      item={preview}
+                                                      containerWidth={1100}
+                                                      containerHeight={620}
+                                                      onChange={updates =>
+                                                        setAssessmentBuilder(prev => ({
+                                                          ...prev,
+                                                          linkPreviews: prev.linkPreviews.map(p =>
+                                                            p.id === preview.id
+                                                              ? { ...p, ...updates }
+                                                              : p
+                                                          ),
+                                                        }))
+                                                      }
+                                                      onRemove={() => {
+                                                        setAssessmentBuilder(prev => ({
+                                                          ...prev,
+                                                          linkPreviews: prev.linkPreviews.filter(
+                                                            p => p.id !== preview.id
+                                                          ),
+                                                        }))
+                                                        setDismissedAssessmentLinkUrls(
+                                                          prev => new Set([...prev, preview.url])
+                                                        )
+                                                      }}
+                                                    />
+                                                  ))}
                                                 </div>
                                                 <TaskSlideTextToolbar
                                                   editorRef={assessmentSlideEditorRef}
