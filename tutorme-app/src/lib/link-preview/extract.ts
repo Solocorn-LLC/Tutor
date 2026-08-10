@@ -4,7 +4,7 @@ import type { LinkPreviewMetadata } from './types'
 
 const MAX_REDIRECTS = 5
 const FETCH_TIMEOUT_MS = 5000
-const MAX_BODY_BYTES = 1024 * 1024 // 1 MB
+const MAX_BODY_BYTES = 5 * 1024 * 1024 // 5 MB
 
 const BLOCKED_HOSTNAMES = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]', '::1'])
 
@@ -230,6 +230,58 @@ function getYoutubeThumbnailUrl(videoId: string): string {
   return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
 }
 
+type YoutubeOEmbedResponse = {
+  title?: string
+  author_name?: string
+  author_url?: string
+  type?: string
+  provider_name?: string
+  provider_url?: string
+  thumbnail_url?: string
+  thumbnail_width?: number
+  thumbnail_height?: number
+  html?: string
+  width?: number
+  height?: number
+  version?: string
+}
+
+function isYoutubeUrl(inputUrl: string): boolean {
+  return extractYoutubeVideoId(inputUrl) !== undefined
+}
+
+async function fetchYoutubeOEmbed(url: string): Promise<LinkPreviewMetadata> {
+  const oEmbedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`
+  const response = await fetchWithRedirects(oEmbedUrl, {
+    method: 'GET',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; TutorBot/1.0; +https://tutorme.com)',
+      Accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  })
+
+  if (!response.ok) {
+    throw new Error(`YouTube oEmbed error ${response.status}`)
+  }
+
+  const data = (await response.json()) as YoutubeOEmbedResponse
+  const videoId = extractYoutubeVideoId(url)
+
+  return {
+    url,
+    title: data.title || (videoId ? 'YouTube video' : 'YouTube'),
+    description: data.author_name || undefined,
+    imageUrl: data.thumbnail_url || (videoId ? getYoutubeThumbnailUrl(videoId) : undefined),
+    faviconUrl: undefined,
+    siteName: data.provider_name || 'YouTube',
+    contentType: response.headers.get('content-type') || 'application/json',
+    isFile: false,
+    fileName: undefined,
+    fileType: undefined,
+  }
+}
+
 async function fetchWithRedirects(
   url: string,
   options: RequestInit,
@@ -264,6 +316,17 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewMetadata
 
   if (isBlockedHost(url)) {
     throw new Error('URL is not allowed')
+  }
+
+  // YouTube pages are huge and often exceed our body limit. Use the lightweight
+  // oEmbed API to get title, author, and thumbnail without parsing HTML.
+  if (isYoutubeUrl(url)) {
+    try {
+      return await fetchYoutubeOEmbed(url)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'YouTube preview failed'
+      throw new Error(message)
+    }
   }
 
   let response: Response & { finalUrl: string }
@@ -319,7 +382,8 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewMetadata
     }
     html = new TextDecoder('utf-8', { fatal: false }).decode(buffer)
   } catch (error) {
-    throw new Error('Failed to read response body')
+    const reason = error instanceof Error ? error.message : 'Failed to read response body'
+    throw new Error(reason)
   }
 
   if (isBlockedContent(html)) {
