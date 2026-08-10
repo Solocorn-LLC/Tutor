@@ -199,6 +199,37 @@ function extractMeta(html: string, finalUrl: string) {
   }
 }
 
+export function extractYoutubeVideoId(inputUrl: string): string | undefined {
+  try {
+    const parsed = new URL(inputUrl)
+    const hostname = parsed.hostname.replace(/^www\./, '')
+
+    if (hostname === 'youtube.com' || hostname === 'music.youtube.com') {
+      if (parsed.pathname === '/watch') {
+        return parsed.searchParams.get('v') || undefined
+      }
+      const embedMatch = parsed.pathname.match(/^\/embed\/([a-zA-Z0-9_-]+)/)
+      if (embedMatch) return embedMatch[1]
+      const shortsMatch = parsed.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/)
+      if (shortsMatch) return shortsMatch[1]
+      const vMatch = parsed.pathname.match(/^\/v\/([a-zA-Z0-9_-]+)/)
+      if (vMatch) return vMatch[1]
+    }
+
+    if (hostname === 'youtu.be') {
+      const match = parsed.pathname.match(/^\/([a-zA-Z0-9_-]+)/)
+      return match ? match[1] : undefined
+    }
+  } catch {
+    // ignore malformed URLs
+  }
+  return undefined
+}
+
+function getYoutubeThumbnailUrl(videoId: string): string {
+  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+}
+
 async function fetchWithRedirects(
   url: string,
   options: RequestInit,
@@ -296,14 +327,15 @@ export async function fetchLinkPreview(url: string): Promise<LinkPreviewMetadata
   }
 
   const meta = extractMeta(html, finalUrl)
+  const videoId = extractYoutubeVideoId(finalUrl)
 
   return {
     url: finalUrl,
     title: meta.title,
     description: meta.description,
-    imageUrl: meta.imageUrl,
+    imageUrl: meta.imageUrl || (videoId ? getYoutubeThumbnailUrl(videoId) : undefined),
     faviconUrl: meta.faviconUrl,
-    siteName: meta.siteName,
+    siteName: meta.siteName || (videoId ? 'YouTube' : undefined),
     contentType,
     isFile: false,
     fileName,

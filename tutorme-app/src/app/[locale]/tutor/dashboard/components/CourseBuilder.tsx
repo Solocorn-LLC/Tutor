@@ -334,6 +334,7 @@ import { SlidePageMenu } from './SlidePageMenu'
 import { useLinkPreview } from '@/hooks/use-link-preview'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { detectUrls, isValidPreviewUrl } from '@/lib/link-preview/detect-urls'
+import { removeStandaloneUrlsFromHtml, appendUrlToHtml } from '@/lib/link-preview/html'
 import type { LinkPreviewItem } from '@/lib/link-preview/types'
 import {
   AssessmentBuilderModal,
@@ -1354,13 +1355,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       })
     }, [assessmentBuilder.pages])
 
-    // URLs the tutor has explicitly dismissed from the link-preview layer so they
-    // don't keep reappearing while the text still contains them.
-    const [dismissedTaskLinkUrls, setDismissedTaskLinkUrls] = useState<Set<string>>(new Set())
-    const [dismissedAssessmentLinkUrls, setDismissedAssessmentLinkUrls] = useState<Set<string>>(
-      new Set()
-    )
-
     // after its deps such as autoCreateTask are defined). The loaders and the
     // blank-slate reset need its dispatchers before that point, so bridge them
     // through refs that are pointed at the hook once it's created.
@@ -2172,8 +2166,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         activePageIndex: 0,
         linkPreviews: [],
       })
-      setDismissedTaskLinkUrls(new Set())
-      setDismissedAssessmentLinkUrls(new Set())
       setTaskBuilderActiveTab('content')
       setAssessmentBuilderActiveTab('content')
       setMainBuilderTab('task')
@@ -3048,7 +3040,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           activeExtensionId,
           linkPreviews: task.linkPreviews || [],
         })
-        setDismissedTaskLinkUrls(new Set())
         setTaskDmiItems(task.dmiItems || [])
         // Rehydrate the DMI source kind so the PCI-chat study-material variant
         // applies for a returning tutor, not just in the generation session.
@@ -3131,7 +3122,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           dmiSubject: assessment.dmiSubject ?? legacyVersion?.subject ?? undefined,
           linkPreviews: assessment.linkPreviews || [],
         })
-        setDismissedAssessmentLinkUrls(new Set())
         setAssessmentDmiItems(migratedDmiItems)
         // Rehydrate the DMI source kind so the PCI-chat study-material variant
         // applies for a returning tutor, not just in the generation session.
@@ -3252,23 +3242,26 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     useEffect(() => {
-      const urls = detectUrls(activeTaskContentText).filter(
-        u => isValidPreviewUrl(u) && !dismissedTaskLinkUrls.has(u)
-      )
-      const existingByUrl = new Map(taskBuilder.linkPreviews.map(p => [p.url, p]))
+      const urls = detectUrls(activeTaskContentText).filter(u => isValidPreviewUrl(u))
+      const nextPreviews: LinkPreviewItem[] = [...taskBuilder.linkPreviews]
+      const newUrls: string[] = []
       let changed = false
-      const nextPreviews: LinkPreviewItem[] = []
 
       urls.forEach((url, idx) => {
-        const existing = existingByUrl.get(url)
+        const existingIndex = nextPreviews.findIndex(p => p.url === url)
         const fetched = taskFetchedPreviews.find(p => p.url === url)
         const meta = fetched?.metadata
-        if (existing) {
+
+        if (existingIndex >= 0) {
+          const existing = nextPreviews[existingIndex]
           const updated = applyPreviewMetadata(existing, meta)
-          if (isPreviewChanged(existing, updated)) changed = true
-          nextPreviews.push(updated)
-        } else {
+          if (isPreviewChanged(existing, updated)) {
+            nextPreviews[existingIndex] = updated
+            changed = true
+          }
+        } else if (fetched && !fetched.loading && !fetched.error && meta) {
           changed = true
+          newUrls.push(url)
           const offset = (idx % 6) * 24
           nextPreviews.push({
             id: utilsGenerateId(),
@@ -3277,48 +3270,71 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             y: 24 + offset,
             width: 280,
             height: 160,
-            title: meta?.title,
-            description: meta?.description,
-            imageUrl: meta?.imageUrl,
-            faviconUrl: meta?.faviconUrl,
-            siteName: meta?.siteName,
-            contentType: meta?.contentType,
-            isFile: meta?.isFile ?? false,
-            fileName: meta?.fileName,
-            fileType: meta?.fileType,
+            title: meta.title,
+            description: meta.description,
+            imageUrl: meta.imageUrl,
+            faviconUrl: meta.faviconUrl,
+            siteName: meta.siteName,
+            contentType: meta.contentType,
+            isFile: meta.isFile ?? false,
+            fileName: meta.fileName,
+            fileType: meta.fileType,
           })
         }
       })
 
-      if (taskBuilder.linkPreviews.length !== nextPreviews.length) changed = true
-      if (changed) {
+      if (!changed && newUrls.length === 0) return
+
+      if (newUrls.length === 0) {
         setTaskBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
+        return
       }
+
+      setTaskBuilder(prev => {
+        const activeHtml = prev.activeExtensionId
+          ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.content || ''
+          : prev.taskContent
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
+        const next = { ...prev, linkPreviews: nextPreviews }
+        if (prev.activeExtensionId) {
+          next.extensions = prev.extensions.map(e =>
+            e.id === prev.activeExtensionId ? { ...e, content: cleanedHtml } : e
+          )
+        } else {
+          next.taskContent = cleanedHtml
+        }
+        return next
+      })
     }, [
       activeTaskContentText,
       taskFetchedPreviews,
-      dismissedTaskLinkUrls,
       taskBuilder.linkPreviews,
+      taskBuilder.activeExtensionId,
+      taskBuilder.extensions,
+      taskBuilder.taskContent,
     ])
 
     useEffect(() => {
-      const urls = detectUrls(activeAssessmentContentText).filter(
-        u => isValidPreviewUrl(u) && !dismissedAssessmentLinkUrls.has(u)
-      )
-      const existingByUrl = new Map(assessmentBuilder.linkPreviews.map(p => [p.url, p]))
+      const urls = detectUrls(activeAssessmentContentText).filter(u => isValidPreviewUrl(u))
+      const nextPreviews: LinkPreviewItem[] = [...assessmentBuilder.linkPreviews]
+      const newUrls: string[] = []
       let changed = false
-      const nextPreviews: LinkPreviewItem[] = []
 
       urls.forEach((url, idx) => {
-        const existing = existingByUrl.get(url)
+        const existingIndex = nextPreviews.findIndex(p => p.url === url)
         const fetched = assessmentFetchedPreviews.find(p => p.url === url)
         const meta = fetched?.metadata
-        if (existing) {
+
+        if (existingIndex >= 0) {
+          const existing = nextPreviews[existingIndex]
           const updated = applyPreviewMetadata(existing, meta)
-          if (isPreviewChanged(existing, updated)) changed = true
-          nextPreviews.push(updated)
-        } else {
+          if (isPreviewChanged(existing, updated)) {
+            nextPreviews[existingIndex] = updated
+            changed = true
+          }
+        } else if (fetched && !fetched.loading && !fetched.error && meta) {
           changed = true
+          newUrls.push(url)
           const offset = (idx % 6) * 24
           nextPreviews.push({
             id: utilsGenerateId(),
@@ -3327,28 +3343,39 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             y: 24 + offset,
             width: 280,
             height: 160,
-            title: meta?.title,
-            description: meta?.description,
-            imageUrl: meta?.imageUrl,
-            faviconUrl: meta?.faviconUrl,
-            siteName: meta?.siteName,
-            contentType: meta?.contentType,
-            isFile: meta?.isFile ?? false,
-            fileName: meta?.fileName,
-            fileType: meta?.fileType,
+            title: meta.title,
+            description: meta.description,
+            imageUrl: meta.imageUrl,
+            faviconUrl: meta.faviconUrl,
+            siteName: meta.siteName,
+            contentType: meta.contentType,
+            isFile: meta.isFile ?? false,
+            fileName: meta.fileName,
+            fileType: meta.fileType,
           })
         }
       })
 
-      if (assessmentBuilder.linkPreviews.length !== nextPreviews.length) changed = true
-      if (changed) {
+      if (!changed && newUrls.length === 0) return
+
+      if (newUrls.length === 0) {
         setAssessmentBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
+        return
       }
+
+      setAssessmentBuilder(prev => {
+        const next = { ...prev, linkPreviews: nextPreviews }
+        const activeHtml = prev.pages[prev.activePageIndex] ?? ''
+        next.pages = [...prev.pages]
+        next.pages[prev.activePageIndex] = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
+        return next
+      })
     }, [
       activeAssessmentContentText,
       assessmentFetchedPreviews,
-      dismissedAssessmentLinkUrls,
       assessmentBuilder.linkPreviews,
+      assessmentBuilder.pages,
+      assessmentBuilder.activePageIndex,
     ])
 
     // Load tutor assets from API on mount
@@ -6622,7 +6649,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setTaskDmiItems([])
       setTaskDmiVersions([])
       setTaskSourceDocument(undefined)
-      setDismissedTaskLinkUrls(new Set())
     }, [])
     const resetAssessmentBuilderState = useCallback(() => {
       setLoadedAssessmentId(null)
@@ -6640,7 +6666,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setAssessmentDmiItems([])
       setAssessmentSourceDocument(undefined)
       setAssessmentSourceReferenceOnly(false)
-      setDismissedAssessmentLinkUrls(new Set())
     }, [])
 
     const deleteCourseBuilderNode = async (nodeId: string) => {
@@ -13581,15 +13606,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }))
                                                     }
                                                     onRemove={() => {
-                                                      setTaskBuilder(prev => ({
-                                                        ...prev,
-                                                        linkPreviews: prev.linkPreviews.filter(
-                                                          p => p.id !== preview.id
-                                                        ),
-                                                      }))
-                                                      setDismissedTaskLinkUrls(
-                                                        prev => new Set([...prev, preview.url])
-                                                      )
+                                                      setTaskBuilder(prev => {
+                                                        const activeHtml = prev.activeExtensionId
+                                                          ? prev.extensions.find(
+                                                              e => e.id === prev.activeExtensionId
+                                                            )?.content || ''
+                                                          : prev.taskContent
+                                                        const restoredHtml = appendUrlToHtml(
+                                                          activeHtml,
+                                                          preview.url
+                                                        )
+                                                        const next = {
+                                                          ...prev,
+                                                          linkPreviews: prev.linkPreviews.filter(
+                                                            p => p.id !== preview.id
+                                                          ),
+                                                        }
+                                                        if (prev.activeExtensionId) {
+                                                          next.extensions = prev.extensions.map(
+                                                            e =>
+                                                              e.id === prev.activeExtensionId
+                                                                ? { ...e, content: restoredHtml }
+                                                                : e
+                                                          )
+                                                        } else {
+                                                          next.taskContent = restoredHtml
+                                                        }
+                                                        return next
+                                                      })
                                                     }}
                                                   />
                                                 ))}
@@ -14065,15 +14109,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         }))
                                                       }
                                                       onRemove={() => {
-                                                        setAssessmentBuilder(prev => ({
-                                                          ...prev,
-                                                          linkPreviews: prev.linkPreviews.filter(
-                                                            p => p.id !== preview.id
-                                                          ),
-                                                        }))
-                                                        setDismissedAssessmentLinkUrls(
-                                                          prev => new Set([...prev, preview.url])
-                                                        )
+                                                        setAssessmentBuilder(prev => {
+                                                          const activeHtml =
+                                                            prev.pages[prev.activePageIndex] ?? ''
+                                                          const restoredHtml = appendUrlToHtml(
+                                                            activeHtml,
+                                                            preview.url
+                                                          )
+                                                          const next = {
+                                                            ...prev,
+                                                            linkPreviews: prev.linkPreviews.filter(
+                                                              p => p.id !== preview.id
+                                                            ),
+                                                            pages: [...prev.pages],
+                                                          }
+                                                          next.pages[prev.activePageIndex] =
+                                                            restoredHtml
+                                                          return next
+                                                        })
                                                       }}
                                                     />
                                                   ))}
