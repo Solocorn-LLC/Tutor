@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { eq, and, asc, inArray } from 'drizzle-orm'
+import { eq, and, asc, inArray, or, isNull } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
@@ -9,11 +9,7 @@ import {
   courseEnrollment,
   course,
   courseLesson,
-  calendarAvailability,
 } from '@/lib/db/schema'
-import { or, isNull } from 'drizzle-orm'
-import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
-import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
 
 export const GET = withAuth(
   async (req, session, context) => {
@@ -93,7 +89,6 @@ export const GET = withAuth(
         roomUrl: s.roomUrl,
         recordingUrl: s.recordingUrl ?? null,
         tutorId: s.tutorId,
-        isVirtual: false,
         durationMinutes: s.durationMinutes ?? 120,
         maxStudents: s.maxStudents ?? 50,
         lessonId: s.lessonId ?? null,
@@ -101,41 +96,7 @@ export const GET = withAuth(
         lessonNumber: s.lessonId ? (lessonNumberById.get(s.lessonId) ?? null) : null,
       }))
 
-      // Generate virtual sessions from the schedule that publish actually
-      // materializes from (CourseSchedule table), falling back to the legacy
-      // course.schedule JSON for unpublished drafts.
-      const schedule = await resolveCourseScheduleSlots(
-        courseId,
-        courseRow?.schedule,
-        enrolledScheduleId
-      )
-
-      // The course tutor's timezone — virtual slots must be projected in the same
-      // zone the publish path materialized real sessions in, or de-dup breaks.
-      let tutorTimeZone = 'UTC'
-      if (courseRow?.creatorId) {
-        const [tutorTzRow] = await drizzleDb
-          .select({ timezone: calendarAvailability.timezone })
-          .from(calendarAvailability)
-          .where(eq(calendarAvailability.tutorId, courseRow.creatorId))
-          .limit(1)
-        tutorTimeZone = tutorTzRow?.timezone || 'UTC'
-      }
-
-      const virtualSessions = generateUpcomingSessions(
-        schedule,
-        courseRow?.name || 'Class',
-        courseRow?.category?.[0] || 'General',
-        {
-          count: 12,
-          maxStudents: 50,
-          timeZone: tutorTimeZone,
-        }
-      )
-
-      const merged = mergeSessions(formattedReal, virtualSessions)
-
-      return NextResponse.json({ sessions: merged })
+      return NextResponse.json({ sessions: formattedReal })
     } catch (err: unknown) {
       const e = err as Error
       console.error('[Student Sessions API] Error:', e)
