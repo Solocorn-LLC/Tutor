@@ -105,13 +105,7 @@ export function generateUpcomingSessions(
     timeZone?: string
   } = {}
 ): VirtualSession[] {
-  const {
-    count = 10,
-    fromDate = new Date(),
-    maxStudents = 50,
-    weeks,
-    timeZone = 'UTC',
-  } = options
+  const { count = 10, fromDate = new Date(), maxStudents = 50, weeks, timeZone = 'UTC' } = options
 
   if (!schedule || schedule.length === 0) return []
 
