@@ -334,7 +334,7 @@ import { SlidePageMenu } from './SlidePageMenu'
 import { useLinkPreview } from '@/hooks/use-link-preview'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { detectUrls, isValidPreviewUrl } from '@/lib/link-preview/detect-urls'
-import { removeStandaloneUrlsFromHtml, appendUrlToHtml } from '@/lib/link-preview/html'
+import { removeStandaloneUrlsFromHtml } from '@/lib/link-preview/html'
 import type { LinkPreviewItem } from '@/lib/link-preview/types'
 import {
   AssessmentBuilderModal,
@@ -13612,10 +13612,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                               e => e.id === prev.activeExtensionId
                                                             )?.content || ''
                                                           : prev.taskContent
-                                                        const restoredHtml = appendUrlToHtml(
-                                                          activeHtml,
-                                                          preview.url
-                                                        )
+                                                        const cleanedHtml =
+                                                          removeStandaloneUrlsFromHtml(activeHtml, [
+                                                            preview.url,
+                                                          ])
                                                         const next = {
                                                           ...prev,
                                                           linkPreviews: prev.linkPreviews.filter(
@@ -13626,11 +13626,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           next.extensions = prev.extensions.map(
                                                             e =>
                                                               e.id === prev.activeExtensionId
-                                                                ? { ...e, content: restoredHtml }
+                                                                ? { ...e, content: cleanedHtml }
                                                                 : e
                                                           )
                                                         } else {
-                                                          next.taskContent = restoredHtml
+                                                          next.taskContent = cleanedHtml
                                                         }
                                                         return next
                                                       })
@@ -14112,10 +14112,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         setAssessmentBuilder(prev => {
                                                           const activeHtml =
                                                             prev.pages[prev.activePageIndex] ?? ''
-                                                          const restoredHtml = appendUrlToHtml(
-                                                            activeHtml,
-                                                            preview.url
-                                                          )
+                                                          const cleanedHtml =
+                                                            removeStandaloneUrlsFromHtml(
+                                                              activeHtml,
+                                                              [preview.url]
+                                                            )
                                                           const next = {
                                                             ...prev,
                                                             linkPreviews: prev.linkPreviews.filter(
@@ -14124,7 +14125,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             pages: [...prev.pages],
                                                           }
                                                           next.pages[prev.activePageIndex] =
-                                                            restoredHtml
+                                                            cleanedHtml
                                                           return next
                                                         })
                                                       }}
