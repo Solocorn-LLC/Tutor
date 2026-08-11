@@ -270,6 +270,7 @@ function TutorDashboardContent() {
   )
   const [courseSessions, setCourseSessions] = useState<CourseSession[]>([])
   const [courseLessonOptions, setCourseLessonOptions] = useState<CourseLessonOption[]>([])
+  const [sessionsTimeZone, setSessionsTimeZone] = useState<string>(DEFAULT_TIMEZONE)
   const [savingLessonSessionId, setSavingLessonSessionId] = useState<string | null>(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const loadingSessionsRef = useRef(false)
@@ -591,6 +592,7 @@ function TutorDashboardContent() {
     setCancelModalOpen(true)
     setCourseSessions([])
     setCourseLessonOptions([])
+    setSessionsTimeZone(DEFAULT_TIMEZONE)
     setSessionLoadError(null)
     setLoadingSessions(true)
 
@@ -603,6 +605,7 @@ function TutorDashboardContent() {
         setCourseSessions(data.sessions || [])
         setCourseLessonOptions(data.lessons || [])
         setSessionsCourseMeta(data.course || { name: course.name, variantName: '' })
+        setSessionsTimeZone(data.timeZone || DEFAULT_TIMEZONE)
       } else {
         const errData = await res.json().catch(() => ({}))
         console.error('Tutor session load failed:', errData, res.status)
@@ -1428,6 +1431,7 @@ function TutorDashboardContent() {
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
                                   {new Date(session.scheduledAt).toLocaleDateString('en-US', {
+                                    timeZone: sessionsTimeZone,
                                     weekday: 'short',
                                     month: 'short',
                                     day: 'numeric',
@@ -1439,6 +1443,7 @@ function TutorDashboardContent() {
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {new Date(session.scheduledAt).toLocaleTimeString('en-US', {
+                                    timeZone: sessionsTimeZone,
                                     hour: 'numeric',
                                     minute: '2-digit',
                                   })}

@@ -1,12 +1,6 @@
 import type { ScheduleItem } from '../constants'
+import { zonedDateParts, zonedWeekday, zonedWallClockToUtc, formatInZone } from '@/lib/time/tz'
 import { DAY_TO_INDEX } from './VariantScheduleEditor'
-
-function formatDateKey(date: Date): string {
-  const y = date.getFullYear()
-  const m = String(date.getMonth() + 1).padStart(2, '0')
-  const d = String(date.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
 
 /**
  * Extract template slots (unique by dayOfWeek + startTime) from a schedule.
@@ -30,33 +24,34 @@ export function extractTemplate(schedule: ScheduleItem[]): ScheduleItem[] {
   return template
 }
 
+function startOfWeekInZone(date: Date, timeZone: string, weekOffset = 0): Date {
+  const { year, month, day } = zonedDateParts(date, timeZone)
+  const weekday = zonedWeekday(date, timeZone)
+  const daysBack = weekday === 0 ? 6 : weekday - 1
+  return zonedWallClockToUtc(year, month, day - daysBack + weekOffset * 7, 0, 0, timeZone)
+}
+
 /**
  * Expand template slots into dated slots across N weeks.
- * Week 1 starts from the given base date (defaults to current week's Monday).
+ * Week 1 starts from the given base date (defaults to current week's Monday)
+ * in the supplied `timeZone`.
  */
 export function expandSchedule(
   template: ScheduleItem[],
   weeks: number,
-  baseDate?: Date
+  baseDate?: Date,
+  timeZone = 'UTC'
 ): ScheduleItem[] {
   if (!template.length || weeks < 1) return []
 
-  const start = baseDate ? new Date(baseDate) : new Date()
-  if (!baseDate) {
-    // Default to current week's Monday
-    const day = start.getDay()
-    const mon = start.getDate() - (day === 0 ? 6 : day - 1)
-    start.setDate(mon)
-  }
-  start.setHours(0, 0, 0, 0)
+  const anchor = baseDate ? new Date(baseDate) : new Date()
+  const start = startOfWeekInZone(anchor, timeZone, 0)
+  const { year: startYear, month: startMonth, day: startDay } = zonedDateParts(start, timeZone)
 
   const expanded: ScheduleItem[] = []
   const maxWeeks = Math.min(weeks, 52)
 
   for (let w = 0; w < maxWeeks; w++) {
-    const weekStart = new Date(start)
-    weekStart.setDate(weekStart.getDate() + w * 7)
-
     for (const slot of template) {
       const dayIndex = DAY_TO_INDEX[slot.dayOfWeek]
       if (dayIndex === undefined) continue
@@ -69,19 +64,25 @@ export function expandSchedule(
       if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59)
         continue
 
-      const slotDate = new Date(weekStart)
-      // DAY_TO_INDEX: Sunday=0, Monday=1, ... Saturday=6
-      // weekStart is already Monday, so add (dayIndex - 1), with Sunday being +6
+      // DAY_TO_INDEX: Sunday=0, Monday=1, ... Saturday=6. Week starts on Monday.
       const offset = dayIndex === 0 ? 6 : dayIndex - 1
-      slotDate.setDate(slotDate.getDate() + offset)
+      const slotInstant = zonedWallClockToUtc(
+        startYear,
+        startMonth,
+        startDay + w * 7 + offset,
+        h,
+        m,
+        timeZone
+      )
 
-      if (isNaN(slotDate.getTime())) continue
+      if (Number.isNaN(slotInstant.getTime())) continue
 
+      const { date } = formatInZone(slotInstant, timeZone)
       expanded.push({
         dayOfWeek: slot.dayOfWeek,
         startTime: slot.startTime,
         durationMinutes: slot.durationMinutes || 60,
-        date: formatDateKey(slotDate),
+        date,
       })
     }
   }

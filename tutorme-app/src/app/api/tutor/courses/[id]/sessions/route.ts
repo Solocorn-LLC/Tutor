@@ -58,6 +58,7 @@ export const GET = withAuth(
             scheduleId: courseSchedule.scheduleId,
             name: courseSchedule.name,
             scheduleIndex: courseSchedule.scheduleIndex,
+            weeksToSchedule: courseSchedule.weeksToSchedule,
           })
           .from(courseSchedule)
           .where(eq(courseSchedule.courseId, courseId)),
@@ -144,11 +145,24 @@ export const GET = withAuth(
         .limit(1)
       const tutorTimeZone = tutorTzRow?.timezone || 'UTC'
 
+      // Project enough virtuals to cover the schedule window. Date-based slots
+      // only produce one occurrence; weekly templates need the weeks window.
+      const weeksToUse = Math.max(
+        1,
+        scheduleRows.length > 0
+          ? Math.max(...scheduleRows.map(r => r.weeksToSchedule ?? 8))
+          : 8
+      )
       const virtualSessions = generateUpcomingSessions(
         schedule,
         courseRow?.name || 'Class',
         courseRow?.category?.[0] || 'General',
-        { count: 12, maxStudents: 50, timeZone: tutorTimeZone }
+        {
+          weeks: weeksToUse,
+          count: Math.max(12, schedule.length * weeksToUse),
+          maxStudents: 50,
+          timeZone: tutorTimeZone,
+        }
       )
 
       const merged = mergeSessions(formattedReal, virtualSessions)
@@ -157,6 +171,7 @@ export const GET = withAuth(
         sessions: merged,
         lessons: lessonRows,
         course: { name: courseRow?.name ?? null, variantName },
+        timeZone: tutorTimeZone,
       })
     } catch (err) {
       // Log full error details for debugging

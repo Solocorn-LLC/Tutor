@@ -127,7 +127,8 @@ export const GET = withAuth(
         courseRow?.name || 'Class',
         courseRow?.category?.[0] || 'General',
         {
-          count: 12,
+          weeks: 52,
+          count: Math.max(12, schedule.length * 52),
           maxStudents: 50,
           timeZone: tutorTimeZone,
         }
@@ -135,7 +136,7 @@ export const GET = withAuth(
 
       const merged = mergeSessions(formattedReal, virtualSessions)
 
-      return NextResponse.json({ sessions: merged })
+      return NextResponse.json({ sessions: merged, timeZone: tutorTimeZone })
     } catch (err: unknown) {
       const e = err as Error
       console.error('[Student Sessions API] Error:', e)

@@ -99,12 +99,19 @@ export function generateUpcomingSessions(
     count?: number
     fromDate?: Date
     maxStudents?: number
+    weeks?: number
     /** The tutor's timezone — the wall clock the "HH:MM" slots are expressed in.
      *  MUST match the publish path so virtual instants line up with real ones. */
     timeZone?: string
   } = {}
 ): VirtualSession[] {
-  const { count = 10, fromDate = new Date(), maxStudents = 50, timeZone = 'UTC' } = options
+  const {
+    count = 10,
+    fromDate = new Date(),
+    maxStudents = 50,
+    weeks,
+    timeZone = 'UTC',
+  } = options
 
   if (!schedule || schedule.length === 0) return []
 
@@ -159,7 +166,8 @@ export function generateUpcomingSessions(
     const targetDay = parseDayOfWeek(slot.dayOfWeek)
     const daysUntil = (targetDay - todayWeekday + 7) % 7
     const first = addDays(todayZ.year, todayZ.month, todayZ.day, daysUntil)
-    for (let w = 0; w < 12; w++) {
+    const projectionWeeks = weeks ?? 12
+    for (let w = 0; w < projectionWeeks; w++) {
       const wk = addDays(first.year, first.month, first.day, w * 7)
       pushOccurrence(
         zonedWallClockToUtc(wk.year, wk.month, wk.day, hours, minutes, timeZone),
