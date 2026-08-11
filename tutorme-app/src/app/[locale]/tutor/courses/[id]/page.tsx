@@ -22,6 +22,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { REGIONS } from '@/lib/data/tutor-categories'
 import { getCategoryCountryCode, getRegionIdForCountry } from '@/lib/data/category-country'
+import { CourseCategoryPicker } from '../components/CourseCategoryPicker'
 import { ArrowLeft, BookOpen, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -86,12 +87,6 @@ export default function TutorCoursePage() {
   const [price, setPrice] = useState<string>('')
   const [isFree, setIsFree] = useState(false)
   const [schedule, setSchedule] = useState<ScheduleItem[]>([])
-  const [tutorProfile, setTutorProfile] = useState<{
-    userId?: string
-    id?: string
-    currency?: string | null
-    categories?: string[]
-  } | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
 
   const totalLessons = useMemo(
@@ -212,17 +207,6 @@ export default function TutorCoursePage() {
   }, [loadCourse])
 
   useEffect(() => {
-    fetch('/api/user/profile', { credentials: 'include' })
-      .then(r => (r.ok ? r.json() : null))
-      .then(data => {
-        if (data?.profile) {
-          setTutorProfile(data.profile)
-        }
-      })
-      .catch(err => console.error('[Course Page] Failed to load profile:', err))
-  }, [])
-
-  useEffect(() => {
     if (!course) return
     setCourseName(course.name ?? '')
     setDescription(course.description ?? '')
@@ -230,19 +214,14 @@ export default function TutorCoursePage() {
     setIsFree(course.isFree ?? false)
     setPrice(course.isFree ? '' : course.price != null ? String(course.price) : '')
     setSchedule(Array.isArray(course.schedule) ? [...course.schedule] : [])
-    // Load categories from course if available; fall back to tutor profile only when
-    // the course has no category set, so the builder's category is never overwritten
-    // by a later profile fetch.
+    // Load categories from course if available. Leave empty when none is set so the
+    // category picker on this page is the source of truth for new courses.
     if (course.categories && Array.isArray(course.categories) && course.categories.length > 0) {
       setSelectedCategories([course.categories[0]])
-    } else if (
-      tutorProfile?.categories &&
-      Array.isArray(tutorProfile.categories) &&
-      tutorProfile.categories.length > 0
-    ) {
-      setSelectedCategories([tutorProfile.categories[0]])
+    } else {
+      setSelectedCategories([])
     }
-  }, [course, tutorProfile])
+  }, [course])
 
   // Load course catalog based on first category if available
   useEffect(() => {
@@ -482,6 +461,26 @@ export default function TutorCoursePage() {
                       </div>
                     </div>
 
+                    <div className="form-group space-y-2">
+                      <Label className="form-label font-semibold text-slate-700">
+                        Course Category
+                      </Label>
+                      <fieldset disabled={course?.isPublished} className="min-w-0 border-0 p-0">
+                        <CourseCategoryPicker
+                          value={selectedCategories}
+                          onChange={next => {
+                            setSelectedCategories(next.length > 0 ? [next[0]] : [])
+                          }}
+                          className="w-full"
+                        />
+                      </fieldset>
+                      {!course?.isPublished && selectedCategories.length === 0 && (
+                        <p className="text-xs text-slate-500">
+                          Select a category so this course can be scheduled and published.
+                        </p>
+                      )}
+                    </div>
+
                     <div>
                       <div className="mb-3">
                         <h2 className="text-sm font-semibold text-slate-800">
@@ -557,7 +556,6 @@ export default function TutorCoursePage() {
             defaultPrice={price === '' ? null : Number(price)}
             defaultCurrency="USD"
             defaultLanguage={languageOfInstruction || 'English'}
-            defaultSchedule={schedule}
             onStatsChange={setVariantStats}
             onSaved={() => router.push('/tutor/my-page')}
             hidePublishAction

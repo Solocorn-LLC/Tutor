@@ -73,7 +73,6 @@ interface VariantManagerProps {
   defaultPrice: number | null
   defaultCurrency: string
   defaultLanguage: string
-  defaultSchedule: ScheduleItem[]
   onSaved?: () => void
   onStatsChange?: (stats: { total: number; published: number }) => void
   hidePublishAction?: boolean
@@ -143,7 +142,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       defaultPrice,
       defaultCurrency,
       defaultLanguage,
-      defaultSchedule,
       onSaved,
       onStatsChange,
       hidePublishAction = false,
@@ -255,25 +253,13 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       return keys
     }, [selectedCategories, selectedCountryCodes])
 
-    // Sync variants with desired keys: add missing, remove extras
+    // Sync variants with desired keys: add missing, remove extras. New desired
+    // variants start as unpublished drafts with no inherited schedule — the tutor
+    // chooses category/country on the details page and then adds a schedule.
     useEffect(() => {
       setVariants(prev => {
         const map = new Map(prev.map(v => [`${v.category}|${v.nationality}`, v]))
         let changed = false
-        // The template course schedule (course.schedule) shown as "Schedule 1"
-        // for variants that have no saved CourseSchedule rows of their own.
-        const baselineSchedules =
-          Array.isArray(defaultSchedule) && defaultSchedule.length > 0
-            ? [
-                {
-                  scheduleIndex: 1,
-                  name: null,
-                  schedule: [...defaultSchedule],
-                  weeksToSchedule: 8,
-                  maxStudents: null,
-                },
-              ]
-            : []
         const variantHasSchedules = (v: VariantConfig): boolean =>
           v.schedules.some(
             s => s.scheduleId || (Array.isArray(s.schedule) && s.schedule.length > 0)
@@ -295,22 +281,12 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               category,
               nationality,
               name: templateCourseName ?? '',
-              isPublished: true,
+              isPublished: false,
               isFree: globalIsFree,
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
               currency: globalCurrency,
               languageOfInstruction: globalLanguage,
-              schedules: baselineSchedules,
-            })
-            changed = true
-          } else if (!variantHasSchedules(existing) && baselineSchedules.length > 0) {
-            // Backfill: the variant was created before the course schedule had
-            // loaded (course fetch is async), so adopt the template schedule now
-            // instead of leaving the scheduler showing only the "Add" button.
-            map.set(key, {
-              ...existing,
-              name: existing.name || (templateCourseName ?? ''),
-              schedules: baselineSchedules,
+              schedules: [],
             })
             changed = true
           }
@@ -344,7 +320,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       globalCurrency,
       globalLanguage,
       globalIsFree,
-      defaultSchedule,
       loading,
       templateCourseName,
     ])
@@ -432,42 +407,49 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       updateVariant,
     ])
 
-    const handleSave = useCallback(async () => {
-      if (variants.length === 0) {
-        toast.error('No variants to save. Select categories and countries first.')
-        return
-      }
-      setSaving(true)
-      try {
-        const payload = variants.map(v => ({
-          ...v,
-          price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
-        }))
-
-        const res = await fetchWithCsrf(`/api/tutor/courses/${templateCourseId}/publish`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ variants: payload }),
-        })
-
-        if (res.ok) {
-          const data = (await res.json().catch(() => ({}))) as PublishResponse
-          const variantsRes = Array.isArray(data.variants) ? data.variants : []
-          const published = variantsRes.filter(v => Boolean(v.isPublished)).length
-          const count = typeof data.count === 'number' ? data.count : variants.length
-          toast.success(`Saved ${count} variants (${published} published)`)
-          onSaved?.()
-        } else {
-          const data = await res.json().catch(() => ({}))
-          toast.error(data?.error || 'Failed to save variants')
+    const handleSave = useCallback(
+      async (forcePublish = false) => {
+        if (variants.length === 0) {
+          toast.error('No variants to save. Select categories and countries first.')
+          return
         }
-      } catch (err) {
-        console.error(err)
-        toast.error('Failed to save variants')
-      } finally {
-        setSaving(false)
-      }
-    }, [variants, templateCourseId, onSaved])
+        setSaving(true)
+        try {
+          if (forcePublish) {
+            setVariants(prev => prev.map(v => ({ ...v, isPublished: true })))
+          }
+          const payload = variants.map(v => ({
+            ...v,
+            isPublished: forcePublish || v.isPublished,
+            price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
+          }))
+
+          const res = await fetchWithCsrf(`/api/tutor/courses/${templateCourseId}/publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ variants: payload }),
+          })
+
+          if (res.ok) {
+            const data = (await res.json().catch(() => ({}))) as PublishResponse
+            const variantsRes = Array.isArray(data.variants) ? data.variants : []
+            const published = variantsRes.filter(v => Boolean(v.isPublished)).length
+            const count = typeof data.count === 'number' ? data.count : variants.length
+            toast.success(`Saved ${count} variants (${published} published)`)
+            onSaved?.()
+          } else {
+            const data = await res.json().catch(() => ({}))
+            toast.error(data?.error || 'Failed to save variants')
+          }
+        } catch (err) {
+          console.error(err)
+          toast.error('Failed to save variants')
+        } finally {
+          setSaving(false)
+        }
+      },
+      [variants, templateCourseId, onSaved]
+    )
 
     // Persist schedule edits to already-published variants WITHOUT publishing
     // anything new (schedulesOnly). Used by the page's Save button so a tutor can
@@ -533,7 +515,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       ref,
       () => ({
         publish: async () => {
-          await handleSave()
+          await handleSave(true)
         },
         saveSchedules: handleSaveSchedules,
         setPanelsOpen,
@@ -700,8 +682,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
 
               {variants.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-200 py-12 text-center text-sm text-slate-500">
-                  This course has no category yet. Set one from the course builder (Edit Course) to
-                  generate a schedulable variant.
+                  This course has no category yet. Select a category in the Course Information
+                  section above to generate a schedulable variant.
                 </div>
               )}
 
@@ -955,7 +937,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                 <div className="flex justify-end gap-3 pt-6">
                   <Button
                     type="button"
-                    onClick={handleSave}
+                    onClick={() => handleSave(true)}
                     disabled={saving || variants.length === 0}
                     className="rounded-full bg-indigo-600 px-6 text-white shadow-sm transition-all duration-300 hover:bg-indigo-700"
                   >
