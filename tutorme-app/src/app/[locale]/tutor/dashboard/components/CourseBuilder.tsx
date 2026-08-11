@@ -1181,7 +1181,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       expandedCourseBuilderNodes.forEach(id => {
         if (!prevExpandedNodesRef.current.has(id)) {
           const el = nodeRefs.current[id]
-          if (el) scrollElementIntoView(el, { margin: 16 })
+          if (el) scrollElementIntoView(el, { margin: 16, block: 'start' })
         }
       })
       prevExpandedNodesRef.current = new Set(expandedCourseBuilderNodes)
