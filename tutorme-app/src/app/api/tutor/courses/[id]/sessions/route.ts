@@ -1,7 +1,6 @@
 /**
  * GET /api/tutor/courses/[id]/sessions
- * Returns all sessions (live classes) for a specific course,
- * merged with upcoming virtual sessions from the course schedule.
+ * Returns all sessions (live classes) for a specific course.
  */
 
 import { NextResponse } from 'next/server'
@@ -14,6 +13,7 @@ import {
   course,
   courseSchedule,
   courseVariant,
+  calendarAvailability,
 } from '@/lib/db/schema'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
@@ -109,9 +109,19 @@ export const GET = withAuth(
         durationMinutes: s.durationMinutes ?? 120,
       }))
 
+      // The tutor's timezone so the dashboard can render session dates in the
+      // same wall clock the schedule was created in.
+      const [tutorTzRow] = await drizzleDb
+        .select({ timezone: calendarAvailability.timezone })
+        .from(calendarAvailability)
+        .where(eq(calendarAvailability.tutorId, tutorId))
+        .limit(1)
+      const tutorTimeZone = tutorTzRow?.timezone || 'UTC'
+
       return NextResponse.json({
         sessions: formattedReal,
         course: { name: courseRow?.name ?? null, variantName },
+        timeZone: tutorTimeZone,
       })
     } catch (err) {
       // Log full error details for debugging

@@ -9,6 +9,7 @@ import {
   courseEnrollment,
   course,
   courseLesson,
+  calendarAvailability,
 } from '@/lib/db/schema'
 
 export const GET = withAuth(
@@ -96,7 +97,19 @@ export const GET = withAuth(
         lessonNumber: s.lessonId ? (lessonNumberById.get(s.lessonId) ?? null) : null,
       }))
 
-      return NextResponse.json({ sessions: formattedReal })
+      // Return the course tutor's timezone so the student UI renders dates in
+      // the same wall clock the schedule was created in.
+      let tutorTimeZone = 'UTC'
+      if (courseRow?.creatorId) {
+        const [tutorTzRow] = await drizzleDb
+          .select({ timezone: calendarAvailability.timezone })
+          .from(calendarAvailability)
+          .where(eq(calendarAvailability.tutorId, courseRow.creatorId))
+          .limit(1)
+        tutorTimeZone = tutorTzRow?.timezone || 'UTC'
+      }
+
+      return NextResponse.json({ sessions: formattedReal, timeZone: tutorTimeZone })
     } catch (err: unknown) {
       const e = err as Error
       console.error('[Student Sessions API] Error:', e)
