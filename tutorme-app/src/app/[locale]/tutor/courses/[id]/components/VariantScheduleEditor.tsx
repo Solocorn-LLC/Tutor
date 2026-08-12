@@ -9,6 +9,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSlidingPillMetrics } from '@/hooks/use-sliding-pill'
+import { zonedDateParts, zonedWeekday, zonedWallClockToUtc, formatInZone } from '@/lib/time/tz'
 import type { ScheduleItem } from '../constants'
 import { DAYS, TIME_SLOT_OPTIONS } from '../constants'
 import { expandSchedule, extractTemplate } from './expand-schedule'
@@ -41,6 +42,8 @@ interface VariantScheduleEditorProps {
   excludedSchedules?: ScheduleItem[][]
   siblingSchedules?: ScheduleItem[][]
   showTabs?: boolean
+  /** Timezone used for all calendar math. Defaults to the browser timezone. */
+  timeZone?: string
 }
 
 const dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -90,14 +93,6 @@ function timesOverlap(startA: string, endA: string, startB: string, endB: string
   return timeToMinutes(startA) < timeToMinutes(endB) && timeToMinutes(endA) > timeToMinutes(startB)
 }
 
-const timezoneLabel = (() => {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local time'
-  } catch {
-    return 'Local time'
-  }
-})()
-
 export function VariantScheduleEditor({
   schedule,
   onScheduleChange,
@@ -108,6 +103,9 @@ export function VariantScheduleEditor({
   excludedSchedules,
   siblingSchedules,
   showTabs = true,
+  timeZone: timeZoneProp = (typeof Intl !== 'undefined' &&
+    Intl.DateTimeFormat().resolvedOptions().timeZone) ||
+    'UTC',
 }: VariantScheduleEditorProps) {
   const calendarScrollRef = useRef<HTMLDivElement>(null)
   const [scheduleWeekOffset, setScheduleWeekOffset] = useState(0)
@@ -115,48 +113,73 @@ export function VariantScheduleEditor({
   const [numberOfWeeks, setNumberOfWeeks] = useState(Math.max(1, weeksToSchedule || 8))
   const [modeTab, setModeTab] = useState('schedule')
   const [availabilityData, setAvailabilityData] = useState<AvailabilityData | null>(null)
+  const [timeZone, setTimeZone] = useState(timeZoneProp)
 
-  const scheduleWeekStart = (() => {
-    const d = new Date()
-    const day = d.getDay()
-    const mon = d.getDate() - (day === 0 ? 6 : day - 1) + scheduleWeekOffset * 7
-    const start = new Date(d.getFullYear(), d.getMonth(), mon)
-    return start
-  })()
+  useEffect(() => {
+    setTimeZone(timeZoneProp)
+  }, [timeZoneProp])
 
-  const scheduleWeekLabel = (() => {
-    const end = new Date(scheduleWeekStart)
-    end.setDate(end.getDate() + 6)
-    return `${scheduleWeekStart.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })}`
-  })()
+  useEffect(() => {
+    fetch('/api/user/profile', { credentials: 'include' })
+      .then(res => (res.ok ? res.json() : null))
+      .then((data: { profile?: { timezone?: string } } | null) => {
+        const tz = data?.profile?.timezone
+        if (tz) setTimeZone(tz)
+      })
+      .catch(err => console.error('Failed to load tutor timezone:', err))
+  }, [])
 
-  const scheduleMonthLabel = scheduleWeekStart.toLocaleDateString('en-US', {
-    month: 'long',
-    year: 'numeric',
-  })
+  const scheduleWeekStart = useMemo(() => {
+    const now = new Date()
+    const { year, month, day } = zonedDateParts(now, timeZone)
+    const weekday = zonedWeekday(now, timeZone)
+    const daysBack = weekday === 0 ? 6 : weekday - 1
+    return zonedWallClockToUtc(year, month, day - daysBack + scheduleWeekOffset * 7, 0, 0, timeZone)
+  }, [timeZone, scheduleWeekOffset])
 
-  const weekDates = DAYS.map((_, i) => {
-    const d = new Date(scheduleWeekStart)
-    d.setDate(scheduleWeekStart.getDate() + i)
-    return d
-  })
+  const scheduleWeekLabel = useMemo(() => {
+    const { year, month, day } = zonedDateParts(scheduleWeekStart, timeZone)
+    const end = zonedWallClockToUtc(year, month, day + 6, 0, 0, timeZone)
+    return `${scheduleWeekStart.toLocaleDateString('en-US', {
+      timeZone,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    })} – ${end.toLocaleDateString('en-US', { timeZone, day: 'numeric', month: 'short' })}`
+  }, [scheduleWeekStart, timeZone])
 
-  const formatDateKey = (date: Date) => {
-    const y = date.getFullYear()
-    const m = String(date.getMonth() + 1).padStart(2, '0')
-    const d = String(date.getDate()).padStart(2, '0')
-    return `${y}-${m}-${d}`
-  }
+  const scheduleMonthLabel = useMemo(
+    () =>
+      scheduleWeekStart.toLocaleDateString('en-US', {
+        timeZone,
+        month: 'long',
+        year: 'numeric',
+      }),
+    [scheduleWeekStart, timeZone]
+  )
+
+  const weekDates = useMemo(() => {
+    const { year, month, day } = zonedDateParts(scheduleWeekStart, timeZone)
+    return DAYS.map((_, i) => zonedWallClockToUtc(year, month, day + i, 0, 0, timeZone))
+  }, [scheduleWeekStart, timeZone])
+
+  const formatDateKey = (date: Date) => formatInZone(date, timeZone).date
 
   // Fetch availability data when week offset changes
   useEffect(() => {
     let active = true
     const fetchAvailability = async () => {
       try {
-        const start = new Date(scheduleWeekStart)
-        start.setHours(0, 0, 0, 0)
-        const end = new Date(start)
-        end.setDate(end.getDate() + 6 + (numberOfWeeks || 8) * 7)
+        const start = scheduleWeekStart
+        const { year, month, day } = zonedDateParts(start, timeZone)
+        const end = zonedWallClockToUtc(
+          year,
+          month,
+          day + 6 + (numberOfWeeks || 8) * 7,
+          0,
+          0,
+          timeZone
+        )
         const url = new URL('/api/tutor/calendar/availability', window.location.origin)
         url.searchParams.set('mode', 'schedule')
         url.searchParams.set('start', start.toISOString())
@@ -183,7 +206,7 @@ export function VariantScheduleEditor({
     return () => {
       active = false
     }
-  }, [scheduleWeekOffset, numberOfWeeks])
+  }, [scheduleWeekOffset, numberOfWeeks, scheduleWeekStart, timeZone])
 
   const getSlotStatus = useCallback(
     (day: string, dateKey: string, timeStr: string, durationMinutes = 60) => {
@@ -310,7 +333,7 @@ export function VariantScheduleEditor({
     if (effectiveWeeks !== prevWeeksRef.current) {
       const template = extractTemplate(schedule)
       if (template.length > 0) {
-        const expanded = expandSchedule(template, effectiveWeeks, scheduleWeekStart)
+        const expanded = expandSchedule(template, effectiveWeeks, scheduleWeekStart, timeZone)
         onScheduleChange(() => expanded)
       }
       prevWeeksRef.current = effectiveWeeks
@@ -405,7 +428,7 @@ export function VariantScheduleEditor({
         // Remove this day+time from template and regenerate
         const newTemplate = template.filter(s => `${s.dayOfWeek}|${s.startTime}` !== templateKey)
         if (newTemplate.length === 0) return []
-        return expandSchedule(newTemplate, effectiveWeeks, scheduleWeekStart)
+        return expandSchedule(newTemplate, effectiveWeeks, scheduleWeekStart, timeZone)
       }
 
       // Add to template and regenerate
@@ -569,7 +592,7 @@ export function VariantScheduleEditor({
                     <div className="leading-tight">
                       <div>{day.slice(0, 3)}</div>
                       <div className="mt-0.5 text-[10px] font-semibold text-slate-500">
-                        {d.getDate()}
+                        {zonedDateParts(d, timeZone).day}
                       </div>
                     </div>
                   </div>
@@ -704,9 +727,7 @@ export function VariantScheduleEditor({
                     <CalendarIcon className="h-5 w-5 text-white/80" />
                     Schedule Summary
                   </div>
-                  <div className="mt-1 text-xs font-medium text-white/70">
-                    Times in {timezoneLabel}
-                  </div>
+                  <div className="mt-1 text-xs font-medium text-white/70">Times in {timeZone}</div>
                 </div>
               </div>
 
@@ -742,6 +763,7 @@ export function VariantScheduleEditor({
                               const d = new Date(first.date + 'T00:00:00')
                               if (Number.isNaN(d.getTime())) return first.date
                               return d.toLocaleDateString('en-US', {
+                                timeZone,
                                 month: 'short',
                                 day: 'numeric',
                               })

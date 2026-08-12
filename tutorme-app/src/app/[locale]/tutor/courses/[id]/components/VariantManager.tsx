@@ -299,7 +299,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               category,
               nationality,
               name: templateCourseName ?? '',
-              isPublished: true,
+              isPublished: false,
               isFree: globalIsFree,
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
               currency: globalCurrency,

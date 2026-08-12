@@ -27,7 +27,6 @@ import { Separator } from '@/components/ui/separator'
 import {
   Plus,
   Settings,
-  BookOpen,
   Library,
   ChevronRight,
   Sparkles,
@@ -167,21 +166,11 @@ type CourseSession = {
   enrolledStudents: number
   status: string
   roomUrl?: string | null
-  isVirtual?: boolean
   /** null/absent = a one-time session; set = materialized from the course schedule */
   scheduleId?: string | null
   /** Display name of the linked schedule, e.g. "Schedule 1" (null for one-time). */
   scheduleName?: string | null
   durationMinutes?: number
-  /** The lesson this session covers (auto-assigned on publish, tutor-editable). */
-  lessonId?: string | null
-  lessonTitle?: string | null
-}
-
-type CourseLessonOption = {
-  id: string
-  title: string
-  order: number
 }
 
 type OneOnOneRequest = {
@@ -269,8 +258,7 @@ function TutorDashboardContent() {
     null
   )
   const [courseSessions, setCourseSessions] = useState<CourseSession[]>([])
-  const [courseLessonOptions, setCourseLessonOptions] = useState<CourseLessonOption[]>([])
-  const [savingLessonSessionId, setSavingLessonSessionId] = useState<string | null>(null)
+  const [sessionsTimeZone, setSessionsTimeZone] = useState<string>(DEFAULT_TIMEZONE)
   const [loadingSessions, setLoadingSessions] = useState(false)
   const loadingSessionsRef = useRef(false)
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null)
@@ -590,7 +578,7 @@ function TutorDashboardContent() {
     setSelectedCourseForCancel(course)
     setCancelModalOpen(true)
     setCourseSessions([])
-    setCourseLessonOptions([])
+    setSessionsTimeZone(DEFAULT_TIMEZONE)
     setSessionLoadError(null)
     setLoadingSessions(true)
 
@@ -601,8 +589,8 @@ function TutorDashboardContent() {
       if (res.ok) {
         const data = await res.json()
         setCourseSessions(data.sessions || [])
-        setCourseLessonOptions(data.lessons || [])
         setSessionsCourseMeta(data.course || { name: course.name, variantName: '' })
+        setSessionsTimeZone(data.timeZone || DEFAULT_TIMEZONE)
       } else {
         const errData = await res.json().catch(() => ({}))
         console.error('Tutor session load failed:', errData, res.status)
@@ -691,56 +679,6 @@ function TutorDashboardContent() {
       setCancellingSessionId(null)
     }
   }, [])
-
-  const handleAssignLesson = useCallback(
-    async (sessionId: string, lessonId: string) => {
-      const nextLessonId = lessonId || null
-      // Optimistic update so the picker feels instant.
-      const prevSessions = courseSessions
-      setSavingLessonSessionId(sessionId)
-      setCourseSessions(prev =>
-        prev.map(s =>
-          s.id === sessionId
-            ? {
-                ...s,
-                lessonId: nextLessonId,
-                lessonTitle: courseLessonOptions.find(l => l.id === nextLessonId)?.title ?? null,
-              }
-            : s
-        )
-      )
-
-      try {
-        const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
-        const csrfData = await csrfRes.json().catch(() => ({}))
-        const csrfToken = csrfData?.token ?? null
-
-        const res = await fetch(`/api/tutor/sessions/${sessionId}`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(csrfToken && { 'X-CSRF-Token': csrfToken }),
-          },
-          credentials: 'include',
-          body: JSON.stringify({ action: 'set-lesson', lessonId: nextLessonId }),
-        })
-
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}))
-          setCourseSessions(prevSessions) // roll back
-          toast.error(data.error || 'Failed to update lesson')
-          return
-        }
-        toast.success(nextLessonId ? 'Lesson updated' : 'Lesson cleared')
-      } catch {
-        setCourseSessions(prevSessions) // roll back
-        toast.error('Failed to update lesson')
-      } finally {
-        setSavingLessonSessionId(null)
-      }
-    },
-    [courseSessions, courseLessonOptions]
-  )
 
   const withLocalePath = useCallback(
     (path: string) => {
@@ -1356,36 +1294,19 @@ function TutorDashboardContent() {
                   )}
                   <div className="scrollbar-hide h-[520px] space-y-3 overflow-y-auto pr-2">
                     {courseSessions.map(session => {
-                      const isVirtual = session.isVirtual === true
-                      const _isPassedSession =
-                        !isVirtual &&
-                        session.scheduledAt &&
-                        new Date(session.scheduledAt).getTime() + 2 * 60 * 60 * 1000 < Date.now()
                       const isScheduled = session.status === 'scheduled'
                       const isActive = session.status === 'active'
                       const isEnded = session.status === 'ended'
                       const isPast =
                         session.scheduledAt &&
                         new Date(session.scheduledAt).getTime() < Date.now() - 5 * 60 * 1000
-                      const canCancel = !isVirtual && (isScheduled || isActive) && !isPast
+                      const canCancel = (isScheduled || isActive) && !isPast
 
-                      // For virtual sessions, compute dynamic status
-                      let displayStatus = session.status
-                      if (isVirtual && session.scheduledAt) {
-                        const diff = new Date(session.scheduledAt).getTime() - Date.now()
-                        if (diff <= 0) displayStatus = 'opening_soon'
-                        else if (diff <= 60 * 60 * 1000) displayStatus = 'opening_soon'
-                        else displayStatus = 'upcoming'
-                      }
-
-                      const badgeClass =
-                        isActive || displayStatus === 'active'
-                          ? 'bg-success/15 text-success border-success/25'
-                          : isEnded
-                            ? 'bg-muted text-muted-foreground border-border/30'
-                            : displayStatus === 'opening_soon'
-                              ? 'bg-warning/15 text-warning border-warning/25'
-                              : 'bg-info/15 text-info border-info/25'
+                      const badgeClass = isActive
+                        ? 'bg-success/15 text-success border-success/25'
+                        : isEnded
+                          ? 'bg-muted text-muted-foreground border-border/30'
+                          : 'bg-info/15 text-info border-info/25'
 
                       return (
                         <div
@@ -1401,18 +1322,18 @@ function TutorDashboardContent() {
                                 variant="outline"
                                 className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
                               >
-                                {displayStatus}
+                                {session.status}
                               </Badge>
                               <Badge
                                 variant="outline"
                                 className={cn(
                                   'text-[10px] uppercase tracking-wide',
-                                  isVirtual || session.scheduleId
+                                  session.scheduleId
                                     ? 'bg-info/10 text-info border-info/25'
                                     : 'bg-warning/10 text-warning border-warning/25'
                                 )}
                               >
-                                {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
+                                {session.scheduleId ? 'From schedule' : 'One-time'}
                               </Badge>
                               {session.scheduleName && (
                                 <Badge
@@ -1428,6 +1349,7 @@ function TutorDashboardContent() {
                                 <span className="flex items-center gap-1">
                                   <Calendar className="h-3 w-3" />
                                   {new Date(session.scheduledAt).toLocaleDateString('en-US', {
+                                    timeZone: sessionsTimeZone,
                                     weekday: 'short',
                                     month: 'short',
                                     day: 'numeric',
@@ -1439,50 +1361,21 @@ function TutorDashboardContent() {
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {new Date(session.scheduledAt).toLocaleTimeString('en-US', {
+                                    timeZone: sessionsTimeZone,
                                     hour: 'numeric',
                                     minute: '2-digit',
                                   })}
                                 </span>
                               )}
-                              {!isVirtual && (
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
-                                </span>
-                              )}
-                              {isVirtual && session.durationMinutes && (
-                                <span>{session.durationMinutes} min</span>
-                              )}
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
+                              </span>
                             </div>
                             {session.description && (
                               <p className="text-muted-foreground truncate text-xs">
                                 {session.description}
                               </p>
-                            )}
-                            {!isVirtual && courseLessonOptions.length > 0 && (
-                              <div className="flex items-center gap-2 pt-0.5">
-                                <BookOpen className="text-muted-foreground h-3 w-3 shrink-0" />
-                                <label className="sr-only" htmlFor={`lesson-${session.id}`}>
-                                  Lesson this session covers
-                                </label>
-                                <select
-                                  id={`lesson-${session.id}`}
-                                  value={session.lessonId ?? ''}
-                                  disabled={savingLessonSessionId === session.id}
-                                  onChange={e => handleAssignLesson(session.id, e.target.value)}
-                                  className="border-border/40 bg-background max-w-[220px] truncate rounded-md border px-2 py-1 text-xs text-gray-900 disabled:opacity-60"
-                                >
-                                  <option value="">No lesson assigned</option>
-                                  {courseLessonOptions.map((l, i) => (
-                                    <option key={l.id} value={l.id}>
-                                      {`Lesson ${i + 1}: ${l.title}`}
-                                    </option>
-                                  ))}
-                                </select>
-                                {savingLessonSessionId === session.id && (
-                                  <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                )}
-                              </div>
                             )}
                           </div>
                           <div className="ml-4 flex items-center gap-2">
@@ -1509,20 +1402,7 @@ function TutorDashboardContent() {
                                 )}
                               </Button>
                             )}
-                            {isVirtual ? (
-                              // Upcoming slot from the schedule that isn't materialized yet.
-                              // It becomes startable automatically once published into range;
-                              // tutors add/extend slots via the scheduler (footer button), not
-                              // by creating an ad-hoc session here.
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                disabled
-                                title="This scheduled slot opens automatically — manage it from the course scheduler."
-                              >
-                                Upcoming
-                              </Button>
-                            ) : isScheduled ? (
+                            {isScheduled ? (
                               <Button
                                 variant="default"
                                 size="sm"

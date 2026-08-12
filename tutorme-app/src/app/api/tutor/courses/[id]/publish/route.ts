@@ -172,7 +172,9 @@ function generateSessionDates(
   courseName?: string
 ): Array<{ scheduledAt: Date; title: string; durationMinutes: number }> {
   const sessions: Array<{ scheduledAt: Date; title: string; durationMinutes: number }> = []
-  const cutoffMs = Date.now() + 60 * 60 * 1000 // skip sessions within the next hour
+  // Only skip sessions that are already in the past (with a 1-minute buffer).
+  // A schedule published shortly before its first slot should still include it.
+  const cutoffMs = Date.now() - 60 * 1000
 
   // Add `n` days to a wall-clock date (Y/1-based-M/D) → new Y/M/D, without tz drift.
   const addDays = (year: number, month: number, day: number, n: number) => {
