@@ -837,10 +837,19 @@ function TutorDashboardContent() {
                         c =>
                           c.status === 'active' || c.status === 'live' || c.status === 'preparing'
                       )
-                      const nextSession = courseClasses.find(c => c.status === 'scheduled')
+                      const now = Date.now()
+                      const nextSession = courseClasses
+                        .filter(
+                          c =>
+                            c.status === 'scheduled' &&
+                            new Date(c.scheduledAt).getTime() >= now - 5 * 60 * 1000
+                        )
+                        .sort(
+                          (a, b) =>
+                            new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+                        )[0]
                       const isWithin1Hour =
-                        nextSession &&
-                        new Date(nextSession.scheduledAt).getTime() - Date.now() <= 3600000
+                        nextSession && new Date(nextSession.scheduledAt).getTime() - now <= 3600000
 
                       return (
                         <div
@@ -1304,9 +1313,11 @@ function TutorDashboardContent() {
 
                       const badgeClass = isActive
                         ? 'bg-success/15 text-success border-success/25'
-                        : isEnded
+                        : isEnded || isPast
                           ? 'bg-muted text-muted-foreground border-border/30'
                           : 'bg-info/15 text-info border-info/25'
+                      const statusLabel =
+                        isPast && !isEnded && !isActive ? 'Passed' : session.status
 
                       return (
                         <div
@@ -1322,7 +1333,7 @@ function TutorDashboardContent() {
                                 variant="outline"
                                 className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
                               >
-                                {session.status}
+                                {statusLabel}
                               </Badge>
                               <Badge
                                 variant="outline"
@@ -1402,7 +1413,7 @@ function TutorDashboardContent() {
                                 )}
                               </Button>
                             )}
-                            {isScheduled ? (
+                            {isScheduled && !isPast ? (
                               <Button
                                 variant="default"
                                 size="sm"
@@ -1432,7 +1443,7 @@ function TutorDashboardContent() {
                               </Button>
                             ) : (
                               <Button variant="ghost" size="sm" disabled>
-                                {isEnded ? 'Ended' : 'N/A'}
+                                {isPast ? 'Passed' : isEnded ? 'Ended' : 'N/A'}
                               </Button>
                             )}
                           </div>
