@@ -27,6 +27,7 @@
     "test:load": "k6 run scripts/load/concurrent-users.js",
     "test:load:ai": "k6 run scripts/load/ai-stress.js",
     "test:load:ws": "k6 run scripts/load/websocket.js",
+    "test:load:scheduling": "node scripts/load/scheduling-conflicts.js",
     "lint": "eslint .",
     "lint:check": "eslint .",
     "lint:ci": "eslint . --max-warnings=2188",
