@@ -5361,15 +5361,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 `[data-curriculum-item="${type}:${id}"]`
               ) as HTMLElement | null
               if (el) {
-                const viewport = el.closest<HTMLElement>('[data-radix-scroll-area-viewport]')
-                if (viewport) {
-                  const relativeTop =
-                    el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
-                  const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
-                  viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
-                } else {
-                  el.scrollIntoView({ block: 'start', behavior: 'smooth' })
-                }
+                scrollElementToTopOfCurriculum(el)
                 return
               }
               attempts += 1
@@ -5384,6 +5376,50 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         window.setTimeout(scrollToItem, 50)
       },
       [setSelectedItem, ensureSectionExpanded]
+    )
+
+    const scrollElementToTopOfCurriculum = (el: HTMLElement) => {
+      const viewport = document.querySelector(
+        '[data-curriculum-viewport] > [data-radix-scroll-area-viewport]'
+      ) as HTMLElement | null
+      if (viewport) {
+        const relativeTop = el.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+        const targetScrollTop = Math.max(0, viewport.scrollTop + relativeTop - 16)
+        viewport.scrollTo({ top: targetScrollTop, behavior: 'smooth' })
+      } else {
+        el.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      }
+    }
+
+    // Scroll a newly created lesson node to the top of the curriculum panel.
+    const revealCurriculumNode = useCallback(
+      (nodeId: string) => {
+        setSelectedItem({ type: 'node', id: nodeId })
+        setExpandedCourseBuilderNodes(prev => {
+          const next = new Set(prev)
+          next.add(nodeId)
+          return next
+        })
+
+        window.setTimeout(() => {
+          let attempts = 0
+          const tryScroll = () => {
+            const el = document.querySelector(
+              `[data-curriculum-node="${nodeId}"]`
+            ) as HTMLElement | null
+            if (el) {
+              scrollElementToTopOfCurriculum(el)
+              return
+            }
+            attempts += 1
+            if (attempts <= 16) {
+              window.setTimeout(tryScroll, 60)
+            }
+          }
+          tryScroll()
+        }, 80)
+      },
+      [setSelectedItem, setExpandedCourseBuilderNodes]
     )
 
     // Add handlers
@@ -5413,7 +5449,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setExpandedCourseBuilderNodes(
         new Set([...expandedCourseBuilderNodes, newCourseBuilderNode.id])
       )
+      revealCurriculumNode(newCourseBuilderNode.id)
       // Do NOT open modal - just create directly
+      return newCourseBuilderNode.id
     }
 
     const addTask = (nodeId: string, lessonId: string) => {
@@ -9934,7 +9972,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       </div>
                     )}
 
-                    <ScrollArea className="[&>[data-radix-scroll-area-viewport]]:scrollbar-none min-h-0 flex-1 pr-1">
+                    <ScrollArea
+                      data-curriculum-viewport
+                      className="[&>[data-radix-scroll-area-viewport]]:scrollbar-none min-h-0 flex-1 pr-1"
+                    >
                       <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
@@ -9958,6 +9999,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <SortableTreeItem
                                   key={node.id}
                                   id={node.id}
+                                  dataNodeId={node.id}
                                   depth={0}
                                   isLast={nodeIdx === nodes.length - 1}
                                   dragHandle={false}
