@@ -16,13 +16,13 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2, CheckCircle2, FileText, X, RotateCcw } from 'lucide-react'
+import { Send, Loader2, CheckCircle2, X, RotateCcw } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
-import { PDFViewer } from '@/components/pdf/PDFViewer'
-import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
+import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import type { LinkPreviewItem } from '@/lib/link-preview/types'
 
 export interface TestTaskChatMsg {
   role: 'student' | 'ai' | 'tutor'
@@ -53,6 +53,9 @@ export function TestTaskChat({
   pciSpec,
   questionText,
   sourceDocument,
+  htmlContent,
+  linkPreviews,
+  generatedFromText,
   initialState,
   onPersist,
   onBroadcast,
@@ -73,6 +76,12 @@ export function TestTaskChat({
   questionText?: string
   /** The task's document — shown as a thumbnail in the chat stream. */
   sourceDocument?: TaskDocumentSource | null
+  /** Original HTML content for documents auto-generated from typed text. */
+  htmlContent?: string
+  /** Visual link-preview cards overlaid on the slide canvas. */
+  linkPreviews?: LinkPreviewItem[]
+  /** True when the backing document was auto-generated from typed text. */
+  generatedFromText?: boolean
   initialState?: TestTaskChatState
   onPersist?: (state: TestTaskChatState) => void
   /** Called when a new message is sent from this tab so the parent can relay it to other tabs. */
@@ -158,16 +167,8 @@ export function TestTaskChat({
 
   // Build the proxied document URL (same logic as TaskDocumentCard)
   const rawUrl = sourceDocument?.fileUrl || ''
-  const docUrl = sourceDocument?.fileKey
-    ? `/api/proxy-file?key=${encodeURIComponent(sourceDocument.fileKey)}`
-    : rawUrl
   const loadable =
     !!sourceDocument?.fileKey || (!!rawUrl && !rawUrl.startsWith('blob:') && rawUrl.length > 0)
-  const docName = sourceDocument?.fileName || 'Task document'
-  const isPdf =
-    sourceDocument?.mimeType === 'application/pdf' ||
-    (!sourceDocument?.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument?.fileName || rawUrl))
-  const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
 
   const post = (extra: Record<string, unknown>) => {
     if (onGrade) return onGrade(extra)
@@ -347,9 +348,6 @@ export function TestTaskChat({
     onReset?.()
   }
 
-  const accentColor = isClassroom ? 'text-[#F17623]' : 'text-violet-600'
-  const accentBg = isClassroom ? 'bg-orange-50/60' : 'bg-violet-50/60'
-  const accentBorder = isClassroom ? 'border-orange-100' : 'border-violet-100'
   const sendButtonBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
@@ -430,7 +428,7 @@ export function TestTaskChat({
           />
         )}
 
-        {/* PDF Popup — overlay within chat panel, no header, X on right */}
+        {/* Document popup — overlay within chat panel, no header, X on right */}
         {pdfPopupOpen && loadable && (
           <div className="absolute inset-0 z-10 flex flex-col bg-white">
             {/* X close button — top right, no header bar */}
@@ -444,37 +442,16 @@ export function TestTaskChat({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            {/* PDF viewer — fit to screen, no scrolling needed */}
+            {/* Document viewer — shared renderer so generated-text tasks show clickable HTML. */}
             <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
-              {isPdf ? (
-                <PDFViewer
-                  fileUrl={docUrl}
-                  fileKey={sourceDocument?.fileKey ?? undefined}
-                  fitToScreen
-                  className="h-full w-full"
-                />
-              ) : isImage ? (
-                <div className="flex h-full items-center justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={docUrl}
-                    alt={docName}
-                    className="max-h-full max-w-full object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-full flex-col items-center justify-center gap-3">
-                  <FileText className="h-12 w-12 text-blue-600" />
-                  <a
-                    href={docUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-blue-600 underline"
-                  >
-                    Open document
-                  </a>
-                </div>
-              )}
+              <TaskDocumentCard
+                sourceDocument={sourceDocument}
+                htmlContent={htmlContent}
+                linkPreviews={linkPreviews}
+                generatedFromText={generatedFromText}
+                alwaysOpen
+                accent={isClassroom ? 'orange' : 'violet'}
+              />
             </div>
           </div>
         )}

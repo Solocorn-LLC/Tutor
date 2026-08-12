@@ -14,6 +14,7 @@ import { Send, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { TaskDocumentCard, type TaskDocumentSource } from '@/components/task/TaskDocumentCard'
 import { toast } from 'sonner'
+import type { LinkPreviewItem } from '@/lib/link-preview/types'
 
 interface ChatMsg {
   role: 'student' | 'ai'
@@ -26,6 +27,9 @@ export function TaskChatPanel({
   taskId,
   taskTitle,
   sourceDocument,
+  htmlContent,
+  linkPreviews,
+  generatedFromText,
   onCompleted,
   previewMode = false,
   onInteract,
@@ -35,6 +39,12 @@ export function TaskChatPanel({
   /** The task's document (PDF/image). Shown full until the first message, then
    *  collapsed into a pinned, re-expandable "document" card in the chat. */
   sourceDocument?: TaskDocumentSource | null
+  /** Original HTML content for documents auto-generated from typed text. */
+  htmlContent?: string
+  /** Visual link-preview cards overlaid on the slide canvas. */
+  linkPreviews?: LinkPreviewItem[]
+  /** True when the backing document was auto-generated from typed text. */
+  generatedFromText?: boolean
   /** Fired after the task is completed, with the student's answers — the page
    *  uses it to broadcast the live "completed" tick to the tutor. */
   onCompleted?: (answers: string[]) => void
@@ -202,7 +212,13 @@ export function TaskChatPanel({
       {/* Task document — full until the student's first message, then a pinned,
           re-expandable "document" card (kept collapsed until the prior-chat
           check resolves so a returning student doesn't see it flash). */}
-      <TaskDocumentCard sourceDocument={sourceDocument} autoOpen={loaded && !hasSentMessage} />
+      <TaskDocumentCard
+        sourceDocument={sourceDocument}
+        htmlContent={htmlContent}
+        linkPreviews={linkPreviews}
+        generatedFromText={generatedFromText}
+        autoOpen={loaded && !hasSentMessage}
+      />
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {!loaded && (
