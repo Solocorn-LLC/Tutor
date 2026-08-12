@@ -55,6 +55,27 @@ export const GET = withAuth(
             )
           : new Set<string>()
 
+      // Draft variants are unpublished course rows created by the scheduler so
+      // price/language/schedule can be persisted before publishing. They should
+      // not appear as standalone course cards in the builder or dashboard.
+      const draftVariantCourseIds =
+        courseIds.length > 0
+          ? new Set(
+              (
+                await drizzleDb
+                  .select({ publishedCourseId: courseVariant.publishedCourseId })
+                  .from(courseVariant)
+                  .innerJoin(courseTable, eq(courseTable.courseId, courseVariant.publishedCourseId))
+                  .where(
+                    and(
+                      inArray(courseVariant.publishedCourseId, courseIds),
+                      eq(courseTable.isPublished, false)
+                    )
+                  )
+              ).map(r => r.publishedCourseId)
+            )
+          : new Set<string>()
+
       const [sessionAgg, enrollmentAgg] = await Promise.all([
         courseIds.length > 0
           ? drizzleDb
@@ -114,6 +135,7 @@ export const GET = withAuth(
 
       // Map courseId to id for frontend compatibility
       const courses = coursesData
+        .filter(c => !draftVariantCourseIds.has(c.courseId))
         .filter(c =>
           hideTemplatesWithPublishedVariants
             ? !(c.isPublished === false && templateIdsWithPublishedVariants.has(c.courseId))

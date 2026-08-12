@@ -548,32 +548,47 @@ export default function TutorCoursePage() {
             </AnimatePresence>
           </Card>
 
-          <VariantManager
-            ref={variantManagerRef}
-            templateCourseId={id}
-            templateCourseName={courseName}
-            selectedCategories={selectedCategories}
-            selectedCountryCodes={selectedCountryCodes}
-            defaultPrice={price === '' ? null : Number(price)}
-            defaultCurrency="USD"
-            defaultLanguage={languageOfInstruction || 'English'}
-            defaultSchedule={schedule}
-            onStatsChange={setVariantStats}
-            onSaved={() => router.push('/tutor/my-page')}
-            hidePublishAction
-          />
+          {selectedCategories.length > 0 ? (
+            <VariantManager
+              ref={variantManagerRef}
+              templateCourseId={id}
+              templateCourseName={courseName}
+              selectedCategories={selectedCategories}
+              selectedCountryCodes={selectedCountryCodes}
+              defaultPrice={price === '' ? null : Number(price)}
+              defaultCurrency="USD"
+              defaultLanguage={languageOfInstruction || 'English'}
+              defaultSchedule={schedule}
+              onStatsChange={setVariantStats}
+              onSaved={() => router.push('/tutor/my-page')}
+              hidePublishAction
+            />
+          ) : (
+            <Card
+              variant="floating"
+              elevation={2}
+              padding="none"
+              className="overflow-hidden rounded-[16px] bg-white"
+            >
+              <CardContent spacing="default" className="py-12 text-center text-sm text-slate-500">
+                This course has no category yet. Set one from the course builder (Edit Course) to
+                generate a schedulable variant.
+              </CardContent>
+            </Card>
+          )}
 
           <div className="flex flex-col-reverse justify-end gap-4 pt-2 sm:flex-row sm:items-center">
             <Button
               size="lg"
               variant="default"
               onClick={async () => {
-                // Save persists course details, and schedule edits for variants
-                // that are ALREADY published — without publishing anything new
-                // (saveSchedules runs in schedulesOnly mode, a no-op for an
-                // unpublished course). Save never puts a course live.
+                // Save persists course details, then persists draft variant
+                // metadata/schedules for unpublished variants and schedule edits
+                // for already-published variants — without publishing anything new.
+                // Save never puts a course live.
                 const saved = await handleSaveAll()
                 if (saved) {
+                  await variantManagerRef.current?.saveDrafts()
                   await variantManagerRef.current?.saveSchedules()
                 }
               }}

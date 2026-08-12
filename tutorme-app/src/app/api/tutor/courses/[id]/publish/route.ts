@@ -282,6 +282,7 @@ export const POST = withCsrf(
       // without publishing unpublished ones or changing any publish state — lets
       // "Save" save schedules on a live course without putting more of it live.
       const schedulesOnly = body.schedulesOnly === true
+      const draftsOnly = body.draftsOnly === true
       const variants: VariantConfig[] = Array.isArray(body.variants)
         ? body.variants.filter(
             (v: unknown): v is VariantConfig =>
@@ -411,7 +412,9 @@ export const POST = withCsrf(
             const existing = existingMap.get(key)
             // In schedules-only mode, only touch variants that are already
             // published; never create/publish anything new.
-            if (schedulesOnly && (!existing || !existing.isPublished)) continue
+            // In drafts-only mode, create or update unpublished variants but never
+            // publish anything or generate live sessions.
+            if (schedulesOnly && !draftsOnly && (!existing || !existing.isPublished)) continue
             const courseName = v.name && v.name.trim() ? v.name.trim() : templateCourse.name
             const isFree =
               typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
@@ -436,7 +439,7 @@ export const POST = withCsrf(
                     name: courseName,
                     description: templateCourse.description,
                     categories: [v.category],
-                    isPublished: v.isPublished,
+                    isPublished: draftsOnly ? false : v.isPublished,
                     updatedAt: now,
                     isLiveOnline: templateCourse.isLiveOnline ?? false,
                     languageOfInstruction: v.languageOfInstruction || null,
@@ -559,7 +562,7 @@ export const POST = withCsrf(
                 name: courseName,
                 description: templateCourse.description,
                 categories: [v.category],
-                isPublished: v.isPublished,
+                isPublished: draftsOnly ? false : v.isPublished,
                 createdAt: now,
                 updatedAt: now,
                 creatorId: userId,
@@ -673,7 +676,8 @@ export const POST = withCsrf(
 
             // Live sessions are only generated for new or still-draft variants.
             // Published variants keep their existing schedule and sessions.
-            if (!existing || !existing.isPublished) {
+            // Drafts-only saves must never materialise sessions.
+            if (!draftsOnly && (!existing || !existing.isPublished)) {
               // Published lessons in course order — each schedule's sessions are
               // auto-assigned a lesson sequentially (session 1 → Lesson 1, session 2
               // → Lesson 2, …) so a schedule no longer collapses everything into
@@ -1083,8 +1087,9 @@ export const POST = withCsrf(
             }
           }
 
-          // Rename assets folder if it's the first time publishing and the folder matches the draft course name
-          if (result.length > 0 && templateCourse.name) {
+          // Rename assets folder if it's the first time publishing and the folder matches the draft course name.
+          // Skip during drafts-only saves — nothing is being published.
+          if (!draftsOnly && result.length > 0 && templateCourse.name) {
             const firstCategory = result[0].category
             const assets = await tx
               .select({ assetId: tutorAsset.assetId, metadata: tutorAsset.metadata })
@@ -1103,9 +1108,9 @@ export const POST = withCsrf(
           }
 
           // Unpublish variants that exist in DB but were not sent in the request.
-          // Never do this in schedules-only mode — Save must not change publish
-          // state for anything.
-          if (!schedulesOnly) {
+          // Never do this in schedules-only or drafts-only mode — Save must not
+          // change publish state for anything.
+          if (!schedulesOnly && !draftsOnly) {
             for (const existing of existingRows) {
               const key = `${existing.category}|${existing.nationality}`
               if (!requestedKeys.has(key)) {
@@ -1119,8 +1124,8 @@ export const POST = withCsrf(
         })
 
         // Notify the tutor's followers that a new course went live. Skip for
-        // schedules-only saves (nothing newly published) and when nothing was published.
-        if (!schedulesOnly && result.length > 0) {
+        // schedules-only or drafts-only saves (nothing newly published) and when nothing was published.
+        if (!schedulesOnly && !draftsOnly && result.length > 0) {
           try {
             const followers = await drizzleDb
               .select({ followerId: tutorFollow.followerId })
