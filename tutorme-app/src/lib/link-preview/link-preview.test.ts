@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { detectUrls } from './detect-urls'
-import { extractYoutubeVideoId } from './extract'
+import { extractYoutubeVideoId, fetchLinkPreview } from './extract'
 import { appendUrlToHtml, removeStandaloneUrlsFromHtml } from './html'
 
 describe('detectUrls', () => {
@@ -78,5 +78,75 @@ describe('appendUrlToHtml', () => {
     expect(appendUrlToHtml('<div>hello</div><br>', 'https://example.com')).toBe(
       '<div>hello</div><br><div>https://example.com</div>'
     )
+  })
+})
+
+describe('fetchLinkPreview', () => {
+  const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch
+  })
+
+  it('uses YouTube oEmbed API for youtube.com/watch URLs', async () => {
+    const mockedFetch = vi.mocked(globalThis.fetch)
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({
+        title: 'Test Video',
+        author_name: 'Test Author',
+        provider_name: 'YouTube',
+        thumbnail_url: 'https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg',
+      }),
+    } as Response)
+
+    const meta = await fetchLinkPreview('https://www.youtube.com/watch?v=VIDEO_ID')
+
+    expect(mockedFetch).toHaveBeenCalledTimes(1)
+    const requestUrl = mockedFetch.mock.calls[0][0] as string
+    expect(requestUrl).toContain('https://www.youtube.com/oembed')
+    expect(requestUrl).toContain(encodeURIComponent('https://www.youtube.com/watch?v=VIDEO_ID'))
+
+    expect(meta).toMatchObject({
+      url: 'https://www.youtube.com/watch?v=VIDEO_ID',
+      title: 'Test Video',
+      description: 'Test Author',
+      imageUrl: 'https://i.ytimg.com/vi/VIDEO_ID/hqdefault.jpg',
+      siteName: 'YouTube',
+      isFile: false,
+    })
+  })
+
+  it('falls back to a generated thumbnail when YouTube oEmbed has no thumbnail_url', async () => {
+    const mockedFetch = vi.mocked(globalThis.fetch)
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ title: 'No Thumb' }),
+    } as Response)
+
+    const meta = await fetchLinkPreview('https://youtu.be/VIDEO_ID')
+    expect(meta.imageUrl).toBe('https://img.youtube.com/vi/VIDEO_ID/hqdefault.jpg')
+  })
+
+  it('throws a readable error when the response body is too large', async () => {
+    const mockedFetch = vi.mocked(globalThis.fetch)
+    // Create a buffer that exceeds 5 MB to simulate an oversized HTML response.
+    const largeBuffer = new ArrayBuffer(6 * 1024 * 1024)
+    mockedFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'text/html; charset=utf-8' }),
+      arrayBuffer: async () => largeBuffer,
+    } as Response)
+
+    await expect(fetchLinkPreview('https://example.com')).rejects.toThrow('Response body too large')
   })
 })

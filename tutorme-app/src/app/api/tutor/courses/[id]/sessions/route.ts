@@ -1,24 +1,20 @@
 /**
  * GET /api/tutor/courses/[id]/sessions
- * Returns all sessions (live classes) for a specific course,
- * merged with upcoming virtual sessions from the course schedule.
+ * Returns all sessions (live classes) for a specific course.
  */
 
 import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
-import { eq, and, asc, inArray, isNull } from 'drizzle-orm'
+import { eq, and, asc, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession as liveSessionTable,
   course,
-  courseLesson,
   courseSchedule,
   courseVariant,
   calendarAvailability,
 } from '@/lib/db/schema'
-import { generateUpcomingSessions, mergeSessions } from '@/lib/schedule-sessions'
-import { resolveCourseScheduleSlots } from '@/lib/sessions/course-schedule-slots'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
@@ -72,19 +68,6 @@ export const GET = withAuth(
       )
       const variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
 
-      // The course's lessons, so the client can render a per-session lesson
-      // picker and label each session with the lesson it covers.
-      const lessonRows = await drizzleDb
-        .select({
-          id: courseLesson.lessonId,
-          title: courseLesson.title,
-          order: courseLesson.order,
-        })
-        .from(courseLesson)
-        .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
-        .orderBy(asc(courseLesson.order))
-      const lessonTitleById = new Map(lessonRows.map(l => [l.id, l.title]))
-
       const conditions = [
         eq(liveSessionTable.tutorId, tutorId),
         eq(liveSessionTable.courseId, courseId),
@@ -124,19 +107,10 @@ export const GET = withAuth(
         scheduleId: s.scheduleId ?? null,
         scheduleName: s.scheduleId ? (scheduleNameById.get(s.scheduleId) ?? null) : null,
         durationMinutes: s.durationMinutes ?? 120,
-        // The lesson this session covers (auto-assigned on publish, tutor-editable).
-        lessonId: s.lessonId ?? null,
-        lessonTitle: s.lessonId ? (lessonTitleById.get(s.lessonId) ?? null) : null,
       }))
 
-      // Generate virtual sessions from the schedule that publish actually
-      // materializes from (CourseSchedule table), falling back to the legacy
-      // course.schedule JSON for unpublished drafts.
-      const schedule = await resolveCourseScheduleSlots(courseId, courseRow?.schedule)
-
-      // The tutor's timezone — the same wall clock the publish path materializes
-      // sessions in. Projecting virtual sessions in any other zone shifts their
-      // instants off the real ones, breaking de-dup (double counting).
+      // The tutor's timezone so the dashboard can render session dates in the
+      // same wall clock the schedule was created in.
       const [tutorTzRow] = await drizzleDb
         .select({ timezone: calendarAvailability.timezone })
         .from(calendarAvailability)
@@ -144,19 +118,10 @@ export const GET = withAuth(
         .limit(1)
       const tutorTimeZone = tutorTzRow?.timezone || 'UTC'
 
-      const virtualSessions = generateUpcomingSessions(
-        schedule,
-        courseRow?.name || 'Class',
-        courseRow?.category?.[0] || 'General',
-        { count: 12, maxStudents: 50, timeZone: tutorTimeZone }
-      )
-
-      const merged = mergeSessions(formattedReal, virtualSessions)
-
       return NextResponse.json({
-        sessions: merged,
-        lessons: lessonRows,
+        sessions: formattedReal,
         course: { name: courseRow?.name ?? null, variantName },
+        timeZone: tutorTimeZone,
       })
     } catch (err) {
       // Log full error details for debugging

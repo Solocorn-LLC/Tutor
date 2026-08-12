@@ -44,10 +44,15 @@ export interface ScheduleSlotInput {
 export function generateScheduleSessionDates(
   schedule: ScheduleSlotInput[],
   weeksAhead = 8,
-  timeZone = 'UTC'
+  timeZone = 'UTC',
+  skipPast = true
 ): Array<{ scheduledAt: Date; durationMinutes: number }> {
   const sessions: Array<{ scheduledAt: Date; durationMinutes: number }> = []
-  const cutoffMs = Date.now() + 60 * 60 * 1000 // skip sessions within the next hour
+  // Skip sessions that are already in the past (with a 1-minute buffer) so we
+  // don't create sessions that have already started. We no longer skip future
+  // sessions within the next hour — a schedule published shortly before a slot
+  // should still include that slot.
+  const cutoffMs = skipPast ? Date.now() - 60 * 1000 : 0
 
   const addDays = (year: number, month: number, day: number, n: number) => {
     const t = new Date(Date.UTC(year, month - 1, day + n))

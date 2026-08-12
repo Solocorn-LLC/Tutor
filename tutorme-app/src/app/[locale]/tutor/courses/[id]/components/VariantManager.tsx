@@ -83,6 +83,8 @@ export type VariantManagerHandle = {
   publish: () => Promise<void>
   /** Persist schedule edits to already-published variants without publishing. */
   saveSchedules: () => Promise<SaveSchedulesResult | null>
+  /** Persist draft variant metadata and schedules without publishing. */
+  saveDrafts: () => Promise<SaveSchedulesResult | null>
   setPanelsOpen: (open: boolean) => void
 }
 
@@ -176,14 +178,16 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
     } | null>(null)
     const [generatedVariantsOpen, setGeneratedVariantsOpen] = useState(true)
 
-    // Load existing variants on mount
-    useEffect(() => {
-      let active = true
-      setLoading(true)
-      fetch(`/api/tutor/courses/${templateCourseId}/publish`, { credentials: 'include' })
-        .then(res => (res.ok ? res.json() : { variants: [] }))
-        .then(data => {
-          if (!active) return
+    // Load existing variants from the publish endpoint.
+    const loadVariants = useCallback(
+      async (signal?: AbortSignal) => {
+        setLoading(true)
+        try {
+          const res = await fetch(`/api/tutor/courses/${templateCourseId}/publish`, {
+            credentials: 'include',
+            signal,
+          })
+          const data = res.ok ? await res.json().catch(() => ({ variants: [] })) : { variants: [] }
           const raw = (data as { variants?: VariantApiItem[] })?.variants ?? []
           const loaded: VariantConfig[] = raw.map(v => {
             const schedules =
@@ -226,13 +230,21 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             }
           })
           setVariants(loaded)
-        })
-        .catch(() => setVariants([]))
-        .finally(() => setLoading(false))
-      return () => {
-        active = false
-      }
-    }, [templateCourseId, templateCourseName])
+        } catch {
+          setVariants([])
+        } finally {
+          setLoading(false)
+        }
+      },
+      [templateCourseId, templateCourseName]
+    )
+
+    // Load existing variants on mount
+    useEffect(() => {
+      const controller = new AbortController()
+      loadVariants(controller.signal)
+      return () => controller.abort()
+    }, [loadVariants])
 
     // Sync global defaults from parent when they change meaningfully
     useEffect(() => {
@@ -262,18 +274,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         let changed = false
         // The template course schedule (course.schedule) shown as "Schedule 1"
         // for variants that have no saved CourseSchedule rows of their own.
-        const baselineSchedules =
-          Array.isArray(defaultSchedule) && defaultSchedule.length > 0
-            ? [
-                {
-                  scheduleIndex: 1,
-                  name: null,
-                  schedule: [...defaultSchedule],
-                  weeksToSchedule: 8,
-                  maxStudents: null,
-                },
-              ]
-            : []
+        // New variants start with no schedule. A template or published source may
+        // have its own course-level schedule, but each published variant is a
+        // distinct offering and should get its own schedules via the scheduler.
+        const baselineSchedules: CourseScheduleConfig[] = []
         const variantHasSchedules = (v: VariantConfig): boolean =>
           v.schedules.some(
             s => s.scheduleId || (Array.isArray(s.schedule) && s.schedule.length > 0)
@@ -295,7 +299,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
               category,
               nationality,
               name: templateCourseName ?? '',
-              isPublished: true,
+              isPublished: false,
               isFree: globalIsFree,
               price: globalIsFree ? 0 : globalPrice ? parseFloat(globalPrice) : null,
               currency: globalCurrency,
@@ -489,6 +493,8 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           toast.error(data?.error || 'Failed to save schedules')
           return { ok: false, processed: 0, skipped: 0 }
         }
+        // Refresh so schedule edits and any published variants are reflected.
+        await loadVariants()
         const processed = typeof data.count === 'number' ? data.count : 0
         const skipped = typeof data.skippedCount === 'number' ? data.skippedCount : 0
         const hasScheduleSlots = variants.some(
@@ -517,7 +523,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         toast.error('Failed to save schedules')
         return { ok: false, processed: 0, skipped: 0 }
       }
-    }, [variants, templateCourseId])
+    }, [variants, templateCourseId, loadVariants])
 
     const publishedCount = variants.filter(v => v.isPublished).length
 
@@ -529,6 +535,38 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       setGeneratedVariantsOpen(open)
     }, [])
 
+    // Persist draft variant metadata and schedules WITHOUT publishing or
+    // materialising live sessions. Used by the Course Details Save button so
+    // price/language/schedule edits survive the back-arrow navigation.
+    const handleSaveDrafts = useCallback(async (): Promise<SaveSchedulesResult | null> => {
+      if (variants.length === 0) return null
+      try {
+        const payload = variants.map(v => ({
+          ...v,
+          price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
+        }))
+        const res = await fetchWithCsrf(`/api/tutor/courses/${templateCourseId}/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ variants: payload, draftsOnly: true }),
+        })
+        const data: PublishResponse = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          toast.error(data?.error || 'Failed to save draft variants')
+          return { ok: false, processed: 0, skipped: 0 }
+        }
+        // Refresh so newly-created draft variants are shown as persisted.
+        await loadVariants()
+        const processed = typeof data.count === 'number' ? data.count : 0
+        const skipped = typeof data.skippedCount === 'number' ? data.skippedCount : 0
+        return { ok: true, processed, skipped }
+      } catch (err) {
+        console.error(err)
+        toast.error('Failed to save draft variants')
+        return { ok: false, processed: 0, skipped: 0 }
+      }
+    }, [variants, templateCourseId, loadVariants])
+
     useImperativeHandle(
       ref,
       () => ({
@@ -536,9 +574,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           await handleSave()
         },
         saveSchedules: handleSaveSchedules,
+        saveDrafts: handleSaveDrafts,
         setPanelsOpen,
       }),
-      [handleSave, handleSaveSchedules, setPanelsOpen]
+      [handleSave, handleSaveSchedules, handleSaveDrafts, setPanelsOpen]
     )
 
     if (loading) {
