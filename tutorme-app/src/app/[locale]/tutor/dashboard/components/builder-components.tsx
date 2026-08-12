@@ -1060,6 +1060,7 @@ export interface SortableTreeItemProps extends TreeItemProps {
   dragHandle?: boolean
   inlineDragHandle?: boolean
   onDragStart?: () => void
+  dataNodeId?: string
 }
 
 export function SortableTreeItem({
@@ -1071,6 +1072,7 @@ export function SortableTreeItem({
   dragHandle = true,
   inlineDragHandle = false,
   onDragStart,
+  dataNodeId,
 }: SortableTreeItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
@@ -1084,7 +1086,12 @@ export function SortableTreeItem({
 
   return (
     <SortableItemContext.Provider value={{ attributes, listeners, onDragStart }}>
-      <div ref={setNodeRef} style={style} className={cn('group relative', className)}>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={cn('group relative', className)}
+        {...(dataNodeId ? { 'data-curriculum-node': dataNodeId } : {})}
+      >
         <TreeItem depth={depth} isLast={isLast}>
           <div className="flex items-center gap-2">
             {dragHandle && !inlineDragHandle && (
