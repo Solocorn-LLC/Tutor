@@ -2372,6 +2372,9 @@ function StudentFeedbackContent() {
                             mode="test-student"
                             questionText={`${activeTask.title}\n\n${activeTask.content}`}
                             sourceDocument={activeTask.sourceDocument}
+                            htmlContent={activeTask.htmlContent}
+                            linkPreviews={activeTask.linkPreviews}
+                            generatedFromText={activeTask.generatedFromText}
                             initialState={taskChatInitial}
                             incomingMessages={taskChatIncoming}
                             studentAvatarUrl={session?.user?.image}
@@ -2478,6 +2481,9 @@ function StudentFeedbackContent() {
                                     <div className="min-h-0 flex-1 p-4">
                                       <TaskDocumentCard
                                         sourceDocument={documentPopupDoc}
+                                        htmlContent={activeTask?.htmlContent}
+                                        linkPreviews={activeTask?.linkPreviews}
+                                        generatedFromText={activeTask?.generatedFromText}
                                         alwaysOpen
                                       />
                                     </div>

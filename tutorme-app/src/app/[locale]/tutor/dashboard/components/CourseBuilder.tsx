@@ -1952,6 +1952,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // up from the source task when the caller didn't supply it. Deploy-only —
         // the server never broadcasts it to students.
         let src: Task | undefined
+        let srcAssessment: Assessment | undefined
         let srcLessonId: string | undefined
         for (const mod of nodes) {
           for (const lesson of mod.lessons) {
@@ -1962,10 +1963,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               break
             }
             // Also match assessments/homework so their deploys carry the lesson.
-            if (
-              lesson.assessments?.some(a => a.id === payload.id) ||
-              lesson.homework?.some(h => h.id === payload.id)
-            ) {
+            const foundAssessment =
+              lesson.assessments?.find(a => a.id === payload.id) ??
+              lesson.homework?.find(h => h.id === payload.id)
+            if (foundAssessment) {
+              srcAssessment = foundAssessment
               srcLessonId = lesson.id
               break
             }
@@ -2003,9 +2005,29 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           )
 
         const basePci =
-          payload.pci ?? (typeof src?.instructions === 'string' ? src.instructions : undefined)
-        const basePciSpec = payload.pciSpec ?? src?.pciSpec
+          payload.pci ??
+          (typeof src?.instructions === 'string'
+            ? src.instructions
+            : typeof srcAssessment?.instructions === 'string'
+              ? srcAssessment.instructions
+              : undefined)
+        const basePciSpec = payload.pciSpec ?? src?.pciSpec ?? srcAssessment?.pciSpec
         const baseLessonId = payload.lessonId ?? srcLessonId
+
+        // Carry the original HTML + link previews for text-generated documents so the
+        // live classroom can render clickable links instead of a flattened PDF image.
+        const baseHtmlContent =
+          payload.htmlContent ??
+          (payload.isExtension ? undefined : (src?.description ?? srcAssessment?.description))
+        const baseLinkPreviews =
+          payload.linkPreviews ??
+          (payload.isExtension ? undefined : (src?.linkPreviews ?? srcAssessment?.linkPreviews))
+        const baseGeneratedFromText =
+          payload.generatedFromText ??
+          (payload.isExtension
+            ? undefined
+            : (src?.sourceDocument?.generatedFromText ??
+              srcAssessment?.sourceDocument?.generatedFromText))
 
         // For tasks the answer-reveal mode is derived from the PCI, not chosen in
         // a dialog. Fall back to 'instant' to preserve existing behavior.
@@ -2038,6 +2060,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             pciSpec: basePciSpec,
             lessonId: baseLessonId,
             isExtension: payload.isExtension ?? false,
+            htmlContent: baseHtmlContent,
+            linkPreviews: baseLinkPreviews,
+            generatedFromText: baseGeneratedFromText,
           }
           // Tasks deploy immediately using the PCI-derived reveal mode.
           if (payload.source === 'task') {
@@ -2080,12 +2105,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           parentId: undefined,
           isExtension: false,
           answerReveal: taskAnswerReveal,
+          htmlContent: baseHtmlContent,
+          linkPreviews: baseLinkPreviews,
+          generatedFromText: baseGeneratedFromText,
         }
 
         const extensionTasks: LiveTask[] = extensions.map(ext => ({
           id: ext.id,
           title: ext.name,
           content: ext.content || ext.description || ext.name,
+          htmlContent: ext.description,
+          generatedFromText: ext.sourceDocument?.generatedFromText,
           source: 'task',
           parentId: payload.id,
           isExtension: true,
@@ -12654,6 +12684,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         : currentTaskDocument
                                                       : undefined
                                                   }
+                                                  htmlContent={
+                                                    previewExt
+                                                      ? previewExt.content
+                                                      : taskBuilder.taskContent
+                                                  }
+                                                  linkPreviews={taskBuilder.linkPreviews}
+                                                  generatedFromText={
+                                                    previewExt
+                                                      ? previewExt.sourceDocument?.generatedFromText
+                                                      : currentTaskDocument?.generatedFromText
+                                                  }
                                                   initialState={
                                                     isClassroomTab
                                                       ? undefined
@@ -12838,6 +12879,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         : assessmentBuilder.taskContent
                                                     }
                                                     sourceDocument={currentAssessmentDocument}
+                                                    htmlContent={assessmentBuilder.pages
+                                                      .map(p => p.trim())
+                                                      .filter(Boolean)
+                                                      .join(
+                                                        '<div class="my-6 border-t border-dashed border-slate-200" aria-hidden="true"></div>'
+                                                      )}
+                                                    linkPreviews={assessmentBuilder.linkPreviews}
+                                                    generatedFromText={
+                                                      currentAssessmentDocument?.generatedFromText
+                                                    }
                                                     initialState={
                                                       assessmentChatStore.current[
                                                         assessmentChatPreviewKey
@@ -12909,6 +12960,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   content:
                                                     localLiveChatTask.description ||
                                                     localLiveChatTask.title,
+                                                  htmlContent: localLiveChatTask.description,
+                                                  linkPreviews: localLiveChatTask.linkPreviews,
+                                                  generatedFromText:
+                                                    localLiveChatTask.sourceDocument
+                                                      ?.generatedFromText,
                                                   pci:
                                                     typeof localLiveChatTask.instructions ===
                                                     'string'
@@ -12939,6 +12995,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   pciSpec={liveChatTask.pciSpec}
                                                   questionText={`${liveChatTask.title}\n\n${liveChatTask.content}`}
                                                   sourceDocument={liveChatTask.sourceDocument}
+                                                  htmlContent={liveChatTask.htmlContent}
+                                                  linkPreviews={liveChatTask.linkPreviews}
+                                                  generatedFromText={liveChatTask.generatedFromText}
                                                   incomingMessages={liveClassroomMessages[taskId]}
                                                   tutorAvatarUrl={tutorAvatarUrl}
                                                   onBroadcast={msg => {

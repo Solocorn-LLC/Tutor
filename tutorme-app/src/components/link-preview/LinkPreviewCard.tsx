@@ -14,6 +14,8 @@ export type LinkPreviewCardProps = {
   containerHeight: number
   onChange: (updates: Partial<LinkPreviewItem>) => void
   onRemove: () => void
+  /** When true, the card is displayed for viewing only: drag, resize and remove are disabled. */
+  readOnly?: boolean
 }
 
 type DragState =
@@ -27,6 +29,7 @@ export function LinkPreviewCard({
   containerHeight,
   onChange,
   onRemove,
+  readOnly = false,
 }: LinkPreviewCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [dragState, setDragState] = useState<DragState>({ type: null })
@@ -79,7 +82,7 @@ export function LinkPreviewCard({
   ])
 
   const handleMouseDownDrag = (e: React.MouseEvent) => {
-    if (e.button !== 0) return
+    if (readOnly || e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
     setDragState({
@@ -92,7 +95,7 @@ export function LinkPreviewCard({
   }
 
   const handleMouseDownResize = (e: React.MouseEvent) => {
-    if (e.button !== 0) return
+    if (readOnly || e.button !== 0) return
     e.preventDefault()
     e.stopPropagation()
     setDragState({
@@ -124,7 +127,10 @@ export function LinkPreviewCard({
     >
       {/* Header / drag handle */}
       <div
-        className="flex cursor-grab items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2 active:cursor-grabbing"
+        className={cn(
+          'flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-3 py-2',
+          !readOnly && 'cursor-grab active:cursor-grabbing'
+        )}
         onMouseDown={handleMouseDownDrag}
       >
         {item.faviconUrl ? (
@@ -153,15 +159,17 @@ export function LinkPreviewCard({
           >
             <ExternalLink className="h-3 w-3" />
           </a>
-          <button
-            type="button"
-            onClick={onRemove}
-            className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-red-100 hover:text-red-600"
-            title="Remove preview"
-            onMouseDown={e => e.stopPropagation()}
-          >
-            <X className="h-3 w-3" />
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={onRemove}
+              className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-red-100 hover:text-red-600"
+              title="Remove preview"
+              onMouseDown={e => e.stopPropagation()}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -212,16 +220,18 @@ export function LinkPreviewCard({
       </a>
 
       {/* Resize handle */}
-      <div
-        className="absolute bottom-1 right-1 h-4 w-4 cursor-nwse-resize"
-        onMouseDown={handleMouseDownResize}
-        title="Resize"
-      >
-        <svg viewBox="0 0 10 10" className="h-full w-full text-slate-300">
-          <path d="M2 8 L8 2" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M5 8 L8 5" stroke="currentColor" strokeWidth="1.5" />
-        </svg>
-      </div>
+      {!readOnly && (
+        <div
+          className="absolute bottom-1 right-1 h-4 w-4 cursor-nwse-resize"
+          onMouseDown={handleMouseDownResize}
+          title="Resize"
+        >
+          <svg viewBox="0 0 10 10" className="h-full w-full text-slate-300">
+            <path d="M2 8 L8 2" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M5 8 L8 5" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </div>
+      )}
     </div>
   )
 }

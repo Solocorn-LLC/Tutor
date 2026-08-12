@@ -171,6 +171,8 @@ export interface LiveTaskSourceDocument {
   fileUrl: string
   fileKey?: string
   mimeType: string
+  /** True when this document was auto-generated from typed text rather than uploaded. */
+  generatedFromText?: boolean
 }
 
 export interface LiveTask {
@@ -206,6 +208,12 @@ export interface LiveTask {
   polls: LiveTaskPoll[]
   questions: LiveTaskQuestion[]
   sourceDocument?: LiveTaskSourceDocument
+  /** Original HTML content for documents auto-generated from typed text. */
+  htmlContent?: string
+  /** Visual link-preview cards overlaid on the slide canvas. */
+  linkPreviews?: import('@/lib/link-preview/types').LinkPreviewItem[]
+  /** True when the backing document was auto-generated from typed text. */
+  generatedFromText?: boolean
   parentId?: string
   isExtension?: boolean
   completedBy?: string[]
@@ -1667,6 +1675,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
           polls: Array.isArray(task.polls) ? task.polls : [],
           questions: Array.isArray(task.questions) ? task.questions : [],
           sourceDocument: refreshedSourceDocument,
+          htmlContent: task.htmlContent,
+          linkPreviews: task.linkPreviews,
+          generatedFromText: task.generatedFromText,
           parentId: task.parentId,
           isExtension: task.isExtension ?? false,
           lessonId: task.lessonId,

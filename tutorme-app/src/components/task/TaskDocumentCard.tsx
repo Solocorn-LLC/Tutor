@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * TaskDocumentCard — the task document (PDF/image) shown for a deployed TASK.
+ * TaskDocumentCard — the task document (PDF/image/HTML) shown for a deployed TASK.
  *
  * Two modes:
  *  - Collapsible (default): renders full while the chat is empty, then collapses
@@ -12,13 +12,19 @@
  *  - `alwaysOpen`: renders just the viewer (no toggle), filling its container.
  *    Used by the non-chat task view, so both flows share one renderer and one
  *    "document unavailable" message.
+ *
+ * For documents auto-generated from typed text, the original HTML is rendered
+ * directly so links stay clickable and link-preview cards remain interactive.
  */
 
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
+import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
+import { sanitizeSlideHtml } from '@/app/[locale]/tutor/dashboard/components/sanitize-slide-html'
 import { cn } from '@/lib/utils'
+import type { LinkPreviewItem } from '@/lib/link-preview/types'
 
 export interface TaskDocumentSource {
   fileName?: string | null
@@ -41,11 +47,20 @@ export function TaskDocumentCard({
   accent = 'orange',
   /** Render just the viewer (no collapsible header), filling the container. */
   alwaysOpen = false,
+  /** Original HTML content for documents auto-generated from typed text. */
+  htmlContent,
+  /** Visual link-preview cards overlaid on the slide canvas. */
+  linkPreviews,
+  /** True when the backing document was auto-generated from typed text. */
+  generatedFromText = false,
 }: {
   sourceDocument?: TaskDocumentSource | null
   autoOpen?: boolean
   accent?: keyof typeof ACCENTS
   alwaysOpen?: boolean
+  htmlContent?: string
+  linkPreviews?: LinkPreviewItem[]
+  generatedFromText?: boolean
 }) {
   // Manual toggle overrides the auto (message-driven) state. Deriving the shown
   // state instead of syncing it via an effect keeps it flicker-free.
@@ -69,6 +84,8 @@ export function TaskDocumentCard({
   const isImage = !!sourceDocument.mimeType?.startsWith('image/')
   const styles = ACCENTS[accent]
 
+  const showHtmlView = generatedFromText && !!htmlContent?.trim()
+
   // The actual document view (or a clear "unavailable" notice instead of a
   // silently blank frame). Shared by both modes so the fallback is consistent.
   const viewer = !loadable ? (
@@ -78,6 +95,8 @@ export function TaskDocumentCard({
         This document is unavailable. Ask your tutor to re-deploy it.
       </p>
     </div>
+  ) : showHtmlView ? (
+    <GeneratedTextViewer htmlContent={htmlContent} linkPreviews={linkPreviews} />
   ) : isPdf ? (
     <PDFViewer
       fileUrl={url}
@@ -138,6 +157,64 @@ export function TaskDocumentCard({
           {viewer}
         </div>
       )}
+    </div>
+  )
+}
+
+function GeneratedTextViewer({
+  htmlContent,
+  linkPreviews,
+}: {
+  htmlContent?: string
+  linkPreviews?: LinkPreviewItem[]
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const measure = () => {
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (rect) setSize({ width: rect.width, height: rect.height })
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [])
+
+  if (!htmlContent?.trim()) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 p-4 text-center">
+        <FileText className="h-8 w-8 text-slate-400" />
+        <p className="text-sm text-slate-500">This document has no content.</p>
+      </div>
+    )
+  }
+
+  // Use the same sanitizer that builds the printable PDF so the viewer and the
+  // snapshot stay visually identical.
+  const sanitized = typeof document !== 'undefined' ? sanitizeSlideHtml(htmlContent) : htmlContent
+
+  return (
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-white">
+      <div className="absolute inset-0 overflow-y-auto p-8">
+        <div
+          className="prose prose-slate max-w-none text-lg leading-relaxed"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{ __html: sanitized }}
+        />
+      </div>
+      {size.width > 0 &&
+        (linkPreviews ?? []).map(item => (
+          <LinkPreviewCard
+            key={item.id}
+            item={item}
+            containerWidth={size.width}
+            containerHeight={size.height}
+            onChange={() => {}}
+            onRemove={() => {}}
+            readOnly
+          />
+        ))}
     </div>
   )
 }
