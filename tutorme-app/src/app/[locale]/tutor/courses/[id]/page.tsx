@@ -118,6 +118,12 @@ export default function TutorCoursePage() {
 
   const toggleCountry = useCallback((code: string) => {
     setSelectedCountryCodes(prev => {
+      // Global is the worldwide default. To switch to specific countries, the
+      // tutor should pick a region first. Unchecking Global alone would leave
+      // no country selected, so keep it active until a real country is chosen.
+      if (code === 'GL' && prev.length === 1 && prev[0] === 'GL') {
+        return prev
+      }
       const next = prev.includes(code)
         ? prev.filter(c => c !== code)
         : // drop the Global stand-in as soon as a real country is chosen
