@@ -15862,35 +15862,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         {totalMarks} mark{totalMarks === 1 ? '' : 's'}.
                       </DialogDescription>
                     </DialogHeader>
-                    {/* Upload marking scheme: AI matches each question number to
-                        its answer (capturing the scheme's acceptable variations). */}
-                    <div className="flex items-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2">
-                      <FileText className="h-4 w-4 shrink-0 text-sky-700" />
-                      <span className="text-xs text-sky-800">
-                        Have a marking scheme? Auto-fill every answer from it.
-                      </span>
-                      <input
-                        ref={markingSchemeInputRef}
-                        type="file"
-                        accept="application/pdf,.pdf,text/plain,.txt"
-                        className="hidden"
-                        onChange={e => {
-                          const file = e.target.files?.[0]
-                          e.target.value = ''
-                          if (file && dmiEditor)
-                            void handleMarkingSchemeFile(file, dmiEditor.source)
-                        }}
-                      />
-                      <button
-                        type="button"
-                        disabled={!canEdit || markingSchemeLoading}
-                        onClick={() => markingSchemeInputRef.current?.click()}
-                        className="ml-auto inline-flex items-center gap-1 rounded-full border border-sky-300 bg-white px-3 py-1 text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 disabled:opacity-60"
-                      >
-                        {markingSchemeLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                        Upload marking scheme
-                      </button>
-                    </div>
                     <div
                       ref={dmiRowsRef}
                       className="max-h-[60vh] space-y-3 overflow-y-auto pr-1 [&::-webkit-scrollbar]:hidden"
@@ -16173,8 +16144,33 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         )
                       })}
                     </div>
-                    <DialogFooter>
-                      <Button onClick={() => setDmiEditor(null)}>Approve &amp; close</Button>
+                    <DialogFooter align="between">
+                      <input
+                        ref={markingSchemeInputRef}
+                        type="file"
+                        accept="application/pdf,.pdf,text/plain,.txt"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0]
+                          e.target.value = ''
+                          if (file && dmiEditor)
+                            void handleMarkingSchemeFile(file, dmiEditor.source)
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="modal-destructive-dark"
+                        disabled={!canEdit || markingSchemeLoading}
+                        onClick={() => markingSchemeInputRef.current?.click()}
+                      >
+                        {markingSchemeLoading ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Marking Scheme
+                      </Button>
+                      <Button variant="modal-primary-dark" onClick={() => setDmiEditor(null)}>
+                        Save
+                      </Button>
                     </DialogFooter>
                   </>
                 )
