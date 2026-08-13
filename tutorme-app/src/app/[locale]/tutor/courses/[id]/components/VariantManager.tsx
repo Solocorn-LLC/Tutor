@@ -464,6 +464,9 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           const published = variantsRes.filter(v => Boolean(v.isPublished)).length
           const count = typeof data.count === 'number' ? data.count : variants.length
           toast.success(`Saved ${count} variants (${published} published)`)
+          // Refresh from the DB so any just-published variants become read-only
+          // and any transient draft state is replaced by the server truth.
+          await loadVariants()
           onSaved?.()
         } else {
           const data = await res.json().catch(() => ({}))
