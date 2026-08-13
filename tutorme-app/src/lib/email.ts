@@ -12,6 +12,12 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  // Short, explicit timeouts so unconfigured/misconfigured SMTP does not hang
+  // registration in CI or local integration tests. Production values remain
+  // reasonable for real mail servers.
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 5000,
 })
 
 /**
