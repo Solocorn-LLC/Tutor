@@ -239,7 +239,6 @@ import { SlidingPillTabsList } from '@/components/sliding-pill-tabs'
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'
 import { PanelErrorBoundary } from '@/components/ui/panel-error-boundary'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
-import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -2447,35 +2446,70 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [courseName, insightsProps?.liveTasks, insightsProps?.students]
     )
 
-    // Seed the live classroom "Session ready." greeting when a chat task is selected.
+    // Seed the live classroom "Session ready." greeting when a chat task or assessment is selected.
     useEffect(() => {
-      if (mainTab !== 'live' || testPciSource !== 'task') return
-      const task = insightsProps?.liveTasks?.find(t => t.id === loadedTaskId)
-      if (!task) return
-      if (task.source !== 'task' || (Array.isArray(task.dmiItems) && task.dmiItems.length > 0))
-        return
-      if (
-        liveClassroomMessages[task.id]?.some(
-          m => m.role === 'ai' && m.content.startsWith('Session ready.')
-        )
-      )
-        return
+      if (mainTab !== 'live') return
       const enrolledStudents = insightsProps?.students?.length ?? 0
-      const summary = [
-        'Session ready.',
-        '',
-        `Task: ${task.title?.trim() || 'Untitled task'}`,
-        `Course: ${courseName?.trim() || 'Live Course'}`,
-        `Enrolled Students: ${enrolledStudents}`,
-        `Date: ${new Date().toLocaleDateString()}`,
-        'Session Number: 1',
-        `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
-      ].join('\n')
-      appendLiveClassroomAiMessage(task.id, summary, 'SAI')
+      if (testPciSource === 'task') {
+        const task = insightsProps?.liveTasks?.find(t => t.id === loadedTaskId)
+        if (!task) return
+        if (task.source !== 'task' || (Array.isArray(task.dmiItems) && task.dmiItems.length > 0))
+          return
+        if (
+          liveClassroomMessages[task.id]?.some(
+            m => m.role === 'ai' && m.content.startsWith('Session ready.')
+          )
+        )
+          return
+        const summary = [
+          'Session ready.',
+          '',
+          `Task: ${task.title?.trim() || 'Untitled task'}`,
+          `Course: ${courseName?.trim() || 'Live Course'}`,
+          `Enrolled Students: ${enrolledStudents}`,
+          `Date: ${new Date().toLocaleDateString()}`,
+          'Session Number: 1',
+          `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
+        ].join('\n')
+        appendLiveClassroomAiMessage(task.id, summary, 'SAI')
+      } else if (testPciSource === 'assessment') {
+        const assessmentId = loadedAssessmentId || ''
+        let assessment: Assessment | null = null
+        for (const mod of nodes) {
+          for (const lesson of mod.lessons) {
+            const found = lesson.homework?.find(h => h.id === assessmentId)
+            if (found) {
+              assessment = found as Assessment
+              break
+            }
+          }
+          if (assessment) break
+        }
+        if (!assessment) return
+        if (
+          liveClassroomMessages[assessment.id]?.some(
+            m => m.role === 'ai' && m.content.startsWith('Session ready.')
+          )
+        )
+          return
+        const summary = [
+          'Session ready.',
+          '',
+          `Assessment: ${assessment.title?.trim() || 'Untitled assessment'}`,
+          `Course: ${courseName?.trim() || 'Live Course'}`,
+          `Enrolled Students: ${enrolledStudents}`,
+          `Date: ${new Date().toLocaleDateString()}`,
+          'Session Number: 1',
+          `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
+        ].join('\n')
+        appendLiveClassroomAiMessage(assessment.id, summary, 'SAI')
+      }
     }, [
       mainTab,
       testPciSource,
       loadedTaskId,
+      loadedAssessmentId,
+      nodes,
       insightsProps?.liveTasks,
       insightsProps?.students,
       courseName,
@@ -2485,10 +2519,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Listen for live task-chat messages and completions, and update the tutor
     // classroom stream accordingly.
     useEffect(() => {
-      if (!insightsProps?.socket || !insightsProps?.sessionId || !loadedTaskId) return
+      if (!insightsProps?.socket || !insightsProps?.sessionId) return
+      const activeLiveChatId = loadedTaskId || loadedAssessmentId
+      if (!activeLiveChatId) return
       const socket = insightsProps.socket
       const handleTaskChatMessage = (msg: TaskChatMessagePayload) => {
-        if (msg.taskId !== loadedTaskId) return
+        if (msg.taskId !== activeLiveChatId) return
         setLiveClassroomMessages(prev => ({
           ...prev,
           [msg.taskId]: [...(prev[msg.taskId] ?? []), msg],
@@ -2500,7 +2536,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         studentName?: string
         answers?: Record<string, string>
       }) => {
-        if (payload.taskId !== loadedTaskId) return
+        if (payload.taskId !== activeLiveChatId) return
         const answers = Object.values(payload.answers ?? {})
         if (answers.length === 0) return
         void summarizeLiveClassroom(payload.taskId, payload.studentName || 'A student', answers)
@@ -2511,7 +2547,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         socket.off('task:chat_message', handleTaskChatMessage)
         socket.off('task:completed', handleTaskCompleted)
       }
-    }, [insightsProps?.socket, insightsProps?.sessionId, loadedTaskId, summarizeLiveClassroom])
+    }, [
+      insightsProps?.socket,
+      insightsProps?.sessionId,
+      loadedTaskId,
+      loadedAssessmentId,
+      summarizeLiveClassroom,
+    ])
 
     const canMirrorToStudents = !!(
       insightsProps?.sessionId &&
@@ -12870,7 +12912,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     taskId={
                                                       loadedAssessmentId || 'assessment-preview'
                                                     }
-                                                    mode="test-student"
+                                                    mode="classroom"
                                                     pci={assessmentBuilder.taskPci || ''}
                                                     pciSpec={assessmentBuilder.pciSpec}
                                                     questionText={
@@ -12889,30 +12931,41 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     generatedFromText={
                                                       currentAssessmentDocument?.generatedFromText
                                                     }
-                                                    initialState={
-                                                      assessmentChatStore.current[
-                                                        assessmentChatPreviewKey
-                                                      ]
-                                                    }
-                                                    onPersist={s => {
-                                                      assessmentChatStore.current[
-                                                        assessmentChatPreviewKey
-                                                      ] = s
-                                                      try {
-                                                        localStorage.setItem(
-                                                          'tutor-test-chat-store-v1',
-                                                          JSON.stringify(
-                                                            assessmentChatStore.current
-                                                          )
-                                                        )
-                                                      } catch {
-                                                        // ignore
-                                                      }
-                                                    }}
-                                                    studentAvatarUrl={
-                                                      (studentAvatarPool.current ?? [])[0]
+                                                    incomingMessages={
+                                                      classroomMessages[assessmentChatKey]
                                                     }
                                                     tutorAvatarUrl={tutorAvatarUrl}
+                                                    onBroadcast={msg => {
+                                                      const tutorMsg = { ...msg, name: 'Tutor' }
+                                                      setClassroomMessages(prev => ({
+                                                        ...prev,
+                                                        [assessmentChatKey]: [
+                                                          ...(prev[assessmentChatKey] ?? []),
+                                                          tutorMsg,
+                                                        ],
+                                                      }))
+                                                    }}
+                                                    onTutorNote={note => {
+                                                      setClassroomMessages(prev => ({
+                                                        ...prev,
+                                                        [assessmentChatKey]: [
+                                                          ...(prev[assessmentChatKey] ?? []),
+                                                          {
+                                                            role: 'ai' as const,
+                                                            name: 'SAI',
+                                                            content: note,
+                                                            timestamp: Date.now(),
+                                                          },
+                                                        ],
+                                                      }))
+                                                    }}
+                                                    onReset={() =>
+                                                      setClassroomMessages(prev => {
+                                                        const next = { ...prev }
+                                                        delete next[assessmentChatKey]
+                                                        return next
+                                                      })
+                                                    }
                                                   />
                                                 </div>
                                               )
@@ -13057,24 +13110,93 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             return (
                                               <div className="relative min-h-0 w-full flex-1">
                                                 {isLiveAssessmentClassroom ? (
-                                                  <div className="flex h-full flex-col p-4">
-                                                    <div className="flex-1 overflow-y-auto">
-                                                      <div className="flex justify-start">
-                                                        <ChatMessageBubble
-                                                          sender="tutor"
-                                                          name="Tutor"
-                                                          content=""
-                                                          avatarUrl={tutorAvatarUrl}
-                                                          isDocument
-                                                          document={doc}
-                                                          onDocumentClick={() =>
-                                                            setLiveDocPopup(doc)
+                                                  (() => {
+                                                    const assessmentId =
+                                                      loadedAssessmentId ||
+                                                      'live-assessment-preview'
+                                                    return (
+                                                      <div className="h-full min-h-0 w-full">
+                                                        <TestTaskChat
+                                                          taskId={assessmentId}
+                                                          mode="classroom"
+                                                          pci={
+                                                            typeof liveAssessment?.instructions ===
+                                                            'string'
+                                                              ? liveAssessment.instructions
+                                                              : liveAssessment?.description || ''
                                                           }
-                                                          isClassroom
+                                                          pciSpec={liveAssessment?.pciSpec}
+                                                          questionText={
+                                                            liveAssessment?.title
+                                                              ? `${liveAssessment.title}\n\n${liveAssessment.description || ''}`
+                                                              : liveAssessment?.description || ''
+                                                          }
+                                                          sourceDocument={doc}
+                                                          htmlContent={
+                                                            liveAssessment?.pages
+                                                              ? liveAssessment.pages
+                                                                  .map(p => p.trim())
+                                                                  .filter(Boolean)
+                                                                  .join(
+                                                                    '<div class="my-6 border-t border-dashed border-slate-200" aria-hidden="true"></div>'
+                                                                  )
+                                                              : undefined
+                                                          }
+                                                          linkPreviews={
+                                                            liveAssessment?.linkPreviews
+                                                          }
+                                                          generatedFromText={doc?.generatedFromText}
+                                                          incomingMessages={
+                                                            liveClassroomMessages[assessmentId]
+                                                          }
+                                                          tutorAvatarUrl={tutorAvatarUrl}
+                                                          onBroadcast={msg => {
+                                                            if (
+                                                              !insightsProps?.socket ||
+                                                              !insightsProps?.sessionId
+                                                            )
+                                                              return
+                                                            const tutorMsg = {
+                                                              ...msg,
+                                                              name: 'Tutor',
+                                                            }
+                                                            insightsProps.socket.emit(
+                                                              'task:chat_message',
+                                                              {
+                                                                roomId: insightsProps.sessionId,
+                                                                taskId: loadedAssessmentId,
+                                                                role: 'tutor',
+                                                                content: msg.content,
+                                                                name: 'Tutor',
+                                                                timestamp: Date.now(),
+                                                              }
+                                                            )
+                                                            setLiveClassroomMessages(prev => ({
+                                                              ...prev,
+                                                              [assessmentId]: [
+                                                                ...(prev[assessmentId] ?? []),
+                                                                tutorMsg,
+                                                              ],
+                                                            }))
+                                                          }}
+                                                          onTutorNote={note =>
+                                                            appendLiveClassroomAiMessage(
+                                                              assessmentId,
+                                                              note,
+                                                              'SAI'
+                                                            )
+                                                          }
+                                                          onReset={() =>
+                                                            setLiveClassroomMessages(prev => {
+                                                              const next = { ...prev }
+                                                              delete next[assessmentId]
+                                                              return next
+                                                            })
+                                                          }
                                                         />
                                                       </div>
-                                                    </div>
-                                                  </div>
+                                                    )
+                                                  })()
                                                 ) : doc?.fileUrl || doc?.fileKey ? (
                                                   <PDFViewer
                                                     key={doc.fileUrl || doc.fileKey || 'doc'}

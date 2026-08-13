@@ -1880,11 +1880,11 @@ function StudentFeedbackContent() {
     tasks.find(task => task.id === activeTaskId) ||
     (selectedDirectoryItem?.id === activeTaskId ? selectedDirectoryItem : null) ||
     null
-  // A deployed TASK has no DMI — the student answers it by chatting (new flow).
-  // Assessments/DMI-bearing items keep the structured answer flow.
+  // A deployed TASK or ASSESSMENT without a DMI is answered by chatting (new flow).
+  // DMI-bearing items keep the structured answer flow.
   const isChatTask =
     !!activeTask &&
-    activeTask.source === 'task' &&
+    (activeTask.source === 'task' || activeTask.source === 'assessment') &&
     !(Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0)
 
   // Restore a prior chat-task submission so a returning student sees their answers,
