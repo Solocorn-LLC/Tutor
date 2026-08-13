@@ -254,12 +254,13 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       setGlobalIsFree(defaultPrice == null || defaultPrice === 0)
     }, [defaultPrice, defaultCurrency, defaultLanguage])
 
-    // Compute the desired variant keys from current selections
+    // Compute the desired variant keys from current selections. An empty country
+    // list means no variants should be generated; it does not default to Global
+    // so the parent picker can represent "no countries selected".
     const desiredKeys = useMemo(() => {
       const keys = new Set<string>()
-      const countries = selectedCountryCodes.length > 0 ? selectedCountryCodes : ['GL']
       for (const cat of selectedCategories) {
-        for (const code of countries) {
+        for (const code of selectedCountryCodes) {
           const name = getCountryName(code)
           keys.add(`${cat}|${name}`)
         }
@@ -287,14 +288,18 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           const existing = map.get(key)
           if (!existing) {
             const [category, nationality] = key.split('|')
-            // Don't conjure a stand-in (e.g. "<cat>|Global") when the course
-            // already has a persisted variant for this category — on load the
-            // pickers don't reproduce the stored country, and adding a duplicate
-            // would make the tutor schedule the wrong (unsaved) variant.
-            const hasPersistedSameCategory = Array.from(map.values()).some(
-              v => v.persisted && v.category === category
-            )
-            if (hasPersistedSameCategory) continue
+            // Don't auto-conjure a Global stand-in (e.g. "<cat>|Global") when
+            // the course already has a persisted variant for this category — on
+            // load the pickers may default to Global even though the stored
+            // variant is for a real country, and adding a duplicate would make
+            // the tutor schedule the wrong (unsaved) variant. Real countries the
+            // tutor explicitly selects must still generate their variants.
+            if (nationality === 'Global') {
+              const hasPersistedSameCategory = Array.from(map.values()).some(
+                v => v.persisted && v.category === category
+              )
+              if (hasPersistedSameCategory) continue
+            }
             map.set(key, {
               category,
               nationality,
@@ -324,9 +329,22 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         // reproduce a stored variant's exact key, and deleting it here would
         // hide the tutor's existing schedules (Schedule 1, 2, …) from the
         // scheduler, leaving only the "Add another schedule" button.
+        const hasRealCountries = Array.from(desiredKeys).some(k => !k.endsWith('|Global'))
         for (const [key, variant] of map.entries()) {
           if (desiredKeys.has(key)) continue
-          if (variant.persisted) continue // keep real DB variants (the live course)
+          if (variant.persisted) {
+            // Keep published variants and any variant that has saved schedules.
+            // A non-published Global stand-in can be dropped when the tutor
+            // switches to specific countries, so the scheduler only shows the
+            // requested variants.
+            if (variantHasSchedules(variant)) continue
+            if (variant.isPublished) continue
+            if (hasRealCountries && variant.nationality === 'Global') {
+              map.delete(key)
+              changed = true
+            }
+            continue
+          }
           if (variantHasSchedules(variant)) continue
           map.delete(key)
           changed = true
