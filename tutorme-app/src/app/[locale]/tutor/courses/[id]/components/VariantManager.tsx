@@ -443,8 +443,12 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       }
       setSaving(true)
       try {
+        // Publishing from the top-level Publish button should put every configured
+        // variant live. Newly-generated variants default to draft so schedules
+        // stay editable; this explicit publish action flips them to published.
         const payload = variants.map(v => ({
           ...v,
+          isPublished: true,
           price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
         }))
 
