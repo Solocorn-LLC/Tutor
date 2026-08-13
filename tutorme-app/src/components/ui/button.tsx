@@ -165,6 +165,18 @@ const buttonVariants = cva(
           'disabled:cursor-not-allowed disabled:border-white/[0.12] disabled:bg-white/[0.18] disabled:text-white/[0.45]',
         ],
 
+        // Modal Destructive (Metallic/Dark) - Red action on dark modals
+        'modal-destructive-dark': [
+          'bg-red-600 text-white',
+          'border border-white',
+          'rounded-[10px]',
+          'h-10 px-6',
+          'shadow-elevation-2',
+          'hover:border-red-600 hover:bg-white hover:text-red-600',
+          'active:bg-white/90',
+          'disabled:cursor-not-allowed disabled:border-white/[0.12] disabled:bg-white/[0.18] disabled:text-white/[0.45]',
+        ],
+
         // Modal Secondary (Metallic/Dark) - Black cancel on dark modals
         'modal-secondary-dark': [
           'bg-black text-white',
