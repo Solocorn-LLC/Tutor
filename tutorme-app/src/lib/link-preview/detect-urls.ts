@@ -3,7 +3,25 @@ const URL_REGEX =
 
 const TRAILING_PUNCTUATION = /[.,;:!?\)\]\}]+$/
 const OPENING_BOUNDARY_CHARS = new Set([' ', '\t', '\n', '\r', '(', '[', '{', '"', "'", '<', ''])
-const CLOSING_BOUNDARY_CHARS = new Set([' ', '\t', '\n', '\r', ')', ']', '}', '"', "'", '>', '.', ',', ';', ':', '!', '?', ''])
+const CLOSING_BOUNDARY_CHARS = new Set([
+  ' ',
+  '\t',
+  '\n',
+  '\r',
+  ')',
+  ']',
+  '}',
+  '"',
+  "'",
+  '>',
+  '.',
+  ',',
+  ';',
+  ':',
+  '!',
+  '?',
+  '',
+])
 
 function isBoundaryChar(char: string | undefined, type: 'before' | 'after'): boolean {
   if (char === undefined || char === '') return true
