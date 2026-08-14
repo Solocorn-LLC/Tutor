@@ -22,7 +22,7 @@ import { notifyMany } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
-import { eq, and, inArray, gte, lte, lt, gt, sql, or, isNull } from 'drizzle-orm'
+import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
 import { findAlternativeSlots as sharedFindAlternativeSlots } from '@/lib/schedule/conflicts'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
@@ -278,10 +278,6 @@ export const POST = withCsrf(
         templateCourseId = asVariantRow[0].templateCourseId
       }
       const body = await req.json().catch(() => ({}))
-      // schedulesOnly: persist schedule edits to ALREADY-published variants
-      // without publishing unpublished ones or changing any publish state — lets
-      // "Save" save schedules on a live course without putting more of it live.
-      const schedulesOnly = body.schedulesOnly === true
       const draftsOnly = body.draftsOnly === true
       const variants: VariantConfig[] = Array.isArray(body.variants)
         ? body.variants.filter(
@@ -301,19 +297,6 @@ export const POST = withCsrf(
       }
 
       try {
-        // Ensure CourseSchedule columns exist before any query touches them.
-        // Runs ADD COLUMN IF NOT EXISTS — instant no-op when columns already exist,
-        // self-healing when migrations haven't been applied to this environment.
-        await drizzleDb.execute(
-          sql`ALTER TABLE "CourseSchedule" ADD COLUMN IF NOT EXISTS "enrolledCount" integer NOT NULL DEFAULT 0`
-        )
-        await drizzleDb.execute(
-          sql`ALTER TABLE "CourseSchedule" ADD COLUMN IF NOT EXISTS "weeksToSchedule" integer NOT NULL DEFAULT 8`
-        )
-        await drizzleDb.execute(
-          sql`ALTER TABLE "CourseSchedule" ADD COLUMN IF NOT EXISTS "name" text`
-        )
-
         // Verify ownership of the template course
         const isOwner = await verifyCourseOwnership(templateCourseId, userId)
         if (!isOwner) {
@@ -362,7 +345,7 @@ export const POST = withCsrf(
           nationality: string
           category: string
           isPublished: boolean
-          action: 'created' | 'updated' | 'schedules_saved'
+          action: 'created' | 'updated'
         }> = []
 
         const skippedSessions: Array<{
@@ -410,11 +393,9 @@ export const POST = withCsrf(
             const key = `${v.category}|${v.nationality}`
             requestedKeys.add(key)
             const existing = existingMap.get(key)
-            // In schedules-only mode, only touch variants that are already
-            // published; never create/publish anything new.
             // In drafts-only mode, create or update unpublished variants but never
-            // publish anything or generate live sessions.
-            if (schedulesOnly && !draftsOnly && (!existing || !existing.isPublished)) continue
+            // publish anything or generate live sessions; skip already-published variants.
+            if (draftsOnly && existing?.isPublished) continue
             const courseName = v.name && v.name.trim() ? v.name.trim() : templateCourse.name
             const isFree =
               typeof v.isFree === 'boolean' ? v.isFree : (templateCourse.isFree ?? false)
@@ -432,7 +413,7 @@ export const POST = withCsrf(
               // content updates when the publish route is run normally.
               const canEditDetails = !existing.isPublished
 
-              if (!schedulesOnly && canEditDetails) {
+              if (canEditDetails) {
                 await tx
                   .update(course)
                   .set({
@@ -450,98 +431,90 @@ export const POST = withCsrf(
                   .where(eq(course.courseId, publishedCourseId))
               }
 
-              if (!schedulesOnly) {
-                // Propagate the template's lesson edits into this already-
-                // published variant. Publish previously copied lessons only when
-                // a variant was first created, so re-publishing never updated the
-                // live lessons. We correlate template↔published lessons by
-                // `sourceLessonId` (stamped at copy time), falling back to `order`
-                // for rows copied before that linkage existed:
-                //   • matched   → update the published lesson IN PLACE, keeping its
-                //     id so DeployedMaterial / live-session links survive, and
-                //     re-sync its `order` to the template;
-                //   • unmatched template lesson → insert a published copy;
-                //   • unmatched published lesson (dropped from template) → delete
-                //     only when nothing has been deployed from it.
-                // Correlating by id (not position) means reordering the template
-                // updates the RIGHT published lesson instead of whatever now sits
-                // at that slot.
-                const publishedLessonRows = await tx
-                  .select({
-                    lessonId: courseLesson.lessonId,
-                    order: courseLesson.order,
-                    sourceLessonId: courseLesson.sourceLessonId,
-                  })
-                  .from(courseLesson)
-                  .where(
-                    and(
-                      eq(courseLesson.courseId, publishedCourseId),
-                      isNull(courseLesson.deletedAt)
-                    )
-                  )
-                  .orderBy(courseLesson.order)
+              // Propagate the template's lesson edits into this already-
+              // published variant. Publish previously copied lessons only when
+              // a variant was first created, so re-publishing never updated the
+              // live lessons. We correlate template↔published lessons by
+              // `sourceLessonId` (stamped at copy time), falling back to `order`
+              // for rows copied before that linkage existed:
+              //   • matched   → update the published lesson IN PLACE, keeping its
+              //     id so DeployedMaterial / live-session links survive, and
+              //     re-sync its `order` to the template;
+              //   • unmatched template lesson → insert a published copy;
+              //   • unmatched published lesson (dropped from template) → delete
+              //     only when nothing has been deployed from it.
+              // Correlating by id (not position) means reordering the template
+              // updates the RIGHT published lesson instead of whatever now sits
+              // at that slot.
+              const publishedLessonRows = await tx
+                .select({
+                  lessonId: courseLesson.lessonId,
+                  order: courseLesson.order,
+                  sourceLessonId: courseLesson.sourceLessonId,
+                })
+                .from(courseLesson)
+                .where(
+                  and(eq(courseLesson.courseId, publishedCourseId), isNull(courseLesson.deletedAt))
+                )
+                .orderBy(courseLesson.order)
 
-                const publishedBySource = new Map<string, string>()
-                const publishedByOrder = new Map<number, string>()
-                for (const l of publishedLessonRows) {
-                  if (l.sourceLessonId && !publishedBySource.has(l.sourceLessonId)) {
-                    publishedBySource.set(l.sourceLessonId, l.lessonId)
-                  }
-                  const ord = l.order ?? 0
-                  if (!publishedByOrder.has(ord)) publishedByOrder.set(ord, l.lessonId)
+              const publishedBySource = new Map<string, string>()
+              const publishedByOrder = new Map<number, string>()
+              for (const l of publishedLessonRows) {
+                if (l.sourceLessonId && !publishedBySource.has(l.sourceLessonId)) {
+                  publishedBySource.set(l.sourceLessonId, l.lessonId)
                 }
+                const ord = l.order ?? 0
+                if (!publishedByOrder.has(ord)) publishedByOrder.set(ord, l.lessonId)
+              }
 
-                const claimedPublishedIds = new Set<string>()
-                for (const [idx, lesson] of templateLessons.entries()) {
-                  const ord = lesson.order ?? idx
-                  const matchId =
-                    publishedBySource.get(lesson.lessonId) ?? publishedByOrder.get(ord)
-                  if (matchId && !claimedPublishedIds.has(matchId)) {
-                    claimedPublishedIds.add(matchId)
-                    await tx
-                      .update(courseLesson)
-                      .set({
-                        // (Re)assert the linkage — backfills order-matched legacy rows.
-                        sourceLessonId: lesson.lessonId,
-                        title: lesson.title,
-                        description: lesson.description,
-                        duration: lesson.duration ?? 60,
-                        order: ord,
-                        builderData: lesson.builderData,
-                        updatedAt: now,
-                      })
-                      .where(eq(courseLesson.lessonId, matchId))
-                  } else {
-                    await tx.insert(courseLesson).values({
-                      lessonId: crypto.randomUUID(),
-                      courseId: publishedCourseId,
+              const claimedPublishedIds = new Set<string>()
+              for (const [idx, lesson] of templateLessons.entries()) {
+                const ord = lesson.order ?? idx
+                const matchId = publishedBySource.get(lesson.lessonId) ?? publishedByOrder.get(ord)
+                if (matchId && !claimedPublishedIds.has(matchId)) {
+                  claimedPublishedIds.add(matchId)
+                  await tx
+                    .update(courseLesson)
+                    .set({
+                      // (Re)assert the linkage — backfills order-matched legacy rows.
                       sourceLessonId: lesson.lessonId,
                       title: lesson.title,
                       description: lesson.description,
                       duration: lesson.duration ?? 60,
                       order: ord,
                       builderData: lesson.builderData,
-                      createdAt: now,
                       updatedAt: now,
                     })
-                  }
+                    .where(eq(courseLesson.lessonId, matchId))
+                } else {
+                  await tx.insert(courseLesson).values({
+                    lessonId: crypto.randomUUID(),
+                    courseId: publishedCourseId,
+                    sourceLessonId: lesson.lessonId,
+                    title: lesson.title,
+                    description: lesson.description,
+                    duration: lesson.duration ?? 60,
+                    order: ord,
+                    builderData: lesson.builderData,
+                    createdAt: now,
+                    updatedAt: now,
+                  })
                 }
+              }
 
-                const removedLessonIds = publishedLessonRows
-                  .filter(l => !claimedPublishedIds.has(l.lessonId))
-                  .map(l => l.lessonId)
-                if (removedLessonIds.length > 0) {
-                  const deployedRows = await tx
-                    .select({ lessonId: deployedMaterial.lessonId })
-                    .from(deployedMaterial)
-                    .where(inArray(deployedMaterial.lessonId, removedLessonIds))
-                  const deployedIds = new Set(deployedRows.map(d => d.lessonId))
-                  const deletableIds = removedLessonIds.filter(id => !deployedIds.has(id))
-                  if (deletableIds.length > 0) {
-                    await tx
-                      .delete(courseLesson)
-                      .where(inArray(courseLesson.lessonId, deletableIds))
-                  }
+              const removedLessonIds = publishedLessonRows
+                .filter(l => !claimedPublishedIds.has(l.lessonId))
+                .map(l => l.lessonId)
+              if (removedLessonIds.length > 0) {
+                const deployedRows = await tx
+                  .select({ lessonId: deployedMaterial.lessonId })
+                  .from(deployedMaterial)
+                  .where(inArray(deployedMaterial.lessonId, removedLessonIds))
+                const deployedIds = new Set(deployedRows.map(d => d.lessonId))
+                const deletableIds = removedLessonIds.filter(id => !deployedIds.has(id))
+                if (deletableIds.length > 0) {
+                  await tx.delete(courseLesson).where(inArray(courseLesson.lessonId, deletableIds))
                 }
               }
 
@@ -551,7 +524,7 @@ export const POST = withCsrf(
                 nationality: v.nationality,
                 category: v.category,
                 isPublished: existing.isPublished,
-                action: schedulesOnly ? 'schedules_saved' : 'updated',
+                action: 'updated',
               })
             } else {
               // Create new course + variant
@@ -1108,9 +1081,8 @@ export const POST = withCsrf(
           }
 
           // Unpublish variants that exist in DB but were not sent in the request.
-          // Never do this in schedules-only or drafts-only mode — Save must not
-          // change publish state for anything.
-          if (!schedulesOnly && !draftsOnly) {
+          // Never do this in drafts-only mode — Save must not change publish state.
+          if (!draftsOnly) {
             for (const existing of existingRows) {
               const key = `${existing.category}|${existing.nationality}`
               if (!requestedKeys.has(key)) {
@@ -1124,8 +1096,8 @@ export const POST = withCsrf(
         })
 
         // Notify the tutor's followers that a new course went live. Skip for
-        // schedules-only or drafts-only saves (nothing newly published) and when nothing was published.
-        if (!schedulesOnly && !draftsOnly && result.length > 0) {
+        // drafts-only saves (nothing newly published) and when nothing was published.
+        if (!draftsOnly && result.length > 0) {
           try {
             const followers = await drizzleDb
               .select({ followerId: tutorFollow.followerId })
