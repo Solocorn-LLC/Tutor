@@ -62,6 +62,7 @@ interface ModernHeroSectionProps {
   }
   heroStats?: HeroStats
   loading?: boolean
+  onScheduleClass?: () => void
 }
 
 interface ClassEvent {
@@ -77,6 +78,7 @@ export function ModernHeroSection({
   heroStats,
   loading,
   nextSessionAt,
+  onScheduleClass,
 }: ModernHeroSectionProps & { nextSessionAt?: string }) {
   const { data: session } = useSession()
   const [greeting, setGreeting] = useState('Good morning')
@@ -416,6 +418,16 @@ export function ModernHeroSection({
             >
               <Presentation className="mr-1 h-4 w-4" />
               Create Class
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-white/40 bg-white/15 text-white hover:bg-white hover:text-[#1F2933]"
+              onClick={onScheduleClass}
+              title="Schedule a one-time live session"
+            >
+              <Calendar className="mr-1 h-4 w-4" />
+              Schedule Class
             </Button>
           </div>
           <div className="flex-none text-center">
