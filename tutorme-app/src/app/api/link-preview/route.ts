@@ -36,7 +36,7 @@ export const POST = withAuth(
       return NextResponse.json({ error: 'Invalid URL' }, { status: 400 })
     }
 
-    const cacheKey = `link-preview:${crypto.createHash('sha256').update(url).digest('hex')}`
+    const cacheKey = `link-preview:v2:${crypto.createHash('sha256').update(url).digest('hex')}`
 
     try {
       const cached = await cacheManager.get<LinkPreviewMetadata>(cacheKey, {
@@ -57,5 +57,5 @@ export const POST = withAuth(
       return handleApiError(error, 'Unable to fetch link preview', 'api/link-preview/route.ts')
     }
   },
-  { role: 'TUTOR' }
+  { role: ['TUTOR', 'ADMIN'] }
 )
