@@ -68,7 +68,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
-import { motion, AnimatePresence, useDragControls } from 'framer-motion'
+import { motion, AnimatePresence, useDragControls, useMotionValue } from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
   LiveTask,
@@ -225,134 +225,160 @@ function ClassroomControlsPanel({
   setShowDirectoryPanel,
 }: ClassroomControlsPanelProps) {
   const router = useRouter()
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  const panelX = useMotionValue(0)
+  const panelY = useMotionValue(0)
+  const panelOpacity = useMotionValue(0)
+
+  const positionPanel = useCallback(() => {
+    const panel = panelRef.current
+    const container = containerRef.current
+    if (!panel || !container) return
+    const containerRect = container.getBoundingClientRect()
+    const panelRect = panel.getBoundingClientRect()
+    const padding = 16
+    const x = Math.max(
+      padding,
+      Math.min(
+        containerRect.width / 2 - panelRect.width / 2,
+        containerRect.width - panelRect.width - padding
+      )
+    )
+    const y = padding
+    panelX.set(x)
+    panelY.set(y)
+    panelOpacity.set(1)
+  }, [panelX, panelY, panelOpacity])
+
+  useLayoutEffect(() => {
+    positionPanel()
+  }, [positionPanel])
+
+  useEffect(() => {
+    const handleResize = () => positionPanel()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [positionPanel])
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="pointer-events-none absolute bottom-4 right-4">
-        <motion.div
-          drag
-          dragControls={dragControls}
-          dragListener={false}
-          dragMomentum={false}
-          onDragStart={() => setIsDragging(true)}
-          onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={cn(
-            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
-            open ? 'p-3' : ''
-          )}
+    <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
+      <motion.div
+        ref={panelRef}
+        drag
+        dragConstraints={containerRef}
+        dragControls={dragControls}
+        dragListener={false}
+        dragMomentum={false}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
+        style={{ x: panelX, y: panelY, opacity: panelOpacity }}
+        className="pointer-events-auto absolute left-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+      >
+        {/* Header / drag handle */}
+        <button
+          type="button"
+          className="relative flex h-10 w-full cursor-grab items-center rounded-t-xl border-b border-white/10 px-3 active:cursor-grabbing"
+          onPointerDown={e => dragControls.start(e)}
+          onClick={() => {
+            if (isDragging) return
+            setOpen(v => !v)
+          }}
         >
-          {/* Header / drag handle */}
-          <button
-            type="button"
-            className={cn(
-              'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-              open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
-            )}
-            onPointerDown={e => dragControls.start(e)}
-            onClick={() => {
-              if (isDragging) return
-              setOpen(v => !v)
-            }}
-          >
-            <span className="w-4 shrink-0" aria-hidden="true" />
-            <span className="mx-auto text-xs font-semibold text-white">Controls</span>
-            <WifiSignal connected={isConnected} error={!!error} />
-          </button>
+          <span className="w-4 shrink-0" aria-hidden="true" />
+          <span className="mx-auto text-xs font-semibold text-white">Controls</span>
+          <WifiSignal connected={isConnected} error={!!error} />
+        </button>
 
-          {/* Controls */}
-          <AnimatePresence initial={false}>
-            {open && (
-              <motion.div
-                key="controls-body"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden"
-              >
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFollowTutor(!followTutor)}
-                      className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
-                        followTutor
-                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          : 'bg-white/10 text-white hover:bg-white/20'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'h-2 w-2 rounded-full',
-                          followTutor ? 'animate-pulse bg-white' : 'bg-white/40'
-                        )}
-                      />
-                      {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                    </button>
+        {/* Controls */}
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              key="controls-body"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-2 gap-2 p-3 pt-0">
+                <button
+                  type="button"
+                  onClick={() => setFollowTutor(!followTutor)}
+                  className={cn(
+                    'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
+                    followTutor
+                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'h-2 w-2 rounded-full',
+                      followTutor ? 'animate-pulse bg-white' : 'bg-white/40'
+                    )}
+                  />
+                  {followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                </button>
 
-                    <div className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white">
-                      <div
-                        className={cn(
-                          'h-2 w-2 rounded-full',
-                          isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
-                        )}
-                      />
-                      {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-                    </div>
+                <button
+                  type="button"
+                  onClick={() => router.push('/student/dashboard')}
+                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Leave session
+                </button>
 
-                    <button
-                      type="button"
-                      disabled={!roomUrl}
-                      onClick={() => {
-                        if (!roomUrl) return
-                        openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
-                      }}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Video className="h-4 w-4" />
-                      Video
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowDirectoryPanel(true)}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-                    >
-                      <Folder className="h-4 w-4" />
-                      Directory
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => router.push('/student/dashboard')}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Leave session
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-red-500/20 px-3 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/30"
-                    >
-                      <Flag className="h-4 w-4" />
-                      Flag
-                    </button>
-                  </div>
+                <div className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white">
+                  <div
+                    className={cn(
+                      'h-2 w-2 rounded-full',
+                      isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
+                    )}
+                  />
+                  {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
+
+                <button
+                  type="button"
+                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-red-500/20 px-3 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/30"
+                >
+                  <Flag className="h-4 w-4" />
+                  Flag
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!roomUrl}
+                  onClick={() => {
+                    if (!roomUrl) return
+                    openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
+                  }}
+                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Video className="h-4 w-4" />
+                  Video
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDirectoryPanel(true)}
+                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
+                >
+                  <Folder className="h-4 w-4" />
+                  Directory
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   )
 }
