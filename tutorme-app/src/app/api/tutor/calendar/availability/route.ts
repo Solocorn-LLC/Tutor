@@ -21,6 +21,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, gt, lt, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
 import { formatInZone } from '@/lib/time/tz'
+import { getCourseOccupiedRecurringSlots } from '@/lib/schedule/course-occupied-slots'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -146,6 +147,7 @@ export const GET = withAuth(
         // cells — previously these used UTC (toISOString), which offset every
         // event by the tutor's UTC offset.
         const tutorTz = availability[0]?.timezone || 'UTC'
+        const courseOccupiedSlots = await getCourseOccupiedRecurringSlots(tutorId, tutorTz)
         const normalizeDate = (d: Date) => formatInZone(d, tutorTz).date
         const normalizeTime = (d: Date) => formatInZone(d, tutorTz).time
 
@@ -205,14 +207,18 @@ export const GET = withAuth(
             startTime: o.startTime,
             endTime: o.endTime,
           })),
+          courseOccupiedSlots,
         })
       }
 
       if (!check) {
         // Return raw availability data
+        const tutorTz = availability[0]?.timezone || 'UTC'
+        const courseOccupiedSlots = await getCourseOccupiedRecurringSlots(tutorId, tutorTz)
         return NextResponse.json({
           availability,
           exceptions,
+          courseOccupiedSlots,
         })
       }
 
@@ -270,6 +276,26 @@ export const POST = withCsrf(
 
         if (data.startTime >= data.endTime) {
           return NextResponse.json({ error: 'End time must be after start time' }, { status: 400 })
+        }
+
+        if (data.isAvailable === false) {
+          const occupied = await getCourseOccupiedRecurringSlots(tutorId, data.timezone)
+          const overlap = occupied.find(
+            o =>
+              o.dayOfWeek === data.dayOfWeek &&
+              data.startTime < o.endTime &&
+              data.endTime > o.startTime
+          )
+          if (overlap) {
+            return NextResponse.json(
+              {
+                error:
+                  'This time slot is occupied by a scheduled course. Reschedule or cancel the course before blocking this time.',
+                courseName: overlap.courseName,
+              },
+              { status: 409 }
+            )
+          }
         }
 
         const existing = await drizzleDb
