@@ -727,7 +727,6 @@ function TutorDashboardContent() {
             heroStats={heroStats}
             loading={loading}
             nextSessionAt={getNextSessionTime() || undefined}
-            onScheduleClass={() => setShowCreateDialog(true)}
           />
         </div>
 
