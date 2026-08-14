@@ -727,6 +727,7 @@ function TutorDashboardContent() {
             heroStats={heroStats}
             loading={loading}
             nextSessionAt={getNextSessionTime() || undefined}
+            onScheduleClass={() => setShowCreateDialog(true)}
           />
         </div>
 
@@ -781,6 +782,10 @@ function TutorDashboardContent() {
                 onTimezoneChange={setTimezone}
                 view={calendarView}
                 onViewChange={setCalendarView}
+                onCreateClass={date => {
+                  setScheduleDate(date)
+                  setShowCreateDialog(true)
+                }}
               />
             </TabsContent>
             <TabsContent

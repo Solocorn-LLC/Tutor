@@ -891,7 +891,7 @@ export function DashboardCalendar({
                       <Button
                         size="sm"
                         className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-500"
-                        onClick={() => router.push(`/student/feedback?sessionId=${cls.sessionId}`)}
+                        onClick={() => router.push(`/call/${cls.sessionId}`)}
                       >
                         {cls.status === 'live' ? 'Join' : 'Enter'}
                       </Button>
