@@ -40,6 +40,7 @@ interface Lesson {
   description: string | null
   order: number
   duration: number
+  builderData?: Record<string, unknown> | null
 }
 
 interface Module {
@@ -98,6 +99,35 @@ export default function TutorCoursePage() {
     () => course?.modules?.reduce((sum, m) => sum + (m.lessons?.length ?? 0), 0) ?? 0,
     [course?.modules]
   )
+  const totalTasks = useMemo(
+    () =>
+      course?.modules?.reduce(
+        (sum, m) =>
+          sum +
+          m.lessons.reduce((lessonSum, l) => {
+            const bData = (l.builderData ?? {}) as Record<string, unknown>
+            const tasks = Array.isArray(bData.tasks) ? bData.tasks.length : 0
+            return lessonSum + tasks
+          }, 0),
+        0
+      ) ?? 0,
+    [course?.modules]
+  )
+  const totalAssessments = useMemo(
+    () =>
+      course?.modules?.reduce(
+        (sum, m) =>
+          sum +
+          m.lessons.reduce((lessonSum, l) => {
+            const bData = (l.builderData ?? {}) as Record<string, unknown>
+            const assessments = Array.isArray(bData.assessments) ? bData.assessments.length : 0
+            const homework = Array.isArray(bData.homework) ? bData.homework.length : 0
+            return lessonSum + assessments + homework
+          }, 0),
+        0
+      ) ?? 0,
+    [course?.modules]
+  )
   const [infoOpen, setInfoOpen] = useState(true)
   const [publishingVariants, setPublishingVariants] = useState(false)
 
@@ -113,23 +143,12 @@ export default function TutorCoursePage() {
 
   const handleRegionChange = useCallback((regionId: string) => {
     setSelectedRegion(regionId)
-    if (regionId === 'global') setSelectedCountryCodes(['GL'])
   }, [])
 
   const toggleCountry = useCallback((code: string) => {
-    setSelectedCountryCodes(prev => {
-      // Global is the worldwide default. To switch to specific countries, the
-      // tutor should pick a region first. Unchecking Global alone would leave
-      // no country selected, so keep it active until a real country is chosen.
-      if (code === 'GL' && prev.length === 1 && prev[0] === 'GL') {
-        return prev
-      }
-      const next = prev.includes(code)
-        ? prev.filter(c => c !== code)
-        : // drop the Global stand-in as soon as a real country is chosen
-          [...prev.filter(c => c !== 'GL'), code]
-      return next.length > 0 ? next : ['GL']
-    })
+    setSelectedCountryCodes(prev =>
+      prev.includes(code) ? prev.filter(c => c !== code) : [...prev, code]
+    )
   }, [])
 
   const countryLabel = useCallback((code: string): string => {
@@ -449,9 +468,23 @@ export default function TutorCoursePage() {
                           disabled={course?.isPublished}
                           className="bg-white disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500"
                         />
-                        <div className="mt-3 flex items-center gap-3 text-sm text-slate-700">
-                          <span className="font-semibold">No. of Lessons</span>
-                          <span>{totalLessons}</span>
+                        <div className="mt-3 space-y-1 text-sm text-slate-700">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">Category</span>
+                            <span>{selectedCategories[0] || 'Uncategorized'}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">No. of Lessons</span>
+                            <span>{totalLessons}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">Total tasks</span>
+                            <span>{totalTasks}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">Total assessments</span>
+                            <span>{totalAssessments}</span>
+                          </div>
                         </div>
                       </div>
 
@@ -494,8 +527,9 @@ export default function TutorCoursePage() {
                           Publish to countries
                         </h2>
                         <p className="mt-0.5 text-xs text-slate-500">
-                          Pick a region, then the countries to publish this course to — each becomes
-                          its own variant. Leave it as Global to publish once, worldwide.
+                          Select the countries to publish this course to — each becomes its own
+                          variant. Global publishes worldwide; specific countries create local
+                          variants.
                         </p>
                       </div>
                       <div className="space-y-4 rounded-xl border border-slate-100 bg-white p-4 text-slate-900">
@@ -524,19 +558,29 @@ export default function TutorCoursePage() {
                               Countries
                             </Label>
                             <div className="flex flex-wrap gap-x-6 gap-y-2 pt-1">
-                              {regionCountries.map(c => (
-                                <label
-                                  key={c.code}
-                                  className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
-                                >
-                                  <Checkbox
-                                    checked={selectedCountryCodes.includes(c.code)}
-                                    onCheckedChange={() => toggleCountry(c.code)}
-                                    disabled={course?.isPublished}
-                                  />
-                                  {c.name}
-                                </label>
-                              ))}
+                              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+                                <Checkbox
+                                  checked={selectedCountryCodes.includes('GL')}
+                                  onCheckedChange={() => toggleCountry('GL')}
+                                  disabled={course?.isPublished}
+                                />
+                                Global
+                              </label>
+                              {regionCountries
+                                .filter(c => c.code !== 'GL')
+                                .map(c => (
+                                  <label
+                                    key={c.code}
+                                    className="flex cursor-pointer items-center gap-2 text-sm text-slate-700"
+                                  >
+                                    <Checkbox
+                                      checked={selectedCountryCodes.includes(c.code)}
+                                      onCheckedChange={() => toggleCountry(c.code)}
+                                      disabled={course?.isPublished}
+                                    />
+                                    {c.name}
+                                  </label>
+                                ))}
                             </div>
                           </div>
                         </div>

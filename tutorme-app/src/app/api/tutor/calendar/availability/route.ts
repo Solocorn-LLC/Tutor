@@ -18,6 +18,7 @@ import {
   calendarEvent,
   oneOnOneBookingRequest,
   liveSession,
+  course,
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, gt, lt, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
 import { formatInZone } from '@/lib/time/tz'
@@ -89,8 +90,10 @@ export const GET = withAuth(
             startTime: calendarEvent.startTime,
             endTime: calendarEvent.endTime,
             title: calendarEvent.title,
+            courseName: course.name,
           })
           .from(calendarEvent)
+          .leftJoin(course, eq(course.courseId, calendarEvent.courseId))
           .where(
             and(
               eq(calendarEvent.tutorId, tutorId),
@@ -107,8 +110,10 @@ export const GET = withAuth(
             scheduledAt: liveSession.scheduledAt,
             durationMinutes: liveSession.durationMinutes,
             title: liveSession.title,
+            courseName: course.name,
           })
           .from(liveSession)
+          .leftJoin(course, eq(course.courseId, liveSession.courseId))
           .where(
             and(
               eq(liveSession.tutorId, tutorId),
@@ -156,7 +161,7 @@ export const GET = withAuth(
           date: normalizeDate(ev.startTime),
           startTime: normalizeTime(ev.startTime),
           endTime: normalizeTime(ev.endTime),
-          title: ev.title,
+          title: ev.courseName || ev.title || 'Existing booking',
         }))
 
         const liveSessionItems = liveSessions
@@ -168,7 +173,7 @@ export const GET = withAuth(
               date: normalizeDate(start),
               startTime: normalizeTime(start),
               endTime: normalizeTime(end),
-              title: ls.title || 'Live Session',
+              title: ls.courseName || ls.title || 'Live Session',
             }
           })
 

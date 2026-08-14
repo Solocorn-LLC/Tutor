@@ -991,8 +991,9 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           }}
         >
           <DialogContent
-            className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]"
+            className="h-[95vh] max-h-[95vh] w-[95vw] max-w-[95vw] overflow-hidden border-white/30 sm:h-[90vh] sm:max-h-[800px] sm:w-[90vw] sm:max-w-[820px]"
             rounded="lg"
+            onOpenAutoFocus={e => e.preventDefault()}
           >
             <div className="flex h-full flex-col p-5 sm:p-6">
               <DialogHeader className="p-0">
@@ -1010,6 +1011,7 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                           }))
                         }
                         placeholder={templateCourseName}
+                        autoFocus={false}
                         className="h-8 w-[260px] border-white/20 bg-white/10 px-2 py-1 text-sm font-medium text-white placeholder:text-gray-400 focus-visible:border-white/40 focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                     </>
