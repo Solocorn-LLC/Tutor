@@ -291,6 +291,7 @@ function TutorControlsPanel({
   // completely lost off-screen.
   const containerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLButtonElement>(null)
 
   // Start the panel centered between the category badge and the course-state
   // indicator so it lands in the header by default. If either anchor is missing,
@@ -324,6 +325,7 @@ function TutorControlsPanel({
     const indicator = positionAnchorRefs.indicatorRef.current
     const panel = panelRef.current
     const container = containerRef.current
+    const header = headerRef.current
     if (!indicator || !panel || !container) {
       fallbackTopCenterPanel()
       panelOpacity.set(1)
@@ -332,6 +334,7 @@ function TutorControlsPanel({
     }
     const indicatorRect = indicator.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
+    const headerHeight = header?.getBoundingClientRect().height ?? panelRect.height
     const containerRect = container.getBoundingClientRect()
 
     let x: number
@@ -341,13 +344,13 @@ function TutorControlsPanel({
       const midX = (badgeRect.right + indicatorRect.left) / 2
       const midY = (badgeRect.top + badgeRect.bottom) / 2
       x = midX - containerRect.left - panelRect.width / 2
-      y = midY - containerRect.top - panelRect.height / 2
+      y = midY - containerRect.top - headerHeight / 2
     } else {
       // Demo / async sessions: park the panel just to the right of the state
       // indicator in the top hero panel while keeping it draggable.
       const gap = 12
       x = indicatorRect.right - containerRect.left + gap
-      y = indicatorRect.top - containerRect.top + indicatorRect.height / 2 - panelRect.height / 2
+      y = indicatorRect.top - containerRect.top + indicatorRect.height / 2 - headerHeight / 2
     }
 
     // Clamp so the panel never starts off-screen horizontally.
@@ -436,6 +439,7 @@ function TutorControlsPanel({
       >
         {/* Header / drag handle */}
         <button
+          ref={headerRef}
           type="button"
           className="relative flex h-10 w-full cursor-grab items-center rounded-t-xl border-b border-white/10 px-3 active:cursor-grabbing"
           onPointerDown={e => dragControls.start(e)}
@@ -1145,7 +1149,7 @@ function CourseBuilderInsightsRouteInner({
                           onClick={() => setCourseSelectorOpen(true)}
                           disabled={hasNoCourses}
                           className={cn(
-                            'h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'ml-[5px] h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >
@@ -1179,6 +1183,10 @@ function CourseBuilderInsightsRouteInner({
 
                   {activeMainTab === 'builder' && (
                     <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
+                      <WifiSignal
+                        connected={!!insightsProps.isConnected}
+                        error={!!insightsProps.sessionId && !insightsProps.isConnected}
+                      />
                       {currentCourse?.name && (
                         <span className="text-xl font-normal text-slate-500">
                           {currentCourse.name}
@@ -1257,13 +1265,6 @@ function CourseBuilderInsightsRouteInner({
                   {stateIndicatorMeta[currentCourseState].label}
                 </div>
               )}
-              {/* Reflect the real socket connection: emerald when connected,
-                  red when a session is live but the socket has dropped, amber
-                  when idle (no active session). */}
-              <WifiSignal
-                connected={!!insightsProps.isConnected}
-                error={!!insightsProps.sessionId && !insightsProps.isConnected}
-              />
             </div>
           </div>
         </div>
