@@ -14,9 +14,28 @@ describe('detectUrls', () => {
     expect(detectUrls(text)).toEqual([])
   })
 
-  it('deduplicates URLs', () => {
-    const text = 'https://example.com https://example.com'
+  it('detects URLs with longer TLDs', () => {
+    const text = 'Visit https://example.technology today'
+    expect(detectUrls(text)).toEqual(['https://example.technology'])
+  })
+
+  it('strips trailing punctuation from URLs', () => {
+    const text = 'See https://example.com. Also https://example.org, and https://example.io;'
+    expect(detectUrls(text)).toEqual([
+      'https://example.com',
+      'https://example.org',
+      'https://example.io',
+    ])
+  })
+
+  it('detects URLs inside parentheses', () => {
+    const text = '(see https://example.com for details)'
     expect(detectUrls(text)).toEqual(['https://example.com'])
+  })
+
+  it('ignores URLs inside words', () => {
+    const text = 'prefixhttps://example.comsuffix'
+    expect(detectUrls(text)).toEqual([])
   })
 })
 
@@ -39,6 +58,14 @@ describe('extractYoutubeVideoId', () => {
 
   it('returns undefined for non-youtube URLs', () => {
     expect(extractYoutubeVideoId('https://example.com/watch?v=VIDEO_ID')).toBeUndefined()
+  })
+
+  it('extracts id from mobile youtube.com URLs', () => {
+    expect(extractYoutubeVideoId('https://m.youtube.com/watch?v=VIDEO_ID')).toBe('VIDEO_ID')
+  })
+
+  it('extracts id from youtube.com/live URLs', () => {
+    expect(extractYoutubeVideoId('https://www.youtube.com/live/VIDEO_ID')).toBe('VIDEO_ID')
   })
 })
 

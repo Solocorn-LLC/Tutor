@@ -8,7 +8,7 @@ import { getServerSession, authOptions } from '@/lib/auth'
 import type { Session } from 'next-auth'
 import { eq } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { user as userTable } from '@/lib/db/schema'
+import { user as userTable, type Role } from '@/lib/db/schema'
 import { verifyCsrfToken } from '@/lib/security/csrf'
 import {
   checkRateLimit,
@@ -154,7 +154,7 @@ type Handler = (
 
 // Middleware options
 interface WithAuthOptions {
-  role?: 'TUTOR' | 'STUDENT' | 'ADMIN' | 'PARENT'
+  role?: Role | Role[]
   optional?: boolean
 }
 
@@ -196,15 +196,24 @@ export function withAuth(handler: Handler, options?: WithAuthOptions) {
       }
 
       // Check role requirements
-      if (options?.role && normalizeRole(session.user.role) !== normalizeRole(options.role)) {
-        // Fallback: session role can be stale after account updates or seed resets.
-        const [freshUser] = await drizzleDb
-          .select({ role: userTable.role })
-          .from(userTable)
-          .where(eq(userTable.userId, session.user.id))
-          .limit(1)
-        if (normalizeRole(freshUser?.role) !== normalizeRole(options.role)) {
-          throw new ForbiddenError(`This endpoint requires ${options.role} role`)
+      if (options?.role) {
+        const allowedRoles = Array.isArray(options.role) ? options.role : [options.role]
+        const normalizedSessionRole = normalizeRole(session.user.role)
+        const roleAllowed = allowedRoles.some(r => normalizeRole(r) === normalizedSessionRole)
+
+        if (!roleAllowed) {
+          // Fallback: session role can be stale after account updates or seed resets.
+          const [freshUser] = await drizzleDb
+            .select({ role: userTable.role })
+            .from(userTable)
+            .where(eq(userTable.userId, session.user.id))
+            .limit(1)
+          const normalizedFreshRole = normalizeRole(freshUser?.role)
+          const freshRoleAllowed = allowedRoles.some(r => normalizeRole(r) === normalizedFreshRole)
+          if (!freshRoleAllowed) {
+            const roleLabel = allowedRoles.length === 1 ? options.role : allowedRoles.join(' or ')
+            throw new ForbiddenError(`This endpoint requires ${roleLabel} role`)
+          }
         }
       }
 
