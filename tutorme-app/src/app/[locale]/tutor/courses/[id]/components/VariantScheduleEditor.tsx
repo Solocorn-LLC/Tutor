@@ -171,6 +171,8 @@ export function VariantScheduleEditor({
 
   const formatDateKey = (date: Date) => formatInZone(date, timeZone).date
 
+  const todayKey = formatDateKey(new Date())
+
   // Fetch availability data when week offset changes
   useEffect(() => {
     let active = true
@@ -458,7 +460,7 @@ export function VariantScheduleEditor({
 
       // Add to template and regenerate
       const newTemplate = [...template, { dayOfWeek: day, startTime: timeStr, durationMinutes: 60 }]
-      return expandSchedule(newTemplate, effectiveWeeks, scheduleWeekStart)
+      return expandSchedule(newTemplate, effectiveWeeks, scheduleWeekStart, timeZone)
     })
   }
 
@@ -562,8 +564,9 @@ export function VariantScheduleEditor({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 text-white hover:bg-white/10 hover:text-white"
+                  className="h-8 w-8 p-0 text-white hover:bg-white/10 hover:text-white disabled:opacity-40"
                   onClick={() => setScheduleWeekOffset(o => o - 1)}
+                  disabled={scheduleWeekOffset <= 0}
                   aria-label="Previous week"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -589,8 +592,9 @@ export function VariantScheduleEditor({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 text-white hover:bg-white/10 hover:text-white"
+                  className="h-8 w-8 p-0 text-white hover:bg-white/10 hover:text-white disabled:opacity-40"
                   onClick={() => setScheduleWeekOffset(o => o - 4)}
+                  disabled={scheduleWeekOffset <= 0}
                   aria-label="Previous month"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -613,10 +617,14 @@ export function VariantScheduleEditor({
               </div>
               {DAYS.map((day, i) => {
                 const d = weekDates[i]
+                const dateKey = formatDateKey(d)
+                const isPastDay = dateKey < todayKey
                 return (
                   <div
                     key={`${day}-${d.getTime()}`}
-                    className="flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold text-slate-700"
+                    className={`flex h-12 items-center justify-center border-r border-[rgba(209,213,219,0.85)] px-2 text-center text-xs font-semibold ${
+                      isPastDay ? 'bg-slate-100 text-slate-400' : 'text-slate-700'
+                    }`}
                   >
                     <div className="leading-tight">
                       <div>{day.slice(0, 3)}</div>
@@ -648,6 +656,7 @@ export function VariantScheduleEditor({
                           </div>
                           {DAYS.map((day, dayIndex) => {
                             const dateKey = formatDateKey(weekDates[dayIndex])
+                            const isPastDay = dateKey < todayKey
                             const validScheduleArray = Array.isArray(schedule)
                               ? schedule.filter(Boolean)
                               : []
@@ -705,15 +714,18 @@ export function VariantScheduleEditor({
                               !slotStatus.available &&
                               slotStatus.reason.includes('Occupied by course')
                             const isUnavailable =
-                              !inRange && !slotStatus.available && !isCourseOccupied
+                              isPastDay ||
+                              (!inRange && !slotStatus.available && !isCourseOccupied)
 
                             const cellClass = inRange
                               ? 'bg-[#1D4ED8] font-semibold text-white'
-                              : isCourseOccupied
-                                ? 'bg-amber-400/20 text-amber-700 cursor-not-allowed'
-                                : isUnavailable
-                                  ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
-                                  : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
+                              : isPastDay
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : isCourseOccupied
+                                  ? 'bg-amber-400/20 text-amber-700 cursor-not-allowed'
+                                  : isUnavailable
+                                    ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
+                                    : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
 
                             return (
                               <div
@@ -721,21 +733,33 @@ export function VariantScheduleEditor({
                                 role="button"
                                 tabIndex={0}
                                 onClick={() => {
-                                  if (!isUnavailable && !isCourseOccupied)
+                                  if (!isPastDay && !isUnavailable && !isCourseOccupied)
                                     toggleSlot(day, dateKey, timeStr)
                                 }}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault()
-                                    if (!isUnavailable && !isCourseOccupied)
+                                    if (!isPastDay && !isUnavailable && !isCourseOccupied)
                                       toggleSlot(day, dateKey, timeStr)
                                   }
                                 }}
                                 className={`flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors ${cellClass}`}
                                 aria-pressed={inRange}
-                                aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. ${isCourseOccupied ? 'Occupied by course.' : isUnavailable ? 'Unavailable.' : 'Click to add or remove session.'}`}
+                                aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. ${
+                                  isPastDay
+                                    ? 'Past date.'
+                                    : isCourseOccupied
+                                      ? 'Occupied by course.'
+                                      : isUnavailable
+                                        ? 'Unavailable.'
+                                        : 'Click to add or remove session.'
+                                }`}
                                 title={
-                                  isUnavailable || isCourseOccupied ? slotStatus.reason : undefined
+                                  isPastDay
+                                    ? 'Past date'
+                                    : isUnavailable || isCourseOccupied
+                                      ? slotStatus.reason
+                                      : undefined
                                 }
                               >
                                 {inRange ? (
