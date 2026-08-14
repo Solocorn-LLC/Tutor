@@ -9,11 +9,12 @@
  * never reached the calendar. This shared helper closes that gap.
  */
 
-import { and, eq, gt, inArray } from 'drizzle-orm'
+import { and, eq, gt, inArray, ne } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, calendarEvent } from '@/lib/db/schema'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts } from '@/lib/time/tz'
 import { createSession } from './create-session'
+import { findConflicts } from '@/lib/schedule/conflicts'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@/lib/db/schema'
 
@@ -130,6 +131,12 @@ export interface MaterializeScheduleOptions {
 /**
  * Create LiveSession + CalendarEvent rows for every future occurrence of a
  * schedule. Returns the number of sessions created.
+ *
+ * Hardening:
+ * - Skips slots where an equivalent non-ended session already exists for the
+ *   same schedule, so repeated saves / retries cannot duplicate sessions.
+ * - Skips slots that overlap with the tutor's existing live sessions, calendar
+ *   events, or confirmed 1-on-1 bookings.
  */
 export async function materializeScheduleSessions(
   opts: MaterializeScheduleOptions,
@@ -141,8 +148,44 @@ export async function materializeScheduleSessions(
     opts.timezone ?? 'UTC'
   )
 
+  const db = tx ?? drizzleDb
   let created = 0
+  let skipped = 0
   for (const d of dates) {
+    const endTime = new Date(d.scheduledAt.getTime() + d.durationMinutes * 60000)
+
+    // Duplicate guard: an existing non-ended session for this exact schedule slot
+    // means a previous materialization (or retry) already created it.
+    const [existing] = await db
+      .select({ sessionId: liveSession.sessionId })
+      .from(liveSession)
+      .where(
+        and(
+          eq(liveSession.tutorId, opts.tutorId),
+          eq(liveSession.courseId, opts.courseId),
+          eq(liveSession.scheduleId, opts.scheduleId),
+          eq(liveSession.scheduledAt, d.scheduledAt),
+          ne(liveSession.status, 'ended')
+        )
+      )
+      .limit(1)
+
+    if (existing) {
+      skipped++
+      continue
+    }
+
+    // Conflict guard: avoid overlapping with the tutor's existing commitments.
+    const conflicts = await findConflicts(opts.tutorId, d.scheduledAt, endTime)
+    if (conflicts.length > 0) {
+      console.warn(
+        `[materializeScheduleSessions] skipping conflicting slot for schedule ${opts.scheduleId} at ${d.scheduledAt.toISOString()}:`,
+        conflicts.map(c => ({ type: c.type, id: c.id, title: c.title }))
+      )
+      skipped++
+      continue
+    }
+
     await createSession(
       {
         tutorId: opts.tutorId,
@@ -161,6 +204,12 @@ export async function materializeScheduleSessions(
       tx
     )
     created++
+  }
+
+  if (skipped > 0) {
+    console.log(
+      `[materializeScheduleSessions] schedule ${opts.scheduleId}: created ${created}, skipped ${skipped}`
+    )
   }
   return created
 }
