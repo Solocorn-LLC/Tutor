@@ -714,8 +714,7 @@ export function VariantScheduleEditor({
                               !slotStatus.available &&
                               slotStatus.reason.includes('Occupied by course')
                             const isUnavailable =
-                              isPastDay ||
-                              (!inRange && !slotStatus.available && !isCourseOccupied)
+                              isPastDay || (!inRange && !slotStatus.available && !isCourseOccupied)
 
                             const cellClass = inRange
                               ? 'bg-[#1D4ED8] font-semibold text-white'
