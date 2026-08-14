@@ -81,8 +81,6 @@ interface VariantManagerProps {
 
 export type VariantManagerHandle = {
   publish: () => Promise<void>
-  /** Persist schedule edits to already-published variants without publishing. */
-  saveSchedules: () => Promise<SaveSchedulesResult | null>
   /** Persist draft variant metadata and schedules without publishing. */
   saveDrafts: () => Promise<SaveSchedulesResult | null>
   setPanelsOpen: (open: boolean) => void
@@ -498,58 +496,6 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
       }
     }, [variants, templateCourseId, onSaved])
 
-    // Persist schedule edits to already-published variants WITHOUT publishing
-    // anything new (schedulesOnly). Used by the page's Save button so a tutor can
-    // save schedule changes on a live course without putting more of it live.
-    const handleSaveSchedules = useCallback(async (): Promise<SaveSchedulesResult | null> => {
-      if (variants.length === 0) return null
-      try {
-        const payload = variants.map(v => ({
-          ...v,
-          price: v.isFree ? 0 : typeof v.price === 'number' ? v.price : null,
-        }))
-        const res = await fetchWithCsrf(`/api/tutor/courses/${templateCourseId}/publish`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ variants: payload, schedulesOnly: true }),
-        })
-        const data: PublishResponse = await res.json().catch(() => ({}))
-        if (!res.ok) {
-          toast.error(data?.error || 'Failed to save schedules')
-          return { ok: false, processed: 0, skipped: 0 }
-        }
-        // Refresh so schedule edits and any published variants are reflected.
-        await loadVariants()
-        const processed = typeof data.count === 'number' ? data.count : 0
-        const skipped = typeof data.skippedCount === 'number' ? data.skippedCount : 0
-        const hasScheduleSlots = variants.some(
-          v =>
-            Array.isArray(v.schedules) &&
-            v.schedules.some(s => Array.isArray(s.schedule) && s.schedule.length > 0)
-        )
-        // Surface the actionable cases so a silently-skipped schedule isn't
-        // mistaken for success (clean success is messaged by the caller). A
-        // schedules-only save only materialises sessions for PUBLISHED variants,
-        // so processed === 0 with real slots means nothing reached the calendar.
-        if (processed === 0 && hasScheduleSlots) {
-          toast.warning(
-            'Schedule saved, but no sessions were added to your calendar — publish this course first (schedules only appear once the course is live).'
-          )
-        } else if (skipped > 0) {
-          toast.warning(
-            `Schedule saved. ${skipped} session${skipped === 1 ? '' : 's'} skipped (${summarizeSkipReasons(
-              data.skippedSessions
-            )}); the rest were added to your calendar.`
-          )
-        }
-        return { ok: true, processed, skipped }
-      } catch (err) {
-        console.error(err)
-        toast.error('Failed to save schedules')
-        return { ok: false, processed: 0, skipped: 0 }
-      }
-    }, [variants, templateCourseId, loadVariants])
-
     const publishedCount = variants.filter(v => v.isPublished).length
 
     useEffect(() => {
@@ -598,11 +544,10 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
         publish: async () => {
           await handleSave()
         },
-        saveSchedules: handleSaveSchedules,
         saveDrafts: handleSaveDrafts,
         setPanelsOpen,
       }),
-      [handleSave, handleSaveSchedules, handleSaveDrafts, setPanelsOpen]
+      [handleSave, handleSaveDrafts, setPanelsOpen]
     )
 
     if (loading) {
@@ -1157,10 +1102,12 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
                     variant="modal-primary-dark"
                     disabled={savingSchedule}
                     onClick={async () => {
-                      // Persist immediately so "Save" actually saves — the schedule
-                      // edit is already in `variants` state via onScheduleChange.
+                      // Persist draft changes immediately so the schedule edit is
+                      // not lost when the dialog closes. Drafts-only mode skips
+                      // already-published variants, so this only saves unpublished
+                      // variants without putting anything live.
                       setSavingSchedule(true)
-                      const result = await handleSaveSchedules()
+                      const result = await handleSaveDrafts()
                       setSavingSchedule(false)
                       if (result?.ok && result.processed > 0 && result.skipped === 0) {
                         toast.success('Schedule saved — sessions added to your calendar.')

@@ -57,6 +57,22 @@ async function materializeForSchedule(
   })
 }
 
+/** Guard: schedules must not be added, edited, or removed once a course is published. */
+async function guardUnpublished(courseId: string): Promise<NextResponse | null> {
+  const [row] = await drizzleDb
+    .select({ isPublished: course.isPublished })
+    .from(course)
+    .where(eq(course.courseId, courseId))
+    .limit(1)
+  if (row?.isPublished) {
+    return NextResponse.json(
+      { error: 'Cannot modify schedules on a published course' },
+      { status: 400 }
+    )
+  }
+  return null
+}
+
 // GET all schedules for a course
 export const GET = withAuth(
   async (req: NextRequest, session, context) => {
@@ -113,6 +129,9 @@ export const POST = withCsrf(
         if (!isOwner) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
+
+        const publishedGuard = await guardUnpublished(courseId)
+        if (publishedGuard) return publishedGuard
 
         // Find next schedule index
         const existing = await drizzleDb
@@ -196,6 +215,9 @@ export const PUT = withCsrf(
         if (!isOwner) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
+
+        const publishedGuard = await guardUnpublished(courseId)
+        if (publishedGuard) return publishedGuard
 
         const updateData: Record<string, unknown> = {}
         if (body.schedule !== undefined) updateData.schedule = body.schedule
@@ -298,6 +320,9 @@ export const DELETE = withCsrf(
         if (!isOwner) {
           return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
         }
+
+        const publishedGuard = await guardUnpublished(courseId)
+        if (publishedGuard) return publishedGuard
 
         // Check if schedule has enrollments
         const [scheduleRow] = await drizzleDb

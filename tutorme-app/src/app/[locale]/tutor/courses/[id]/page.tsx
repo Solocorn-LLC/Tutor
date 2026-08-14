@@ -589,13 +589,11 @@ export default function TutorCoursePage() {
               variant="default"
               onClick={async () => {
                 // Save persists course details, then persists draft variant
-                // metadata/schedules for unpublished variants and schedule edits
-                // for already-published variants — without publishing anything new.
-                // Save never puts a course live.
+                // metadata/schedules for unpublished variants — without publishing
+                // anything new. Save never puts a course live.
                 const saved = await handleSaveAll()
                 if (saved) {
                   await variantManagerRef.current?.saveDrafts()
-                  await variantManagerRef.current?.saveSchedules()
                 }
               }}
               disabled={saving || course?.isPublished}
