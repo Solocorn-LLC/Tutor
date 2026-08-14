@@ -36,10 +36,7 @@ function tableName(table: any): string {
   // NOTE: table.name may be a column named "name", so prefer the Symbol/_.name.
   const fromTable = table?.table ?? table
   return (
-    fromTable?.[Symbol.for('drizzle:Name')] ||
-    fromTable?._?.name ||
-    fromTable?._?.tableName ||
-    ''
+    fromTable?.[Symbol.for('drizzle:Name')] || fromTable?._?.name || fromTable?._?.tableName || ''
   )
 }
 
@@ -182,7 +179,12 @@ describe('tutor-available-slots', () => {
 
     it('blocks a whole-day exception', async () => {
       mocks.responses.calendarException = [
-        { date: new Date('2030-06-03T00:00:00Z'), isAvailable: false, startTime: null, endTime: null },
+        {
+          date: new Date('2030-06-03T00:00:00Z'),
+          isAvailable: false,
+          startTime: null,
+          endTime: null,
+        },
       ]
 
       const start = new Date('2030-06-03T00:00:00Z')
@@ -201,7 +203,12 @@ describe('tutor-available-slots', () => {
 
     it('blocks a time-specific exception', async () => {
       mocks.responses.calendarException = [
-        { date: new Date('2030-06-03T00:00:00Z'), isAvailable: false, startTime: '10:00', endTime: '11:00' },
+        {
+          date: new Date('2030-06-03T00:00:00Z'),
+          isAvailable: false,
+          startTime: '10:00',
+          endTime: '11:00',
+        },
       ]
 
       const start = new Date('2030-06-03T00:00:00Z')
@@ -270,7 +277,13 @@ describe('tutor-available-slots', () => {
 
     it('uses the timezone override when provided', async () => {
       mocks.responses.calendarAvailability = [
-        { dayOfWeek: 1, startTime: '09:00', endTime: '10:00', timezone: 'Asia/Shanghai', isAvailable: true },
+        {
+          dayOfWeek: 1,
+          startTime: '09:00',
+          endTime: '10:00',
+          timezone: 'Asia/Shanghai',
+          isAvailable: true,
+        },
       ]
 
       const start = new Date('2030-06-03T00:00:00Z')
@@ -328,7 +341,12 @@ describe('tutor-available-slots', () => {
         { dayOfWeek: 1, startTime: '00:00', endTime: '24:00', timezone: 'UTC', isAvailable: true },
       ]
       mocks.responses.calendarException = [
-        { date: new Date('2030-06-03T00:00:00Z'), isAvailable: false, startTime: null, endTime: null },
+        {
+          date: new Date('2030-06-03T00:00:00Z'),
+          isAvailable: false,
+          startTime: null,
+          endTime: null,
+        },
       ]
 
       const ok = await isSlotWithinTutorAvailability({
@@ -346,7 +364,12 @@ describe('tutor-available-slots', () => {
         { dayOfWeek: 1, startTime: '00:00', endTime: '24:00', timezone: 'UTC', isAvailable: true },
       ]
       mocks.responses.calendarException = [
-        { date: new Date('2030-06-03T00:00:00Z'), isAvailable: false, startTime: '09:30', endTime: '10:30' },
+        {
+          date: new Date('2030-06-03T00:00:00Z'),
+          isAvailable: false,
+          startTime: '09:30',
+          endTime: '10:30',
+        },
       ]
 
       const ok = await isSlotWithinTutorAvailability({

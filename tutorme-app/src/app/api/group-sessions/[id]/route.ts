@@ -79,87 +79,91 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({ groupSession: gs, seatsLeft, roster, mySeat: mySeat ?? null })
 }
 
-export const DELETE = withCsrf(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
-  const session = await getServerSession(authOptions, req)
-  if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { id } = await params
+export const DELETE = withCsrf(
+  async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await getServerSession(authOptions, req)
+    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { id } = await params
 
-  const gs = await load(id)
-  if (!gs) return NextResponse.json({ error: 'Group session not found' }, { status: 404 })
-  if (gs.tutorId !== session.user.id) {
-    return NextResponse.json({ error: 'Only the host can cancel this session' }, { status: 403 })
-  }
-  if (gs.status === 'CANCELLED') {
-    return NextResponse.json({ success: true, alreadyCancelled: true })
-  }
+    const gs = await load(id)
+    if (!gs) return NextResponse.json({ error: 'Group session not found' }, { status: 404 })
+    if (gs.tutorId !== session.user.id) {
+      return NextResponse.json({ error: 'Only the host can cancel this session' }, { status: 403 })
+    }
+    if (gs.status === 'CANCELLED') {
+      return NextResponse.json({ success: true, alreadyCancelled: true })
+    }
 
-  // End the shared session so nobody can join a cancelled slot.
-  if (gs.calendarEventId) {
-    const [ev] = await drizzleDb
-      .update(calendarEvent)
-      .set({ status: 'CANCELLED', isCancelled: true, updatedAt: new Date() })
-      .where(eq(calendarEvent.eventId, gs.calendarEventId))
-      .returning({ externalId: calendarEvent.externalId })
-    if (ev?.externalId) {
+    // End the shared session so nobody can join a cancelled slot.
+    if (gs.calendarEventId) {
+      const [ev] = await drizzleDb
+        .update(calendarEvent)
+        .set({ status: 'CANCELLED', isCancelled: true, updatedAt: new Date() })
+        .where(eq(calendarEvent.eventId, gs.calendarEventId))
+        .returning({ externalId: calendarEvent.externalId })
+      if (ev?.externalId) {
+        await drizzleDb
+          .update(liveSession)
+          .set({ status: 'ended', endedAt: new Date() })
+          .where(and(eq(liveSession.sessionId, ev.externalId), ne(liveSession.status, 'ended')))
+      }
+    }
+    if (gs.liveSessionId) {
       await drizzleDb
         .update(liveSession)
         .set({ status: 'ended', endedAt: new Date() })
-        .where(and(eq(liveSession.sessionId, ev.externalId), ne(liveSession.status, 'ended')))
+        .where(and(eq(liveSession.sessionId, gs.liveSessionId), ne(liveSession.status, 'ended')))
     }
-  }
-  if (gs.liveSessionId) {
+
     await drizzleDb
-      .update(liveSession)
-      .set({ status: 'ended', endedAt: new Date() })
-      .where(and(eq(liveSession.sessionId, gs.liveSessionId), ne(liveSession.status, 'ended')))
-  }
-
-  await drizzleDb
-    .update(groupSession)
-    .set({ status: 'CANCELLED', updatedAt: new Date() })
-    .where(eq(groupSession.groupSessionId, id))
-
-  // Refund every paid seat and release all held seats.
-  const seats = await drizzleDb
-    .select()
-    .from(groupSessionParticipant)
-    .where(
-      and(
-        eq(groupSessionParticipant.groupSessionId, id),
-        inArray(groupSessionParticipant.status, ['RESERVED', 'PAID'])
-      )
-    )
-
-  // Free sessions have no payment to refund.
-  const isPaidSession = (gs.pricePerSeat ?? 0) > 0
-  let refundedCount = 0
-  for (const seat of seats) {
-    if (seat.status === 'PAID' && isPaidSession) {
-      const outcome = await refundGroupSeat(seat.participantId, 'Group session cancelled by host')
-      if (outcome.refunded) refundedCount++
-      notify({
-        userId: seat.studentId,
-        type: 'class',
-        title: outcome.refunded ? 'Group session cancelled — refunded' : 'Group session cancelled',
-        message: outcome.refunded
-          ? `“${gs.title}” was cancelled. ${outcome.amount} ${outcome.currency ?? ''} was refunded (a 15% fee of ${outcome.fee} applied).`.trim()
-          : `“${gs.title}” was cancelled. A refund is being processed.`,
-        data: { groupSessionId: id, type: 'group-session-cancelled' },
-      }).catch(() => {})
-    } else {
-      notify({
-        userId: seat.studentId,
-        type: 'class',
-        title: 'Group session cancelled',
-        message: `“${gs.title}” was cancelled by the host.`,
-        data: { groupSessionId: id, type: 'group-session-cancelled' },
-      }).catch(() => {})
-    }
-    await drizzleDb
-      .update(groupSessionParticipant)
+      .update(groupSession)
       .set({ status: 'CANCELLED', updatedAt: new Date() })
-      .where(eq(groupSessionParticipant.participantId, seat.participantId))
-  }
+      .where(eq(groupSession.groupSessionId, id))
 
-  return NextResponse.json({ success: true, refunded: refundedCount, seats: seats.length })
-})
+    // Refund every paid seat and release all held seats.
+    const seats = await drizzleDb
+      .select()
+      .from(groupSessionParticipant)
+      .where(
+        and(
+          eq(groupSessionParticipant.groupSessionId, id),
+          inArray(groupSessionParticipant.status, ['RESERVED', 'PAID'])
+        )
+      )
+
+    // Free sessions have no payment to refund.
+    const isPaidSession = (gs.pricePerSeat ?? 0) > 0
+    let refundedCount = 0
+    for (const seat of seats) {
+      if (seat.status === 'PAID' && isPaidSession) {
+        const outcome = await refundGroupSeat(seat.participantId, 'Group session cancelled by host')
+        if (outcome.refunded) refundedCount++
+        notify({
+          userId: seat.studentId,
+          type: 'class',
+          title: outcome.refunded
+            ? 'Group session cancelled — refunded'
+            : 'Group session cancelled',
+          message: outcome.refunded
+            ? `“${gs.title}” was cancelled. ${outcome.amount} ${outcome.currency ?? ''} was refunded (a 15% fee of ${outcome.fee} applied).`.trim()
+            : `“${gs.title}” was cancelled. A refund is being processed.`,
+          data: { groupSessionId: id, type: 'group-session-cancelled' },
+        }).catch(() => {})
+      } else {
+        notify({
+          userId: seat.studentId,
+          type: 'class',
+          title: 'Group session cancelled',
+          message: `“${gs.title}” was cancelled by the host.`,
+          data: { groupSessionId: id, type: 'group-session-cancelled' },
+        }).catch(() => {})
+      }
+      await drizzleDb
+        .update(groupSessionParticipant)
+        .set({ status: 'CANCELLED', updatedAt: new Date() })
+        .where(eq(groupSessionParticipant.participantId, seat.participantId))
+    }
+
+    return NextResponse.json({ success: true, refunded: refundedCount, seats: seats.length })
+  }
+)

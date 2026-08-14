@@ -131,7 +131,9 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
         if (!withinTutorAvailability) {
           const which = isSeries ? ` for the ${slotDate} session` : ''
           return NextResponse.json(
-            { error: `That time${which} falls outside your available hours. Please accept a different slot.` },
+            {
+              error: `That time${which} falls outside your available hours. Please accept a different slot.`,
+            },
             { status: 400 }
           )
         }

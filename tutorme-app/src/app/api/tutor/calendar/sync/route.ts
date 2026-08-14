@@ -76,97 +76,97 @@ export const GET = withAuth(
 export const POST = withCsrf(
   withAuth(
     async (req: NextRequest, session) => {
-    const tutorId = session.user.id
+      const tutorId = session.user.id
 
-    try {
-      const body = await req.json()
-      const validation = SyncRequestSchema.safeParse(body)
+      try {
+        const body = await req.json()
+        const validation = SyncRequestSchema.safeParse(body)
 
-      if (!validation.success) {
-        return NextResponse.json(
-          { error: 'Invalid request', details: validation.error.format() },
-          { status: 400 }
-        )
-      }
-
-      const { provider, direction, dateRange } = validation.data
-
-      const connectionConditions = [
-        eq(calendarConnection.userId, tutorId),
-        eq(calendarConnection.syncEnabled, true),
-      ]
-      if (provider) connectionConditions.push(eq(calendarConnection.provider, provider))
-
-      const connections = await drizzleDb
-        .select()
-        .from(calendarConnection)
-        .where(and(...connectionConditions))
-
-      if (connections.length === 0) {
-        return NextResponse.json(
-          { error: 'No calendar connections found. Please connect a calendar first.' },
-          { status: 404 }
-        )
-      }
-
-      const results: Array<{
-        provider: string
-        status: string
-        message?: string
-        imported?: number
-        exported?: number
-      }> = []
-      const defaultDateRange = {
-        start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
-        end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-      }
-
-      const range = dateRange
-        ? { start: new Date(dateRange.start), end: new Date(dateRange.end) }
-        : defaultDateRange
-
-      for (const connection of connections) {
-        if (connection.expiresAt && connection.expiresAt < new Date()) {
-          results.push({
-            provider: connection.provider,
-            status: 'error',
-            message: 'Token expired, please reconnect',
-          })
-          continue
+        if (!validation.success) {
+          return NextResponse.json(
+            { error: 'Invalid request', details: validation.error.format() },
+            { status: 400 }
+          )
         }
 
-        try {
-          const syncResult = await syncCalendar(connection, direction, range, tutorId)
+        const { provider, direction, dateRange } = validation.data
 
-          await drizzleDb
-            .update(calendarConnection)
-            .set({ lastSyncedAt: new Date() })
-            .where(eq(calendarConnection.connectionId, connection.connectionId))
+        const connectionConditions = [
+          eq(calendarConnection.userId, tutorId),
+          eq(calendarConnection.syncEnabled, true),
+        ]
+        if (provider) connectionConditions.push(eq(calendarConnection.provider, provider))
 
-          results.push({
-            provider: connection.provider,
-            status: 'success',
-            ...syncResult,
-          })
-        } catch (error: unknown) {
-          results.push({
-            provider: connection.provider,
-            status: 'error',
-            message: error instanceof Error ? error.message : 'Unknown error',
-          })
+        const connections = await drizzleDb
+          .select()
+          .from(calendarConnection)
+          .where(and(...connectionConditions))
+
+        if (connections.length === 0) {
+          return NextResponse.json(
+            { error: 'No calendar connections found. Please connect a calendar first.' },
+            { status: 404 }
+          )
         }
-      }
 
-      return NextResponse.json({
-        syncResults: results,
-        timestamp: new Date().toISOString(),
-      })
-    } catch (error) {
-      console.error('Calendar sync error:', error)
-      return handleApiError(error, 'Failed to sync calendar', 'api/tutor/calendar/sync/route.ts')
-    }
-  },
-  { role: 'TUTOR' }
+        const results: Array<{
+          provider: string
+          status: string
+          message?: string
+          imported?: number
+          exported?: number
+        }> = []
+        const defaultDateRange = {
+          start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          end: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+        }
+
+        const range = dateRange
+          ? { start: new Date(dateRange.start), end: new Date(dateRange.end) }
+          : defaultDateRange
+
+        for (const connection of connections) {
+          if (connection.expiresAt && connection.expiresAt < new Date()) {
+            results.push({
+              provider: connection.provider,
+              status: 'error',
+              message: 'Token expired, please reconnect',
+            })
+            continue
+          }
+
+          try {
+            const syncResult = await syncCalendar(connection, direction, range, tutorId)
+
+            await drizzleDb
+              .update(calendarConnection)
+              .set({ lastSyncedAt: new Date() })
+              .where(eq(calendarConnection.connectionId, connection.connectionId))
+
+            results.push({
+              provider: connection.provider,
+              status: 'success',
+              ...syncResult,
+            })
+          } catch (error: unknown) {
+            results.push({
+              provider: connection.provider,
+              status: 'error',
+              message: error instanceof Error ? error.message : 'Unknown error',
+            })
+          }
+        }
+
+        return NextResponse.json({
+          syncResults: results,
+          timestamp: new Date().toISOString(),
+        })
+      } catch (error) {
+        console.error('Calendar sync error:', error)
+        return handleApiError(error, 'Failed to sync calendar', 'api/tutor/calendar/sync/route.ts')
+      }
+    },
+    { role: 'TUTOR' }
   )
 )
 
@@ -274,66 +274,73 @@ async function fetchExternalEvents(
 export const PUT = withCsrf(
   withAuth(
     async (req: NextRequest, session) => {
-    const tutorId = session.user.id
+      const tutorId = session.user.id
 
-    try {
-      const body = await req.json()
-      const { provider, authCode } = body
+      try {
+        const body = await req.json()
+        const { provider, authCode } = body
 
-      if (!provider || !authCode) {
-        return NextResponse.json({ error: 'Provider and auth code are required' }, { status: 400 })
-      }
+        if (!provider || !authCode) {
+          return NextResponse.json(
+            { error: 'Provider and auth code are required' },
+            { status: 400 }
+          )
+        }
 
-      const [existing] = await drizzleDb
-        .select()
-        .from(calendarConnection)
-        .where(
-          and(eq(calendarConnection.userId, tutorId), eq(calendarConnection.provider, provider))
-        )
-        .limit(1)
+        const [existing] = await drizzleDb
+          .select()
+          .from(calendarConnection)
+          .where(
+            and(eq(calendarConnection.userId, tutorId), eq(calendarConnection.provider, provider))
+          )
+          .limit(1)
 
-      const now = new Date()
-      if (existing) {
-        const [updated] = await drizzleDb
-          .update(calendarConnection)
-          .set({ syncEnabled: true, lastSyncedAt: now })
-          .where(eq(calendarConnection.connectionId, existing.connectionId))
+        const now = new Date()
+        if (existing) {
+          const [updated] = await drizzleDb
+            .update(calendarConnection)
+            .set({ syncEnabled: true, lastSyncedAt: now })
+            .where(eq(calendarConnection.connectionId, existing.connectionId))
+            .returning()
+
+          return NextResponse.json({
+            connection: {
+              provider: updated!.provider,
+              syncEnabled: updated!.syncEnabled,
+              syncDirection: updated!.syncDirection,
+            },
+            message: 'Calendar connected successfully',
+          })
+        }
+
+        const [created] = await drizzleDb
+          .insert(calendarConnection)
+          .values({
+            connectionId: nanoid(),
+            userId: tutorId,
+            provider,
+            syncEnabled: true,
+            syncDirection: 'bidirectional',
+          })
           .returning()
 
         return NextResponse.json({
           connection: {
-            provider: updated!.provider,
-            syncEnabled: updated!.syncEnabled,
-            syncDirection: updated!.syncDirection,
+            provider: created!.provider,
+            syncEnabled: created!.syncEnabled,
+            syncDirection: created!.syncDirection,
           },
           message: 'Calendar connected successfully',
         })
+      } catch (error) {
+        console.error('Connect calendar error:', error)
+        return handleApiError(
+          error,
+          'Failed to connect calendar',
+          'api/tutor/calendar/sync/route.ts'
+        )
       }
-
-      const [created] = await drizzleDb
-        .insert(calendarConnection)
-        .values({
-          connectionId: nanoid(),
-          userId: tutorId,
-          provider,
-          syncEnabled: true,
-          syncDirection: 'bidirectional',
-        })
-        .returning()
-
-      return NextResponse.json({
-        connection: {
-          provider: created!.provider,
-          syncEnabled: created!.syncEnabled,
-          syncDirection: created!.syncDirection,
-        },
-        message: 'Calendar connected successfully',
-      })
-    } catch (error) {
-      console.error('Connect calendar error:', error)
-      return handleApiError(error, 'Failed to connect calendar', 'api/tutor/calendar/sync/route.ts')
-    }
-  },
-  { role: 'TUTOR' }
+    },
+    { role: 'TUTOR' }
   )
 )

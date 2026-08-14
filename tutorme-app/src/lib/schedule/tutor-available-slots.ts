@@ -14,19 +14,10 @@
  */
 
 import { drizzleDb } from '@/lib/db/drizzle'
-import {
-  calendarAvailability,
-  calendarException,
-  profile,
-} from '@/lib/db/schema'
+import { calendarAvailability, calendarException, profile } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, isNull } from 'drizzle-orm'
 import { findConflicts } from '@/lib/schedule/conflicts'
-import {
-  formatInZone,
-  zonedDateParts,
-  zonedWeekday,
-  zonedWallClockToUtc,
-} from '@/lib/time/tz'
+import { formatInZone, zonedDateParts, zonedWeekday, zonedWallClockToUtc } from '@/lib/time/tz'
 import { slotInstants } from '@/lib/one-on-one/time'
 
 export interface TutorAvailableSlot {
@@ -72,12 +63,7 @@ function formatHhmm(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
-function hhmmOverlap(
-  aStart: string,
-  aEnd: string,
-  bStart: string,
-  bEnd: string
-): boolean {
+function hhmmOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return aStart < bEnd && aEnd > bStart
 }
 
@@ -351,9 +337,7 @@ export async function isSlotWithinTutorAvailability(
       )
     )
 
-  const localDateExceptions = exceptions.filter(
-    e => formatInZone(e.date, tutorTz).date === date
-  )
+  const localDateExceptions = exceptions.filter(e => formatInZone(e.date, tutorTz).date === date)
 
   // Whole-day block exception (isAvailable=false, no times).
   if (localDateExceptions.some(e => !e.isAvailable && !e.startTime && !e.endTime)) {
@@ -422,7 +406,5 @@ export async function isSlotAvailableForTutor(options: CheckTutorSlotOptions): P
     ...rest,
   })
 
-  return available.some(
-    s => s.date === date && s.startTime === startTime && s.endTime === endTime
-  )
+  return available.some(s => s.date === date && s.startTime === startTime && s.endTime === endTime)
 }

@@ -184,38 +184,38 @@ export const GET = withAuth(
 export const POST = withCsrf(
   withAuth(
     async (req: NextRequest, session) => {
-    const tutorId = session.user.id
+      const tutorId = session.user.id
 
-    try {
-      const body = await req.json()
-      const { enabled, publicAccess = 'limited' } = body
+      try {
+        const body = await req.json()
+        const { enabled, publicAccess = 'limited' } = body
 
-      // Generate or revoke public feed URL
-      // In production, store this in the database
-      const feedToken = enabled
-        ? Buffer.from(`${tutorId}-${Date.now()}-${Math.random()}`)
-            .toString('base64')
-            .replace(/[^a-zA-Z0-9]/g, '')
-        : null
+        // Generate or revoke public feed URL
+        // In production, store this in the database
+        const feedToken = enabled
+          ? Buffer.from(`${tutorId}-${Date.now()}-${Math.random()}`)
+              .toString('base64')
+              .replace(/[^a-zA-Z0-9]/g, '')
+          : null
 
-      // TODO: Store feed token in database
+        // TODO: Store feed token in database
 
-      return NextResponse.json({
-        enabled: !!feedToken,
-        feedUrl: feedToken
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/public/${feedToken}`
-          : null,
-        publicAccess,
-      })
-    } catch (error) {
-      console.error('Calendar feed error:', error)
-      return handleApiError(
-        error,
-        'Failed to manage calendar feed',
-        'api/tutor/calendar/export/route.ts'
-      )
-    }
-  },
-  { role: 'TUTOR' }
+        return NextResponse.json({
+          enabled: !!feedToken,
+          feedUrl: feedToken
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/public/${feedToken}`
+            : null,
+          publicAccess,
+        })
+      } catch (error) {
+        console.error('Calendar feed error:', error)
+        return handleApiError(
+          error,
+          'Failed to manage calendar feed',
+          'api/tutor/calendar/export/route.ts'
+        )
+      }
+    },
+    { role: 'TUTOR' }
   )
 )
