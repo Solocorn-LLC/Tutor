@@ -431,6 +431,9 @@ export function InteractiveCalendar({
   const _setTimezone = onTimezoneChange ?? setInternalTimezone
   const [availabilitySaving, setAvailabilitySaving] = useState(false)
   const [availabilityLoading, setAvailabilityLoading] = useState(false)
+  const [courseOccupiedSlots, setCourseOccupiedSlots] = useState<
+    Array<{ dayOfWeek: number; startTime: string; endTime: string; courseName: string | null }>
+  >([])
 
   // New feature states
   const [showCalendarIntegrations, setShowCalendarIntegrations] = useState(false)
@@ -534,6 +537,16 @@ export function InteractiveCalendar({
           return { ...block, isAvailable: !found }
         })
         setAvailability(normalized)
+        setCourseOccupiedSlots(
+          Array.isArray(data?.courseOccupiedSlots)
+            ? data.courseOccupiedSlots.map((s: any) => ({
+                dayOfWeek: Number(s.dayOfWeek) || 0,
+                startTime: String(s.startTime || '00:00'),
+                endTime: String(s.endTime || '00:00'),
+                courseName: s.courseName ? String(s.courseName) : null,
+              }))
+            : []
+        )
       } catch {
         // ignore
       } finally {
@@ -815,6 +828,24 @@ export function InteractiveCalendar({
     if (!target) return
 
     const nextValue = !target.isAvailable
+
+    if (!nextValue) {
+      const occupied = courseOccupiedSlots.find(
+        o =>
+          o.dayOfWeek === target.dayOfWeek &&
+          target.startTime < o.endTime &&
+          target.endTime > o.startTime
+      )
+      if (occupied) {
+        toast.warning(
+          occupied.courseName
+            ? `"${occupied.courseName}" is scheduled at this time. Reschedule or cancel the session before blocking it.`
+            : 'A course is scheduled at this time. Reschedule or cancel the session before blocking it.'
+        )
+        return
+      }
+    }
+
     setAvailability(prev =>
       prev.map(block => (block.id === id ? { ...block, isAvailable: nextValue } : block))
     )
@@ -1234,6 +1265,7 @@ export function InteractiveCalendar({
               {availabilityOnly ? (
                 <AvailabilityView
                   availability={availability}
+                  courseOccupiedSlots={courseOccupiedSlots}
                   onToggle={toggleAvailability}
                   onSave={() => toast.success('Availability updated!')}
                 />
@@ -1280,6 +1312,7 @@ export function InteractiveCalendar({
                   {!isStudent && view === 'availability' && (
                     <AvailabilityView
                       availability={availability}
+                      courseOccupiedSlots={courseOccupiedSlots}
                       onToggle={toggleAvailability}
                       onSave={() => {
                         toast.success('Availability updated!')
@@ -1323,22 +1356,58 @@ export function InteractiveCalendar({
                 No time slots configured.
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {availabilitySlotsForDay.map(slot => (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    onClick={() => toggleAvailability(slot.id)}
-                    className={cn(
-                      'rounded-md border px-3 py-2 text-xs font-medium transition-colors',
-                      slot.isAvailable
-                        ? 'border-emerald-500 bg-emerald-500 text-white'
-                        : 'border-slate-200 text-slate-600 hover:border-emerald-300'
-                    )}
-                  >
-                    {slot.startTime}
-                  </button>
-                ))}
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 rounded-sm bg-emerald-500" />
+                    Available
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 rounded-sm bg-amber-400" />
+                    Occupied by course
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
+                    Blocked
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {availabilitySlotsForDay.map(slot => {
+                    const occupied = courseOccupiedSlots.find(
+                      o =>
+                        o.dayOfWeek === slot.dayOfWeek &&
+                        slot.startTime < o.endTime &&
+                        slot.endTime > o.startTime
+                    )
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        disabled={!!occupied}
+                        onClick={() => !occupied && toggleAvailability(slot.id)}
+                        title={
+                          occupied
+                            ? occupied.courseName
+                              ? `Occupied by "${occupied.courseName}"`
+                              : 'Occupied by a scheduled course'
+                            : slot.isAvailable
+                              ? 'Click to block this slot'
+                              : 'Click to make this slot available'
+                        }
+                        className={cn(
+                          'rounded-md border px-3 py-2 text-xs font-medium transition-colors',
+                          occupied
+                            ? 'cursor-not-allowed border-amber-400 bg-amber-400 text-white'
+                            : slot.isAvailable
+                              ? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
+                              : 'border-slate-200 text-slate-600 hover:border-emerald-300'
+                        )}
+                      >
+                        {slot.startTime}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
             <DialogFooter>
@@ -2473,7 +2542,22 @@ function formatRanges(dayName: string, ranges: { start: string; end: string }[])
   return `${dayName}: ${rangeStr}`
 }
 
-function AvailabilityView({ availability, onToggle, onSave }: any) {
+function AvailabilityView({
+  availability,
+  courseOccupiedSlots,
+  onToggle,
+  onSave,
+}: {
+  availability: AvailabilityBlock[]
+  courseOccupiedSlots?: Array<{
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    courseName: string | null
+  }>
+  onToggle: (id: string) => void
+  onSave: () => void
+}) {
   const days = [
     { label: 'Mon', full: 'Monday', index: 1 },
     { label: 'Tue', full: 'Tuesday', index: 2 },
@@ -2486,13 +2570,29 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
   const [activeDay, setActiveDay] = useState(days[0].full)
   const [showAllDays, setShowAllDays] = useState(false)
 
+  const occupiedByCourse = useCallback(
+    (block: AvailabilityBlock) => {
+      return (courseOccupiedSlots || []).find(
+        o =>
+          o.dayOfWeek === block.dayOfWeek &&
+          block.startTime < o.endTime &&
+          block.endTime > o.startTime
+      )
+    },
+    [courseOccupiedSlots]
+  )
+
   const activeDayIndex = days.find(d => d.full === activeDay)?.index ?? 1
   const dayBlocks = availability.filter(
     (block: AvailabilityBlock) => block.dayOfWeek === activeDayIndex
   )
-  const selectedCount = dayBlocks.filter((b: AvailabilityBlock) => b.isAvailable).length
+  const selectedCount = dayBlocks.filter(
+    (b: AvailabilityBlock) => b.isAvailable && !occupiedByCourse(b)
+  ).length
 
-  const activeDayRanges = computeRangesForDay(dayBlocks)
+  const activeDayRanges = computeRangesForDay(
+    dayBlocks.filter(b => b.isAvailable && !occupiedByCourse(b))
+  )
   const activeDaySummary = formatRanges(activeDay, activeDayRanges)
 
   const allDaysSummary = days
@@ -2500,7 +2600,7 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
       const blocks = availability.filter(
         (block: AvailabilityBlock) => block.dayOfWeek === day.index
       )
-      const ranges = computeRangesForDay(blocks)
+      const ranges = computeRangesForDay(blocks.filter(b => b.isAvailable && !occupiedByCourse(b)))
       return formatRanges(day.full, ranges)
     })
     .join('; ')
@@ -2516,41 +2616,76 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
           ))}
         </TabsList>
 
+        <div className="mb-2 mt-2 flex flex-wrap items-center gap-3 text-[10px] font-medium text-gray-600">
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-sm border border-green-300 bg-green-50" />
+            Available
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-sm border border-amber-300 bg-amber-50" />
+            Occupied by course
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block h-3 w-3 rounded-sm border border-gray-200 bg-gray-50 opacity-60" />
+            Blocked
+          </span>
+        </div>
+
         {days.map(day => {
           const tabBlocks = availability.filter(
             (block: AvailabilityBlock) => block.dayOfWeek === day.index
           )
-          const tabSelectedCount = tabBlocks.filter((b: AvailabilityBlock) => b.isAvailable).length
+          const tabSelectedCount = tabBlocks.filter(
+            (b: AvailabilityBlock) => b.isAvailable && !occupiedByCourse(b)
+          ).length
+          const tabOccupiedCount = tabBlocks.filter(occupiedByCourse).length
           return (
             <TabsContent key={day.full} value={day.full} className="mt-2 flex-1">
               <div className="mb-2 flex items-center justify-between">
                 <h3 className="text-sm font-medium">{day.full}</h3>
                 <span className="text-muted-foreground text-xs">
                   {tabSelectedCount} of {tabBlocks.length} slots available
+                  {tabOccupiedCount > 0 ? ` · ${tabOccupiedCount} course` : ''}
                 </span>
               </div>
 
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                {tabBlocks.map((block: AvailabilityBlock) => (
-                  <button
-                    key={block.id}
-                    type="button"
-                    onClick={() => onToggle(block.id)}
-                    className={cn(
-                      'flex items-center justify-between rounded-lg border px-2 py-2 text-xs transition-all',
-                      block.isAvailable
-                        ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
-                        : 'border-gray-200 bg-gray-50 text-gray-500 opacity-60 hover:opacity-100'
-                    )}
-                  >
-                    <span className="font-medium">{block.startTime}</span>
-                    {block.isAvailable ? (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                    ) : (
-                      <X className="h-3.5 w-3.5 text-gray-300" />
-                    )}
-                  </button>
-                ))}
+                {tabBlocks.map((block: AvailabilityBlock) => {
+                  const occupied = occupiedByCourse(block)
+                  return (
+                    <button
+                      key={block.id}
+                      type="button"
+                      onClick={() => onToggle(block.id)}
+                      title={
+                        occupied
+                          ? occupied.courseName
+                            ? `Occupied by "${occupied.courseName}"`
+                            : 'Occupied by a scheduled course'
+                          : block.isAvailable
+                            ? 'Click to block this slot'
+                            : 'Click to make this slot available'
+                      }
+                      className={cn(
+                        'flex items-center justify-between rounded-lg border px-2 py-2 text-xs transition-all',
+                        occupied
+                          ? 'cursor-not-allowed border-amber-300 bg-amber-50 text-amber-800'
+                          : block.isAvailable
+                            ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
+                            : 'border-gray-200 bg-gray-50 text-gray-500 opacity-60 hover:opacity-100'
+                      )}
+                    >
+                      <span className="font-medium">{block.startTime}</span>
+                      {occupied ? (
+                        <BookOpen className="h-3.5 w-3.5 text-amber-500" />
+                      ) : block.isAvailable ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <X className="h-3.5 w-3.5 text-gray-300" />
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </TabsContent>
           )

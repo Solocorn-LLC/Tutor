@@ -30,6 +30,12 @@ interface AvailabilityData {
   }>
   events: Array<{ date: string; startTime: string; endTime: string; title: string }>
   oneOnOnes: Array<{ date: string; startTime: string; endTime: string }>
+  courseOccupiedSlots?: Array<{
+    dayOfWeek: number
+    startTime: string
+    endTime: string
+    courseName: string | null
+  }>
 }
 
 interface VariantScheduleEditorProps {
@@ -193,6 +199,7 @@ export function VariantScheduleEditor({
             exceptions: data.exceptions || [],
             events: data.events || [],
             oneOnOnes: data.oneOnOnes || [],
+            courseOccupiedSlots: data.courseOccupiedSlots || [],
           })
         }
       } catch (err: any) {
@@ -249,7 +256,23 @@ export function VariantScheduleEditor({
         }
       }
 
-      // 3. Check existing events
+      // 3. Check recurring course-occupied slots. These are future course sessions
+      // that occupy this recurring day/time — show them distinctly from generic
+      // calendar events so tutors know a course is already scheduled here.
+      const courseSlots = availabilityData.courseOccupiedSlots ?? []
+      const dayCourseSlots = courseSlots.filter(c => DAY_TO_INDEX[day] === c.dayOfWeek)
+      for (const c of dayCourseSlots) {
+        if (timesOverlap(slotStartStr, slotEndStr, c.startTime, c.endTime)) {
+          return {
+            available: false,
+            reason: c.courseName
+              ? `Occupied by course: ${c.courseName}`
+              : 'Occupied by another scheduled course',
+          }
+        }
+      }
+
+      // 4. Check existing events
       const dayEvents = availabilityData.events.filter(e => e.date === dateKey)
       for (const ev of dayEvents) {
         if (timesOverlap(slotStartStr, slotEndStr, ev.startTime, ev.endTime)) {
@@ -387,7 +410,9 @@ export function VariantScheduleEditor({
   const toggleSlot = (day: string, dateKey: string, timeStr: string) => {
     const status = getSlotStatus(day, dateKey, timeStr, 60)
     if (!status.available) {
-      if (status.reason.includes('One-on-one')) {
+      if (status.reason.includes('Occupied by course')) {
+        toast.error(status.reason)
+      } else if (status.reason.includes('One-on-one')) {
         toast.error('This slot conflicts with a one-on-one booking.')
       } else if (
         status.reason.includes('Existing booking') ||
@@ -513,6 +538,10 @@ export function VariantScheduleEditor({
               <span className="flex items-center gap-1">
                 <span className="inline-block h-3 w-3 rounded-sm border border-slate-200 bg-white" />
                 Available
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block h-3 w-3 rounded-sm bg-amber-400" />
+                Occupied by course
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block h-3 w-3 rounded-sm bg-red-500/10" />
@@ -671,13 +700,20 @@ export function VariantScheduleEditor({
                             }
 
                             const slotStatus = getSlotStatus(day, dateKey, timeStr, 60)
-                            const isUnavailable = !inRange && !slotStatus.available
+                            const isCourseOccupied =
+                              !inRange &&
+                              !slotStatus.available &&
+                              slotStatus.reason.includes('Occupied by course')
+                            const isUnavailable =
+                              !inRange && !slotStatus.available && !isCourseOccupied
 
                             const cellClass = inRange
                               ? 'bg-[#1D4ED8] font-semibold text-white'
-                              : isUnavailable
-                                ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
-                                : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
+                              : isCourseOccupied
+                                ? 'bg-amber-400/20 text-amber-700 cursor-not-allowed'
+                                : isUnavailable
+                                  ? 'bg-red-500/10 text-slate-500 cursor-not-allowed'
+                                  : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
 
                             return (
                               <div
@@ -685,18 +721,22 @@ export function VariantScheduleEditor({
                                 role="button"
                                 tabIndex={0}
                                 onClick={() => {
-                                  if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
+                                  if (!isUnavailable && !isCourseOccupied)
+                                    toggleSlot(day, dateKey, timeStr)
                                 }}
                                 onKeyDown={e => {
                                   if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault()
-                                    if (!isUnavailable) toggleSlot(day, dateKey, timeStr)
+                                    if (!isUnavailable && !isCourseOccupied)
+                                      toggleSlot(day, dateKey, timeStr)
                                   }
                                 }}
                                 className={`flex h-12 w-full items-center justify-center border-b border-r border-[rgba(209,213,219,0.85)] px-2 text-center transition-colors ${cellClass}`}
                                 aria-pressed={inRange}
-                                aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. Click to ${inRange ? 'remove' : 'add'} session.`}
-                                title={isUnavailable ? slotStatus.reason : undefined}
+                                aria-label={`${day} ${displayTime}${inRange ? ', selected' : ''}. ${isCourseOccupied ? 'Occupied by course.' : isUnavailable ? 'Unavailable.' : 'Click to add or remove session.'}`}
+                                title={
+                                  isUnavailable || isCourseOccupied ? slotStatus.reason : undefined
+                                }
                               >
                                 {inRange ? (
                                   <span className="text-[11px]">{sessionLabel}</span>
