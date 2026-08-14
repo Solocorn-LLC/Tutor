@@ -10,7 +10,7 @@ import {
   calendarEvent,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, sql, inArray } from 'drizzle-orm'
+import { eq, and, sql, inArray, isNull } from 'drizzle-orm'
 import { CourseBuilderService } from '@/lib/services/course-builder.service'
 import { z } from 'zod'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -75,7 +75,7 @@ export const GET = withAuth(
           builderData: courseLesson.builderData,
         })
         .from(courseLesson)
-        .where(eq(courseLesson.courseId, id))
+        .where(and(eq(courseLesson.courseId, id), isNull(courseLesson.deletedAt)))
         .orderBy(courseLesson.order)
 
       const courseRow = courseData[0]
