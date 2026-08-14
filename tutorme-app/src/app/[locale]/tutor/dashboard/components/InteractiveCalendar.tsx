@@ -2516,39 +2516,45 @@ function AvailabilityView({ availability, onToggle, onSave }: any) {
           ))}
         </TabsList>
 
-        {days.map(day => (
-          <TabsContent key={day.full} value={day.full} className="mt-2 flex-1">
-            <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-sm font-medium">{day.full}</h3>
-              <span className="text-muted-foreground text-xs">
-                {selectedCount} of {dayBlocks.length} slots available
-              </span>
-            </div>
+        {days.map(day => {
+          const tabBlocks = availability.filter(
+            (block: AvailabilityBlock) => block.dayOfWeek === day.index
+          )
+          const tabSelectedCount = tabBlocks.filter((b: AvailabilityBlock) => b.isAvailable).length
+          return (
+            <TabsContent key={day.full} value={day.full} className="mt-2 flex-1">
+              <div className="mb-2 flex items-center justify-between">
+                <h3 className="text-sm font-medium">{day.full}</h3>
+                <span className="text-muted-foreground text-xs">
+                  {tabSelectedCount} of {tabBlocks.length} slots available
+                </span>
+              </div>
 
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-              {dayBlocks.map((block: AvailabilityBlock) => (
-                <button
-                  key={block.id}
-                  type="button"
-                  onClick={() => onToggle(block.id)}
-                  className={cn(
-                    'flex items-center justify-between rounded-lg border px-2 py-2 text-xs transition-all',
-                    block.isAvailable
-                      ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
-                      : 'border-gray-200 bg-gray-50 text-gray-500 opacity-60 hover:opacity-100'
-                  )}
-                >
-                  <span className="font-medium">{block.startTime}</span>
-                  {block.isAvailable ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                  ) : (
-                    <X className="h-3.5 w-3.5 text-gray-300" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </TabsContent>
-        ))}
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+                {tabBlocks.map((block: AvailabilityBlock) => (
+                  <button
+                    key={block.id}
+                    type="button"
+                    onClick={() => onToggle(block.id)}
+                    className={cn(
+                      'flex items-center justify-between rounded-lg border px-2 py-2 text-xs transition-all',
+                      block.isAvailable
+                        ? 'border-green-300 bg-green-50 text-green-800 hover:bg-green-100'
+                        : 'border-gray-200 bg-gray-50 text-gray-500 opacity-60 hover:opacity-100'
+                    )}
+                  >
+                    <span className="font-medium">{block.startTime}</span>
+                    {block.isAvailable ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <X className="h-3.5 w-3.5 text-gray-300" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </TabsContent>
+          )
+        })}
       </Tabs>
 
       <div className="mt-4 border-t pt-4">

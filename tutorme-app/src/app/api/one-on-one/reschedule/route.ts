@@ -8,6 +8,7 @@
  * Only ACCEPTED/PAID bookings (which have a real session) can be rescheduled.
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { eq } from 'drizzle-orm'
@@ -117,7 +118,7 @@ async function validateSlot(
 }
 
 // Propose a new time.
-export async function POST(req: NextRequest) {
+export const POST = withCsrf(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -164,10 +165,10 @@ export async function POST(req: NextRequest) {
     console.error('reschedule propose failed:', err)
     return NextResponse.json({ error: 'Failed to propose reschedule' }, { status: 500 })
   }
-}
+})
 
 // Accept or decline a pending reschedule.
-export async function PATCH(req: NextRequest) {
+export const PATCH = withCsrf(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -277,4 +278,4 @@ export async function PATCH(req: NextRequest) {
     console.error('reschedule respond failed:', err)
     return NextResponse.json({ error: 'Failed to respond to reschedule' }, { status: 500 })
   }
-}
+})

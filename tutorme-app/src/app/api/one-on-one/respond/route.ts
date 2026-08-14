@@ -1,6 +1,7 @@
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { eq, and, inArray } from 'drizzle-orm'
+import { eq, and, inArray, sql } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, profile } from '@/lib/db/schema'
 import { dailyProvider } from '@/lib/video/daily-provider'
@@ -9,6 +10,7 @@ import { notify } from '@/lib/notifications/notify'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
+import { isSlotWithinTutorAvailability } from '@/lib/schedule/tutor-available-slots'
 import { slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
@@ -26,7 +28,7 @@ const respondSchema = z.object({
   tutorNotes: z.string().max(1000).optional(),
 })
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withCsrf(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, request)
 
@@ -119,6 +121,23 @@ export async function PATCH(request: NextRequest) {
           )
         }
 
+        const withinTutorAvailability = await isSlotWithinTutorAvailability({
+          tutorId: session.user.id,
+          date: slotDate,
+          startTime: slotStartTime,
+          endTime: slotEndTime,
+          timezone: req.timezone,
+        })
+        if (!withinTutorAvailability) {
+          const which = isSeries ? ` for the ${slotDate} session` : ''
+          return NextResponse.json(
+            {
+              error: `That time${which} falls outside your available hours. Please accept a different slot.`,
+            },
+            { status: 400 }
+          )
+        }
+
         // Resolve the wall-clock slot to true UTC instants in the booking's tz.
         const { start: eventStart, end: eventEnd } = slotInstants(
           slotDate,
@@ -175,6 +194,12 @@ export async function PATCH(request: NextRequest) {
       // One transaction: create each session (LiveSession + CalendarEvent) and
       // flip the request to ACCEPTED (or PAID when free). All or nothing.
       const results = await drizzleDb.transaction(async tx => {
+        // Serialize concurrent acceptances for this tutor so two requests for the
+        // same slot cannot both pass the conflict check and double-book.
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended('one-on-one-accept:' || ${session.user.id}, 0))`
+        )
+
         const out: { updatedRequest: (typeof siblings)[number]; newEvent: { eventId: string } }[] =
           []
         for (const p of withRooms) {
@@ -309,4 +334,4 @@ export async function PATCH(request: NextRequest) {
     console.error('Error responding to one-on-one request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

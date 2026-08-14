@@ -7,6 +7,7 @@
  *                      a completed, paid session (one per booking).
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { eq } from 'drizzle-orm'
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
   })
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withCsrf(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -117,4 +118,4 @@ export async function POST(req: NextRequest) {
     console.error('review submit failed:', err)
     return NextResponse.json({ error: 'Failed to submit review' }, { status: 500 })
   }
-}
+})

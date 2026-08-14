@@ -38,7 +38,12 @@ const GS = `oversell_gs_${stamp}`
 function joinReq(studentId: string) {
   const req = new NextRequest(`http://localhost/api/group-sessions/${GS}/join`, {
     method: 'POST',
-    headers: { 'x-test-user': studentId, 'content-type': 'application/json' },
+    headers: {
+      'x-test-user': studentId,
+      'content-type': 'application/json',
+      // Bearer auth bypasses the CSRF double-submit gate in this test environment.
+      authorization: 'Bearer test',
+    },
   })
   return POST(req, { params: Promise.resolve({ id: GS }) })
 }

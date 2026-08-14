@@ -4,6 +4,7 @@
  * PATCH: Update tutor's one-on-one settings
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -58,7 +59,7 @@ export async function GET(req: NextRequest) {
 }
 
 // PATCH: Update tutor's one-on-one settings (for tutors only)
-export async function PATCH(req: NextRequest) {
+export const PATCH = withCsrf(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) {
@@ -95,4 +96,4 @@ export async function PATCH(req: NextRequest) {
     console.error('Error updating one-on-one settings:', error)
     return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 })
   }
-}
+})

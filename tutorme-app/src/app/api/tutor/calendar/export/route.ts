@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, handleApiError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { calendarEvent, user, profile } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, asc, isNull } from 'drizzle-orm'
@@ -181,39 +181,41 @@ export const GET = withAuth(
 )
 
 // Public feed endpoint (for sharing calendar via URL)
-export const POST = withAuth(
-  async (req: NextRequest, session) => {
-    const tutorId = session.user.id
+export const POST = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
+      const tutorId = session.user.id
 
-    try {
-      const body = await req.json()
-      const { enabled, publicAccess = 'limited' } = body
+      try {
+        const body = await req.json()
+        const { enabled, publicAccess = 'limited' } = body
 
-      // Generate or revoke public feed URL
-      // In production, store this in the database
-      const feedToken = enabled
-        ? Buffer.from(`${tutorId}-${Date.now()}-${Math.random()}`)
-            .toString('base64')
-            .replace(/[^a-zA-Z0-9]/g, '')
-        : null
+        // Generate or revoke public feed URL
+        // In production, store this in the database
+        const feedToken = enabled
+          ? Buffer.from(`${tutorId}-${Date.now()}-${Math.random()}`)
+              .toString('base64')
+              .replace(/[^a-zA-Z0-9]/g, '')
+          : null
 
-      // TODO: Store feed token in database
+        // TODO: Store feed token in database
 
-      return NextResponse.json({
-        enabled: !!feedToken,
-        feedUrl: feedToken
-          ? `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/public/${feedToken}`
-          : null,
-        publicAccess,
-      })
-    } catch (error) {
-      console.error('Calendar feed error:', error)
-      return handleApiError(
-        error,
-        'Failed to manage calendar feed',
-        'api/tutor/calendar/export/route.ts'
-      )
-    }
-  },
-  { role: 'TUTOR' }
+        return NextResponse.json({
+          enabled: !!feedToken,
+          feedUrl: feedToken
+            ? `${process.env.NEXT_PUBLIC_APP_URL}/api/calendar/public/${feedToken}`
+            : null,
+          publicAccess,
+        })
+      } catch (error) {
+        console.error('Calendar feed error:', error)
+        return handleApiError(
+          error,
+          'Failed to manage calendar feed',
+          'api/tutor/calendar/export/route.ts'
+        )
+      }
+    },
+    { role: 'TUTOR' }
+  )
 )

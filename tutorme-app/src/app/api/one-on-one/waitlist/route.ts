@@ -7,6 +7,7 @@
  * DELETE ?tutorId=…       → student leaves.
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { and, eq, desc } from 'drizzle-orm'
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
 
 const postSchema = z.object({ tutorId: z.string().min(1), note: z.string().max(500).optional() })
 
-export async function POST(req: NextRequest) {
+export const POST = withCsrf(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -90,9 +91,9 @@ export async function POST(req: NextRequest) {
     console.error('waitlist join failed:', err)
     return NextResponse.json({ error: 'Failed to join waitlist' }, { status: 500 })
   }
-}
+})
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withCsrf(async (req: NextRequest) => {
   const session = await getServerSession(authOptions, req)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const tutorId = new URL(req.url).searchParams.get('tutorId')
@@ -104,4 +105,4 @@ export async function DELETE(req: NextRequest) {
       and(eq(oneOnOneWaitlist.tutorId, tutorId), eq(oneOnOneWaitlist.studentId, session.user.id))
     )
   return NextResponse.json({ success: true, onWaitlist: false })
-}
+})
