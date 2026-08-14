@@ -59,6 +59,14 @@ describe('extractYoutubeVideoId', () => {
   it('returns undefined for non-youtube URLs', () => {
     expect(extractYoutubeVideoId('https://example.com/watch?v=VIDEO_ID')).toBeUndefined()
   })
+
+  it('extracts id from mobile youtube.com URLs', () => {
+    expect(extractYoutubeVideoId('https://m.youtube.com/watch?v=VIDEO_ID')).toBe('VIDEO_ID')
+  })
+
+  it('extracts id from youtube.com/live URLs', () => {
+    expect(extractYoutubeVideoId('https://www.youtube.com/live/VIDEO_ID')).toBe('VIDEO_ID')
+  })
 })
 
 describe('removeStandaloneUrlsFromHtml', () => {
