@@ -202,12 +202,14 @@ function extractMeta(html: string, finalUrl: string) {
 export function extractYoutubeVideoId(inputUrl: string): string | undefined {
   try {
     const parsed = new URL(inputUrl)
-    const hostname = parsed.hostname.replace(/^www\./, '')
+    const hostname = parsed.hostname.replace(/^(www\.|m\.)/, '')
 
     if (hostname === 'youtube.com' || hostname === 'music.youtube.com') {
-      if (parsed.pathname === '/watch') {
+      if (parsed.pathname.startsWith('/watch')) {
         return parsed.searchParams.get('v') || undefined
       }
+      const liveMatch = parsed.pathname.match(/^\/live\/([a-zA-Z0-9_-]+)/)
+      if (liveMatch) return liveMatch[1]
       const embedMatch = parsed.pathname.match(/^\/embed\/([a-zA-Z0-9_-]+)/)
       if (embedMatch) return embedMatch[1]
       const shortsMatch = parsed.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/)
