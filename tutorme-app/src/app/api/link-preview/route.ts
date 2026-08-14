@@ -57,5 +57,5 @@ export const POST = withAuth(
       return handleApiError(error, 'Unable to fetch link preview', 'api/link-preview/route.ts')
     }
   },
-  { role: 'TUTOR' }
+  { role: ['TUTOR', 'ADMIN'] }
 )
