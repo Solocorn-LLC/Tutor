@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, handleApiError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { calendarException } from '@/lib/db/schema'
 import { eq, and, asc, gte, lte, isNull } from 'drizzle-orm'
@@ -60,8 +60,9 @@ export const GET = withAuth(
   { role: 'TUTOR' }
 )
 
-export const POST = withAuth(
-  async (req: NextRequest, session) => {
+export const POST = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
     const tutorId = session.user.id
 
     try {
@@ -149,10 +150,12 @@ export const POST = withAuth(
     }
   },
   { role: 'TUTOR' }
+  )
 )
 
-export const PUT = withAuth(
-  async (req: NextRequest, session) => {
+export const PUT = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
     const tutorId = session.user.id
 
     try {
@@ -216,4 +219,5 @@ export const PUT = withAuth(
     }
   },
   { role: 'TUTOR' }
+  )
 )

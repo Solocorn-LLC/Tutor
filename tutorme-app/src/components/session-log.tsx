@@ -87,7 +87,7 @@ type FilterStatus = 'all' | 'live' | 'upcoming' | 'scheduled' | 'completed'
 function copyJoinLink(classId: string) {
   const url =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/student/feedback?sessionId=${classId}`
+      ? `${window.location.origin}/tutor/classroom?sessionId=${classId}`
       : ''
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     navigator.clipboard.writeText(url).then(() => toast.success('Join link copied to clipboard'))

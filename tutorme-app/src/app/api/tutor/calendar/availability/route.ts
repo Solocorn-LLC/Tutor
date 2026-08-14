@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, handleApiError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   calendarAvailability,
@@ -250,8 +250,9 @@ export const GET = withAuth(
   { role: 'TUTOR' }
 )
 
-export const POST = withAuth(
-  async (req: NextRequest, session) => {
+export const POST = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
     const tutorId = session.user.id
 
     try {
@@ -337,10 +338,12 @@ export const POST = withAuth(
     }
   },
   { role: 'TUTOR' }
+  )
 )
 
-export const DELETE = withAuth(
-  async (req: NextRequest, session) => {
+export const DELETE = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
     const tutorId = session.user.id
 
     try {
@@ -378,9 +381,8 @@ export const DELETE = withAuth(
     }
   },
   { role: 'TUTOR' }
+  )
 )
-
-// Generate available time slots for booking
 async function generateAvailableSlots(
   tutorId: string,
   startDate: Date,

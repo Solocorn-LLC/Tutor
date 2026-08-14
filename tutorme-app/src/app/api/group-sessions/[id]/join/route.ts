@@ -9,6 +9,7 @@
  *          fee); the freed seat re-opens the session and pings the waitlist.
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { and, eq, inArray, sql } from 'drizzle-orm'
@@ -32,7 +33,7 @@ async function load(id: string) {
   return gs ?? null
 }
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const POST = withCsrf(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -132,9 +133,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.error('group seat reserve failed:', err)
     return NextResponse.json({ error: 'Failed to reserve a seat' }, { status: 500 })
   }
-}
+})
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withCsrf(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions, req)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -205,4 +206,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     refundAmount: refundResult?.amount,
     refundFee: refundResult?.fee,
   })
-}
+})

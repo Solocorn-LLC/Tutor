@@ -6,14 +6,15 @@
 import { NextResponse } from 'next/server'
 import { eq, and, isNull, inArray } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable, courseEnrollment, courseLesson } from '@/lib/db/schema'
 import { notifyMany } from '@/lib/notifications/notify'
 
-export const PATCH = withAuth(
-  async (req, session, context) => {
+export const PATCH = withCsrf(
+  withAuth(
+    async (req, session, context) => {
     const tutorId = session.user.id
 
     const sessionId = await getParamAsync(context.params, 'id')
@@ -135,4 +136,4 @@ export const PATCH = withAuth(
     })
   },
   { role: 'TUTOR' }
-)
+))

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, handleApiError } from '@/lib/api/middleware'
+import crypto from 'node:crypto'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   postSessionReport,

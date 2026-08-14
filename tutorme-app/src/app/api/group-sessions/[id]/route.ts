@@ -6,6 +6,7 @@
  *          paid seat (85%, 15% fee), then notifies each student.
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { and, eq, inArray, ne } from 'drizzle-orm'
@@ -78,7 +79,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   return NextResponse.json({ groupSession: gs, seatsLeft, roster, mySeat: mySeat ?? null })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withCsrf(async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
   const session = await getServerSession(authOptions, req)
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
@@ -161,4 +162,4 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   }
 
   return NextResponse.json({ success: true, refunded: refundedCount, seats: seats.length })
-}
+})

@@ -17,6 +17,7 @@ import { requestedDateFromString, slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { findConflicts } from '@/lib/schedule/conflicts'
+import { isSlotWithinTutorAvailability } from '@/lib/schedule/tutor-available-slots'
 import { expireOverdueOneOnOneBookings } from '@/lib/one-on-one/expire'
 import { completeFinishedOneOnOneSessions } from '@/lib/one-on-one/complete'
 import { unpaidSeriesTotal } from '@/lib/one-on-one/series-total'
@@ -123,6 +124,20 @@ export const POST = withCsrf(
       if (!withinAvailability) {
         throw new ValidationError(
           'One or more of your proposed times have been blocked by your parent. Please choose a different time, or ask them to allow it.'
+        )
+      }
+
+      const withinTutorAvailability = await isSlotWithinTutorAvailability({
+        tutorId: validated.tutorId,
+        date: slot.date,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        timezone: tutorTimezone,
+      })
+      if (!withinTutorAvailability) {
+        const which = isSeriesRequest ? `The ${slot.date} session in your series` : 'That time'
+        throw new ValidationError(
+          `${which} falls outside the tutor's available hours. Please pick a slot from their public schedule.`
         )
       }
 

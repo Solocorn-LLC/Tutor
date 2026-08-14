@@ -40,13 +40,6 @@ export async function GET(request: NextRequest) {
       pageSize,
     })
 
-    // Self-healing schema guard: the LiveSession table may not yet have the
-    // sessionType column in older environments. Add it idempotently before any
-    // query depends on it.
-    await drizzleDb.execute(
-      sql`ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "sessionType" text NOT NULL DEFAULT 'ADHOC'`
-    )
-
     const rows = await drizzleDb
       .select({
         sessionId: liveSession.sessionId,

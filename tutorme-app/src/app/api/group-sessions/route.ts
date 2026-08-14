@@ -9,6 +9,7 @@
  * GET   (as tutor, no tutorId) → the caller's own group sessions (+ seatsLeft).
  */
 
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { and, desc, eq, gte, inArray } from 'drizzle-orm'
@@ -38,7 +39,7 @@ const createSchema = z.object({
   courseId: z.string().min(1).optional().nullable(),
 })
 
-export async function POST(req: NextRequest) {
+export const POST = withCsrf(async (req: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, req)
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -164,7 +165,7 @@ export async function POST(req: NextRequest) {
     console.error('group session create failed:', err)
     return NextResponse.json({ error: 'Failed to create group session' }, { status: 500 })
   }
-}
+})
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions, req)

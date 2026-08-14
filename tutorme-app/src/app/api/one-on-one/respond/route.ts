@@ -1,3 +1,4 @@
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { eq, and, inArray } from 'drizzle-orm'
@@ -9,6 +10,7 @@ import { notify } from '@/lib/notifications/notify'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
+import { isSlotWithinTutorAvailability } from '@/lib/schedule/tutor-available-slots'
 import { slotInstants } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
@@ -26,7 +28,7 @@ const respondSchema = z.object({
   tutorNotes: z.string().max(1000).optional(),
 })
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withCsrf(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, request)
 
@@ -115,6 +117,21 @@ export async function PATCH(request: NextRequest) {
             {
               error: `That time${which} has been blocked by the student's parent. Ask them to allow it, or accept a different slot.`,
             },
+            { status: 400 }
+          )
+        }
+
+        const withinTutorAvailability = await isSlotWithinTutorAvailability({
+          tutorId: session.user.id,
+          date: slotDate,
+          startTime: slotStartTime,
+          endTime: slotEndTime,
+          timezone: req.timezone,
+        })
+        if (!withinTutorAvailability) {
+          const which = isSeries ? ` for the ${slotDate} session` : ''
+          return NextResponse.json(
+            { error: `That time${which} falls outside your available hours. Please accept a different slot.` },
             { status: 400 }
           )
         }
@@ -309,4 +326,4 @@ export async function PATCH(request: NextRequest) {
     console.error('Error responding to one-on-one request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

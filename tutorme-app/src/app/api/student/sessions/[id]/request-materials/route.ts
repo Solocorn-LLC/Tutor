@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession as liveSessionTable } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 
-export const POST = withAuth(
-  async (req, sessionObj, context) => {
+export const POST = withCsrf(
+  withAuth(
+    async (req, sessionObj, context) => {
     const sessionId = await getParamAsync(context.params, 'id')
 
     if (!sessionId || sessionId === 'undefined' || sessionId === 'null') {
@@ -49,4 +50,5 @@ export const POST = withAuth(
     }
   },
   { role: 'STUDENT' }
+  )
 )

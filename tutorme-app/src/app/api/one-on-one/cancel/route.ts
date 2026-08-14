@@ -1,3 +1,4 @@
+import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { eq, and, ne, inArray } from 'drizzle-orm'
@@ -13,7 +14,7 @@ const cancelSchema = z.object({
   reason: z.string().max(500).optional(),
 })
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withCsrf(async (request: NextRequest) => {
   try {
     const session = await getServerSession(authOptions, request)
 
@@ -209,4 +210,4 @@ export async function PATCH(request: NextRequest) {
     console.error('Error canceling one-on-one request:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})

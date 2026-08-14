@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth, handleApiError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { calendarEvent, user, profile } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, asc, isNull } from 'drizzle-orm'
@@ -181,8 +181,9 @@ export const GET = withAuth(
 )
 
 // Public feed endpoint (for sharing calendar via URL)
-export const POST = withAuth(
-  async (req: NextRequest, session) => {
+export const POST = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
     const tutorId = session.user.id
 
     try {
@@ -216,4 +217,5 @@ export const POST = withAuth(
     }
   },
   { role: 'TUTOR' }
+  )
 )
