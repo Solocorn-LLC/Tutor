@@ -122,6 +122,7 @@ export const GET = withAuth(
               description: l.description,
               order: l.order,
               duration: l.duration,
+              builderData: l.builderData,
             })),
           },
         ],
