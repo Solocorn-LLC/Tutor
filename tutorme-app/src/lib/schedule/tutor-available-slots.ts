@@ -91,6 +91,29 @@ async function getTutorTimezone(tutorId: string, fallback?: string): Promise<str
   return tutorProfile?.timezone ?? 'UTC'
 }
 
+type MinuteInterval = { start: number; end: number }
+
+function subtractInterval(
+  intervals: MinuteInterval[],
+  toSubtract: MinuteInterval
+): MinuteInterval[] {
+  const out: MinuteInterval[] = []
+  for (const interval of intervals) {
+    if (toSubtract.end <= interval.start || toSubtract.start >= interval.end) {
+      // No overlap — keep the interval as-is.
+      out.push(interval)
+      continue
+    }
+    if (toSubtract.start > interval.start) {
+      out.push({ start: interval.start, end: Math.min(interval.end, toSubtract.start) })
+    }
+    if (toSubtract.end < interval.end) {
+      out.push({ start: Math.max(interval.start, toSubtract.end), end: interval.end })
+    }
+  }
+  return out
+}
+
 /**
  * Build the effective weekly availability for a tutor.
  *
@@ -115,33 +138,43 @@ async function getEffectiveAvailability(
       )
     )
 
-  const defaultBlocks: AvailabilityBlock[] = []
+  // Start with the default 24/7 availability per day and subtract any blocked
+  // windows. Available rows are already covered by the default, so they are a
+  // no-op unless they come with a different timezone — we keep the default zone
+  // for consistency.
+  const byDay = new Map<number, MinuteInterval[]>()
   for (let day = 0; day <= 6; day += 1) {
-    defaultBlocks.push({
-      dayOfWeek: day,
-      startTime: '00:00',
-      endTime: '24:00',
-      timezone,
-      isAvailable: true,
-    })
+    byDay.set(day, [{ start: 0, end: MINUTES_PER_DAY }])
   }
 
-  const byKey = new Map<string, AvailabilityBlock>()
-  for (const block of defaultBlocks) {
-    byKey.set(`${block.dayOfWeek}-${block.startTime}-${block.endTime}`, block)
-  }
   for (const row of rows) {
-    const key = `${row.dayOfWeek}-${row.startTime}-${row.endTime}`
-    byKey.set(key, {
-      dayOfWeek: row.dayOfWeek,
-      startTime: row.startTime,
-      endTime: row.endTime,
-      timezone: row.timezone,
-      isAvailable: row.isAvailable ?? true,
-    })
+    if (row.isAvailable !== false) continue
+    const day = row.dayOfWeek
+    const intervals = byDay.get(day)
+    if (!intervals) continue
+    byDay.set(
+      day,
+      subtractInterval(intervals, {
+        start: parseHhmm(row.startTime),
+        end: parseHhmm(row.endTime),
+      })
+    )
   }
 
-  return Array.from(byKey.values()).filter(a => a.isAvailable)
+  const blocks: AvailabilityBlock[] = []
+  for (const [dayOfWeek, intervals] of byDay.entries()) {
+    for (const interval of intervals) {
+      blocks.push({
+        dayOfWeek,
+        startTime: formatHhmm(interval.start),
+        endTime: formatHhmm(interval.end),
+        timezone,
+        isAvailable: true,
+      })
+    }
+  }
+
+  return blocks
 }
 
 /**
