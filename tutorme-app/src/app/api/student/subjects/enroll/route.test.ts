@@ -47,13 +47,15 @@ vi.mock('@/lib/api/enrollments', () => ({
 
 vi.mock('@/lib/api/middleware', () => ({
   withAuth: (handler: any) => handler,
-  withCsrf: (handler: any) => async (req: any, ...args: any[]) => {
-    try {
-      return await handler(req, ...args)
-    } catch (err: any) {
-      return NextResponse.json({ error: err.message }, { status: 400 })
-    }
-  },
+  withCsrf:
+    (handler: any) =>
+    async (req: any, ...args: any[]) => {
+      try {
+        return await handler(req, ...args)
+      } catch (err: any) {
+        return NextResponse.json({ error: err.message }, { status: 400 })
+      }
+    },
   withRateLimitPreset: mocks.withRateLimitPreset,
   ValidationError: class extends Error {
     constructor(message: string) {
@@ -153,9 +155,7 @@ describe('POST /api/student/subjects/enroll', () => {
         deletedAt: null,
       },
     ]
-    mocks.enrollmentRows = [
-      { courseId: 'platform-english-1', studentId: 'student-1' },
-    ]
+    mocks.enrollmentRows = [{ courseId: 'platform-english-1', studentId: 'student-1' }]
 
     const res = await POST(makeReq({ subjectCode: 'english' }), session)
 
