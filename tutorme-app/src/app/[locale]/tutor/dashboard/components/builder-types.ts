@@ -402,6 +402,7 @@ export interface InsightsSessionOption {
   status: string
   durationMinutes?: number
   sessionType?: string
+  courseId?: string | null
 }
 
 export interface CourseBuilderInsightsProps {

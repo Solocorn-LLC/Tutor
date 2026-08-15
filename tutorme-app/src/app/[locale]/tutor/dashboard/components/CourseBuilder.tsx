@@ -12176,18 +12176,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 mode={assistantMode}
                                                 sessionId={insightsProps.sessionId}
                                                 sessionType={
-                                                  insightsProps.sessions?.find(
-                                                    (s: any) => s.id === insightsProps.sessionId
-                                                  )?.sessionType
+                                                  insightsProps.sessions
+                                                    ?.filter(
+                                                      (s: any) =>
+                                                        s.courseId === courseId ||
+                                                        s.id === insightsProps.sessionId
+                                                    )
+                                                    ?.find(
+                                                      (s: any) => s.id === insightsProps.sessionId
+                                                    )?.sessionType
                                                 }
                                                 courseId={courseId}
                                                 courseName={courseName}
-                                                sessions={insightsProps.sessions?.map((s: any) => ({
-                                                  id: s.id,
-                                                  title: s.title,
-                                                  scheduledAt: s.scheduledAt,
-                                                  status: s.status,
-                                                }))}
+                                                sessions={insightsProps.sessions
+                                                  ?.filter(
+                                                    (s: any) =>
+                                                      s.courseId === courseId ||
+                                                      s.id === insightsProps.sessionId
+                                                  )
+                                                  ?.map((s: any) => ({
+                                                    id: s.id,
+                                                    title: s.title,
+                                                    scheduledAt: s.scheduledAt,
+                                                    status: s.status,
+                                                  }))}
                                                 studentsCount={
                                                   (insightsProps.students || []).length
                                                 }
@@ -15125,18 +15137,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   mode={assistantMode}
                                   sessionId={insightsProps?.sessionId}
                                   sessionType={
-                                    insightsProps?.sessions?.find(
-                                      (s: any) => s.id === insightsProps?.sessionId
-                                    )?.sessionType
+                                    insightsProps?.sessions
+                                      ?.filter(
+                                        (s: any) =>
+                                          s.courseId === courseId ||
+                                          s.id === insightsProps?.sessionId
+                                      )
+                                      ?.find((s: any) => s.id === insightsProps?.sessionId)
+                                      ?.sessionType
                                   }
                                   courseId={courseId}
                                   courseName={courseName}
-                                  sessions={insightsProps?.sessions?.map((s: any) => ({
-                                    id: s.id,
-                                    title: s.title,
-                                    scheduledAt: s.scheduledAt,
-                                    status: s.status,
-                                  }))}
+                                  sessions={insightsProps?.sessions
+                                    ?.filter(
+                                      (s: any) =>
+                                        s.courseId === courseId || s.id === insightsProps?.sessionId
+                                    )
+                                    ?.map((s: any) => ({
+                                      id: s.id,
+                                      title: s.title,
+                                      scheduledAt: s.scheduledAt,
+                                      status: s.status,
+                                    }))}
                                   studentsCount={(insightsProps?.students || []).length}
                                   liveSubmissions={insightsProps?.liveSubmissions || []}
                                   context={{ ...assistantContext, ...dmiPciInfo }}
