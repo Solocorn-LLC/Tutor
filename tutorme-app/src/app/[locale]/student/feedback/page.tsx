@@ -2555,7 +2555,7 @@ function StudentFeedbackContent() {
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
-                  <div className="mt-3 flex items-center gap-3">
+                  <div className="mt-3 flex items-center gap-2">
                     <div className="relative flex-1">
                       <Input
                         value={chatInput}
@@ -2569,7 +2569,7 @@ function StudentFeedbackContent() {
                             }
                           }
                         }}
-                        className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                        className="h-16 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
                       />
                       <Button
                         size="icon"
@@ -2586,7 +2586,7 @@ function StudentFeedbackContent() {
                       </Button>
                     </div>
                     <Button
-                      className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                      className="h-16 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
                       disabled={!activeTaskId || !socket}
                       onClick={() => {
                         if (!activeTaskId || !socket || !selectedSessionId) return
