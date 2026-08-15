@@ -46,7 +46,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 
 import {
   CreateClassDialog,
@@ -207,11 +206,6 @@ function TutorDashboardContent() {
   const locale = typeof params?.locale === 'string' ? params.locale : 'en'
   const hasLocalePrefix = pathname.startsWith(`/${locale}/`)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
-  const [scheduleCourse, setScheduleCourse] = useState<{
-    id: string
-    name: string
-    isPublished: boolean
-  } | null>(null)
   // Course name + variant for the sessions modal (from the sessions API).
   const [sessionsCourseMeta, setSessionsCourseMeta] = useState<{
     name: string | null
@@ -826,17 +820,6 @@ function TutorDashboardContent() {
                   ) : (
                     enrolledCourses.map(course => {
                       const courseClasses = classes.filter(c => c.courseId === course.id)
-                      // "View Sessions" should appear whenever there's anything to view:
-                      // a materialized class, a counted session, or a weekly schedule
-                      // (which the sessions modal materializes on open). Keying only off
-                      // `classes` (upcoming/active liveSession rows) made a course that
-                      // has schedules but no upcoming session wrongly show "Schedule
-                      // sessions".
-                      const hasViewableSessions =
-                        courseClasses.length > 0 ||
-                        (course.sessionCount ?? 0) > 0 ||
-                        (course.scheduleCount ?? 0) > 0 ||
-                        (course.schedule?.length ?? 0) > 0
                       const hasActive = courseClasses.some(
                         c =>
                           c.status === 'active' || c.status === 'live' || c.status === 'preparing'
@@ -880,17 +863,6 @@ function TutorDashboardContent() {
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2 text-xs">
-                              <Badge
-                                variant="outline"
-                                className="cursor-pointer border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-[#4a5a65]"
-                                onClick={() => handleOpenSessionsModal(course)}
-                              >
-                                {course.sessionCount
-                                  ? `${course.sessionCount} session${course.sessionCount === 1 ? '' : 's'}`
-                                  : course.schedule && course.schedule.length > 0
-                                    ? `${course.schedule.length} slot${course.schedule.length === 1 ? '' : 's'}`
-                                    : '0 sessions'}
-                              </Badge>
                               <Link
                                 href={withLocalePath(`/tutor/courses/${course.id}/enrollments`)}
                               >
@@ -951,28 +923,6 @@ function TutorDashboardContent() {
                               <Presentation className="mr-1 h-3 w-3" />
                               Classroom
                             </Button>
-                            {/* When sessions exist, the "N sessions" count badge above
-                                already opens the sessions modal, so a separate "View
-                                Sessions" button here was redundant and has been removed.
-                                With no sessions yet, send the tutor to the scheduler
-                                (course details page) to add slots and publish. */}
-                            {!hasViewableSessions && (
-                              <Button
-                                asChild
-                                variant="default"
-                                size="sm"
-                                className="bg-blue-600 text-white transition-all duration-200 hover:bg-white hover:text-blue-600"
-                              >
-                                <Link
-                                  href={withLocalePath(
-                                    `/tutor/courses/${course.templateCourseId ?? course.id}`
-                                  )}
-                                >
-                                  <CalendarClock className="mr-1 h-3 w-3" />
-                                  Schedule sessions
-                                </Link>
-                              </Button>
-                            )}
                             <Button
                               variant="outline"
                               size="sm"
@@ -1001,13 +951,7 @@ function TutorDashboardContent() {
                               variant="outline"
                               size="sm"
                               className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-purple-500"
-                              onClick={() =>
-                                setScheduleCourse({
-                                  id: course.id,
-                                  name: course.name,
-                                  isPublished: course.isPublished ?? false,
-                                })
-                              }
+                              onClick={() => handleOpenSessionsModal(course)}
                             >
                               <CalendarClock className="mr-1 h-3 w-3" />
                               Schedule
@@ -1469,12 +1413,6 @@ function TutorDashboardContent() {
           </DialogContent>
         </Dialog>
       </div>
-      <ScheduleViewModal
-        courseId={scheduleCourse?.id ?? null}
-        courseName={scheduleCourse?.name}
-        canCreate={!scheduleCourse?.isPublished}
-        onClose={() => setScheduleCourse(null)}
-      />
       {rescheduleRequestId && (
         <OneOnOneRescheduleDialog
           requestId={rescheduleRequestId}
