@@ -526,7 +526,7 @@ import {
   Bot,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { useCourseBuilderState } from './hooks/useCourseBuilderState'
 import {
@@ -675,6 +675,26 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
         </p>
       </div>
     </details>
+  )
+}
+
+/** Small PCI readiness badge shown on task/assessment cards.
+ *  Green dot = PCI has been applied (instructions non-empty).
+ *  Red dot    = no PCI yet. */
+function PciReadinessBadge({ instructions }: { instructions?: string }) {
+  const ready = !!instructions?.trim()
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+        ready
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          : 'border-red-200 bg-red-50 text-red-700'
+      )}
+    >
+      <span className={cn('h-1.5 w-1.5 rounded-full', ready ? 'bg-emerald-500' : 'bg-red-500')} />
+      PCI
+    </span>
   )
 }
 
@@ -8240,94 +8260,102 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           </div>
         </div>
 
-        {assetsOpen && (
-          <>
-            {/* Only show 2 most recent files */}
-            <div className="flex flex-col gap-2 px-2 pb-2">
-              {recentAssets.length === 0 ? (
-                <p className="text-muted-foreground w-full py-2 text-center text-xs">
-                  No assets imported.
-                </p>
-              ) : (
-                recentAssets.map(asset => (
-                  <div
-                    key={asset.id}
-                    draggable={!assetPickerTarget}
-                    onDragStart={e => {
-                      if (assetPickerTarget) {
-                        e.preventDefault()
-                        return
-                      }
-                      e.dataTransfer.setData(
-                        'application/json',
-                        JSON.stringify({ type: 'asset', asset })
-                      )
-                    }}
-                    onClick={() => {
-                      if (assetPickerTarget) {
-                        handleLoadAsset(asset)
-                      }
-                    }}
-                    className={cn(
-                      'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
-                      assetPickerTarget
-                        ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
-                        : 'cursor-grab active:cursor-grabbing'
-                    )}
-                  >
-                    {' '}
-                    <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
-                      <FileText className="h-4 w-4 shrink-0 text-white" />
-                      <span className="flex-1 truncate text-sm font-medium text-white">
-                        {asset.name}
-                      </span>
-                    </div>
+        <AnimatePresence initial={false}>
+          {assetsOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+              className="overflow-hidden"
+            >
+              {/* Only show 2 most recent files */}
+              <div className="flex flex-col gap-2 px-2 pb-2">
+                {recentAssets.length === 0 ? (
+                  <p className="text-muted-foreground w-full py-2 text-center text-xs">
+                    No assets imported.
+                  </p>
+                ) : (
+                  recentAssets.map(asset => (
                     <div
-                      className="flex shrink-0 items-center gap-2"
-                      onClick={e => e.stopPropagation()}
+                      key={asset.id}
+                      draggable={!assetPickerTarget}
+                      onDragStart={e => {
+                        if (assetPickerTarget) {
+                          e.preventDefault()
+                          return
+                        }
+                        e.dataTransfer.setData(
+                          'application/json',
+                          JSON.stringify({ type: 'asset', asset })
+                        )
+                      }}
+                      onClick={() => {
+                        if (assetPickerTarget) {
+                          handleLoadAsset(asset)
+                        }
+                      }}
+                      className={cn(
+                        'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
+                        assetPickerTarget
+                          ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
+                          : 'cursor-grab active:cursor-grabbing'
+                      )}
                     >
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
-                            aria-label="Asset actions"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="z-[100]">
-                          <DropdownMenuItem
-                            onSelect={() => {
-                              // Document's own kebab → always show the lesson picker.
-                              setTimeout(() => handleLoadAsset(asset, null), 50)
-                            }}
-                          >
-                            Load
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-red-600 focus:text-red-600"
-                            onClick={() => {
-                              setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
-                            }}
-                          >
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {' '}
+                      <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
+                        <FileText className="h-4 w-4 shrink-0 text-white" />
+                        <span className="flex-1 truncate text-sm font-medium text-white">
+                          {asset.name}
+                        </span>
+                      </div>
+                      <div
+                        className="flex shrink-0 items-center gap-2"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
+                              aria-label="Asset actions"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="z-[100]">
+                            <DropdownMenuItem
+                              onSelect={() => {
+                                // Document's own kebab → always show the lesson picker.
+                                setTimeout(() => handleLoadAsset(asset, null), 50)
+                              }}
+                            >
+                              Load
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => {
+                                setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
+                              }}
+                            >
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
-              {courseAssets.length > 2 && (
-                <p className="text-center text-[10px] text-gray-600">
-                  +{courseAssets.length - 2} more — click View to see all
-                </p>
-              )}
-            </div>
-          </>
-        )}
+                  ))
+                )}
+                {courseAssets.length > 2 && (
+                  <p className="text-center text-[10px] text-gray-600">
+                    +{courseAssets.length - 2} more — click View to see all
+                  </p>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Load-as Modal */}
         <Dialog
@@ -10604,8 +10632,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         />
                                                       ) : (
                                                         <div className="flex min-w-0 flex-1 flex-col">
-                                                          <div className="flex items-center gap-2 truncate text-sm font-medium text-[#1F2933]">
-                                                            {idx + 1}. {task.title}
+                                                          <div className="flex items-center gap-2 text-sm font-medium text-[#1F2933]">
+                                                            <span className="min-w-0 truncate">
+                                                              {idx + 1}. {task.title}
+                                                            </span>
+                                                            <PciReadinessBadge
+                                                              instructions={task.instructions}
+                                                            />
                                                           </div>
                                                           {task.description && (
                                                             <div className="mt-0.5 truncate text-[11px] text-[#667085]">
@@ -11391,8 +11424,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       />
                                                     ) : (
                                                       <div className="flex min-w-0 flex-1 flex-col">
-                                                        <div className="flex items-center gap-2 truncate text-sm font-medium text-[#1F2933]">
-                                                          {idx + 1}. {hw.title}
+                                                        <div className="flex items-center gap-2 text-sm font-medium text-[#1F2933]">
+                                                          <span className="min-w-0 truncate">
+                                                            {idx + 1}. {hw.title}
+                                                          </span>
+                                                          <PciReadinessBadge
+                                                            instructions={hw.instructions}
+                                                          />
                                                         </div>
                                                         {hw.description && (
                                                           <div className="mt-0.5 truncate text-[11px] text-[#667085]">
