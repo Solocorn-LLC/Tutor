@@ -16043,7 +16043,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             if (!open) setDmiEditor(null)
           }}
         >
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="border border-slate-200 shadow-2xl sm:max-w-2xl">
             {dmiEditor &&
               (() => {
                 const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
@@ -16054,8 +16054,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 )
                 return (
                   <>
-                    <DialogHeader>
-                      <DialogTitle>
+                    <DialogHeader className="text-center sm:text-center">
+                      <DialogTitle className="text-center">
                         {dmiEditor.source === 'task'
                           ? taskBuilder.title || 'Edit marks & answers'
                           : assessmentBuilder.title || 'Edit marks & answers'}
@@ -16347,7 +16347,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         )
                       })}
                     </div>
-                    <DialogFooter align="between">
+                    <DialogFooter align="end">
                       <input
                         ref={markingSchemeInputRef}
                         type="file"
@@ -16365,6 +16365,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         variant="modal-destructive-dark"
                         disabled={!canEdit || markingSchemeLoading}
                         onClick={() => markingSchemeInputRef.current?.click()}
+                        className="bg-pink-600 text-white hover:border-pink-600 hover:bg-white hover:text-pink-600"
                       >
                         {markingSchemeLoading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
