@@ -45,7 +45,7 @@ export function BackButton({
       size={size}
       onClick={!href ? handleClick : undefined}
       className={cn(
-        'h-9 w-9 rounded-lg p-0 transition-colors hover:scale-105 hover:bg-slate-300',
+        'h-9 w-9 rounded-lg p-0 transition-all duration-200 hover:scale-105 hover:bg-slate-300',
         className
       )}
       aria-label="Go back"
@@ -56,17 +56,14 @@ export function BackButton({
 
   if (href) {
     return (
-      <Button
-        variant={variant}
-        size={size}
-        asChild
-        className={cn(
-          'h-9 w-9 rounded-lg p-0 transition-colors hover:scale-105 hover:bg-slate-300',
-          className
-        )}
-        aria-label="Go back"
-      >
-        <Link href={href} className="inline-flex">
+      <Button variant={variant} size={size} asChild className="inline-flex" aria-label="Go back">
+        <Link
+          href={href}
+          className={cn(
+            'h-9 w-9 items-center justify-center rounded-lg p-0 transition-all duration-200 hover:scale-105 hover:bg-slate-300',
+            className
+          )}
+        >
           <Icon className="h-5 w-5" />
         </Link>
       </Button>

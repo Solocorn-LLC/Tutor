@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course } from '@/lib/db/schema'
 
@@ -6,7 +6,9 @@ export async function verifyCourseOwnership(courseId: string, userId: string): P
   const existing = await drizzleDb
     .select({ courseId: course.courseId })
     .from(course)
-    .where(and(eq(course.courseId, courseId), eq(course.creatorId, userId)))
+    .where(
+      and(eq(course.courseId, courseId), eq(course.creatorId, userId), isNull(course.deletedAt))
+    )
     .limit(1)
   return existing.length > 0
 }

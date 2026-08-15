@@ -68,7 +68,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
-import { motion, AnimatePresence, useDragControls } from 'framer-motion'
+import {
+  AnimatedControlButton,
+  actionButtonBase,
+} from '@/components/controls/AnimatedControlButton'
+import {
+  motion,
+  AnimatePresence,
+  useDragControls,
+  useMotionValue,
+  useTransform,
+} from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
   LiveTask,
@@ -225,134 +235,158 @@ function ClassroomControlsPanel({
   setShowDirectoryPanel,
 }: ClassroomControlsPanelProps) {
   const router = useRouter()
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
 
+  const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLButtonElement>(null)
+
+  const panelX = useMotionValue(0)
+  const panelY = useMotionValue(0)
+  const panelOpacity = useMotionValue(0)
+  const bodyY = useTransform(
+    panelY,
+    y => y + (headerRef.current?.getBoundingClientRect().height ?? 40)
+  )
+
+  const positionPanel = useCallback(() => {
+    const panel = panelRef.current
+    const container = containerRef.current
+    if (!panel || !container) return
+    const containerRect = container.getBoundingClientRect()
+    const panelRect = panel.getBoundingClientRect()
+    // Park the panel at the top-right of the header area, flush with the top edge.
+    const x = containerRect.width - panelRect.width
+    const y = 0
+    panelX.set(x)
+    panelY.set(y)
+    panelOpacity.set(1)
+  }, [panelX, panelY, panelOpacity])
+
+  useLayoutEffect(() => {
+    positionPanel()
+  }, [positionPanel])
+
+  useEffect(() => {
+    const handleResize = () => positionPanel()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [positionPanel])
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-50">
-      <div className="pointer-events-none absolute bottom-4 right-4">
-        <motion.div
-          drag
-          dragControls={dragControls}
-          dragListener={false}
-          dragMomentum={false}
-          onDragStart={() => setIsDragging(true)}
-          onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
+    <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
+      {/* Draggable header — its height never changes, so drag constraints cannot
+          nudge the panel when the controls body expands. */}
+      <motion.div
+        ref={panelRef}
+        drag
+        dragConstraints={containerRef}
+        dragControls={dragControls}
+        dragListener={false}
+        dragMomentum={false}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
+        style={{ x: panelX, y: panelY, opacity: panelOpacity }}
+        className={cn(
+          'pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
+          open ? 'rounded-t-2xl border-b' : 'rounded-2xl'
+        )}
+      >
+        {/* Header / drag handle */}
+        <button
+          ref={headerRef}
+          type="button"
           className={cn(
-            'pointer-events-auto relative w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
-            open ? 'p-3' : ''
+            'relative flex h-10 w-full cursor-grab items-center px-3 active:cursor-grabbing',
+            open ? 'rounded-t-2xl' : 'rounded-2xl'
           )}
+          onPointerDown={e => dragControls.start(e)}
+          onClick={() => {
+            if (isDragging) return
+            setOpen(v => !v)
+          }}
         >
-          {/* Header / drag handle */}
-          <button
-            type="button"
-            className={cn(
-              'relative flex w-full cursor-grab items-center active:cursor-grabbing',
-              open ? 'h-8 rounded-t-xl border-b border-white/10 px-2' : 'h-10 px-3'
-            )}
-            onPointerDown={e => dragControls.start(e)}
-            onClick={() => {
-              if (isDragging) return
-              setOpen(v => !v)
-            }}
+          <span className="w-4 shrink-0" aria-hidden="true" />
+          <span className="mx-auto text-xs font-semibold text-white">Controls</span>
+          <WifiSignal connected={isConnected} error={!!error} />
+        </button>
+      </motion.div>
+
+      {/* Controls body — follows the header and expands without affecting the
+          drag constraints of the header. */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="controls-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+            style={{ x: panelX, y: bodyY }}
+            className="pointer-events-auto absolute left-0 top-0 w-96 origin-top overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
           >
-            <span className="w-4 shrink-0" aria-hidden="true" />
-            <span className="mx-auto text-xs font-semibold text-white">Controls</span>
-            <WifiSignal connected={isConnected} error={!!error} />
-          </button>
-
-          {/* Controls */}
-          <AnimatePresence initial={false}>
-            {open && (
-              <motion.div
-                key="controls-body"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="overflow-hidden"
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <AnimatedControlButton
+                icon={
+                  <div
+                    className={cn(
+                      'h-2 w-2 rounded-full',
+                      followTutor ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
+                    )}
+                  />
+                }
+                label={followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                onClick={() => setFollowTutor(!followTutor)}
+                className={cn('bg-white', followTutor ? 'text-emerald-600' : 'text-slate-700')}
+              />
+              <AnimatedControlButton
+                icon={<LogOut className="h-4 w-4" />}
+                label="Leave session"
+                onClick={() => router.push('/student/dashboard')}
+                className="bg-white text-slate-700"
+              />
+              <div
+                className={cn(
+                  actionButtonBase,
+                  'bg-white',
+                  isConnected ? 'text-emerald-600' : error ? 'text-red-600' : 'text-amber-600'
+                )}
               >
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFollowTutor(!followTutor)}
-                      className={cn(
-                        'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
-                        followTutor
-                          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                          : 'bg-white/10 text-white hover:bg-white/20'
-                      )}
-                    >
-                      <div
-                        className={cn(
-                          'h-2 w-2 rounded-full',
-                          followTutor ? 'animate-pulse bg-white' : 'bg-white/40'
-                        )}
-                      />
-                      {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                    </button>
-
-                    <div className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white">
-                      <div
-                        className={cn(
-                          'h-2 w-2 rounded-full',
-                          isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
-                        )}
-                      />
-                      {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={!roomUrl}
-                      onClick={() => {
-                        if (!roomUrl) return
-                        openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
-                      }}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <Video className="h-4 w-4" />
-                      Video
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowDirectoryPanel(true)}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-                    >
-                      <Folder className="h-4 w-4" />
-                      Directory
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => router.push('/student/dashboard')}
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Leave session
-                    </button>
-
-                    <button
-                      type="button"
-                      className="flex h-9 w-full items-center gap-2 rounded-lg bg-red-500/20 px-3 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/30"
-                    >
-                      <Flag className="h-4 w-4" />
-                      Flag
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-      </div>
+                <div
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
+                  )}
+                />
+                {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+              </div>
+              <AnimatedControlButton
+                icon={<Flag className="h-4 w-4" />}
+                label="Flag"
+                className="bg-white text-red-600"
+              />
+              <AnimatedControlButton
+                icon={<Video className="h-4 w-4" />}
+                label="Video"
+                disabled={!roomUrl}
+                onClick={() => {
+                  if (!roomUrl) return
+                  openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
+                }}
+                className="bg-white text-slate-700"
+              />
+              <AnimatedControlButton
+                icon={<Folder className="h-4 w-4" />}
+                label="Directory"
+                onClick={() => setShowDirectoryPanel(true)}
+                className="bg-white text-slate-700"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -2332,7 +2366,7 @@ function StudentFeedbackContent() {
                 >
                   <TabsTrigger
                     value="task"
-                    className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#F97316] data-[state=active]:to-[#EA580C] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
+                    className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#F17623] data-[state=active]:to-[#D9651A] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
                   >
                     <Presentation className="h-4 w-4" />
                     Classroom
@@ -2555,8 +2589,8 @@ function StudentFeedbackContent() {
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="relative flex-1">
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="relative flex h-16 flex-1 items-center gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3">
                       <Input
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
@@ -2569,12 +2603,11 @@ function StudentFeedbackContent() {
                             }
                           }
                         }}
-                        className="h-16 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                        className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                       <Button
                         size="icon"
-                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
-                        disabled={!chatInput.trim() || !socket}
+                        className="h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                         onClick={() => {
                           if (chatInput.trim() && socket) {
                             socket.emit('chat_message', { text: chatInput.trim() })
@@ -2584,46 +2617,46 @@ function StudentFeedbackContent() {
                       >
                         <Send className="h-4 w-4" />
                       </Button>
-                    </div>
-                    <Button
-                      className="h-16 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                      disabled={!activeTaskId || !socket}
-                      onClick={() => {
-                        if (!activeTaskId || !socket || !selectedSessionId) return
-                        // Include any typed answers so the tutor's Insights can see
-                        // each student's responses, not just a completion tick.
-                        const answers = (activeTask?.dmiItems ?? []).reduce(
-                          (acc, item) => {
-                            const a = taskAnswers[item.id]
-                            if (a && a.trim()) acc[item.id] = a.trim()
-                            return acc
-                          },
-                          {} as Record<string, string>
-                        )
-                        // Wait for the server's acknowledgement so we report a
-                        // TRUE result. If the payload is dropped (e.g. too large
-                        // with drawings) the ack never arrives → show a real error
-                        // instead of a false "submitted".
-                        socket
-                          .timeout(20000)
-                          .emit(
-                            'task:complete',
-                            { roomId: selectedSessionId, taskId: activeTaskId, answers },
-                            (err: unknown, resp?: { ok?: boolean; error?: string }) => {
-                              if (err || !resp?.ok) {
-                                toast.error(
-                                  resp?.error ||
-                                    'Submission did not go through. If you added drawings, try clearing some and resubmit.'
-                                )
-                                return
-                              }
-                              toast.success('Task submitted')
-                            }
+                      <Button
+                        className="h-16 shrink-0 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                        disabled={!activeTaskId || !socket}
+                        onClick={() => {
+                          if (!activeTaskId || !socket || !selectedSessionId) return
+                          // Include any typed answers so the tutor's Insights can see
+                          // each student's responses, not just a completion tick.
+                          const answers = (activeTask?.dmiItems ?? []).reduce(
+                            (acc, item) => {
+                              const a = taskAnswers[item.id]
+                              if (a && a.trim()) acc[item.id] = a.trim()
+                              return acc
+                            },
+                            {} as Record<string, string>
                           )
-                      }}
-                    >
-                      Task Complete
-                    </Button>
+                          // Wait for the server's acknowledgement so we report a
+                          // TRUE result. If the payload is dropped (e.g. too large
+                          // with drawings) the ack never arrives → show a real error
+                          // instead of a false "submitted".
+                          socket
+                            .timeout(20000)
+                            .emit(
+                              'task:complete',
+                              { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                              (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                                if (err || !resp?.ok) {
+                                  toast.error(
+                                    resp?.error ||
+                                      'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                  )
+                                  return
+                                }
+                                toast.success('Task submitted')
+                              }
+                            )
+                        }}
+                      >
+                        Task Complete
+                      </Button>
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -2660,7 +2693,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative mt-2 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
@@ -2686,7 +2719,10 @@ function StudentFeedbackContent() {
               <div className="h-8 w-0.5 rounded-full bg-slate-300" />
             </div>
 
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-2xl bg-gradient-to-br from-[#F17623] to-[#D9651A] px-4 text-sm font-semibold text-white">
+              Desk
+            </div>
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 pb-3 pt-4">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
                 <Button
                   variant="ghost"

@@ -322,28 +322,14 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
             changed = true
           }
         }
-        // Remove extras — but never silently drop a variant that already has
-        // saved schedules. On revisit the category/country pickers don't always
-        // reproduce a stored variant's exact key, and deleting it here would
-        // hide the tutor's existing schedules (Schedule 1, 2, …) from the
-        // scheduler, leaving only the "Add another schedule" button.
-        const hasRealCountries = Array.from(desiredKeys).some(k => !k.endsWith('|Global'))
+        // Remove extras: drop any variant that is no longer selected in the
+        // country picker. Draft variants are cheap to recreate; published
+        // variants are immutable and the picker is disabled for published
+        // courses, so leave them untouched. This prevents stale Global or
+        // country variants from lingering after they are unchecked.
         for (const [key, variant] of map.entries()) {
           if (desiredKeys.has(key)) continue
-          if (variant.persisted) {
-            // Keep published variants and any variant that has saved schedules.
-            // A non-published Global stand-in can be dropped when the tutor
-            // switches to specific countries, so the scheduler only shows the
-            // requested variants.
-            if (variantHasSchedules(variant)) continue
-            if (variant.isPublished) continue
-            if (hasRealCountries && variant.nationality === 'Global') {
-              map.delete(key)
-              changed = true
-            }
-            continue
-          }
-          if (variantHasSchedules(variant)) continue
+          if (variant.isPublished) continue
           map.delete(key)
           changed = true
         }

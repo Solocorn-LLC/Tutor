@@ -246,7 +246,7 @@ export function AiAssistantPanel({
     })),
   ]
 
-  const isBusy = isAnimating || isLoading
+  const isBusy = isLoading
 
   return (
     <div className="flex h-full flex-col gap-3">
