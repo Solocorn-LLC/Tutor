@@ -3321,28 +3321,41 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     useEffect(() => {
-      const urls = detectUrls(activeTaskContentText).filter(u => isValidPreviewUrl(u))
-      const nextPreviews: LinkPreviewItem[] = [...taskBuilder.linkPreviews]
-      const newUrls: string[] = []
-      let changed = false
-
-      urls.forEach((url, idx) => {
-        const existingIndex = nextPreviews.findIndex(p => p.url === url)
-        const fetched = taskFetchedPreviews.find(p => p.url === url)
-        const meta = fetched?.metadata
-
-        if (existingIndex >= 0) {
-          const existing = nextPreviews[existingIndex]
-          const updated = applyPreviewMetadata(existing, meta)
+      setTaskBuilder(prev => {
+        let changed = false
+        const nextLinkPreviews = prev.linkPreviews.map(existing => {
+          const fetched = taskFetchedPreviews.find(p => p.url === existing.url)
+          if (!fetched?.metadata) return existing
+          const updated = applyPreviewMetadata(existing, fetched.metadata)
           if (isPreviewChanged(existing, updated)) {
-            nextPreviews[existingIndex] = updated
             changed = true
+            return updated
           }
-        } else if (fetched && !fetched.loading && !fetched.error && meta) {
-          changed = true
+          return existing
+        })
+        if (!changed) return prev
+        return { ...prev, linkPreviews: nextLinkPreviews }
+      })
+    }, [taskFetchedPreviews])
+
+    useEffect(() => {
+      const urls = detectUrls(activeTaskContentText).filter(u => isValidPreviewUrl(u))
+      if (urls.length === 0) return
+
+      setTaskBuilder(prev => {
+        const existingUrls = new Set(prev.linkPreviews.map(p => p.url))
+        const newUrls: string[] = []
+        const newPreviews: LinkPreviewItem[] = []
+
+        urls.forEach((url, idx) => {
+          if (existingUrls.has(url)) return
+          const fetched = taskFetchedPreviews.find(p => p.url === url)
+          if (!fetched || fetched.loading || fetched.error || !fetched.metadata) return
+          existingUrls.add(url)
           newUrls.push(url)
           const offset = (idx % 6) * 24
-          nextPreviews.push({
+          const meta = fetched.metadata
+          newPreviews.push({
             id: utilsGenerateId(),
             url,
             x: 24 + offset,
@@ -3359,22 +3372,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             fileName: meta.fileName,
             fileType: meta.fileType,
           })
-        }
-      })
+        })
 
-      if (!changed && newUrls.length === 0) return
+        if (newPreviews.length === 0) return prev
 
-      if (newUrls.length === 0) {
-        setTaskBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
-        return
-      }
-
-      setTaskBuilder(prev => {
         const activeHtml = prev.activeExtensionId
           ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.content || ''
           : prev.taskContent
         const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
-        const next = { ...prev, linkPreviews: nextPreviews }
+
+        const next = { ...prev }
         if (prev.activeExtensionId) {
           next.extensions = prev.extensions.map(e =>
             e.id === prev.activeExtensionId ? { ...e, content: cleanedHtml } : e
@@ -3382,40 +3389,54 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         } else {
           next.taskContent = cleanedHtml
         }
+
+        next.linkPreviews = [...prev.linkPreviews, ...newPreviews]
         return next
       })
     }, [
       activeTaskContentText,
       taskFetchedPreviews,
-      taskBuilder.linkPreviews,
       taskBuilder.activeExtensionId,
       taskBuilder.extensions,
       taskBuilder.taskContent,
     ])
 
     useEffect(() => {
-      const urls = detectUrls(activeAssessmentContentText).filter(u => isValidPreviewUrl(u))
-      const nextPreviews: LinkPreviewItem[] = [...assessmentBuilder.linkPreviews]
-      const newUrls: string[] = []
-      let changed = false
-
-      urls.forEach((url, idx) => {
-        const existingIndex = nextPreviews.findIndex(p => p.url === url)
-        const fetched = assessmentFetchedPreviews.find(p => p.url === url)
-        const meta = fetched?.metadata
-
-        if (existingIndex >= 0) {
-          const existing = nextPreviews[existingIndex]
-          const updated = applyPreviewMetadata(existing, meta)
+      setAssessmentBuilder(prev => {
+        let changed = false
+        const nextLinkPreviews = prev.linkPreviews.map(existing => {
+          const fetched = assessmentFetchedPreviews.find(p => p.url === existing.url)
+          if (!fetched?.metadata) return existing
+          const updated = applyPreviewMetadata(existing, fetched.metadata)
           if (isPreviewChanged(existing, updated)) {
-            nextPreviews[existingIndex] = updated
             changed = true
+            return updated
           }
-        } else if (fetched && !fetched.loading && !fetched.error && meta) {
-          changed = true
+          return existing
+        })
+        if (!changed) return prev
+        return { ...prev, linkPreviews: nextLinkPreviews }
+      })
+    }, [assessmentFetchedPreviews])
+
+    useEffect(() => {
+      const urls = detectUrls(activeAssessmentContentText).filter(u => isValidPreviewUrl(u))
+      if (urls.length === 0) return
+
+      setAssessmentBuilder(prev => {
+        const existingUrls = new Set(prev.linkPreviews.map(p => p.url))
+        const newUrls: string[] = []
+        const newPreviews: LinkPreviewItem[] = []
+
+        urls.forEach((url, idx) => {
+          if (existingUrls.has(url)) return
+          const fetched = assessmentFetchedPreviews.find(p => p.url === url)
+          if (!fetched || fetched.loading || fetched.error || !fetched.metadata) return
+          existingUrls.add(url)
           newUrls.push(url)
           const offset = (idx % 6) * 24
-          nextPreviews.push({
+          const meta = fetched.metadata
+          newPreviews.push({
             id: utilsGenerateId(),
             url,
             x: 24 + offset,
@@ -3432,27 +3453,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             fileName: meta.fileName,
             fileType: meta.fileType,
           })
-        }
-      })
+        })
 
-      if (!changed && newUrls.length === 0) return
+        if (newPreviews.length === 0) return prev
 
-      if (newUrls.length === 0) {
-        setAssessmentBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
-        return
-      }
-
-      setAssessmentBuilder(prev => {
-        const next = { ...prev, linkPreviews: nextPreviews }
         const activeHtml = prev.pages[prev.activePageIndex] ?? ''
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
+
+        const next = { ...prev, linkPreviews: [...prev.linkPreviews, ...newPreviews] }
         next.pages = [...prev.pages]
-        next.pages[prev.activePageIndex] = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
+        next.pages[prev.activePageIndex] = cleanedHtml
         return next
       })
     }, [
       activeAssessmentContentText,
       assessmentFetchedPreviews,
-      assessmentBuilder.linkPreviews,
       assessmentBuilder.pages,
       assessmentBuilder.activePageIndex,
     ])
