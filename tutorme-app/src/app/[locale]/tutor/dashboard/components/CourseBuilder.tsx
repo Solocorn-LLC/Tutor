@@ -371,6 +371,7 @@ import {
   stringToColor,
   formatDuration,
   deepCloneSourceDocument,
+  hasTaskOrAssessmentContent,
 } from './builder-utils'
 import { buildTaskFlushedNodes, buildAssessmentFlushedNodes } from './builder-flush'
 
@@ -1696,7 +1697,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const summary = [
         'Session ready.',
         '',
-        `Task: ${taskBuilder.title?.trim() || 'Untitled task'}`,
         `Course: ${courseName?.trim() || 'Test Course'}`,
         'Enrolled Students: 2',
         `Date: ${new Date().toLocaleDateString()}`,
@@ -1986,6 +1986,51 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             }
           }
           if (srcLessonId) break
+        }
+
+        // Content guard: do not deploy empty/unedited tasks or assessments.
+        if (payload.source === 'task') {
+          if (payload.isExtension) {
+            const ext = (src?.extensions ?? []).find(e => e.id === payload.id)
+            const item = ext
+              ? {
+                  title: ext.name,
+                  source: 'task' as const,
+                  sourceDocument: ext.sourceDocument,
+                  content: ext.content,
+                  description: ext.description,
+                }
+              : payload
+            if (!hasTaskOrAssessmentContent(item)) {
+              toast.error('Add content, upload a file, or edit this extension before deploying.')
+              return
+            }
+          } else {
+            const taskToCheck = src ?? payload
+            const extensionItems = (src?.extensions ?? []).map(ext => ({
+              title: ext.name,
+              source: 'task' as const,
+              sourceDocument: ext.sourceDocument,
+              content: ext.content,
+              description: ext.description,
+            }))
+            const items = [taskToCheck, ...extensionItems]
+            const emptyItems = items.filter(item => !hasTaskOrAssessmentContent(item))
+            if (emptyItems.length > 0) {
+              toast.error(
+                `Add content, upload a file, or edit ${
+                  emptyItems.length === 1 ? 'this item' : `${emptyItems.length} items`
+                } before deploying.`
+              )
+              return
+            }
+          }
+        } else if (payload.source === 'assessment' || payload.source === 'homework') {
+          const item = srcAssessment ?? payload
+          if (!hasTaskOrAssessmentContent(item)) {
+            toast.error('Add content, upload a file, or edit this assessment before deploying.')
+            return
+          }
         }
 
         // ASMT-12 gradability gate (assessment-only): the assessment must be
@@ -2478,7 +2523,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const summary = [
           'Session ready.',
           '',
-          `Task: ${task.title?.trim() || 'Untitled task'}`,
           `Course: ${courseName?.trim() || 'Live Course'}`,
           `Enrolled Students: ${enrolledStudents}`,
           `Date: ${new Date().toLocaleDateString()}`,
@@ -2509,7 +2553,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const summary = [
           'Session ready.',
           '',
-          `Assessment: ${assessment.title?.trim() || 'Untitled assessment'}`,
           `Course: ${courseName?.trim() || 'Live Course'}`,
           `Enrolled Students: ${enrolledStudents}`,
           `Date: ${new Date().toLocaleDateString()}`,

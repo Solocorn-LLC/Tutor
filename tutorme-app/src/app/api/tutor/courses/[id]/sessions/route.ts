@@ -4,8 +4,9 @@
  */
 
 import { NextResponse } from 'next/server'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, ForbiddenError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
+import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { eq, and, asc, inArray } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
@@ -26,6 +27,11 @@ export const GET = withAuth(
 
     if (!courseId || courseId === 'undefined' || courseId === 'null') {
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
+    }
+
+    const isOwner = await verifyCourseOwnership(courseId, tutorId)
+    if (!isOwner) {
+      throw new ForbiddenError('You do not have access to this course')
     }
 
     const safeUrl = req.nextUrl?.href || req.url || ''
