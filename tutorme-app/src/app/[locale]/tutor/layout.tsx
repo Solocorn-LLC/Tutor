@@ -14,13 +14,12 @@ import {
   MessageSquare,
   Settings,
   Wrench,
-  Menu,
-  X,
   HelpCircle,
   Globe,
   PanelLeftClose,
   PanelLeftOpen,
-  ClipboardCheck,
+  Menu,
+  X,
   LogOut,
   User,
   FileText,
@@ -54,12 +53,6 @@ const navItems: NavItem[] = [
     label: 'Communications',
     icon: MessageSquare,
     iconColor: 'text-[#EC4899]',
-  },
-  {
-    href: '/tutor/submissions',
-    label: 'Grading',
-    icon: ClipboardCheck,
-    iconColor: 'text-[#16A34A]',
   },
   { href: '/tutor/reports', label: 'Analytics', icon: BarChart3, iconColor: 'text-[#F59E0B]' },
   { href: '/tutor/support', label: 'Support', icon: HelpCircle, iconColor: 'text-[#8B5CF6]' },
@@ -95,7 +88,6 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   const isReportsPage = pathname?.includes('/tutor/reports')
   const isDashboardPage = pathname?.includes('/tutor/dashboard')
   const isCommunicationsPage = pathname?.includes('/tutor/communications')
-  const isSubmissionsPage = pathname?.includes('/tutor/submissions')
   const isAccountPage = pathname?.includes('/tutor/settings')
   const isSupportPage = pathname?.includes('/tutor/support') || pathname?.includes('/tutor/help')
   const isGroupSessionsPage = pathname?.includes('/tutor/group-sessions')
@@ -117,7 +109,6 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isDashboardPage ||
     isReportsPage ||
     isCommunicationsPage ||
-    isSubmissionsPage ||
     isAccountPage ||
     isMyPage ||
     isSupportPage ||
@@ -125,12 +116,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
     isInsightsPage ||
     isSessionsPage
   const [desktopNavOpen, setDesktopNavOpen] = useState(
-    !isMyPage &&
-      !isReportsPage &&
-      !isAccountPage &&
-      !isSupportPage &&
-      !isCommunicationsPage &&
-      !isSubmissionsPage
+    !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage
   )
 
   // Use realm session (tutor tab) first; only redirect if we don't have a tutor session and default session is another role
@@ -162,21 +148,9 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
   // Auto-close on My Page, Reports, Account Settings, and Support; auto-open elsewhere
   useEffect(() => {
     setDesktopNavOpen(
-      !isMyPage &&
-        !isReportsPage &&
-        !isAccountPage &&
-        !isSupportPage &&
-        !isCommunicationsPage &&
-        !isSubmissionsPage
+      !isMyPage && !isReportsPage && !isAccountPage && !isSupportPage && !isCommunicationsPage
     )
-  }, [
-    isMyPage,
-    isReportsPage,
-    isAccountPage,
-    isSupportPage,
-    isCommunicationsPage,
-    isSubmissionsPage,
-  ])
+  }, [isMyPage, isReportsPage, isAccountPage, isSupportPage, isCommunicationsPage])
   // Periodic peek animation for sidebar toggle
   useEffect(() => {
     const interval = setInterval(() => {
