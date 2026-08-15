@@ -39,6 +39,12 @@ export interface CourseBuilderContext {
   lessons: CourseBuilderLessonInfo[]
   loadedItem?: CourseBuilderTaskInfo | null
   tutorCourseCount?: number
+  /** True when the tutor has already generated a DMI (questions/marks/answers). */
+  hasGeneratedDmi?: boolean
+  /** Number of generated DMI questions. */
+  dmiQuestionCount?: number
+  /** True when the tutor has finalized a PCI (marking policy) for the loaded item. */
+  hasCompletedPci?: boolean
 }
 
 export interface CourseBuilderMessage {
@@ -97,6 +103,16 @@ function buildContextBlock(ctx: CourseBuilderContext): string {
     )
   }
 
+  if (ctx.hasGeneratedDmi !== undefined) {
+    lines.push(`DMI generated: ${ctx.hasGeneratedDmi ? 'yes' : 'no'}`)
+  }
+  if (typeof ctx.dmiQuestionCount === 'number' && ctx.dmiQuestionCount > 0) {
+    lines.push(`DMI questions: ${ctx.dmiQuestionCount}`)
+  }
+  if (ctx.hasCompletedPci !== undefined) {
+    lines.push(`PCI finalized: ${ctx.hasCompletedPci ? 'yes' : 'no'}`)
+  }
+
   return lines.join('\n')
 }
 
@@ -147,7 +163,7 @@ export async function runCourseBuilderAssistant(
   })
 
   const trimmed = response.trim()
-  const warnings = runCourseBuilderGuardrails(trimmed).violations
+  const warnings = runCourseBuilderGuardrails(trimmed, messages).violations
   const parsed = parseAssistantResponse(trimmed)
 
   if (parsed?.reply && typeof parsed.reply === 'string') {

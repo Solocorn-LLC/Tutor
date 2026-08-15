@@ -1,10 +1,10 @@
 # Solocorn / TutorMekimi — AI Coding Agent Guide
 
-> **Last updated:** 2026-07-26
+> **Last updated:** 2026-08-15
 > **Repository root:** `C:\VSCODE\Tutor`
 > **Language:** English (all code comments, docs, and identifiers are in English)
 
-This is a polyglot monorepo with **no root `package.json`** — each sub-project manages its own dependencies and is run from its own directory. This `AGENTS.md` file sits one level above the repository root (`C:\VSCODE`) for agent discoverability; all code paths below are relative to `C:\VSCODE\Tutor`.
+This is a polyglot monorepo with **no root `package.json`** — each sub-project manages its own dependencies and is run from its own directory. A duplicate of this `AGENTS.md` file sits one level above the repository root (`C:\VSCODE`) for agent discoverability; all code paths below are relative to `C:\VSCODE\Tutor`.
 
 ---
 
@@ -32,11 +32,12 @@ This is a polyglot monorepo with **no root `package.json`** — each sub-project
 | Locale message files present | `messages/en.json`, `messages/zh-CN.json` only |
 | Main app default port | `3003` |
 | Landing page default port | `3000` |
-| `route.ts` files under `src/app/api` | 265 |
-| TypeScript/TSX files under `tutorme-app/src` | 1,062 |
-| Unit/integration test files | 130 |
-| Playwright E2E specs | 15 |
-| Drizzle SQL migrations | 98 (76 in `drizzle/`, 22 in `drizzle/archive/`) |
+| `route.ts` files under `src/app/api` | 277 |
+| TypeScript/TSX files under `tutorme-app/src` | 1,118 |
+| Unit/integration test files under `src` | 140 |
+| Playwright E2E specs | 15 (plus accessibility tests via Playwright) |
+| Drizzle SQL migrations | 79 in `drizzle/`, 22 in `drizzle/archive/` |
+| Top-level domain directories under `src/lib` | 50 |
 
 ---
 
@@ -66,13 +67,13 @@ C:\VSCODE\Tutor/
 │   │   │   │   ├── call/
 │   │   │   │   ├── pitch-deck/
 │   │   │   │   └── u/
-│   │   │   └── api/          # REST API endpoints (265 route.ts files)
+│   │   │   └── api/          # REST API endpoints (277 route.ts files)
 │   │   ├── components/       # React components (feature-organized)
-│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc.
+│   │   ├── lib/              # Business logic, utilities, AI, db, security, etc. (50 domains)
 │   │   ├── hooks/            # Custom React hooks
 │   │   ├── i18n/             # next-intl request config (re-exports from lib/i18n)
 │   │   └── stores/           # Zustand client stores
-│   ├── e2e/                  # Playwright E2E specs (15 files)
+│   ├── e2e/                  # Playwright E2E specs (15 .spec.ts files)
 │   ├── drizzle/              # Drizzle migration files
 │   ├── messages/             # next-intl JSON translations
 │   ├── scripts/              # Build, deployment & utility scripts
@@ -81,7 +82,8 @@ C:\VSCODE\Tutor/
 │   ├── server.ts             # Custom Next.js HTTP server with Socket.io
 │   ├── Dockerfile            # Full .next + custom server build
 │   ├── Dockerfile.production   # Standalone-output build for GCP Cloud Run
-│   ├── docker-compose.prod.yml # Full production stack compose
+│   ├── docker-compose.local.yml # Local db + redis + optional app container
+│   ├── docker-compose.prod.yml  # Legacy compose (still references adk-service; see Runtime Architecture)
 │   ├── next.config.mjs       # Next.js configuration (standalone, Sentry, intl, rewrites/redirects)
 │   ├── tsconfig.json         # TypeScript strict config
 │   ├── eslint.config.mjs     # ESLint flat config
@@ -132,10 +134,11 @@ C:\VSCODE\Tutor/
 ├── .vscode/                  # VS Code workspace settings
 ├── .cursor/                  # Cursor IDE configuration
 ├── .cursorrules              # Solocorn AI development workflow rules
+├── .githooks/                # Pre-commit hook (auto-format staged files)
 ├── .prettierrc               # Shared Prettier config
 ├── .prettierignore
 ├── .gitignore
-├── package-lock.json         # Present at root despite no root package.json (legacy artifact)
+├── package-lock.json         # Legacy root lockfile (empty packages object — no root package.json)
 ├── README.md                 # Contains the Solocorn AI development rules (duplicates .cursorrules)
 ├── CLAUDE.md                 # Claude-specific project overview
 ├── GEMINI.md                 # Gemini-specific overview
@@ -180,7 +183,7 @@ C:\VSCODE\Tutor/
 ### Notes on AI Architecture
 
 - **Kimi is the only active AI provider.** Production deploys do not configure ADK; the app routes AI features through the direct Kimi path in `src/lib/ai/kimi.ts`.
-- **ADK service is retired.** The deploy workflow explicitly disables ADK configuration. A legacy `src/lib/adk-client.ts` file still exists but is not used in production.
+- **ADK service is retired.** The deploy workflow explicitly disables ADK configuration. A legacy `src/lib/adk-client.ts` file still exists but is not used in production. `docker-compose.prod.yml` still references an `adk-service` but it is not part of the live deployment pipeline.
 - **Landing page still lists `@google/genai`** as a dependency, but the main app does **not** use Google AI SDK.
 
 ---
@@ -190,7 +193,7 @@ C:\VSCODE\Tutor/
 | File | Project | Purpose |
 |------|---------|---------|
 | `tutorme-app/package.json` | Main app | Project name `solocorn-app`, Node 20, Next.js 16, React 18, all scripts/dependencies |
-| `tutorme-app/next.config.mjs` | Main app | Next.js standalone output, image remote patterns, webpack aliases for jspdf/fflate, rewrites for `/tutor/classroom`, `serverExternalPackages` for pg/jspdf/mathjax, conditional Sentry wrapping |
+| `tutorme-app/next.config.mjs` | Main app | Next.js standalone output, image remote patterns, webpack aliases for jspdf/fflate, rewrites for `/tutor/classroom`, `serverExternalPackages` for pg/jspdf/mathjax, conditional Sentry wrapping, `proxyClientMaxBodySize: '25mb'` |
 | `tutorme-app/tsconfig.json` | Main app | Strict TypeScript (`strict: true`), `target: ES2017`, `moduleResolution: bundler`, path alias `@/*` → `./src/*`, excludes `scripts` and test files from compilation |
 | `tutorme-app/eslint.config.mjs` | Main app | Flat ESLint config extending `eslint-config-next/core-web-vitals`, `eslint-config-next/typescript`, and `prettier`. Custom security rules and the variant-family guard |
 | `tutorme-app/tailwind.config.ts` | Main app | Tailwind CSS v3 with extensive custom design system: HSL color tokens, elevation shadows, animation keyframes, Chinese font stack, z-index scale |
@@ -199,7 +202,7 @@ C:\VSCODE\Tutor/
 | `tutorme-app/vitest.config.ts` | Main app | Unit tests in jsdom, includes `src/**/*.test.{ts,tsx}`, mocks `@google/genai` |
 | `tutorme-app/vitest.integration.config.ts` | Main app | Integration tests in node environment, includes `src/__tests__/integration/**/*.test.ts` |
 | `tutorme-app/playwright.config.ts` | Main app | E2E matching `e2e/**/*.spec.ts` and `src/__tests__/accessibility/**/*.test.ts`, Chromium only, webServer command `npm run dev:next` |
-| `tutorme-app/.env.local.example` | Main app | Minimal template for local environment overrides (KIMI_API_KEY, NEXTAUTH_URL) |
+| `tutorme-app/.env.local.example` | Main app | Minimal template for local environment overrides (KIMI_API_KEY, NEXTAUTH_URL, etc.) |
 | `landing-page/package.json` | Landing page | Vite 6, React 19, Tailwind CSS v4. Package name `react-example` |
 | `landing-page/vite.config.ts` | Landing page | Vite 6 with React plugin, Tailwind CSS v4 Vite plugin, static export to `dist/`, port 3000, HMR disabled when `DISABLE_HMR=true` |
 | `.github/workflows/ci.yml` | Root | CI pipeline: typecheck, build (landing integrated), unit tests, lint, format, security, integration tests, advisory E2E |
@@ -207,7 +210,7 @@ C:\VSCODE\Tutor/
 | `.github/workflows/secret-scan.yml` | Root | Runs `gitleaks` CLI on every push/PR (commit-range only) |
 | `.github/workflows/keep-alive.yml` | Root | Pings `SITE_URL/api/health` every 10 minutes and sweeps expired 1-on-1 holds |
 | `.prettierrc` | Root | Shared Prettier config: no semis, single quotes, print width 100, Tailwind plugin |
-| `.cursorrules` | Root | Solocorn AI development workflow rules (feature batching, pre-flight checks) |
+| `.githooks/pre-commit` | Root | Auto-formats staged `tutorme-app` TS/JS files with Prettier before each commit |
 
 ---
 
@@ -250,7 +253,7 @@ The production entry point (`scripts/start-prod.js`) runs database migrations fi
 
 ### Database Client
 
-- `src/lib/db/drizzle.ts` — Primary Drizzle + `pg.Pool` singleton. Pool max size is 5 in development and 50 in production. PgBouncer-aware via optional `DATABASE_POOL_URL`.
+- `src/lib/db/drizzle.ts` — Primary Drizzle + `pg.Pool` singleton. Pool max size is 5 in development and 50 in production (override with `DB_POOL_MAX`). PgBouncer-aware via optional `DATABASE_POOL_URL` and `prepare: false`.
 - `src/lib/db/index.ts` — Legacy caching wrapper (Redis → in-memory fallback). Most existing code imports `db` from here; **new code should import from `drizzle.ts`** (`drizzleDb`).
 
 ---
@@ -278,12 +281,22 @@ cd ../landing-page && npm run dev     # http://localhost:3000
 >
 > `npm run dev:all` currently just invokes `npm run dev`; it does **not** start Docker services automatically.
 
+For local Docker infrastructure:
+
+```bash
+# Postgres + Redis only (recommended for development)
+docker compose -f docker-compose.local.yml up db redis
+
+# Full stack including the app (not needed for active development)
+docker compose -f docker-compose.local.yml --profile prod up --build
+```
+
 ### Production Build
 
 ```bash
-npm run build        # Builds service worker + Next.js standalone output (uses --webpack flag)
-npm run build:sw     # Compiles src/lib/pwa/service-worker.ts → public/sw.js via esbuild
-npm run build:custom-server  # Compiles server.ts → server-production.js via esbuild
+npm run build        # Builds service worker + Next.js standalone output
+npm run build:sw     # Compiles src/lib/pwa/service-worker.ts → public/sw.js
+npm run build:custom-server  # Compiles server.ts → server-production.js
 npm run start        # Production Next.js start (used inside Docker standalone image)
 ```
 
@@ -295,7 +308,7 @@ npm run db:migrate:deploy    # Deploy migrations via script (scripts/migrate.js)
 npm run db:apply-schema      # Apply schema changes via script (scripts/apply-schema-changes.js)
 npm run db:check-schema      # Check for schema drift (scripts/check-schema-drift.js)
 npm run drizzle:generate     # Generate new migration SQL
-npm run drizzle:studio       # Open Drizzle Studio (https://local.drizzle.studio)
+npm run drizzle:studio       # Open Drizzle Studio
 npm run drizzle:push         # Push schema changes (force)
 npm run drizzle:pull         # Pull schema from database
 npm run db:seed              # Seed sample data (tsx src/scripts/seed-db.ts)
@@ -305,10 +318,11 @@ npm run db:seed:admin        # Seed admin user and roles only
 ### Maintenance & Backfill Scripts
 
 ```bash
-npm run backfill:group-course       # Backfill group-session course links (tsx scripts/backfill-group-session-course.ts)
-npm run audit:orphaned-courses      # Audit orphaned courses (tsx scripts/audit-orphaned-courses.ts)
-npm run cleanup:orphaned-courses    # Clean up orphaned courses (tsx scripts/cleanup-orphaned-courses.ts)
-npm run recover:protected-courses   # Recover protected courses (tsx scripts/recover-protected-courses.ts)
+npm run backfill:group-course              # Backfill group-session course links
+npm run backfill:published-course-categories  # Backfill published course categories
+npm run audit:orphaned-courses           # Audit orphaned courses
+npm run cleanup:orphaned-courses         # Clean up orphaned courses
+npm run recover:protected-courses        # Recover protected courses
 ```
 
 ### Testing
@@ -324,6 +338,7 @@ npm run test:e2e:a11y        # Accessibility tests (Playwright)
 npm run test:load            # k6 concurrent-users load test
 npm run test:load:ai         # k6 AI stress load test
 npm run test:load:ws         # k6 WebSocket load test (placeholder)
+npm run test:load:scheduling # Node scheduling-conflicts load test
 ```
 
 > **E2E requirements:** The app must be running (default `http://localhost:3003`). Some specs expect seeded test users (e.g., `tutor@example.com` / `Password1`).
@@ -353,7 +368,7 @@ The CI lint job runs `npm run lint:ci`, which is `eslint . --max-warnings=2188`.
 - `*.{ts,tsx,js}` → `prettier --write`, `eslint --fix`
 - `*.{json,md}` → `prettier --write`
 
-The `prepare` script points Git hooks to `.githooks` at the repository root.
+The `prepare` script points Git hooks to `.githooks` at the repository root. The pre-commit hook (`./githooks/pre-commit`) auto-formats staged `tutorme-app` TS/JS files with Prettier before the commit is created. Bypass with `git commit --no-verify`.
 
 ---
 
@@ -369,6 +384,10 @@ The startup environment validator (`src/lib/env.ts`) **requires** `DATABASE_URL`
 # Database (required)
 DATABASE_URL="postgresql://tutorme:tutorme_password@localhost:5433/tutorme"
 DIRECT_URL="postgresql://tutorme:tutorme_password@localhost:5433/tutorme"
+# Optional PgBouncer-aware pool URL
+DATABASE_POOL_URL="postgresql://tutorme:tutorme_password@localhost:5433/tutorme"
+# Optional per-instance pool cap (default 50 prod / 5 dev)
+DB_POOL_MAX=50
 
 # Redis (required for cache + Socket.io adapter)
 REDIS_URL="redis://localhost:6379"
@@ -405,6 +424,11 @@ NEXT_PUBLIC_SENTRY_DSN=...
 SENTRY_ORG=...
 SENTRY_PROJECT=...
 
+# Admin auth (recommended in production; app warns if missing)
+ADMIN_JWT_SECRET="dedicated_secret_at_least_32_chars"
+# Legacy plaintext login fallback. Leave unset/false unless doing a one-time migration.
+ALLOW_LEGACY_PLAINTEXT_LOGIN=false
+
 # App
 NEXT_PUBLIC_APP_URL="http://localhost:3003"
 NODE_ENV="development"
@@ -429,6 +453,10 @@ GCP_SA_KEY='...'
 VAPID_PUBLIC_KEY=...
 VAPID_PRIVATE_KEY=...
 VAPID_SUBJECT=...
+
+# Cron / keep-alive (used by GitHub Actions keep-alive.yml)
+SITE_URL="https://your-app-url"
+CRON_SECRET="..."
 ```
 
 There is **no root-level `middleware.ts`** in this project. Route guards, i18n routing, CSP, and rate-limiting are handled via:
@@ -446,7 +474,7 @@ There is **no root-level `middleware.ts`** in this project. Route guards, i18n r
 - `src/app/layout.tsx` — Root layout with metadata, PWA manifest, theme init script, service worker unregister script, Google Fonts, and top-level providers.
 - `src/app/[locale]/layout.tsx` — Locale layout wrapping `ThemeProvider`, `NavigationOverlayProvider`, `FloatingVideoOverlay`, `PWAInstallPrompt`, `Toaster`, and `SessionLauncher`. Validates locale param against configured locales.
 - `src/app/[locale]/` — All user-facing pages grouped by role (`student/`, `tutor/`, `parent/`, `admin/`) plus shared pages (`login/`, `register/`, `onboarding/`, `payment/`, `legal/`, `forgot-password/`, `api-docs/`, `categories/`, `session/`, `tutors/`, `call/`, `pitch-deck/`, `u/`).
-- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 265 `route.ts` files under `src/app/api/`.
+- `src/app/api/` — REST API endpoints mirroring the UI structure. Each folder contains `route.ts` (or segment-specific route files). There are 277 `route.ts` files under `src/app/api/`.
 
 **Role-specific layout behaviors:**
 
@@ -466,14 +494,14 @@ Organized by feature domain:
 - `class/`, `classroom/` — Live classroom (whiteboard, polls, breakout rooms, engagement)
 - `student/`, `tutor/`, `parent/`, `admin/` — Role-specific dashboards
 - `video-player/`, `quiz/`, `polls/`, `whiteboard/`, `course-builder/`, `course/`, `spaced-repetition/` — Content & assessment UIs
-- `assignments/`, `communications/`, `feedback/`, `mentions/`, `monitoring/`, `reports/`, `common/`, `legal/`, `navigation/`, `notifications/`, `pdf/`, `providers/`, `pwa/`, `support/` — Supporting UI domains
+- `assignments/`, `communications/`, `controls/`, `feedback/`, `link-preview/`, `mentions/`, `monitoring/`, `reports/`, `common/`, `legal/`, `navigation/`, `notifications/`, `pdf/`, `providers/`, `pwa/`, `support/` — Supporting UI domains
 
 ### Library (`src/lib/`)
 
-Domain-organized business logic (45+ top-level directories):
+Domain-organized business logic (50 top-level directories):
 
 - `lib/db/` — Drizzle client (`drizzle.ts`), schema (`schema/`), and migrations
-- `lib/ai/` — AI provider integrations (`kimi.ts`), prompts, teaching prompts, types, memory services
+- `lib/ai/` — AI provider integrations (`kimi.ts`), prompts, teaching prompts, types, memory, usage tracking
 - `lib/agents/` — Orchestrator, tutor agents, grading, live-monitor, content-generator, task-generator, tutor-chat-service
 - `lib/payments/` — Payment gateway integrations (Airwallex, Hitpay, Chinese gateways)
 - `lib/security/` — RBAC, rate limiting, CSRF, admin IP restrictions, suspicious-activity logging, client encryption, sanitization, audit, PIPL compliance
@@ -481,8 +509,8 @@ Domain-organized business logic (45+ top-level directories):
 - `lib/cache-manager/` — Redis caching layer
 - `lib/i18n/` — i18n config and helpers
 - `lib/validation/` — Zod schemas
-- `lib/api/middleware.ts` — Standardized API route middleware (auth, RBAC, rate limit, CSRF, error handling)
-- Additional domain modules: `auth`, `assessment`, `chat`, `classroom`, `code-runner`, `compliance`, `course`, `courses`, `data`, `documents`, `email`, `env`, `extract-file-text`, `feedback`, `financial`, `format-class-time`, `format-currency`, `geo`, `grading`, `group-session`, `live`, `math`, `mentions`, `messaging`, `middleware-edge`, `monitoring`, `notifications`, `one-on-one`, `performance`, `progress`, `push`, `pwa`, `registration`, `schedule`, `schedule-sessions`, `scroll-into-view`, `search`, `security`, `services`, `sessions`, `socket`, `socket-auth`, `socket-server`, `storage`, `student-availability`, `tasks`, `time`, `tutoring`, `utils`, `validation`, `video`, `whiteboard`
+- `lib/api/middleware.ts` — Standardized API route middleware (auth, RBAC, rate limit, CSRF, validation, error handling, audit)
+- Additional domain modules: `accessibility`, `admin`, `assessment`, `auth`, `chat`, `classroom`, `code-runner`, `compliance`, `course`, `courses`, `data`, `documents`, `email`, `env`, `extract-file-text`, `feedback`, `financial`, `format-class-time`, `format-currency`, `geo`, `grading`, `group-session`, `link-preview`, `live`, `math`, `mentions`, `messaging`, `middleware-edge`, `monitoring`, `notifications`, `one-on-one`, `performance`, `progress`, `push`, `pwa`, `registration`, `schedule`, `schedule-sessions`, `scroll-into-view`, `search`, `services`, `sessions`, `socket-auth`, `storage`, `student-availability`, `student-availability-defaults`, `tasks`, `time`, `tutoring`, `utils`, `video`, `whiteboard`
 
 ### Hooks (`src/hooks/`)
 
@@ -518,15 +546,15 @@ Zustand stores for client state:
   - `compliance.ts` — GDPR / COPPA / FERPA compliance tables
   - `landing.ts` — Landing page inquiry/signup tables
 - ~120 `pgTable` definitions across the schema.
-- Migrations live in `drizzle/` (98 SQL files total: 76 in `drizzle/`, 22 in `drizzle/archive/`, plus `meta/`)
+- Migrations live in `drizzle/` (79 SQL files) and `drizzle/archive/` (22 SQL files), plus `meta/`.
 - Runtime client: `src/lib/db/drizzle.ts` uses `pg.Pool` with singleton pooling (dev pool cached on `globalThis`).
-- Legacy wrapper: `src/lib/db/index.ts` provides a query caching layer (Redis → in-memory fallback). Most app code imports `db` from here; **new code should import `drizzleDb` from `./drizzle`**.
+- Legacy wrapper: `src/lib/db/index.ts` provides a query caching layer (Redis → in-memory fallback). Most app code imports `db` from here; **new code should import `drizzleDb` from `src/lib/db/drizzle.ts`**.
 
 ### Connection Strategy
 
 - `DATABASE_URL` / `DIRECT_URL` — Standard connections.
 - `DATABASE_POOL_URL` — Optional PgBouncer connection string for production.
-- Pool sizes: 5 max in development, 50 max in production.
+- Pool sizes: 5 max in development, 50 max in production (override with `DB_POOL_MAX`).
 - Redis is used for caching, session-like state, and the Socket.io Redis adapter.
 
 ### Key Tables
@@ -574,7 +602,7 @@ Each theme provides light and dark variants via `data-theme` and `.light`/`.dark
 
 **Color System**
 
-Colors are defined as HSL CSS variables and referenced in Tailwind via the semantic tokens (`primary`, `secondary`, `accent`, `background`, `foreground`, `muted`, `border`, `destructive`, `ring`, etc.). See `globals.css` for exact values per theme.
+Colors are defined as HSL CSS variables and referenced in Tailwind via semantic tokens (`primary`, `secondary`, `accent`, `background`, `foreground`, `muted`, `border`, `destructive`, `ring`, etc.). See `globals.css` for exact values per theme.
 
 **Typography**
 
@@ -615,8 +643,8 @@ These can be composed: `withAuth(withRole('ADMIN')(withRateLimit(handler)))`.
 
 ### CSRF & Rate Limiting
 
-- State-changing API methods (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid CSRF token unless the path is in the skip list (auth, webhooks, health) or the request uses a Bearer API key.
-- Rate-limit presets exist for `login`, `register`, `paymentCreate`, `enroll`, `booking`, and `aiGenerate`.
+- State-changing API methods (`POST`, `PUT`, `PATCH`, `DELETE`) require a valid CSRF token unless the path is in the skip list (auth, webhooks, health, cron) or the request uses a Bearer API key.
+- Rate-limit presets exist for `login`, `register`, `paymentCreate`, `enroll`, `booking`, `aiGenerate`, `contact`, and others.
 
 ### Client-Side Encryption
 
@@ -635,6 +663,17 @@ These can be composed: `withAuth(withRole('ADMIN')(withRateLimit(handler)))`.
 ### ESLint Security Guard
 
 `eslint.config.mjs` includes a `no-restricted-syntax` rule that prevents filtering `courseEnrollment` by a session's `courseId` directly (which misses sibling course variants). The correct pattern is to use `expandToCourseFamily(...)` + `inArray(...)` from `variant-family.ts`.
+
+### Security Hardening Notes
+
+A recent hardening batch (`SECURITY_HARDENING.md`) landed the following production-relevant changes:
+
+- Admin JWT secret must be dedicated (`ADMIN_JWT_SECRET`). App warns in production if it falls back to `NEXTAUTH_SECRET`.
+- Legacy plaintext-password admin login is gated behind `ALLOW_LEGACY_PLAINTEXT_LOGIN` (default OFF).
+- Contact form has an IP-based rate limit and HTML-escapes user input in email bodies.
+- Postgres per-instance pool cap is overridable via `DB_POOL_MAX` to stay within managed Postgres limits (e.g., Neon ~100).
+
+Several larger security/compliance gaps remain documented in `INVESTOR_RISK_ASSESSMENT.md` and are intentionally out of scope for code-only changes (age verification, moderation, revenue disbursement, AI token budgets, etc.).
 
 ---
 
@@ -828,6 +867,12 @@ CI automatically builds `landing-page/` and copies `dist/*` into `tutorme-app/pu
 
 ---
 
+## Dev Container
+
+`.devcontainer/devcontainer.json` exists but is configured for a Python/Node hybrid image and forwards ports 8000/3000. It is largely legacy and not the primary development path. Local development is driven by `npm install` and `npm run dev` inside `tutorme-app/` with `docker compose -f docker-compose.local.yml up db redis` for local Postgres/Redis.
+
+---
+
 ## Common Tasks
 
 ### Adding a New API Route
@@ -891,7 +936,7 @@ Ensure you're using `npm run dev` (runs `server.ts`), not `npm run dev:next` (ba
 
 ### Database connection errors
 
-Check `DATABASE_URL` format. Must be a full PostgreSQL connection string. For PgBouncer, use `DATABASE_POOL_URL` with `prepare: false`.
+Check `DATABASE_URL` format. Must be a full PostgreSQL connection string. For PgBouncer, use `DATABASE_POOL_URL` with `prepare: false` and set `DB_POOL_MAX` to keep instances × max under the managed Postgres limit.
 
 ### Redis connection errors
 
@@ -921,7 +966,7 @@ Ensure `copy-pdf-worker.js` has run and `public/pdf.worker.min.mjs` exists. The 
 
 ## Important Notes for Agents
 
-1. **No root package.json** — Always `cd tutorme-app/` before running npm commands.
+1. **No root package.json** — Always `cd tutorme-app/` before running npm commands. The root `package-lock.json` is a legacy artifact with an empty `packages` object.
 2. **Production dev mode** — `npm run dev` sets `NODE_ENV=production`. This is intentional.
 3. **Custom server required** — Never use `next start` or `next dev` directly for the main app. Always go through `server.ts`.
 4. **Drizzle only** — Do not introduce Prisma. Use Drizzle ORM for all database work.
@@ -941,15 +986,5 @@ Ensure `copy-pdf-worker.js` has run and `public/pdf.worker.min.mjs` exists. The 
 18. **New DB code** — Prefer importing `drizzleDb` from `src/lib/db/drizzle.ts` instead of the legacy `db` export from `src/lib/db/index.ts`.
 19. **Use tools for file changes** — When modifying files, always use `Read`, `Edit`, `Write`, or `Bash` as appropriate; never just describe code changes in text.
 20. **Never commit secrets** — Do not commit `.env`, `.env.local`, or any credential files.
-
----
-
-## Contact & Resources
-
-- **Design system:** `design-system/solocorn/MASTER.md`
-- **Classroom guide:** `Classroom/README.md`
-- **AI development rules:** `.cursorrules` (also duplicated in `README.md`)
-- **Claude overview:** `CLAUDE.md`
-- **Kimi API setup:** `KIMI_API_SETUP.md`
-- **CI/CD configs:** `.github/workflows/`
-- **Environment template:** `tutorme-app/.env.local.example`
+21. **Pre-commit formatting** — Staged TS/JS files in `tutorme-app/` are auto-formatted by the pre-commit hook. You can also run `npm run format` before committing.
+22. **Environment precedence** — `server.ts` loads `.env.local` then `.env`. Local overrides should go in `.env.local`.

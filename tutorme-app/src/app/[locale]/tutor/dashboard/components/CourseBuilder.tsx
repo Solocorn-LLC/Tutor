@@ -1169,7 +1169,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
-    const [assetsOpen, setAssetsOpen] = useState(true)
+    const [assetsOpen, setAssetsOpen] = useState(() => {
+      if (typeof window === 'undefined') return true
+      return window.localStorage.getItem('tutor-course-builder-assets-expanded') !== 'false'
+    })
+    useEffect(() => {
+      if (typeof window === 'undefined') return
+      window.localStorage.setItem('tutor-course-builder-assets-expanded', String(assetsOpen))
+    }, [assetsOpen])
     const [mediaOpen, setMediaOpen] = useState(true)
     const [docsOpen, setDocsOpen] = useState(true)
     const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
@@ -8065,12 +8072,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const renderAssetsFolder = () => (
       <div className="mb-3 mt-3 rounded-xl border border-emerald-500 bg-white shadow-sm">
         {/* Header row matching image 1 */}
-        <div className="relative flex items-center justify-center px-3 py-2">
-          <span className="text-sm font-semibold text-slate-700">Assets</span>
+        <div
+          className="relative flex cursor-pointer items-center justify-center px-3 py-2"
+          onClick={() => setAssetsOpen(prev => !prev)}
+        >
+          <span className="text-sm font-semibold text-emerald-500">Assets</span>
           <div className="absolute right-3 flex items-center gap-3">
             <button
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
-              onClick={() => {
+              className="-translate-x-[3px] text-sm font-medium text-emerald-600 hover:text-emerald-700"
+              onClick={e => {
+                e.stopPropagation()
                 setAssetViewSearch('')
                 setAssetViewFolder('All')
                 setAssetsViewOpen(true)
@@ -8177,6 +8188,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 <span
                   className="flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700"
                   title="Upload Asset"
+                  onClick={e => e.stopPropagation()}
                 >
                   <Plus className="h-4 w-4" />
                 </span>
@@ -8185,90 +8197,94 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           </div>
         </div>
 
-        {/* Only show 2 most recent files */}
-        <div className="flex flex-col gap-2 px-2 pb-2">
-          {recentAssets.length === 0 ? (
-            <p className="text-muted-foreground w-full py-2 text-center text-xs">
-              No assets imported.
-            </p>
-          ) : (
-            recentAssets.map(asset => (
-              <div
-                key={asset.id}
-                draggable={!assetPickerTarget}
-                onDragStart={e => {
-                  if (assetPickerTarget) {
-                    e.preventDefault()
-                    return
-                  }
-                  e.dataTransfer.setData(
-                    'application/json',
-                    JSON.stringify({ type: 'asset', asset })
-                  )
-                }}
-                onClick={() => {
-                  if (assetPickerTarget) {
-                    handleLoadAsset(asset)
-                  }
-                }}
-                className={cn(
-                  'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
-                  assetPickerTarget
-                    ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
-                    : 'cursor-grab active:cursor-grabbing'
-                )}
-              >
-                {' '}
-                <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
-                  <FileText className="h-4 w-4 shrink-0 text-white" />
-                  <span className="flex-1 truncate text-sm font-medium text-white">
-                    {asset.name}
-                  </span>
-                </div>
-                <div
-                  className="flex shrink-0 items-center gap-2"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
-                        aria-label="Asset actions"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-[100]">
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          // Document's own kebab → always show the lesson picker.
-                          setTimeout(() => handleLoadAsset(asset, null), 50)
-                        }}
-                      >
-                        Load
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600"
-                        onClick={() => {
-                          setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
-                        }}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ))
-          )}
-          {courseAssets.length > 2 && (
-            <p className="text-center text-[10px] text-gray-600">
-              +{courseAssets.length - 2} more — click View to see all
-            </p>
-          )}
-        </div>
+        {assetsOpen && (
+          <>
+            {/* Only show 2 most recent files */}
+            <div className="flex flex-col gap-2 px-2 pb-2">
+              {recentAssets.length === 0 ? (
+                <p className="text-muted-foreground w-full py-2 text-center text-xs">
+                  No assets imported.
+                </p>
+              ) : (
+                recentAssets.map(asset => (
+                  <div
+                    key={asset.id}
+                    draggable={!assetPickerTarget}
+                    onDragStart={e => {
+                      if (assetPickerTarget) {
+                        e.preventDefault()
+                        return
+                      }
+                      e.dataTransfer.setData(
+                        'application/json',
+                        JSON.stringify({ type: 'asset', asset })
+                      )
+                    }}
+                    onClick={() => {
+                      if (assetPickerTarget) {
+                        handleLoadAsset(asset)
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
+                      assetPickerTarget
+                        ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
+                        : 'cursor-grab active:cursor-grabbing'
+                    )}
+                  >
+                    {' '}
+                    <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
+                      <FileText className="h-4 w-4 shrink-0 text-white" />
+                      <span className="flex-1 truncate text-sm font-medium text-white">
+                        {asset.name}
+                      </span>
+                    </div>
+                    <div
+                      className="flex shrink-0 items-center gap-2"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
+                            aria-label="Asset actions"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="z-[100]">
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              // Document's own kebab → always show the lesson picker.
+                              setTimeout(() => handleLoadAsset(asset, null), 50)
+                            }}
+                          >
+                            Load
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => {
+                              setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))
+              )}
+              {courseAssets.length > 2 && (
+                <p className="text-center text-[10px] text-gray-600">
+                  +{courseAssets.length - 2} more — click View to see all
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Load-as Modal */}
         <Dialog
@@ -9515,6 +9531,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         </span>
       )
     }
+    // Summarize DMI/PCI completion for the course-builder AI assistant.
+    // Computed here so it can read the PCI reducer state, then merged into the
+    // assistant context prop at the AiAssistantPanel call sites.
+    const dmiPciInfo = useMemo(
+      () => ({
+        hasGeneratedDmi: taskDmiItems.length > 0 || assessmentDmiItems.length > 0,
+        dmiQuestionCount: taskDmiItems.length + assessmentDmiItems.length,
+        hasCompletedPci: !!(
+          taskBuilder.taskPci.trim().length > 0 ||
+          taskPciDraft.trim().length > 0 ||
+          assessmentBuilder.taskPci.trim().length > 0 ||
+          (loadedAssessmentId &&
+            (assessmentPciDraftMap[loadedAssessmentId] || '').trim().length > 0)
+        ),
+      }),
+      [
+        taskDmiItems,
+        assessmentDmiItems,
+        taskBuilder.taskPci,
+        taskPciDraft,
+        assessmentBuilder.taskPci,
+        assessmentPciDraftMap,
+        loadedAssessmentId,
+      ]
+    )
+
     // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
     const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
       <div
@@ -12134,25 +12176,37 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 mode={assistantMode}
                                                 sessionId={insightsProps.sessionId}
                                                 sessionType={
-                                                  insightsProps.sessions?.find(
-                                                    (s: any) => s.id === insightsProps.sessionId
-                                                  )?.sessionType
+                                                  insightsProps.sessions
+                                                    ?.filter(
+                                                      (s: any) =>
+                                                        s.courseId === courseId ||
+                                                        s.id === insightsProps.sessionId
+                                                    )
+                                                    ?.find(
+                                                      (s: any) => s.id === insightsProps.sessionId
+                                                    )?.sessionType
                                                 }
                                                 courseId={courseId}
                                                 courseName={courseName}
-                                                sessions={insightsProps.sessions?.map((s: any) => ({
-                                                  id: s.id,
-                                                  title: s.title,
-                                                  scheduledAt: s.scheduledAt,
-                                                  status: s.status,
-                                                }))}
+                                                sessions={insightsProps.sessions
+                                                  ?.filter(
+                                                    (s: any) =>
+                                                      s.courseId === courseId ||
+                                                      s.id === insightsProps.sessionId
+                                                  )
+                                                  ?.map((s: any) => ({
+                                                    id: s.id,
+                                                    title: s.title,
+                                                    scheduledAt: s.scheduledAt,
+                                                    status: s.status,
+                                                  }))}
                                                 studentsCount={
                                                   (insightsProps.students || []).length
                                                 }
                                                 liveSubmissions={
                                                   insightsProps.liveSubmissions || []
                                                 }
-                                                context={assistantContext}
+                                                context={{ ...assistantContext, ...dmiPciInfo }}
                                                 isDemoSession={isDemoSession}
                                               />
                                             </div>
@@ -15083,21 +15137,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   mode={assistantMode}
                                   sessionId={insightsProps?.sessionId}
                                   sessionType={
-                                    insightsProps?.sessions?.find(
-                                      (s: any) => s.id === insightsProps?.sessionId
-                                    )?.sessionType
+                                    insightsProps?.sessions
+                                      ?.filter(
+                                        (s: any) =>
+                                          s.courseId === courseId ||
+                                          s.id === insightsProps?.sessionId
+                                      )
+                                      ?.find((s: any) => s.id === insightsProps?.sessionId)
+                                      ?.sessionType
                                   }
                                   courseId={courseId}
                                   courseName={courseName}
-                                  sessions={insightsProps?.sessions?.map((s: any) => ({
-                                    id: s.id,
-                                    title: s.title,
-                                    scheduledAt: s.scheduledAt,
-                                    status: s.status,
-                                  }))}
+                                  sessions={insightsProps?.sessions
+                                    ?.filter(
+                                      (s: any) =>
+                                        s.courseId === courseId || s.id === insightsProps?.sessionId
+                                    )
+                                    ?.map((s: any) => ({
+                                      id: s.id,
+                                      title: s.title,
+                                      scheduledAt: s.scheduledAt,
+                                      status: s.status,
+                                    }))}
                                   studentsCount={(insightsProps?.students || []).length}
                                   liveSubmissions={insightsProps?.liveSubmissions || []}
-                                  context={assistantContext}
+                                  context={{ ...assistantContext, ...dmiPciInfo }}
                                   isActive={liveRightPanelTab === 'analytics'}
                                   isDemoSession={isDemoSession}
                                 />
@@ -16043,7 +16107,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             if (!open) setDmiEditor(null)
           }}
         >
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="border border-slate-200 shadow-2xl sm:max-w-2xl">
             {dmiEditor &&
               (() => {
                 const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
@@ -16054,8 +16118,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 )
                 return (
                   <>
-                    <DialogHeader>
-                      <DialogTitle>
+                    <DialogHeader className="text-center sm:text-center">
+                      <DialogTitle className="text-center">
                         {dmiEditor.source === 'task'
                           ? taskBuilder.title || 'Edit marks & answers'
                           : assessmentBuilder.title || 'Edit marks & answers'}
@@ -16347,7 +16411,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         )
                       })}
                     </div>
-                    <DialogFooter align="between">
+                    <DialogFooter align="end">
                       <input
                         ref={markingSchemeInputRef}
                         type="file"
@@ -16365,6 +16429,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         variant="modal-destructive-dark"
                         disabled={!canEdit || markingSchemeLoading}
                         onClick={() => markingSchemeInputRef.current?.click()}
+                        className="bg-pink-600 text-white hover:border-pink-600 hover:bg-white hover:text-pink-600"
                       >
                         {markingSchemeLoading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />

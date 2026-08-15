@@ -58,7 +58,6 @@ import {
 } from './components'
 import { DEFAULT_TIMEZONE, type CalendarView } from './components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
-import { TutorGroupSessionsPanel } from '@/components/group-session/tutor-group-sessions-panel'
 import { ModernHeroSection } from './components/ModernHeroSection'
 import { TutorPendingRescheduleBanner } from './components/TutorPendingRescheduleBanner'
 import { CountryFlag } from '@/components/country-flag'
@@ -753,7 +752,6 @@ function TutorDashboardContent() {
               { value: 'calendar', label: 'Calendar' },
               { value: 'availability', label: 'My Availability' },
               { value: 'oneOnOne', label: '1-on-1 Requests' },
-              { value: 'groupSessions', label: 'Group Sessions' },
               { value: 'liveDemos', label: 'Classes' },
             ]}
             showCalendarControls={activeTab === 'calendar' || activeTab === 'availability'}
@@ -1056,13 +1054,6 @@ function TutorDashboardContent() {
                   )}
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent
-              value="groupSessions"
-              className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-            >
-              <TutorGroupSessionsPanel embedded />
             </TabsContent>
 
             <TabsContent

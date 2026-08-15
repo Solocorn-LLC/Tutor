@@ -2366,7 +2366,7 @@ function StudentFeedbackContent() {
                 >
                   <TabsTrigger
                     value="task"
-                    className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#F97316] data-[state=active]:to-[#EA580C] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
+                    className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#F17623] data-[state=active]:to-[#D9651A] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
                   >
                     <Presentation className="h-4 w-4" />
                     Classroom
@@ -2590,7 +2590,7 @@ function StudentFeedbackContent() {
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
                   <div className="mt-3 flex items-center gap-3">
-                    <div className="relative flex-1">
+                    <div className="relative flex h-11 flex-1 items-center gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3">
                       <Input
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
@@ -2603,11 +2603,11 @@ function StudentFeedbackContent() {
                             }
                           }
                         }}
-                        className="h-11 w-full rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white pr-10 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-[rgba(241,118,35,0.5)]"
+                        className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                       <Button
                         size="icon"
-                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+                        className="h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                         onClick={() => {
                           if (chatInput.trim() && socket) {
                             socket.emit('chat_message', { text: chatInput.trim() })
@@ -2617,45 +2617,45 @@ function StudentFeedbackContent() {
                       >
                         <Send className="h-4 w-4" />
                       </Button>
-                    </div>
-                    <Button
-                      className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                      onClick={() => {
-                        if (!activeTaskId || !socket || !selectedSessionId) return
-                        // Include any typed answers so the tutor's Insights can see
-                        // each student's responses, not just a completion tick.
-                        const answers = (activeTask?.dmiItems ?? []).reduce(
-                          (acc, item) => {
-                            const a = taskAnswers[item.id]
-                            if (a && a.trim()) acc[item.id] = a.trim()
-                            return acc
-                          },
-                          {} as Record<string, string>
-                        )
-                        // Wait for the server's acknowledgement so we report a
-                        // TRUE result. If the payload is dropped (e.g. too large
-                        // with drawings) the ack never arrives → show a real error
-                        // instead of a false "submitted".
-                        socket
-                          .timeout(20000)
-                          .emit(
-                            'task:complete',
-                            { roomId: selectedSessionId, taskId: activeTaskId, answers },
-                            (err: unknown, resp?: { ok?: boolean; error?: string }) => {
-                              if (err || !resp?.ok) {
-                                toast.error(
-                                  resp?.error ||
-                                    'Submission did not go through. If you added drawings, try clearing some and resubmit.'
-                                )
-                                return
-                              }
-                              toast.success('Task submitted')
-                            }
+                      <Button
+                        className="h-9 shrink-0 rounded-lg bg-[#F17623] px-4 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                        onClick={() => {
+                          if (!activeTaskId || !socket || !selectedSessionId) return
+                          // Include any typed answers so the tutor's Insights can see
+                          // each student's responses, not just a completion tick.
+                          const answers = (activeTask?.dmiItems ?? []).reduce(
+                            (acc, item) => {
+                              const a = taskAnswers[item.id]
+                              if (a && a.trim()) acc[item.id] = a.trim()
+                              return acc
+                            },
+                            {} as Record<string, string>
                           )
-                      }}
-                    >
-                      Task Complete
-                    </Button>
+                          // Wait for the server's acknowledgement so we report a
+                          // TRUE result. If the payload is dropped (e.g. too large
+                          // with drawings) the ack never arrives → show a real error
+                          // instead of a false "submitted".
+                          socket
+                            .timeout(20000)
+                            .emit(
+                              'task:complete',
+                              { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                              (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                                if (err || !resp?.ok) {
+                                  toast.error(
+                                    resp?.error ||
+                                      'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                  )
+                                  return
+                                }
+                                toast.success('Task submitted')
+                              }
+                            )
+                        }}
+                      >
+                        Task Complete
+                      </Button>
+                    </div>
                   </div>
                 )}
               </TabsContent>
@@ -2692,7 +2692,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative mt-2 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
