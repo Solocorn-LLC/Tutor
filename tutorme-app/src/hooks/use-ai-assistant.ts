@@ -27,6 +27,15 @@ export interface UseAiAssistantReturn {
   resetMessages: () => void
 }
 
+const VALID_MODES: CourseBuilderMode[] = [
+  'edit',
+  'test',
+  'classroom',
+  'first-course',
+  'new-course',
+  'no-course',
+]
+
 export function useAiAssistant(options: UseAiAssistantOptions): UseAiAssistantReturn {
   const { mode, sessionId, sessionType, courseId, context } = options
 
@@ -37,6 +46,20 @@ export function useAiAssistant(options: UseAiAssistantOptions): UseAiAssistantRe
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading) return
+
+      if (!VALID_MODES.includes(mode)) {
+        const message = 'AI Assistant is not available in this mode.'
+        setError(message)
+        toast.error(message)
+        return
+      }
+
+      if (!context || typeof context !== 'object') {
+        const message = 'Course context is not ready. Try again in a moment.'
+        setError(message)
+        toast.error(message)
+        return
+      }
 
       setIsLoading(true)
       setError(null)
@@ -72,7 +95,23 @@ export function useAiAssistant(options: UseAiAssistantOptions): UseAiAssistantRe
           throw new Error(data?.error || 'Failed to get a response')
         }
 
-        setMessages(prev => [...prev, { role: 'assistant', content: data?.reply?.trim() || '' }])
+        const reply = data?.reply?.trim() || ''
+        if (!reply) {
+          throw new Error('The assistant returned an empty response.')
+        }
+
+        // Guardrail: do not append an assistant reply that is identical to the
+        // previous assistant reply. This prevents duplicate consecutive messages.
+        const lastAssistant = nextMessages
+          .slice()
+          .reverse()
+          .find(m => m.role === 'assistant')
+        if (lastAssistant && lastAssistant.content.trim() === reply) {
+          console.warn('[useAiAssistant] Discarded duplicate consecutive assistant message.')
+          return
+        }
+
+        setMessages(prev => [...prev, { role: 'assistant', content: reply }])
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Something went wrong'
         setError(message)
@@ -81,7 +120,7 @@ export function useAiAssistant(options: UseAiAssistantOptions): UseAiAssistantRe
         setIsLoading(false)
       }
     },
-    [mode, sessionId, courseId, context, messages, isLoading]
+    [mode, sessionId, sessionType, courseId, context, messages, isLoading]
   )
 
   const resetMessages = useCallback(() => setMessages([]), [])
