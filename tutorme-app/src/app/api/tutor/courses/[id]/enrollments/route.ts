@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { eq, and, sql, inArray } from 'drizzle-orm'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, ForbiddenError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
+import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
-  course,
   courseEnrollment,
   user,
   profile,
@@ -20,19 +20,12 @@ export const GET = withAuth(
       return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
     }
 
-    // Ownership: only the course creator (or an admin) may read the roster. This
-    // returns enrolled students' names + emails, so without this check any tutor
-    // could read any course's roster by id (IDOR / PII leak).
-    const [courseRow] = await drizzleDb
-      .select({ creatorId: course.creatorId })
-      .from(course)
-      .where(eq(course.courseId, courseId))
-      .limit(1)
-    if (!courseRow) {
-      return NextResponse.json({ error: 'Course not found' }, { status: 404 })
-    }
-    if (courseRow.creatorId !== session.user.id && session.user.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    // Ownership: only the course creator may read the roster. This returns enrolled
+    // students' names + emails, so without this check any tutor could read any
+    // course's roster by id (IDOR / PII leak).
+    const isOwner = await verifyCourseOwnership(courseId, session.user.id)
+    if (!isOwner) {
+      throw new ForbiddenError('You do not have access to this course')
     }
 
     const enrollments = await drizzleDb
