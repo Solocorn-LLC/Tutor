@@ -85,8 +85,8 @@ describe('enrollStudentInCourse', () => {
       deletedAt: null,
     }
 
-    await expect(
-      enrollStudentInCourse('student-1', 'course-1', null, null, true)
-    ).rejects.toThrow('Course is not available for enrollment')
+    await expect(enrollStudentInCourse('student-1', 'course-1', null, null, true)).rejects.toThrow(
+      'Course is not available for enrollment'
+    )
   })
 })
