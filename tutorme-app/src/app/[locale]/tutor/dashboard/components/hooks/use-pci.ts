@@ -13,7 +13,8 @@ import {
   type PciGuardrailWarning,
   type PciThread,
 } from './pci-reducer'
-import type { DMIQuestion } from '../builder-types'
+import { DMIQuestion } from '../builder-types'
+import { hasTaskOrAssessmentContent } from '../builder-utils'
 
 interface PciSourceDoc {
   fileName: string
@@ -42,9 +43,10 @@ interface UsePciDeps {
     taskContent: string
     taskPci: string
     title: string
+    details: string
     sourceDocument?: PciSourceDoc
   }
-  assessmentBuilder: { taskContent: string; taskPci: string; title: string }
+  assessmentBuilder: { taskContent: string; taskPci: string; title: string; details: string }
   /**
    * Compact digest of the assessment's DMI (per-question marks + rubric, no
    * answers) so the marking-policy chat builds the policy WITH the actual
@@ -355,6 +357,44 @@ export function usePci(deps: UsePciDeps) {
     const input = overrideMessage || thread.input
     if (!input.trim() || thread.loading) return
     const userMessage = input.trim()
+
+    // Content guard: the PCI assistant needs an edited task/assessment with
+    // loaded content (file, text, pages, questions, DMI, or custom title).
+    const { taskBuilder, assessmentBuilder } = deps
+    const hasContent = isTask
+      ? (() => {
+          const activeExt = taskBuilder.activeExtensionId
+            ? taskBuilder.extensions.find(e => e.id === taskBuilder.activeExtensionId)
+            : null
+          if (activeExt) {
+            return hasTaskOrAssessmentContent({
+              title: activeExt.name,
+              source: 'task',
+              sourceDocument: activeExt.sourceDocument || taskBuilder.sourceDocument,
+              content: activeExt.content,
+              description: activeExt.pci,
+            })
+          }
+          return hasTaskOrAssessmentContent({
+            title: taskBuilder.title,
+            source: 'task',
+            sourceDocument: taskBuilder.sourceDocument,
+            taskContent: taskBuilder.taskContent,
+            description: taskBuilder.details,
+          })
+        })()
+      : hasTaskOrAssessmentContent({
+          title: assessmentBuilder.title,
+          source: 'assessment',
+          sourceDocument: deps.currentAssessmentDocument,
+          taskContent: assessmentBuilder.taskContent,
+          description: assessmentBuilder.details,
+        })
+    if (!hasContent) {
+      toast.error('Add content, upload a file, or edit this item before using the AI assistant.')
+      return
+    }
+
     // Only attach the document's rendered page images on the FIRST turn. The
     // model summarises them into the conversation, so resending several MB of
     // base64 images on every later turn (e.g. when the tutor confirms the

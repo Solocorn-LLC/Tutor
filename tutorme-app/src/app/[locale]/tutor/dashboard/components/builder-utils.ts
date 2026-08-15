@@ -279,6 +279,66 @@ export const DEFAULT_NODE = (order: number): CourseBuilderNode => ({
   variants: {},
 })
 
+/**
+ * Returns true if a task/assessment title is still at its default or empty value.
+ * A custom title is one signal that the item has been intentionally edited.
+ */
+export function isDefaultTaskOrAssessmentTitle(
+  title: string,
+  source: 'task' | 'assessment' | 'homework' = 'task'
+): boolean {
+  const t = title.trim()
+  if (
+    t === '' ||
+    t === 'Untitled task' ||
+    t === 'Untitled assessment' ||
+    t === 'Untitled homework'
+  ) {
+    return true
+  }
+  if (source === 'task' && /^Task\s+\d+$/.test(t)) return true
+  if (source === 'assessment' && /^Assessment\s+\d+$/.test(t)) return true
+  if (source === 'homework' && /^Homework\s+\d+$/.test(t)) return true
+  return false
+}
+
+/**
+ * Returns true if a task or assessment has enough content to be deployed or to
+ * drive the PCI assistant. Checks for attached files, text content, assessment
+ * pages, DMI items, questions, and a non-default title.
+ */
+export function hasTaskOrAssessmentContent(item: {
+  title?: string
+  source?: 'task' | 'assessment' | 'homework'
+  sourceDocument?: { fileKey?: string; fileUrl?: string; generatedFromText?: boolean } | null
+  content?: string
+  taskContent?: string
+  description?: string
+  details?: string
+  shortDescription?: string
+  pages?: string[]
+  dmiItems?: unknown[]
+  questions?: unknown[]
+}): boolean {
+  const hasFile =
+    !!item.sourceDocument?.fileKey ||
+    !!item.sourceDocument?.fileUrl ||
+    !!item.sourceDocument?.generatedFromText
+  const hasText = [
+    item.content,
+    item.taskContent,
+    item.description,
+    item.details,
+    item.shortDescription,
+  ].some(t => typeof t === 'string' && t.trim().length > 0)
+  const hasPages = item.pages?.some(p => typeof p === 'string' && p.trim().length > 0) ?? false
+  const hasDmi = (item.dmiItems?.length ?? 0) > 0
+  const hasQuestions = (item.questions?.length ?? 0) > 0
+  const hasCustomTitle = !!item.title && !isDefaultTaskOrAssessmentTitle(item.title, item.source)
+
+  return hasFile || hasText || hasPages || hasDmi || hasQuestions || hasCustomTitle
+}
+
 export function convertQuizToAssessment(quiz: Quiz): Assessment {
   return {
     id: `homework-${generateId()}`,
