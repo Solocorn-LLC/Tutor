@@ -9,7 +9,7 @@ import {
   courseSchedule,
 } from '@/lib/db/schema'
 import { eq, and, inArray, sql } from 'drizzle-orm'
-import { NotFoundError } from '@/lib/api/middleware'
+import { NotFoundError, ValidationError } from '@/lib/api/middleware'
 
 export interface EnrollmentResult {
   success: boolean
@@ -42,6 +42,14 @@ export async function enrollStudentInCourse(
 
   if (!courseRow) {
     throw new NotFoundError('Course not found')
+  }
+
+  if (courseRow.deletedAt) {
+    throw new ValidationError('Course is no longer available')
+  }
+
+  if (!courseRow.isPublished) {
+    throw new ValidationError('Course is not available for enrollment')
   }
 
   // Payment check for paid courses (read-only, safe outside transaction)
