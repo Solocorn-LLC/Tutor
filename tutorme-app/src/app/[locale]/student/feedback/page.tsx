@@ -2590,7 +2590,7 @@ function StudentFeedbackContent() {
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
                   <div className="mt-3 flex items-center gap-3">
-                    <div className="relative flex h-11 flex-1 items-center gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3">
+                    <div className="relative flex h-16 flex-1 items-center gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3">
                       <Input
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
@@ -2618,7 +2618,8 @@ function StudentFeedbackContent() {
                         <Send className="h-4 w-4" />
                       </Button>
                       <Button
-                        className="h-9 shrink-0 rounded-lg bg-[#F17623] px-4 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                        className="h-16 shrink-0 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                        disabled={!activeTaskId || !socket}
                         onClick={() => {
                           if (!activeTaskId || !socket || !selectedSessionId) return
                           // Include any typed answers so the tutor's Insights can see
