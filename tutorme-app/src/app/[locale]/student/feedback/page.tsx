@@ -257,10 +257,9 @@ function ClassroomControlsPanel({
     if (!panel || !container) return
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
-    const padding = 16
-    // Park the panel at the top-right of the viewport, matching the tutor builder.
-    const x = containerRect.width - panelRect.width - padding
-    const y = padding
+    // Park the panel at the top-right of the header area, flush with the top edge.
+    const x = containerRect.width - panelRect.width
+    const y = 0
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
@@ -290,13 +289,19 @@ function ClassroomControlsPanel({
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
-        className="pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden rounded-t-2xl border border-b border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+        className={cn(
+          'pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl',
+          open ? 'rounded-t-2xl border-b' : 'rounded-2xl'
+        )}
       >
         {/* Header / drag handle */}
         <button
           ref={headerRef}
           type="button"
-          className="relative flex h-10 w-full cursor-grab items-center rounded-t-2xl px-3 active:cursor-grabbing"
+          className={cn(
+            'relative flex h-10 w-full cursor-grab items-center px-3 active:cursor-grabbing',
+            open ? 'rounded-t-2xl' : 'rounded-2xl'
+          )}
           onPointerDown={e => dragControls.start(e)}
           onClick={() => {
             if (isDragging) return
@@ -2598,12 +2603,11 @@ function StudentFeedbackContent() {
                             }
                           }
                         }}
-                        className="h-11 w-full rounded-xl border-slate-200 pr-10 text-sm focus-visible:ring-[rgba(241,118,35,0.5)]"
+                        className="h-11 w-full rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white pr-10 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-[rgba(241,118,35,0.5)]"
                       />
                       <Button
                         size="icon"
-                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-slate-400 text-white hover:bg-slate-500 disabled:opacity-30"
-                        disabled={!chatInput.trim() || !socket}
+                        className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                         onClick={() => {
                           if (chatInput.trim() && socket) {
                             socket.emit('chat_message', { text: chatInput.trim() })
@@ -2616,7 +2620,6 @@ function StudentFeedbackContent() {
                     </div>
                     <Button
                       className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                      disabled={!activeTaskId || !socket}
                       onClick={() => {
                         if (!activeTaskId || !socket || !selectedSessionId) return
                         // Include any typed answers so the tutor's Insights can see
@@ -2715,7 +2718,10 @@ function StudentFeedbackContent() {
               <div className="h-8 w-0.5 rounded-full bg-slate-300" />
             </div>
 
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-2xl bg-gradient-to-br from-[#F17623] to-[#D9651A] px-4 text-sm font-semibold text-white">
+              Desk
+            </div>
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 pb-3 pt-4">
               <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
                 <Button
                   variant="ghost"

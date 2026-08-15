@@ -1323,6 +1323,7 @@ function CourseBuilderInsightsRouteInner({
               onLeftPanelHiddenChange={setLeftPanelHidden}
               saveMode={effectiveSaveMode}
               onSaveModeChange={onSaveModeChange}
+              courseState={currentCourseState}
               onSyncToLiveSession={onSyncToLiveSession}
               onUnsyncedChangesChange={setHasUnsyncedChanges}
               focusLessonId={

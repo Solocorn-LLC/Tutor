@@ -698,6 +698,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       directoryMenusAlwaysVisible = false,
       saveMode,
       onSaveModeChange,
+      courseState,
       isStudentView = false,
       onSyncToLiveSession,
       onUnsyncedChangesChange,
@@ -1917,6 +1918,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // endless loop. So we hold it in a ref and reset it only when a fresh,
     // user-initiated generate begins.
     const dmiContentSourceRef = useRef<'document' | 'text' | null>(null)
+    // AbortController for the in-flight DMI generation request, so the tutor can
+    // cancel a long-running or stuck generation and retry from scratch.
+    const dmiAbortControllerRef = useRef<AbortController | null>(null)
+    // Track which type of DMI is currently generating so cancellation can clear
+    // the right draft state.
+    const dmiGeneratingTypeRef = useRef<'task' | 'assessment' | null>(null)
     // Identity (fileKey/fileUrl) of an assessment document the tutor JUST
     // uploaded and for which the DMI should auto-generate. Set by the upload
     // handlers only — so opening an existing assessment (hydration) never
@@ -4877,6 +4884,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const effectiveHasPdf = hasPdf && contentSource !== 'text'
 
       setDmiGenerating(true)
+      dmiGeneratingTypeRef.current = type
+      const dmiController = new AbortController()
+      dmiAbortControllerRef.current = dmiController
       try {
         let pdfPages: string[] | undefined
         let pdfText: string | undefined
@@ -4960,6 +4970,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const response = await fetch('/api/ai/generate-dmi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: dmiController.signal,
           body: JSON.stringify({
             type,
             title: builder.title,
@@ -4980,6 +4991,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
 
         const data = await response.json()
+
+        // If the tutor cancelled while the request was in flight, discard the
+        // response so no partial/late DMI state is applied.
+        if (dmiController.signal.aborted) return
 
         // Ambiguous document kind: ask the tutor to confirm "question paper vs
         // study material" before proceeding, instead of silently treating it as a
@@ -5170,9 +5185,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setDmiEditor({ source: isTask ? 'task' : 'assessment' })
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          // Cancelled by the tutor via handleCancelDmiGeneration; nothing to report.
+          return
+        }
         const message = error instanceof Error ? error.message : 'Failed to generate DMI'
         toast.error(message)
       } finally {
+        dmiAbortControllerRef.current = null
+        dmiGeneratingTypeRef.current = null
         setDmiGenerating(false)
       }
     }
@@ -5204,6 +5225,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setDmiSourceDialog(null)
       dmiContentSourceRef.current = 'text'
       if (type) void handleGenerateDMI(type, undefined, undefined, true, 'text')
+    }
+
+    // Cancel an in-flight DMI generation, ignore any late response, and clear the
+    // partial draft so the tutor can retry from scratch.
+    const handleCancelDmiGeneration = () => {
+      const controller = dmiAbortControllerRef.current
+      if (controller) {
+        controller.abort()
+        dmiAbortControllerRef.current = null
+      }
+      const type = dmiGeneratingTypeRef.current
+      if (type === 'assessment') {
+        setAssessmentDmiItems([])
+      } else if (type === 'task') {
+        setTaskDmiItems([])
+      }
+      dmiGeneratingTypeRef.current = null
+      // Clear the auto-generate flag so cancellation doesn't immediately re-trigger
+      // another generation on the same freshly uploaded document.
+      pendingAutoGenDmiRef.current = null
+      setDmiGenerating(false)
+      toast.info('DMI generation cancelled. You can try again.')
     }
 
     // Load a specific DMI version (task DMI versions only; assessments have a
@@ -9959,6 +10002,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             </div>
           </div>
         )}
+        {dmiGenerating && (
+          <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm">
+            <div className="flex max-w-sm flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <div className="text-center">
+                <p className="text-base font-semibold text-slate-800">Generating DMI…</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  This may take a minute. You can cancel to try again.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCancelDmiGeneration}
+                className="rounded-full border-slate-300 text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
         <Tabs
           value={mainTab}
           onValueChange={handleMainTabChange}
@@ -10800,7 +10865,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   >
                                                                     Duplicate
                                                                   </DropdownMenuItem>
-                                                                  {saveMode !== 'live' && (
+                                                                  {courseState !== 'published' && (
                                                                     <DropdownMenuItem
                                                                       className="text-red-500"
                                                                       onClick={e => {
@@ -11411,7 +11476,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 >
                                                                   Duplicate
                                                                 </DropdownMenuItem>
-                                                                {saveMode !== 'live' && (
+                                                                {courseState !== 'published' && (
                                                                   <DropdownMenuItem
                                                                     className="text-red-500"
                                                                     onClick={e => {
@@ -14809,41 +14874,42 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   />
                                                   <div className="flex w-full items-center justify-between gap-2 px-2 pb-2">
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                      {dmiGenerating ? (
-                                                        <span className="inline-flex h-7 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-500">
-                                                          <Loader2 className="h-3 w-3 animate-spin" />
-                                                          Generating…
-                                                        </span>
-                                                      ) : assessmentDmiItems.length > 0 ||
-                                                        !currentAssessmentDocument ? (
+                                                      {assessmentDmiItems.length > 0 ? (
                                                         <Button
                                                           type="button"
                                                           variant="ghost"
                                                           size="sm"
                                                           data-pci-anchor="generate-dmi"
                                                           className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                                          disabled={!canEdit}
+                                                          disabled={!canEdit || dmiGenerating}
                                                           onClick={() => {
                                                             if (!canEdit) return
-                                                            const content =
-                                                              assessmentBuilder.taskContent
-                                                            const hasPdf =
-                                                              currentAssessmentDocument?.mimeType ===
-                                                              'application/pdf'
-                                                            if (!content.trim() && !hasPdf) {
-                                                              toast.error(
-                                                                'Please add content to the Assessment tab or load a PDF first'
-                                                              )
-                                                              return
-                                                            }
                                                             handleGenerateDMI('assessment')
                                                           }}
                                                         >
-                                                          {assessmentDmiItems.length > 0
-                                                            ? 'Regenerate DMI'
-                                                            : 'Generate DMI'}
+                                                          Regenerate DMI
                                                         </Button>
-                                                      ) : null}
+                                                      ) : (
+                                                        <Button
+                                                          type="button"
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          data-pci-anchor="generate-dmi"
+                                                          className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                          disabled={
+                                                            !canEdit ||
+                                                            dmiGenerating ||
+                                                            (!assessmentBuilder.taskContent.trim() &&
+                                                              !currentAssessmentDocument)
+                                                          }
+                                                          onClick={() => {
+                                                            if (!canEdit) return
+                                                            handleGenerateDMI('assessment')
+                                                          }}
+                                                        >
+                                                          Generate DMI
+                                                        </Button>
+                                                      )}
 
                                                       {assessmentDmiItems.length > 0 && (
                                                         <Button
