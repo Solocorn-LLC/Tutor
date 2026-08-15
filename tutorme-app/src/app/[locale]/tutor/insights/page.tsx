@@ -880,6 +880,7 @@ function TutorInsightsPageInner() {
           (data.classes || []) as Array<InsightsSessionOption & { duration?: number }>
         ).map(s => ({
           ...s,
+          courseId: (s as any).courseId ?? null,
           durationMinutes: s.duration ?? 60,
           sessionType: (s as any).sessionType,
         }))
@@ -905,6 +906,7 @@ function TutorInsightsPageInner() {
                     subject: directSession.subject,
                     scheduledAt: directSession.scheduledAt,
                     status: directSession.status,
+                    courseId: directSession.courseId ?? null,
                     durationMinutes: 60,
                     sessionType: directSession.sessionType,
                   },

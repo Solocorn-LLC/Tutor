@@ -58,6 +58,7 @@ export function useLinkPreview(text: string, debounceMs = 600) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url }),
           signal: controller.signal,
+          credentials: 'include',
         })
           .then(async res => {
             delete abortControllersRef.current[url]

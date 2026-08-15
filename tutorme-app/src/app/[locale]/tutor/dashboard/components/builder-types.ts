@@ -402,6 +402,7 @@ export interface InsightsSessionOption {
   status: string
   durationMinutes?: number
   sessionType?: string
+  courseId?: string | null
 }
 
 export interface CourseBuilderInsightsProps {
@@ -483,6 +484,12 @@ export interface CourseBuilderProps {
   onLeftPanelHiddenChange?: (hidden: boolean) => void
   saveMode?: 'live' | 'draft'
   onSaveModeChange?: (mode: 'live' | 'draft') => void
+  /**
+   * Actual course lifecycle state. The builder uses this to disable destructive
+   * actions (e.g. deleting tasks/assessments) only for published courses, while
+   * keeping them available during creation, templating, and unpublished editing.
+   */
+  courseState?: 'creating' | 'unpublished' | 'published' | 'demo'
   isStudentView?: boolean
   onSyncToLiveSession?: (silent?: boolean) => void
   onUnsyncedChangesChange?: (hasUnsynced: boolean) => void
