@@ -20,8 +20,9 @@ function deps(overrides: Partial<Parameters<typeof usePci>[0]> = {}) {
       taskContent: 'content',
       taskPci: '',
       title: 'My Task',
+      details: '',
     },
-    assessmentBuilder: { taskContent: '', taskPci: '', title: '' },
+    assessmentBuilder: { taskContent: '', taskPci: '', title: '', details: '' },
     setCurrentPci: vi.fn(),
     taskSourceDocument: undefined,
     currentAssessmentDocument: undefined,
@@ -69,6 +70,33 @@ describe('usePci', () => {
       await result.current.handlePciSend('task')
     })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('blocks PCI when the task has no content, file, or custom title', async () => {
+    const fetchMock = vi.fn()
+    global.fetch = fetchMock as unknown as typeof fetch
+    const { result } = renderHook(() =>
+      usePci(
+        deps({
+          taskBuilder: {
+            activeExtensionId: null,
+            extensions: [],
+            taskContent: '',
+            taskPci: '',
+            title: 'Task 1',
+            details: '',
+          },
+        })
+      )
+    )
+    act(() => result.current.setPciInput(taskTarget, 'generate content'))
+    await act(async () => {
+      await result.current.handlePciSend('task')
+    })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(toast.error).toHaveBeenCalledWith(
+      'Add content, upload a file, or edit this item before using the AI assistant.'
+    )
   })
 
   it('records an error hint and stops loading when the request fails', async () => {
@@ -171,6 +199,12 @@ describe('usePci', () => {
           loadedAssessmentId: 'a1',
           autoCreateAssessment: () => ({ id: 'a1' }),
           setCurrentPci,
+          assessmentBuilder: {
+            taskContent: 'assessment content',
+            taskPci: '',
+            title: 'My Assessment',
+            details: '',
+          },
         })
       )
     )
