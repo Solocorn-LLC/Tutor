@@ -1125,7 +1125,7 @@ function CourseBuilderInsightsRouteInner({
             <div className="flex items-center gap-4">
               <BackButton
                 href="/tutor/dashboard"
-                className="h-9 w-9 rounded-full p-0 text-[#344054] transition-colors hover:scale-105 hover:bg-slate-300"
+                className="h-9 w-9 rounded-full p-0 text-[#344054] transition-all duration-200 hover:scale-105 hover:bg-slate-300"
               />
 
               <div className="flex flex-col justify-center">
