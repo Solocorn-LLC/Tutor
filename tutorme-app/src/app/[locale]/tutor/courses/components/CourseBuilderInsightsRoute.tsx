@@ -82,8 +82,17 @@ const BOARD_TO_TAB_KEY: Record<string, string> = {
   Universities: 'universities',
 }
 
-function WifiSignal({ connected, error }: { connected: boolean; error: boolean }) {
-  const color = error ? 'text-red-500' : connected ? 'text-emerald-500' : 'text-amber-400'
+function WifiSignal({
+  connected,
+  error,
+  size = 'sm',
+}: {
+  connected: boolean
+  error: boolean
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  const color = error ? 'text-red-600' : connected ? 'text-emerald-600' : 'text-amber-500'
+  const sizeClass = size === 'lg' ? 'h-6 w-6' : size === 'md' ? 'h-5 w-5' : 'h-4 w-4'
 
   return (
     <div className="relative flex items-center justify-center">
@@ -91,7 +100,7 @@ function WifiSignal({ connected, error }: { connected: boolean; error: boolean }
         @keyframes wifi-bar {
           0%,
           100% {
-            opacity: 0.25;
+            opacity: 0.5;
           }
           50% {
             opacity: 1;
@@ -114,11 +123,11 @@ function WifiSignal({ connected, error }: { connected: boolean; error: boolean }
         }
       `}</style>
       <svg
-        className={cn('h-4 w-4', color)}
+        className={cn(sizeClass, color)}
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth={size === 'md' || size === 'lg' ? 2.5 : 2}
         strokeLinecap="round"
         strokeLinejoin="round"
       >
@@ -408,13 +417,19 @@ function TutorControlsPanel({
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
-        className="pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden rounded-t-2xl border border-b border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl"
+        className={cn(
+          'pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
+          open ? 'rounded-t-2xl border-b' : 'rounded-2xl'
+        )}
       >
         {/* Header / drag handle */}
         <button
           ref={headerRef}
           type="button"
-          className="relative flex h-10 w-full cursor-grab items-center rounded-t-2xl px-3 active:cursor-grabbing"
+          className={cn(
+            'relative flex h-10 w-full cursor-grab items-center px-3 active:cursor-grabbing',
+            open ? 'rounded-t-2xl' : 'rounded-2xl'
+          )}
           onPointerDown={e => dragControls.start(e)}
           onClick={() => {
             if (isDragging) return
@@ -1110,7 +1125,7 @@ function CourseBuilderInsightsRouteInner({
             <div className="flex items-center gap-4">
               <BackButton
                 href="/tutor/dashboard"
-                className="h-9 w-9 rounded-full p-0 text-[#344054]"
+                className="h-9 w-9 rounded-full p-0 text-[#344054] transition-colors hover:scale-105 hover:bg-slate-300"
               />
 
               <div className="flex flex-col justify-center">
@@ -1162,6 +1177,7 @@ function CourseBuilderInsightsRouteInner({
                       <WifiSignal
                         connected={!!insightsProps.isConnected}
                         error={!!insightsProps.sessionId && !insightsProps.isConnected}
+                        size="md"
                       />
                       {currentCourse?.name && (
                         <span className="text-xl font-normal text-slate-500">
