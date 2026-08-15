@@ -677,6 +677,26 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   )
 }
 
+/** Small PCI readiness badge shown on task/assessment cards.
+ *  Green dot = PCI has been applied (instructions non-empty).
+ *  Red dot    = no PCI yet. */
+function PciReadinessBadge({ instructions }: { instructions?: string }) {
+  const ready = !!instructions?.trim()
+  return (
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
+        ready
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          : 'border-red-200 bg-red-50 text-red-700'
+      )}
+    >
+      <span className={cn('h-1.5 w-1.5 rounded-full', ready ? 'bg-emerald-500' : 'bg-red-500')} />
+      PCI
+    </span>
+  )
+}
+
 export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
   function CourseBuilder(
     {
@@ -10569,8 +10589,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         />
                                                       ) : (
                                                         <div className="flex min-w-0 flex-1 flex-col">
-                                                          <div className="flex items-center gap-2 truncate text-sm font-medium text-[#1F2933]">
-                                                            {idx + 1}. {task.title}
+                                                          <div className="flex items-center gap-2 text-sm font-medium text-[#1F2933]">
+                                                            <span className="min-w-0 truncate">
+                                                              {idx + 1}. {task.title}
+                                                            </span>
+                                                            <PciReadinessBadge
+                                                              instructions={task.instructions}
+                                                            />
                                                           </div>
                                                           {task.description && (
                                                             <div className="mt-0.5 truncate text-[11px] text-[#667085]">
@@ -11356,8 +11381,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       />
                                                     ) : (
                                                       <div className="flex min-w-0 flex-1 flex-col">
-                                                        <div className="flex items-center gap-2 truncate text-sm font-medium text-[#1F2933]">
-                                                          {idx + 1}. {hw.title}
+                                                        <div className="flex items-center gap-2 text-sm font-medium text-[#1F2933]">
+                                                          <span className="min-w-0 truncate">
+                                                            {idx + 1}. {hw.title}
+                                                          </span>
+                                                          <PciReadinessBadge
+                                                            instructions={hw.instructions}
+                                                          />
                                                         </div>
                                                         {hw.description && (
                                                           <div className="mt-0.5 truncate text-[11px] text-[#667085]">
