@@ -1123,10 +1123,7 @@ function CourseBuilderInsightsRouteInner({
         <div className="flex w-full flex-col gap-4">
           <div className="flex min-h-[72px] w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <BackButton
-                href="/tutor/dashboard"
-                className="h-9 w-9 rounded-full p-0 text-[#344054] transition-all duration-200 hover:scale-105 hover:bg-slate-300"
-              />
+              <BackButton href="/tutor/dashboard" className="text-[#344054]" />
 
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">
@@ -1140,7 +1137,7 @@ function CourseBuilderInsightsRouteInner({
                           onClick={() => setCourseSelectorOpen(true)}
                           disabled={hasNoCourses}
                           className={cn(
-                            'ml-[5px] h-9 min-w-[300px] max-w-[540px] justify-start border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'h-9 min-w-[300px] max-w-[540px] justify-center border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >
@@ -1242,7 +1239,7 @@ function CourseBuilderInsightsRouteInner({
                 <div
                   ref={courseStateIndicatorRef}
                   className={cn(
-                    'flex h-9 w-[190px] items-center gap-2 rounded-md border px-3 text-sm font-medium shadow-sm',
+                    'flex h-9 w-[190px] items-center justify-center gap-2 rounded-md border px-3 text-sm font-medium shadow-sm',
                     stateIndicatorMeta[currentCourseState].bg,
                     stateIndicatorMeta[currentCourseState].text,
                     stateIndicatorMeta[currentCourseState].border
