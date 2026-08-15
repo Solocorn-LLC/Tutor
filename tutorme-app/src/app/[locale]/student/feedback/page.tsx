@@ -68,7 +68,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { EnhancedWhiteboard } from '@/components/class/enhanced-whiteboard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
-import { motion, AnimatePresence, useDragControls, useMotionValue } from 'framer-motion'
+import {
+  AnimatedControlButton,
+  actionButtonBase,
+} from '@/components/controls/AnimatedControlButton'
+import {
+  motion,
+  AnimatePresence,
+  useDragControls,
+  useMotionValue,
+  useTransform,
+} from 'framer-motion'
 import { useVideoOverlayStore } from '@/stores/video-overlay-store'
 import type {
   LiveTask,
@@ -231,10 +241,15 @@ function ClassroomControlsPanel({
 
   const containerRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLButtonElement>(null)
 
   const panelX = useMotionValue(0)
   const panelY = useMotionValue(0)
   const panelOpacity = useMotionValue(0)
+  const bodyY = useTransform(
+    panelY,
+    y => y + (headerRef.current?.getBoundingClientRect().height ?? 40)
+  )
 
   const positionPanel = useCallback(() => {
     const panel = panelRef.current
@@ -243,13 +258,8 @@ function ClassroomControlsPanel({
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
     const padding = 16
-    const x = Math.max(
-      padding,
-      Math.min(
-        containerRect.width / 2 - panelRect.width / 2,
-        containerRect.width - panelRect.width - padding
-      )
-    )
+    // Park the panel at the top-right of the viewport, matching the tutor builder.
+    const x = containerRect.width - panelRect.width - padding
     const y = padding
     panelX.set(x)
     panelY.set(y)
@@ -268,6 +278,8 @@ function ClassroomControlsPanel({
 
   return (
     <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
+      {/* Draggable header — its height never changes, so drag constraints cannot
+          nudge the panel when the controls body expands. */}
       <motion.div
         ref={panelRef}
         drag
@@ -278,12 +290,13 @@ function ClassroomControlsPanel({
         onDragStart={() => setIsDragging(true)}
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
-        className="pointer-events-auto absolute left-0 top-0 w-96 cursor-default select-none overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+        className="pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden rounded-t-2xl border border-b border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
       >
         {/* Header / drag handle */}
         <button
+          ref={headerRef}
           type="button"
-          className="relative flex h-10 w-full cursor-grab items-center rounded-t-xl border-b border-white/10 px-3 active:cursor-grabbing"
+          className="relative flex h-10 w-full cursor-grab items-center rounded-t-2xl px-3 active:cursor-grabbing"
           onPointerDown={e => dragControls.start(e)}
           onClick={() => {
             if (isDragging) return
@@ -294,91 +307,81 @@ function ClassroomControlsPanel({
           <span className="mx-auto text-xs font-semibold text-white">Controls</span>
           <WifiSignal connected={isConnected} error={!!error} />
         </button>
-
-        {/* Controls */}
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.div
-              key="controls-body"
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
-              className="overflow-hidden"
-            >
-              <div className="grid grid-cols-2 gap-2 p-3 pt-0">
-                <button
-                  type="button"
-                  onClick={() => setFollowTutor(!followTutor)}
-                  className={cn(
-                    'flex h-9 w-full items-center gap-2 rounded-lg px-3 text-xs font-semibold transition-colors',
-                    followTutor
-                      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-                      : 'bg-white/10 text-white hover:bg-white/20'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'h-2 w-2 rounded-full',
-                      followTutor ? 'animate-pulse bg-white' : 'bg-white/40'
-                    )}
-                  />
-                  {followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => router.push('/student/dashboard')}
-                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Leave session
-                </button>
-
-                <div className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white">
-                  <div
-                    className={cn(
-                      'h-2 w-2 rounded-full',
-                      isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
-                    )}
-                  />
-                  {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-                </div>
-
-                <button
-                  type="button"
-                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-red-500/20 px-3 text-xs font-semibold text-red-200 transition-colors hover:bg-red-500/30"
-                >
-                  <Flag className="h-4 w-4" />
-                  Flag
-                </button>
-
-                <button
-                  type="button"
-                  disabled={!roomUrl}
-                  onClick={() => {
-                    if (!roomUrl) return
-                    openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
-                  }}
-                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <Video className="h-4 w-4" />
-                  Video
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowDirectoryPanel(true)}
-                  className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/20"
-                >
-                  <Folder className="h-4 w-4" />
-                  Directory
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
+
+      {/* Controls body — follows the header and expands without affecting the
+          drag constraints of the header. */}
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            key="controls-body"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+            style={{ x: panelX, y: bodyY }}
+            className="pointer-events-auto absolute left-0 top-0 w-96 origin-top overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
+          >
+            <div className="grid grid-cols-2 gap-2 p-3">
+              <AnimatedControlButton
+                icon={
+                  <div
+                    className={cn(
+                      'h-2 w-2 rounded-full',
+                      followTutor ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
+                    )}
+                  />
+                }
+                label={followTutor ? 'Following Tutor' : 'Follow Tutor'}
+                onClick={() => setFollowTutor(!followTutor)}
+                className={cn('bg-white', followTutor ? 'text-emerald-600' : 'text-slate-700')}
+              />
+              <AnimatedControlButton
+                icon={<LogOut className="h-4 w-4" />}
+                label="Leave session"
+                onClick={() => router.push('/student/dashboard')}
+                className="bg-white text-slate-700"
+              />
+              <div
+                className={cn(
+                  actionButtonBase,
+                  'bg-white',
+                  isConnected ? 'text-emerald-600' : error ? 'text-red-600' : 'text-amber-600'
+                )}
+              >
+                <div
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
+                  )}
+                />
+                {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+              </div>
+              <AnimatedControlButton
+                icon={<Flag className="h-4 w-4" />}
+                label="Flag"
+                className="bg-white text-red-600"
+              />
+              <AnimatedControlButton
+                icon={<Video className="h-4 w-4" />}
+                label="Video"
+                disabled={!roomUrl}
+                onClick={() => {
+                  if (!roomUrl) return
+                  openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
+                }}
+                className="bg-white text-slate-700"
+              />
+              <AnimatedControlButton
+                icon={<Folder className="h-4 w-4" />}
+                label="Directory"
+                onClick={() => setShowDirectoryPanel(true)}
+                className="bg-white text-slate-700"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
