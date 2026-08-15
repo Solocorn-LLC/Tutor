@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
+import { verifyCourseOwnership } from '@/lib/api/course-helpers'
+import { ForbiddenError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { eq, or, and } from 'drizzle-orm'
 
@@ -15,6 +17,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { id: courseId } = await params
+
+    const isOwner = await verifyCourseOwnership(courseId, session.user.id)
+    if (!isOwner) {
+      throw new ForbiddenError('You do not have access to this course')
+    }
 
     // Get the course
     const course = await drizzleDb.query.course.findFirst({
