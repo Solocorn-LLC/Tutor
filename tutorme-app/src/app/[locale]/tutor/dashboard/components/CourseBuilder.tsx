@@ -698,6 +698,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       directoryMenusAlwaysVisible = false,
       saveMode,
       onSaveModeChange,
+      courseState,
       isStudentView = false,
       onSyncToLiveSession,
       onUnsyncedChangesChange,
@@ -10800,7 +10801,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   >
                                                                     Duplicate
                                                                   </DropdownMenuItem>
-                                                                  {saveMode !== 'live' && (
+                                                                  {courseState !== 'published' && (
                                                                     <DropdownMenuItem
                                                                       className="text-red-500"
                                                                       onClick={e => {
@@ -11411,7 +11412,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 >
                                                                   Duplicate
                                                                 </DropdownMenuItem>
-                                                                {saveMode !== 'live' && (
+                                                                {courseState !== 'published' && (
                                                                   <DropdownMenuItem
                                                                     className="text-red-500"
                                                                     onClick={e => {
