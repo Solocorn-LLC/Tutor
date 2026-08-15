@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, ForbiddenError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
+import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   course,
@@ -26,11 +27,15 @@ export const GET = withAuth(async (request, session, context) => {
     return NextResponse.json({ error: 'Course ID is required' }, { status: 400 })
   }
 
+  const isOwner = await verifyCourseOwnership(courseId, tutorId)
+  if (!isOwner) {
+    throw new ForbiddenError('You do not have access to this course')
+  }
+
   const courseRow = await drizzleDb
     .select({
       id: course.courseId,
       name: course.name,
-      creatorId: course.creatorId,
     })
     .from(course)
     .where(eq(course.courseId, courseId))
@@ -38,10 +43,6 @@ export const GET = withAuth(async (request, session, context) => {
 
   if (!courseRow[0]) {
     return NextResponse.json({ error: 'Course not found' }, { status: 404 })
-  }
-
-  if (courseRow[0].creatorId !== tutorId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
   // Content (lessons/sessions/enrollments/materials/reports) can sit under either

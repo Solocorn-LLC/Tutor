@@ -4,8 +4,9 @@
  */
 
 import { NextResponse } from 'next/server'
-import { withAuth, withCsrf, NotFoundError } from '@/lib/api/middleware'
+import { withAuth, withCsrf, NotFoundError, ForbiddenError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
+import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { course } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -15,6 +16,11 @@ export const PATCH = withCsrf(
     async (req, session, context) => {
       const id = await getParamAsync(context?.params, 'id')
       if (!id) return NextResponse.json({ error: 'Course ID required' }, { status: 400 })
+
+      const isOwner = await verifyCourseOwnership(id, session.user.id)
+      if (!isOwner) {
+        throw new ForbiddenError('You do not have access to this course')
+      }
 
       // courseMaterials column doesn't exist - just verify course exists
       const [courseRow] = await drizzleDb
