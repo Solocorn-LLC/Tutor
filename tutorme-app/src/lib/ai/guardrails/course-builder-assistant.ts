@@ -50,7 +50,19 @@ export const COURSE_BUILDER_ASSISTANT_GUARDRAILS: GuardrailRule[] = [
     enforcement: ['prompt', 'validator'],
   },
   {
-    id: 'CBA-6',
+    id: 'CBA-7',
+    title: 'No Duplicate Consecutive Replies',
+    rule: 'Never repeat your immediately previous assistant reply verbatim. If the last thing you said matches what you are about to say, choose a different next step instead.',
+    enforcement: ['prompt', 'validator'],
+  },
+  {
+    id: 'CBA-8',
+    title: 'Respect Completed Work',
+    rule: 'When the context indicates a DMI has already been generated or a PCI has already been finalized, do not suggest generating or finalizing that same item again. Instead, acknowledge the completed work and offer the next step (review, deploy, refine, or move on).',
+    enforcement: ['prompt', 'validator'],
+  },
+  {
+    id: 'CBA-9',
     title: 'Output Structure',
     rule: 'Respond with a single JSON object: {"reply": "..."}. No markdown code fences, no extra commentary, no nested JSON.',
     enforcement: ['prompt', 'validator'],
@@ -86,15 +98,20 @@ ${guardrailsBlock}
 Always respond with exactly {"reply": "..."}.`
 }
 
-/** Warn-only validator for course builder assistant output. */
-export function validateCourseBuilderAssistantOutput(responseText: string): GuardrailViolation[] {
+/** Warn-only validator for course builder assistant output.
+ *  @param messages - conversation history so the validator can check the last
+ *  assistant reply for duplicates. The new reply is not yet in this array. */
+export function validateCourseBuilderAssistantOutput(
+  responseText: string,
+  messages: { role: string; content: string }[] = []
+): GuardrailViolation[] {
   const violations: GuardrailViolation[] = []
   const text = responseText || ''
 
-  // CBA-6: output should not be wrapped in markdown code fences.
+  // CBA-9: output should not be wrapped in markdown code fences.
   if (/^\s*```(?:json)?\s*\n[\s\S]*\n```\s*$/i.test(text)) {
     violations.push({
-      ruleId: 'CBA-6',
+      ruleId: 'CBA-9',
       severity: 'warning',
       message: 'Response is wrapped in markdown code fences; it should be a plain JSON object.',
     })
@@ -117,14 +134,27 @@ export function validateCourseBuilderAssistantOutput(responseText: string): Guar
     })
   }
 
+  // CBA-7: flag a reply that is identical to the previous assistant reply.
+  const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant')
+  if (lastAssistant && lastAssistant.content.trim() === text.trim()) {
+    violations.push({
+      ruleId: 'CBA-7',
+      severity: 'warning',
+      message: 'Assistant reply is identical to the previous assistant reply.',
+    })
+  }
+
   return violations
 }
 
 /** Run the course builder assistant validator and summarize. */
-export function runCourseBuilderGuardrails(responseText: string): {
+export function runCourseBuilderGuardrails(
+  responseText: string,
+  messages: { role: string; content: string }[] = []
+): {
   violations: GuardrailViolation[]
   hasBlocking: boolean
 } {
-  const violations = validateCourseBuilderAssistantOutput(responseText)
+  const violations = validateCourseBuilderAssistantOutput(responseText, messages)
   return { violations, hasBlocking: violations.some(v => v.severity === 'error') }
 }

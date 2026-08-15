@@ -698,6 +698,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       directoryMenusAlwaysVisible = false,
       saveMode,
       onSaveModeChange,
+      courseState,
       isStudentView = false,
       onSyncToLiveSession,
       onUnsyncedChangesChange,
@@ -1168,7 +1169,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const [leftPanelResizing, setLeftPanelResizing] = useState(false)
     const leftPanelRef = useRef<HTMLDivElement>(null)
-    const [assetsOpen, setAssetsOpen] = useState(true)
+    const [assetsOpen, setAssetsOpen] = useState(() => {
+      if (typeof window === 'undefined') return true
+      return window.localStorage.getItem('tutor-course-builder-assets-expanded') !== 'false'
+    })
+    useEffect(() => {
+      if (typeof window === 'undefined') return
+      window.localStorage.setItem('tutor-course-builder-assets-expanded', String(assetsOpen))
+    }, [assetsOpen])
     const [mediaOpen, setMediaOpen] = useState(true)
     const [docsOpen, setDocsOpen] = useState(true)
     const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
@@ -1917,6 +1925,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // endless loop. So we hold it in a ref and reset it only when a fresh,
     // user-initiated generate begins.
     const dmiContentSourceRef = useRef<'document' | 'text' | null>(null)
+    // AbortController for the in-flight DMI generation request, so the tutor can
+    // cancel a long-running or stuck generation and retry from scratch.
+    const dmiAbortControllerRef = useRef<AbortController | null>(null)
+    // Track which type of DMI is currently generating so cancellation can clear
+    // the right draft state.
+    const dmiGeneratingTypeRef = useRef<'task' | 'assessment' | null>(null)
     // Identity (fileKey/fileUrl) of an assessment document the tutor JUST
     // uploaded and for which the DMI should auto-generate. Set by the upload
     // handlers only — so opening an existing assessment (hydration) never
@@ -3314,28 +3328,41 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     useEffect(() => {
-      const urls = detectUrls(activeTaskContentText).filter(u => isValidPreviewUrl(u))
-      const nextPreviews: LinkPreviewItem[] = [...taskBuilder.linkPreviews]
-      const newUrls: string[] = []
-      let changed = false
-
-      urls.forEach((url, idx) => {
-        const existingIndex = nextPreviews.findIndex(p => p.url === url)
-        const fetched = taskFetchedPreviews.find(p => p.url === url)
-        const meta = fetched?.metadata
-
-        if (existingIndex >= 0) {
-          const existing = nextPreviews[existingIndex]
-          const updated = applyPreviewMetadata(existing, meta)
+      setTaskBuilder(prev => {
+        let changed = false
+        const nextLinkPreviews = prev.linkPreviews.map(existing => {
+          const fetched = taskFetchedPreviews.find(p => p.url === existing.url)
+          if (!fetched?.metadata) return existing
+          const updated = applyPreviewMetadata(existing, fetched.metadata)
           if (isPreviewChanged(existing, updated)) {
-            nextPreviews[existingIndex] = updated
             changed = true
+            return updated
           }
-        } else if (fetched && !fetched.loading && !fetched.error && meta) {
-          changed = true
+          return existing
+        })
+        if (!changed) return prev
+        return { ...prev, linkPreviews: nextLinkPreviews }
+      })
+    }, [taskFetchedPreviews])
+
+    useEffect(() => {
+      const urls = detectUrls(activeTaskContentText).filter(u => isValidPreviewUrl(u))
+      if (urls.length === 0) return
+
+      setTaskBuilder(prev => {
+        const existingUrls = new Set(prev.linkPreviews.map(p => p.url))
+        const newUrls: string[] = []
+        const newPreviews: LinkPreviewItem[] = []
+
+        urls.forEach((url, idx) => {
+          if (existingUrls.has(url)) return
+          const fetched = taskFetchedPreviews.find(p => p.url === url)
+          if (!fetched || fetched.loading || fetched.error || !fetched.metadata) return
+          existingUrls.add(url)
           newUrls.push(url)
           const offset = (idx % 6) * 24
-          nextPreviews.push({
+          const meta = fetched.metadata
+          newPreviews.push({
             id: utilsGenerateId(),
             url,
             x: 24 + offset,
@@ -3352,22 +3379,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             fileName: meta.fileName,
             fileType: meta.fileType,
           })
-        }
-      })
+        })
 
-      if (!changed && newUrls.length === 0) return
+        if (newPreviews.length === 0) return prev
 
-      if (newUrls.length === 0) {
-        setTaskBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
-        return
-      }
-
-      setTaskBuilder(prev => {
         const activeHtml = prev.activeExtensionId
           ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.content || ''
           : prev.taskContent
         const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
-        const next = { ...prev, linkPreviews: nextPreviews }
+
+        const next = { ...prev }
         if (prev.activeExtensionId) {
           next.extensions = prev.extensions.map(e =>
             e.id === prev.activeExtensionId ? { ...e, content: cleanedHtml } : e
@@ -3375,40 +3396,54 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         } else {
           next.taskContent = cleanedHtml
         }
+
+        next.linkPreviews = [...prev.linkPreviews, ...newPreviews]
         return next
       })
     }, [
       activeTaskContentText,
       taskFetchedPreviews,
-      taskBuilder.linkPreviews,
       taskBuilder.activeExtensionId,
       taskBuilder.extensions,
       taskBuilder.taskContent,
     ])
 
     useEffect(() => {
-      const urls = detectUrls(activeAssessmentContentText).filter(u => isValidPreviewUrl(u))
-      const nextPreviews: LinkPreviewItem[] = [...assessmentBuilder.linkPreviews]
-      const newUrls: string[] = []
-      let changed = false
-
-      urls.forEach((url, idx) => {
-        const existingIndex = nextPreviews.findIndex(p => p.url === url)
-        const fetched = assessmentFetchedPreviews.find(p => p.url === url)
-        const meta = fetched?.metadata
-
-        if (existingIndex >= 0) {
-          const existing = nextPreviews[existingIndex]
-          const updated = applyPreviewMetadata(existing, meta)
+      setAssessmentBuilder(prev => {
+        let changed = false
+        const nextLinkPreviews = prev.linkPreviews.map(existing => {
+          const fetched = assessmentFetchedPreviews.find(p => p.url === existing.url)
+          if (!fetched?.metadata) return existing
+          const updated = applyPreviewMetadata(existing, fetched.metadata)
           if (isPreviewChanged(existing, updated)) {
-            nextPreviews[existingIndex] = updated
             changed = true
+            return updated
           }
-        } else if (fetched && !fetched.loading && !fetched.error && meta) {
-          changed = true
+          return existing
+        })
+        if (!changed) return prev
+        return { ...prev, linkPreviews: nextLinkPreviews }
+      })
+    }, [assessmentFetchedPreviews])
+
+    useEffect(() => {
+      const urls = detectUrls(activeAssessmentContentText).filter(u => isValidPreviewUrl(u))
+      if (urls.length === 0) return
+
+      setAssessmentBuilder(prev => {
+        const existingUrls = new Set(prev.linkPreviews.map(p => p.url))
+        const newUrls: string[] = []
+        const newPreviews: LinkPreviewItem[] = []
+
+        urls.forEach((url, idx) => {
+          if (existingUrls.has(url)) return
+          const fetched = assessmentFetchedPreviews.find(p => p.url === url)
+          if (!fetched || fetched.loading || fetched.error || !fetched.metadata) return
+          existingUrls.add(url)
           newUrls.push(url)
           const offset = (idx % 6) * 24
-          nextPreviews.push({
+          const meta = fetched.metadata
+          newPreviews.push({
             id: utilsGenerateId(),
             url,
             x: 24 + offset,
@@ -3425,27 +3460,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             fileName: meta.fileName,
             fileType: meta.fileType,
           })
-        }
-      })
+        })
 
-      if (!changed && newUrls.length === 0) return
+        if (newPreviews.length === 0) return prev
 
-      if (newUrls.length === 0) {
-        setAssessmentBuilder(prev => ({ ...prev, linkPreviews: nextPreviews }))
-        return
-      }
-
-      setAssessmentBuilder(prev => {
-        const next = { ...prev, linkPreviews: nextPreviews }
         const activeHtml = prev.pages[prev.activePageIndex] ?? ''
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
+
+        const next = { ...prev, linkPreviews: [...prev.linkPreviews, ...newPreviews] }
         next.pages = [...prev.pages]
-        next.pages[prev.activePageIndex] = removeStandaloneUrlsFromHtml(activeHtml, newUrls)
+        next.pages[prev.activePageIndex] = cleanedHtml
         return next
       })
     }, [
       activeAssessmentContentText,
       assessmentFetchedPreviews,
-      assessmentBuilder.linkPreviews,
       assessmentBuilder.pages,
       assessmentBuilder.activePageIndex,
     ])
@@ -4877,6 +4906,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const effectiveHasPdf = hasPdf && contentSource !== 'text'
 
       setDmiGenerating(true)
+      dmiGeneratingTypeRef.current = type
+      const dmiController = new AbortController()
+      dmiAbortControllerRef.current = dmiController
       try {
         let pdfPages: string[] | undefined
         let pdfText: string | undefined
@@ -4960,6 +4992,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         const response = await fetch('/api/ai/generate-dmi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: dmiController.signal,
           body: JSON.stringify({
             type,
             title: builder.title,
@@ -4980,6 +5013,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         }
 
         const data = await response.json()
+
+        // If the tutor cancelled while the request was in flight, discard the
+        // response so no partial/late DMI state is applied.
+        if (dmiController.signal.aborted) return
 
         // Ambiguous document kind: ask the tutor to confirm "question paper vs
         // study material" before proceeding, instead of silently treating it as a
@@ -5170,9 +5207,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           setDmiEditor({ source: isTask ? 'task' : 'assessment' })
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          // Cancelled by the tutor via handleCancelDmiGeneration; nothing to report.
+          return
+        }
         const message = error instanceof Error ? error.message : 'Failed to generate DMI'
         toast.error(message)
       } finally {
+        dmiAbortControllerRef.current = null
+        dmiGeneratingTypeRef.current = null
         setDmiGenerating(false)
       }
     }
@@ -5204,6 +5247,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setDmiSourceDialog(null)
       dmiContentSourceRef.current = 'text'
       if (type) void handleGenerateDMI(type, undefined, undefined, true, 'text')
+    }
+
+    // Cancel an in-flight DMI generation, ignore any late response, and clear the
+    // partial draft so the tutor can retry from scratch.
+    const handleCancelDmiGeneration = () => {
+      const controller = dmiAbortControllerRef.current
+      if (controller) {
+        controller.abort()
+        dmiAbortControllerRef.current = null
+      }
+      const type = dmiGeneratingTypeRef.current
+      if (type === 'assessment') {
+        setAssessmentDmiItems([])
+      } else if (type === 'task') {
+        setTaskDmiItems([])
+      }
+      dmiGeneratingTypeRef.current = null
+      // Clear the auto-generate flag so cancellation doesn't immediately re-trigger
+      // another generation on the same freshly uploaded document.
+      pendingAutoGenDmiRef.current = null
+      setDmiGenerating(false)
+      toast.info('DMI generation cancelled. You can try again.')
     }
 
     // Load a specific DMI version (task DMI versions only; assessments have a
@@ -8007,12 +8072,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const renderAssetsFolder = () => (
       <div className="mb-3 mt-3 rounded-xl border border-emerald-500 bg-white shadow-sm">
         {/* Header row matching image 1 */}
-        <div className="relative flex items-center justify-center px-3 py-2">
-          <span className="text-sm font-semibold text-slate-700">Assets</span>
+        <div
+          className="relative flex cursor-pointer items-center justify-center px-3 py-2"
+          onClick={() => setAssetsOpen(prev => !prev)}
+        >
+          <span className="text-sm font-semibold text-emerald-500">Assets</span>
           <div className="absolute right-3 flex items-center gap-3">
             <button
-              className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
-              onClick={() => {
+              className="-translate-x-[3px] text-sm font-medium text-emerald-600 hover:text-emerald-700"
+              onClick={e => {
+                e.stopPropagation()
                 setAssetViewSearch('')
                 setAssetViewFolder('All')
                 setAssetsViewOpen(true)
@@ -8119,6 +8188,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 <span
                   className="flex items-center text-sm font-medium text-emerald-600 hover:text-emerald-700"
                   title="Upload Asset"
+                  onClick={e => e.stopPropagation()}
                 >
                   <Plus className="h-4 w-4" />
                 </span>
@@ -8127,90 +8197,94 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           </div>
         </div>
 
-        {/* Only show 2 most recent files */}
-        <div className="flex flex-col gap-2 px-2 pb-2">
-          {recentAssets.length === 0 ? (
-            <p className="text-muted-foreground w-full py-2 text-center text-xs">
-              No assets imported.
-            </p>
-          ) : (
-            recentAssets.map(asset => (
-              <div
-                key={asset.id}
-                draggable={!assetPickerTarget}
-                onDragStart={e => {
-                  if (assetPickerTarget) {
-                    e.preventDefault()
-                    return
-                  }
-                  e.dataTransfer.setData(
-                    'application/json',
-                    JSON.stringify({ type: 'asset', asset })
-                  )
-                }}
-                onClick={() => {
-                  if (assetPickerTarget) {
-                    handleLoadAsset(asset)
-                  }
-                }}
-                className={cn(
-                  'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
-                  assetPickerTarget
-                    ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
-                    : 'cursor-grab active:cursor-grabbing'
-                )}
-              >
-                {' '}
-                <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
-                  <FileText className="h-4 w-4 shrink-0 text-white" />
-                  <span className="flex-1 truncate text-sm font-medium text-white">
-                    {asset.name}
-                  </span>
-                </div>
-                <div
-                  className="flex shrink-0 items-center gap-2"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
-                        aria-label="Asset actions"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="z-[100]">
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          // Document's own kebab → always show the lesson picker.
-                          setTimeout(() => handleLoadAsset(asset, null), 50)
-                        }}
-                      >
-                        Load
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-red-600 focus:text-red-600"
-                        onClick={() => {
-                          setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
-                        }}
-                      >
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ))
-          )}
-          {courseAssets.length > 2 && (
-            <p className="text-center text-[10px] text-gray-600">
-              +{courseAssets.length - 2} more — click View to see all
-            </p>
-          )}
-        </div>
+        {assetsOpen && (
+          <>
+            {/* Only show 2 most recent files */}
+            <div className="flex flex-col gap-2 px-2 pb-2">
+              {recentAssets.length === 0 ? (
+                <p className="text-muted-foreground w-full py-2 text-center text-xs">
+                  No assets imported.
+                </p>
+              ) : (
+                recentAssets.map(asset => (
+                  <div
+                    key={asset.id}
+                    draggable={!assetPickerTarget}
+                    onDragStart={e => {
+                      if (assetPickerTarget) {
+                        e.preventDefault()
+                        return
+                      }
+                      e.dataTransfer.setData(
+                        'application/json',
+                        JSON.stringify({ type: 'asset', asset })
+                      )
+                    }}
+                    onClick={() => {
+                      if (assetPickerTarget) {
+                        handleLoadAsset(asset)
+                      }
+                    }}
+                    className={cn(
+                      'flex items-center justify-between rounded-xl bg-emerald-500/50 px-3 py-2.5 transition-colors hover:bg-emerald-500/60',
+                      assetPickerTarget
+                        ? 'cursor-pointer ring-2 ring-transparent hover:ring-blue-400'
+                        : 'cursor-grab active:cursor-grabbing'
+                    )}
+                  >
+                    {' '}
+                    <div className="mr-2 flex flex-1 items-center gap-2 overflow-hidden">
+                      <FileText className="h-4 w-4 shrink-0 text-white" />
+                      <span className="flex-1 truncate text-sm font-medium text-white">
+                        {asset.name}
+                      </span>
+                    </div>
+                    <div
+                      className="flex shrink-0 items-center gap-2"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-white hover:bg-white/20 hover:text-white"
+                            aria-label="Asset actions"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="z-[100]">
+                          <DropdownMenuItem
+                            onSelect={() => {
+                              // Document's own kebab → always show the lesson picker.
+                              setTimeout(() => handleLoadAsset(asset, null), 50)
+                            }}
+                          >
+                            Load
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-600"
+                            onClick={() => {
+                              setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
+                            }}
+                          >
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))
+              )}
+              {courseAssets.length > 2 && (
+                <p className="text-center text-[10px] text-gray-600">
+                  +{courseAssets.length - 2} more — click View to see all
+                </p>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Load-as Modal */}
         <Dialog
@@ -9457,6 +9531,32 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         </span>
       )
     }
+    // Summarize DMI/PCI completion for the course-builder AI assistant.
+    // Computed here so it can read the PCI reducer state, then merged into the
+    // assistant context prop at the AiAssistantPanel call sites.
+    const dmiPciInfo = useMemo(
+      () => ({
+        hasGeneratedDmi: taskDmiItems.length > 0 || assessmentDmiItems.length > 0,
+        dmiQuestionCount: taskDmiItems.length + assessmentDmiItems.length,
+        hasCompletedPci: !!(
+          taskBuilder.taskPci.trim().length > 0 ||
+          taskPciDraft.trim().length > 0 ||
+          assessmentBuilder.taskPci.trim().length > 0 ||
+          (loadedAssessmentId &&
+            (assessmentPciDraftMap[loadedAssessmentId] || '').trim().length > 0)
+        ),
+      }),
+      [
+        taskDmiItems,
+        assessmentDmiItems,
+        taskBuilder.taskPci,
+        taskPciDraft,
+        assessmentBuilder.taskPci,
+        assessmentPciDraftMap,
+        loadedAssessmentId,
+      ]
+    )
+
     // Read-only-with-edit "Current marking policy" box shown atop a PCI tab.
     const renderCurrentPci = (source: 'task' | 'assessment', value: string) => (
       <div
@@ -9956,6 +10056,28 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
               <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
               <span className="text-sm font-medium text-slate-700">Preparing task preview…</span>
+            </div>
+          </div>
+        )}
+        {dmiGenerating && (
+          <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm">
+            <div className="flex max-w-sm flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <div className="text-center">
+                <p className="text-base font-semibold text-slate-800">Generating DMI…</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  This may take a minute. You can cancel to try again.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCancelDmiGeneration}
+                className="rounded-full border-slate-300 text-slate-700 hover:bg-slate-100"
+              >
+                Cancel
+              </Button>
             </div>
           </div>
         )}
@@ -10800,7 +10922,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   >
                                                                     Duplicate
                                                                   </DropdownMenuItem>
-                                                                  {saveMode !== 'live' && (
+                                                                  {courseState !== 'published' && (
                                                                     <DropdownMenuItem
                                                                       className="text-red-500"
                                                                       onClick={e => {
@@ -11411,7 +11533,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 >
                                                                   Duplicate
                                                                 </DropdownMenuItem>
-                                                                {saveMode !== 'live' && (
+                                                                {courseState !== 'published' && (
                                                                   <DropdownMenuItem
                                                                     className="text-red-500"
                                                                     onClick={e => {
@@ -12054,25 +12176,37 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 mode={assistantMode}
                                                 sessionId={insightsProps.sessionId}
                                                 sessionType={
-                                                  insightsProps.sessions?.find(
-                                                    (s: any) => s.id === insightsProps.sessionId
-                                                  )?.sessionType
+                                                  insightsProps.sessions
+                                                    ?.filter(
+                                                      (s: any) =>
+                                                        s.courseId === courseId ||
+                                                        s.id === insightsProps.sessionId
+                                                    )
+                                                    ?.find(
+                                                      (s: any) => s.id === insightsProps.sessionId
+                                                    )?.sessionType
                                                 }
                                                 courseId={courseId}
                                                 courseName={courseName}
-                                                sessions={insightsProps.sessions?.map((s: any) => ({
-                                                  id: s.id,
-                                                  title: s.title,
-                                                  scheduledAt: s.scheduledAt,
-                                                  status: s.status,
-                                                }))}
+                                                sessions={insightsProps.sessions
+                                                  ?.filter(
+                                                    (s: any) =>
+                                                      s.courseId === courseId ||
+                                                      s.id === insightsProps.sessionId
+                                                  )
+                                                  ?.map((s: any) => ({
+                                                    id: s.id,
+                                                    title: s.title,
+                                                    scheduledAt: s.scheduledAt,
+                                                    status: s.status,
+                                                  }))}
                                                 studentsCount={
                                                   (insightsProps.students || []).length
                                                 }
                                                 liveSubmissions={
                                                   insightsProps.liveSubmissions || []
                                                 }
-                                                context={assistantContext}
+                                                context={{ ...assistantContext, ...dmiPciInfo }}
                                                 isDemoSession={isDemoSession}
                                               />
                                             </div>
@@ -14809,41 +14943,42 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   />
                                                   <div className="flex w-full items-center justify-between gap-2 px-2 pb-2">
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                      {dmiGenerating ? (
-                                                        <span className="inline-flex h-7 items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-500">
-                                                          <Loader2 className="h-3 w-3 animate-spin" />
-                                                          Generating…
-                                                        </span>
-                                                      ) : assessmentDmiItems.length > 0 ||
-                                                        !currentAssessmentDocument ? (
+                                                      {assessmentDmiItems.length > 0 ? (
                                                         <Button
                                                           type="button"
                                                           variant="ghost"
                                                           size="sm"
                                                           data-pci-anchor="generate-dmi"
                                                           className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                                          disabled={!canEdit}
+                                                          disabled={!canEdit || dmiGenerating}
                                                           onClick={() => {
                                                             if (!canEdit) return
-                                                            const content =
-                                                              assessmentBuilder.taskContent
-                                                            const hasPdf =
-                                                              currentAssessmentDocument?.mimeType ===
-                                                              'application/pdf'
-                                                            if (!content.trim() && !hasPdf) {
-                                                              toast.error(
-                                                                'Please add content to the Assessment tab or load a PDF first'
-                                                              )
-                                                              return
-                                                            }
                                                             handleGenerateDMI('assessment')
                                                           }}
                                                         >
-                                                          {assessmentDmiItems.length > 0
-                                                            ? 'Regenerate DMI'
-                                                            : 'Generate DMI'}
+                                                          Regenerate DMI
                                                         </Button>
-                                                      ) : null}
+                                                      ) : (
+                                                        <Button
+                                                          type="button"
+                                                          variant="ghost"
+                                                          size="sm"
+                                                          data-pci-anchor="generate-dmi"
+                                                          className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                                                          disabled={
+                                                            !canEdit ||
+                                                            dmiGenerating ||
+                                                            (!assessmentBuilder.taskContent.trim() &&
+                                                              !currentAssessmentDocument)
+                                                          }
+                                                          onClick={() => {
+                                                            if (!canEdit) return
+                                                            handleGenerateDMI('assessment')
+                                                          }}
+                                                        >
+                                                          Generate DMI
+                                                        </Button>
+                                                      )}
 
                                                       {assessmentDmiItems.length > 0 && (
                                                         <Button
@@ -15002,21 +15137,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   mode={assistantMode}
                                   sessionId={insightsProps?.sessionId}
                                   sessionType={
-                                    insightsProps?.sessions?.find(
-                                      (s: any) => s.id === insightsProps?.sessionId
-                                    )?.sessionType
+                                    insightsProps?.sessions
+                                      ?.filter(
+                                        (s: any) =>
+                                          s.courseId === courseId ||
+                                          s.id === insightsProps?.sessionId
+                                      )
+                                      ?.find((s: any) => s.id === insightsProps?.sessionId)
+                                      ?.sessionType
                                   }
                                   courseId={courseId}
                                   courseName={courseName}
-                                  sessions={insightsProps?.sessions?.map((s: any) => ({
-                                    id: s.id,
-                                    title: s.title,
-                                    scheduledAt: s.scheduledAt,
-                                    status: s.status,
-                                  }))}
+                                  sessions={insightsProps?.sessions
+                                    ?.filter(
+                                      (s: any) =>
+                                        s.courseId === courseId || s.id === insightsProps?.sessionId
+                                    )
+                                    ?.map((s: any) => ({
+                                      id: s.id,
+                                      title: s.title,
+                                      scheduledAt: s.scheduledAt,
+                                      status: s.status,
+                                    }))}
                                   studentsCount={(insightsProps?.students || []).length}
                                   liveSubmissions={insightsProps?.liveSubmissions || []}
-                                  context={assistantContext}
+                                  context={{ ...assistantContext, ...dmiPciInfo }}
                                   isActive={liveRightPanelTab === 'analytics'}
                                   isDemoSession={isDemoSession}
                                 />
@@ -15962,7 +16107,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             if (!open) setDmiEditor(null)
           }}
         >
-          <DialogContent className="sm:max-w-2xl">
+          <DialogContent className="border border-slate-200 shadow-2xl sm:max-w-2xl">
             {dmiEditor &&
               (() => {
                 const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
@@ -15973,8 +16118,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 )
                 return (
                   <>
-                    <DialogHeader>
-                      <DialogTitle>
+                    <DialogHeader className="text-center sm:text-center">
+                      <DialogTitle className="text-center">
                         {dmiEditor.source === 'task'
                           ? taskBuilder.title || 'Edit marks & answers'
                           : assessmentBuilder.title || 'Edit marks & answers'}
@@ -16266,7 +16411,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         )
                       })}
                     </div>
-                    <DialogFooter align="between">
+                    <DialogFooter align="end">
                       <input
                         ref={markingSchemeInputRef}
                         type="file"
@@ -16284,6 +16429,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         variant="modal-destructive-dark"
                         disabled={!canEdit || markingSchemeLoading}
                         onClick={() => markingSchemeInputRef.current?.click()}
+                        className="bg-pink-600 text-white hover:border-pink-600 hover:bg-white hover:text-pink-600"
                       >
                         {markingSchemeLoading ? (
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
