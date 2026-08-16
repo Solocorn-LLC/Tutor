@@ -28,6 +28,7 @@ interface FloatingToolMenuProps {
   onColorChange: (color: string) => void
   onLineWidthChange: (width: number) => void
   onClear: () => void
+  onOpenMath?: () => void
   isDrawing: boolean
   currentPointerPos: { x: number; y: number } | null
 }
@@ -52,6 +53,7 @@ export function FloatingToolMenu({
   onColorChange,
   onLineWidthChange,
   onClear,
+  onOpenMath,
   isDrawing,
   currentPointerPos,
 }: FloatingToolMenuProps) {
@@ -332,6 +334,16 @@ export function FloatingToolMenu({
             label: 'Graph',
             action: () => onToolChange('graph'),
             active: currentTool === 'graph',
+          },
+          {
+            icon: <Sigma className="h-5 w-5" />,
+            label: 'Math',
+            action: () => {
+              setIsOpen(false)
+              setTimeout(() => setActiveMenu('main'), 200)
+              onOpenMath?.()
+            },
+            active: false,
           },
         ]
     }
