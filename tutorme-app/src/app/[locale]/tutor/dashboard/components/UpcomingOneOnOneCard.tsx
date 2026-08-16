@@ -1,0 +1,146 @@
+'use client'
+
+import { format } from 'date-fns'
+import { Calendar, Clock, User, Video, Timer } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
+
+type OneOnOneStudent = {
+  userId?: string | null
+  handle?: string | null
+  email?: string | null
+  image?: string | null
+}
+
+type OneOnOneBooking = {
+  requestId: string
+  requestedDate: string
+  startTime: string
+  endTime: string
+  timezone: string
+  status: string
+  durationMinutes?: number | null
+  costPerSession: number
+  currency?: string | null
+  student?: OneOnOneStudent | null
+}
+
+interface UpcomingOneOnOneCardProps {
+  request: OneOnOneBooking
+  joiningRequestId?: string | null
+  onJoinOneOnOne: (requestId: string) => void
+}
+
+function getOneOnOneScheduledAt(request: OneOnOneBooking): Date {
+  const base = new Date(request.requestedDate)
+  const [h, m] = request.startTime.split(':').map(Number)
+  if (Number.isFinite(h) && Number.isFinite(m)) {
+    base.setHours(h, m, 0, 0)
+  }
+  return base
+}
+
+function durationLabel(request: OneOnOneBooking): string | null {
+  let mins = request.durationMinutes ?? 0
+  if (!mins && request.startTime && request.endTime) {
+    const [sh, sm] = request.startTime.split(':').map(Number)
+    const [eh, em] = request.endTime.split(':').map(Number)
+    if ([sh, sm, eh, em].every(n => Number.isFinite(n))) {
+      mins = eh * 60 + em - (sh * 60 + sm)
+    }
+  }
+  return mins > 0 ? `${mins} min` : null
+}
+
+function studentDisplayName(student?: OneOnOneStudent | null): string {
+  if (student?.handle) return student.handle
+  if (student?.email) return student.email.split('@')[0]
+  return 'Student'
+}
+
+function statusBadgeClass(status: string) {
+  const s = status.toUpperCase()
+  if (s === 'PAID') return 'border-emerald-200/30 bg-emerald-500/15 text-emerald-300'
+  if (s === 'ACCEPTED') return 'border-blue-200/30 bg-blue-500/15 text-blue-300'
+  if (s === 'PENDING') return 'border-amber-200/30 bg-amber-500/15 text-amber-300'
+  return 'border-slate-200/30 bg-white/10 text-white/60'
+}
+
+export function UpcomingOneOnOneCard({
+  request,
+  joiningRequestId,
+  onJoinOneOnOne,
+}: UpcomingOneOnOneCardProps) {
+  const scheduledAt = getOneOnOneScheduledAt(request)
+  const isPaid = request.status.toUpperCase() === 'PAID'
+  const isJoining = joiningRequestId === request.requestId
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-l-4 border-white/10 border-l-blue-500 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)] sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 flex-1 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            variant="outline"
+            className="border-blue-200/30 bg-blue-500/15 text-[10px] uppercase tracking-wide text-blue-300"
+          >
+            1-on-1
+          </Badge>
+          <span className="truncate text-sm font-semibold text-white">
+            {studentDisplayName(request.student)}
+          </span>
+          <Badge
+            variant="outline"
+            className={cn('text-[10px] uppercase tracking-wide', statusBadgeClass(request.status))}
+          >
+            {request.status}
+          </Badge>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {format(scheduledAt, 'EEEE, MMM d, h:mm a')}
+          </span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {request.startTime}–{request.endTime}
+          </span>
+          {durationLabel(request) && (
+            <span className="flex items-center gap-1">
+              <Timer className="h-3 w-3" />
+              {durationLabel(request)}
+            </span>
+          )}
+          <span className="flex items-center gap-1">
+            <User className="h-3 w-3" />
+            {request.currency ?? 'USD'} {request.costPerSession}
+          </span>
+        </div>
+
+        <div className="text-xs text-white/50">{request.timezone}</div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {isPaid ? (
+          <Button
+            size="sm"
+            disabled={isJoining}
+            onClick={() => onJoinOneOnOne(request.requestId)}
+            className="bg-blue-500 text-white transition-all duration-200 hover:bg-blue-400"
+          >
+            <Video className="mr-1 h-3 w-3" />
+            {isJoining ? 'Opening…' : 'Join session'}
+          </Button>
+        ) : (
+          <Badge
+            variant="outline"
+            className="border-white/10 bg-white/5 text-[10px] uppercase tracking-wide text-white/70"
+          >
+            Awaiting payment
+          </Badge>
+        )}
+      </div>
+    </div>
+  )
+}

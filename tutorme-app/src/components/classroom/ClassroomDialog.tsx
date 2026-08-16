@@ -9,7 +9,7 @@
  * Design basis: the Sessions dialog (DialogContent styling, session cards,
  * status badges, etc.) from the tutor dashboard.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -60,6 +60,7 @@ export interface ClassroomDialogProps {
   nationality?: string | null
   variantCategory?: string | null
   categories?: string[] | null
+  focusSessionId?: string | null
 }
 
 const fmt = (iso: string | null) =>
@@ -92,6 +93,7 @@ export function ClassroomDialog({
   nationality,
   variantCategory,
   categories,
+  focusSessionId,
 }: ClassroomDialogProps) {
   const router = useRouter()
   const params = useParams()
@@ -146,11 +148,28 @@ export function ClassroomDialog({
     }
   }, [open, courseId])
 
-  const { nextSession, pastSessions } = useMemo(() => categorizeLobbySessions(sessions), [sessions])
+  const { nextSession } = useMemo(() => categorizeLobbySessions(sessions), [sessions])
+  const focusedSession = useMemo(
+    () => sessions.find(s => s.id === focusSessionId) || null,
+    [sessions, focusSessionId]
+  )
+  const featuredSession = focusedSession ?? nextSession
+  const isFeaturedFocused = Boolean(focusedSession)
 
   const msUntilStart =
-    nextSession?.scheduledAt != null ? new Date(nextSession.scheduledAt).getTime() - now : null
-  const isNextLive = nextSession?.status === 'active' || nextSession?.status === 'live'
+    featuredSession?.scheduledAt != null
+      ? new Date(featuredSession.scheduledAt).getTime() - now
+      : null
+  const isFeaturedLive = featuredSession?.status === 'active' || featuredSession?.status === 'live'
+
+  const focusedRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!focusSessionId || loading || sessions.length === 0) return
+    const el = focusedRef.current
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [focusSessionId, loading, sessions])
 
   const goToSession = useCallback(
     (sessionId: string) => {
@@ -259,24 +278,24 @@ export function ClassroomDialog({
             </div>
           ) : (
             <div className="space-y-5">
-              {/* Next session card */}
+              {/* Featured session card */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Next session
+                  {isFeaturedFocused ? 'Selected session' : 'Next session'}
                 </p>
-                {!nextSession ? (
+                {!featuredSession ? (
                   <p className="mt-3 text-sm text-slate-500">No upcoming sessions scheduled.</p>
                 ) : (
                   <>
                     <h2 className="mt-1 text-lg font-semibold text-slate-900">
-                      {nextSession.title}
+                      {featuredSession.title}
                     </h2>
                     <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
                       <Calendar className="h-4 w-4" />
-                      {fmt(nextSession.scheduledAt)}
+                      {fmt(featuredSession.scheduledAt)}
                     </div>
                     <div className="mt-4 flex items-center justify-between gap-3">
-                      {isNextLive ? (
+                      {isFeaturedLive ? (
                         <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
                           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />{' '}
                           Live now
@@ -291,16 +310,16 @@ export function ClassroomDialog({
                       )}
                       <Button
                         onClick={() => {
-                          if (isNextLive) {
-                            goToSession(nextSession.id)
+                          if (isFeaturedLive) {
+                            goToSession(featuredSession.id)
                           } else {
-                            startAsTutor(nextSession.id)
+                            startAsTutor(featuredSession.id)
                           }
                         }}
                         className="transition-all duration-200"
                       >
                         <Video className="mr-1.5 h-4 w-4" />
-                        {isNextLive ? 'Join now' : 'Start now'}
+                        {isFeaturedLive ? 'Join now' : 'Start now'}
                       </Button>
                     </div>
                   </>
@@ -345,11 +364,18 @@ export function ClassroomDialog({
                     return (
                       <div
                         key={session.id}
+                        ref={el => {
+                          if (session.id === focusSessionId) {
+                            focusedRef.current = el
+                          }
+                        }}
                         className={cn(
                           'border-border/30 bg-card flex items-center justify-between rounded-lg border p-3 transition-all duration-200',
                           canClick
                             ? 'hover:border-border/50 cursor-pointer hover:bg-white'
-                            : 'opacity-80'
+                            : 'opacity-80',
+                          session.id === focusSessionId &&
+                            'border-primary ring-primary bg-primary/5 ring-2'
                         )}
                         onClick={() => {
                           if (canClick) goToSession(session.id)
