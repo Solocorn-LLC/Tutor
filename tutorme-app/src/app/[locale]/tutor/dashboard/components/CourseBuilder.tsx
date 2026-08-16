@@ -14158,7 +14158,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           {!hasUploadedTaskDocument ? (
                                             // Text-only task: locked 1100 x 620 slide canvas.
                                             // No PDF preview here; the snapshot is generated only when entering Test/Live.
-                                            <div className="relative flex h-full w-full items-end justify-center overflow-auto bg-slate-50 pb-20">
+                                            <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
                                               <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
                                                 <TaskSlideTextEditor
                                                   ref={taskSlideEditorRef}
@@ -14245,17 +14245,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     }}
                                                   />
                                                 ))}
-                                                <TaskSlideTextToolbar
-                                                  editorRef={taskSlideEditorRef}
-                                                  fontFamily={slideFontFamily}
-                                                  fontSize={slideFontSize}
-                                                  color={slideTextColor}
-                                                  onFontFamilyChange={setSlideFontFamily}
-                                                  onFontSizeChange={setSlideFontSize}
-                                                  onColorChange={setSlideTextColor}
-                                                  className="absolute bottom-6 right-2"
-                                                />
                                               </div>
+                                              <TaskSlideTextToolbar
+                                                editorRef={taskSlideEditorRef}
+                                                fontFamily={slideFontFamily}
+                                                fontSize={slideFontSize}
+                                                color={slideTextColor}
+                                                onFontFamilyChange={setSlideFontFamily}
+                                                onFontSizeChange={setSlideFontSize}
+                                                onColorChange={setSlideTextColor}
+                                                className="absolute bottom-6 right-2"
+                                              />
                                             </div>
                                           ) : (
                                             <div className="flex h-full w-full flex-row">
@@ -14678,7 +14678,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 assessmentPdfVisible ? 'w-1/2' : 'w-full'
                                               )}
                                             >
-                                              <div className="relative flex h-full w-full items-end justify-center overflow-auto bg-slate-50 pb-20">
+                                              <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
                                                 <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
                                                   <TaskSlideTextEditor
                                                     ref={assessmentSlideEditorRef}
@@ -14739,17 +14739,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }}
                                                     />
                                                   ))}
-                                                  <TaskSlideTextToolbar
-                                                    editorRef={assessmentSlideEditorRef}
-                                                    fontFamily={slideFontFamily}
-                                                    fontSize={slideFontSize}
-                                                    color={slideTextColor}
-                                                    onFontFamilyChange={setSlideFontFamily}
-                                                    onFontSizeChange={setSlideFontSize}
-                                                    onColorChange={setSlideTextColor}
-                                                    className="absolute bottom-6 right-2"
-                                                  />
                                                 </div>
+                                                <TaskSlideTextToolbar
+                                                  editorRef={assessmentSlideEditorRef}
+                                                  fontFamily={slideFontFamily}
+                                                  fontSize={slideFontSize}
+                                                  color={slideTextColor}
+                                                  onFontFamilyChange={setSlideFontFamily}
+                                                  onFontSizeChange={setSlideFontSize}
+                                                  onColorChange={setSlideTextColor}
+                                                  className="absolute bottom-6 right-2"
+                                                />
                                               </div>
                                             </div>
                                           )}
