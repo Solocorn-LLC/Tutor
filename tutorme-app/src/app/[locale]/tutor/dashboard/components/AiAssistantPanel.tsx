@@ -84,9 +84,14 @@ export function AiAssistantPanel({
   const [input, setInput] = useState('')
   const [introMessages, setIntroMessages] = useState<ChatMessage[]>([])
   const [isAnimating, setIsAnimating] = useState(false)
-  const hasAnimatedRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isDemoSession = isDemoSessionProp || sessionType === 'GO_LIVE_DEMO'
+  const introTimeoutsRef = useRef<NodeJS.Timeout[]>([])
+  const animatedKeyRef = useRef<string | null>(null)
+  const animationKey = useMemo(
+    () => `${mode}-${courseId ?? ''}-${sessionType ?? ''}-${isDemoSession ? 'demo' : 'live'}`,
+    [mode, courseId, sessionType, isDemoSession]
+  )
 
   const {
     messages: assistantMessages,
@@ -186,25 +191,32 @@ export function AiAssistantPanel({
   }, [mode, context, sessionType, buildCourseInfoMessages, isDemoSession])
 
   // Animate intro messages in one at a time from the bottom.
-  // For demo sessions, skip the blocking animation entirely so the chat input is
-  // usable immediately, matching a normal live session.
+  // The animation is keyed by mode/course/session/demo so it only runs once per
+  // context, and pending timers are cancelled on cleanup/context change so stale
+  // messages cannot be appended after a reset.
   useEffect(() => {
     if (isDemoSession) {
-      hasAnimatedRef.current = true
+      animatedKeyRef.current = animationKey
       setIsAnimating(false)
       return
     }
-    if (!isActive || hasAnimatedRef.current) return
+    if (!isActive) return
+    if (animatedKeyRef.current === animationKey) return
 
     const infoBlocks = introTextBlocks
     if (infoBlocks.length === 0) return
 
-    hasAnimatedRef.current = true
+    animatedKeyRef.current = animationKey
     setIsAnimating(true)
+
+    // Cancel any pending timers from a previous animation and clear stale messages
+    introTimeoutsRef.current.forEach(clearTimeout)
+    introTimeoutsRef.current = []
+    setIntroMessages([])
 
     // Add messages one at a time with staggered delay
     infoBlocks.forEach((text, index) => {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setIntroMessages(prev => [
           ...prev,
           { role: 'assistant', text, id: `info-${index}-${Date.now()}` },
@@ -212,16 +224,22 @@ export function AiAssistantPanel({
 
         // Clear animating flag after last message
         if (index === infoBlocks.length - 1) {
-          setTimeout(() => setIsAnimating(false), 500)
+          const doneTimer = setTimeout(() => setIsAnimating(false), 500)
+          introTimeoutsRef.current.push(doneTimer)
         }
       }, index * 400)
+      introTimeoutsRef.current.push(timer)
     })
-  }, [isActive, introTextBlocks, isDemoSession])
 
-  // Reset intro animation when mode/course/session changes so the greeting stays relevant
+    return () => {
+      introTimeoutsRef.current.forEach(clearTimeout)
+      introTimeoutsRef.current = []
+    }
+  }, [isActive, animationKey, introTextBlocks, isDemoSession])
+
+  // Reset assistant messages when mode/course/session changes so the chat history
+  // stays relevant to the current context.
   useEffect(() => {
-    hasAnimatedRef.current = false
-    setIntroMessages([])
     resetMessages()
   }, [mode, courseId, sessionType, resetMessages])
 
