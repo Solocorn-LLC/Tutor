@@ -406,6 +406,7 @@ export function EnhancedWhiteboard({
 
   // UI state
   const [showBackgroundPanel, setShowBackgroundPanel] = useState(false)
+  const [showMathTool, setShowMathTool] = useState(false)
   const [showVideo, setShowVideo] = useState(true)
   const [videoPosition, setVideoPosition] = useState({ x: 0, y: 0 })
   // The floating video's size — draggable via the grip handle and resizable via
@@ -2172,13 +2173,21 @@ export function EnhancedWhiteboard({
             onColorChange={setColor}
             onLineWidthChange={setLineWidth}
             onClear={clearPage}
+            onOpenMath={() => setShowMathTool(true)}
             isDrawing={isDrawing}
             currentPointerPos={pointerPos}
           />
         )}
 
-        {/* Dedicated, draggable math tool (separate from the radial menu) */}
-        {!readOnly && <FloatingMathTool onPlace={handlePlaceFormula} defaultColor={color} />}
+        {/* Math entry panel — opened from the unified tool menu */}
+        {!readOnly && showMathTool && (
+          <FloatingMathTool
+            open={showMathTool}
+            onOpenChange={setShowMathTool}
+            onPlace={handlePlaceFormula}
+            defaultColor={color}
+          />
+        )}
 
         {/* Floating Background Color Toggle */}
         {!readOnly && (

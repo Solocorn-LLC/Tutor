@@ -8,6 +8,10 @@ interface FloatingMathToolProps {
   onPlace: (options: { latex: string; scale: number; color: string }) => void | Promise<void>
   /** Current pen color, used as the default formula color. */
   defaultColor?: string
+  /** When provided, the panel visibility is controlled from outside. */
+  open?: boolean
+  /** Called when the panel should close in controlled mode. */
+  onOpenChange?: (open: boolean) => void
 }
 
 /**
@@ -133,8 +137,25 @@ const SYMBOL_GROUPS: SymbolGroup[] = [
 const COLORS = ['#000000', '#ef4444', '#22c55e', '#3b82f6', '#a855f7', '#f59e0b']
 const SCALES = [1, 1.5, 2, 2.5]
 
-export function FloatingMathTool({ onPlace, defaultColor }: FloatingMathToolProps) {
-  const [isOpen, setIsOpen] = useState(false)
+export function FloatingMathTool({
+  onPlace,
+  defaultColor,
+  open,
+  onOpenChange,
+}: FloatingMathToolProps) {
+  const isControlled = open !== undefined
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isOpen = isControlled ? open : internalOpen
+  const setIsOpen = useCallback(
+    (value: boolean) => {
+      if (isControlled) {
+        onOpenChange?.(value)
+      } else {
+        setInternalOpen(value)
+      }
+    },
+    [isControlled, onOpenChange]
+  )
   const [position, setPosition] = useState({ x: 20, y: 90 })
   const [latex, setLatex] = useState('')
   const [scale, setScale] = useState(1.5)
@@ -229,6 +250,8 @@ export function FloatingMathTool({ onPlace, defaultColor }: FloatingMathToolProp
     setLatex('')
     setPreviewSvg('')
   }, [latex, previewSvg, scale, color, onPlace])
+
+  if (isControlled && !isOpen) return null
 
   return (
     <motion.div
