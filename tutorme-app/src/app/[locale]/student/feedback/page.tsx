@@ -26,9 +26,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Input } from '@/components/ui/input'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { FloatingZoomPill } from '@/components/pdf/FloatingZoomPill'
 import { useSocket } from '@/hooks/use-socket'
 import { toast } from 'sonner'
 import { cn, resolvePublicUrl } from '@/lib/utils'
@@ -48,8 +48,6 @@ import {
   ChevronUp,
   Folder,
   Video,
-  Plus,
-  Minus,
   Presentation,
   Pencil,
   Lock,
@@ -1011,6 +1009,21 @@ function StudentFeedbackContent() {
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set())
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
   const [chatInput, setChatInput] = useState('')
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  const MIN_CHAT_HEIGHT = 80
+  const MAX_CHAT_HEIGHT = 200
+
+  const adjustChatHeight = useCallback(() => {
+    const el = chatInputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(MAX_CHAT_HEIGHT, Math.max(MIN_CHAT_HEIGHT, el.scrollHeight))}px`
+  }, [])
+
+  useEffect(() => {
+    adjustChatHeight()
+  }, [chatInput, adjustChatHeight])
+
   const [viewerZoom, setViewerZoom] = useState(1)
   const [documentPopupDoc, setDocumentPopupDoc] = useState<{
     fileName?: string | null
@@ -2381,8 +2394,8 @@ function StudentFeedbackContent() {
                 </TabsList>
               </div>
 
-              {/* Buffer between mode selector and classroom view */}
-              <div className="shrink-0 px-4 pb-3" />
+              {/* Small buffer between mode selector and classroom view */}
+              <div className="shrink-0 px-4 pb-1" />
 
               <TabsContent
                 value="task"
@@ -2565,45 +2578,30 @@ function StudentFeedbackContent() {
                     )}
                   </div>
 
-                  {/* Floating zoom controls */}
-                  <div className="absolute bottom-2 right-2 z-10 flex flex-col gap-1 rounded-full bg-white/90 p-1 shadow-md backdrop-blur-sm">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 rounded-full text-slate-600 hover:bg-slate-100"
-                      onClick={() => setViewerZoom(z => Math.min(2, z + 0.1))}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 rounded-full text-slate-600 hover:bg-slate-100"
-                      onClick={() => setViewerZoom(z => Math.max(0.5, z - 0.1))}
-                    >
-                      <Minus className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  {/* Floating zoom slider */}
+                  <FloatingZoomPill
+                    scale={viewerZoom}
+                    onScaleChange={setViewerZoom}
+                    minScale={0.5}
+                    maxScale={2.0}
+                    defaultScale={1.0}
+                    fixed
+                    className="bottom-2 right-2"
+                  />
                 </div>
 
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="relative flex h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
-                      <Input
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="relative flex min-h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
+                      <textarea
+                        ref={chatInputRef}
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            if (chatInput.trim() && socket) {
-                              socket.emit('chat_message', { text: chatInput.trim() })
-                              setChatInput('')
-                            }
-                          }
-                        }}
-                        className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        placeholder="Type a message..."
+                        className="w-full resize-none border-0 bg-transparent px-0 py-2 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        style={{ height: MIN_CHAT_HEIGHT }}
                       />
                       <Button
                         size="icon"
