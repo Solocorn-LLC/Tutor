@@ -62,6 +62,7 @@ import { CountryFlag } from '@/components/country-flag'
 import { CalendarBookingDialog } from '@/components/booking/calendar-booking-dialog'
 import { GroupSessionsList } from '@/components/booking/group-sessions-list'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
+import { ClampedTitle } from '@/components/common/clamped-title'
 
 interface PublicTutorResponse {
   tutor: {
@@ -1218,9 +1219,12 @@ export default function PublicTutorPage() {
                     <div className="flex h-full flex-col p-3.5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
-                          <h3 className="line-clamp-2 text-[15px] font-semibold text-slate-50">
+                          <ClampedTitle
+                            text={title}
+                            className="text-[15px] font-semibold text-slate-50"
+                          >
                             {title}
-                          </h3>
+                          </ClampedTitle>
                           <p className="mt-0.5 text-xs font-medium text-emerald-100/80">
                             @{tutor.username || 'tutor'}
                           </p>
