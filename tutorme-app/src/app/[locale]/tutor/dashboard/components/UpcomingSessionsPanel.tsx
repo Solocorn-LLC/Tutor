@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { format } from 'date-fns'
+import { format, startOfDay } from 'date-fns'
 import { Calendar } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { UpcomingClass } from './UpcomingClassesCard'
@@ -103,42 +103,61 @@ export function UpcomingSessionsPanel({
     return list
   }, [classes, courses, oneOnOneRequests])
 
-  const todayLabel = format(new Date(), 'EEEE, MMMM d, yyyy')
+  const groups = useMemo(() => {
+    const map = new Map<number, SessionItem[]>()
+    for (const item of items) {
+      const key = startOfDay(item.scheduledAt).getTime()
+      const group = map.get(key) ?? []
+      group.push(item)
+      map.set(key, group)
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([key, group]) => ({ date: new Date(key), items: group }))
+  }, [items])
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden border-white/10 bg-[#36454F]">
+    <Card className="flex h-full flex-col overflow-hidden border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-          <Calendar className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+          <Calendar className="h-5 w-5 text-slate-600" />
           Upcoming Sessions
         </CardTitle>
-        <span className="text-sm text-white/60">{todayLabel}</span>
       </CardHeader>
-      <CardContent className="min-h-0 flex-1 overflow-y-auto">
+      <CardContent className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
         {items.length === 0 ? (
-          <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm text-white/70">
+          <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm text-slate-500">
             No upcoming sessions or 1-on-1 bookings.
           </div>
         ) : (
-          <div className="space-y-3">
-            {items.map(item =>
-              item.kind === 'session' ? (
-                <UpcomingSessionCard
-                  key={item.id}
-                  session={item.session}
-                  course={item.course}
-                  onOpenClassroom={onOpenClassroom}
-                  onOpenSchedule={onOpenSchedule}
-                />
-              ) : (
-                <UpcomingOneOnOneCard
-                  key={item.id}
-                  request={item.request}
-                  joiningRequestId={joiningRequestId}
-                  onJoinOneOnOne={onJoinOneOnOne}
-                />
-              )
-            )}
+          <div className="space-y-6">
+            {groups.map(group => (
+              <div key={group.date.toISOString()} className="space-y-3">
+                <h3 className="text-sm font-semibold text-slate-700">
+                  {format(group.date, 'EEEE, MMMM d, yyyy')}
+                </h3>
+                <div className="space-y-3">
+                  {group.items.map(item =>
+                    item.kind === 'session' ? (
+                      <UpcomingSessionCard
+                        key={item.id}
+                        session={item.session}
+                        course={item.course}
+                        onOpenClassroom={onOpenClassroom}
+                        onOpenSchedule={onOpenSchedule}
+                      />
+                    ) : (
+                      <UpcomingOneOnOneCard
+                        key={item.id}
+                        request={item.request}
+                        joiningRequestId={joiningRequestId}
+                        onJoinOneOnOne={onJoinOneOnOne}
+                      />
+                    )
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
