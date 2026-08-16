@@ -14257,6 +14257,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   }}
                                                   readOnly={!canEdit}
                                                   placeholder="Type the task content here — or load a document above to work from it."
+                                                  hasExternalContent={taskBuilder.linkPreviews.length > 0}
                                                   className="h-full w-full"
                                                 />
                                                 {taskBuilder.linkPreviews.map(preview => (
@@ -14760,6 +14761,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     }}
                                                     readOnly={!canEdit}
                                                     placeholder="Type your assessment questions here — or load a document above to work from it."
+                                                    hasExternalContent={assessmentBuilder.linkPreviews.length > 0}
                                                     className="h-full w-full"
                                                   />
                                                   {assessmentBuilder.linkPreviews.map(preview => (

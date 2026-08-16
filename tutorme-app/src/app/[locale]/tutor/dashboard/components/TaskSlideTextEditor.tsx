@@ -1,6 +1,14 @@
 'use client'
 
-import { forwardRef, useEffect, useImperativeHandle, useRef, useCallback } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { cn } from '@/lib/utils'
 import { sanitizeSlideHtml, isSlideHtml } from './sanitize-slide-html'
 import {
@@ -20,9 +28,13 @@ interface TaskSlideTextEditorProps {
   onHtmlChange: (html: string) => void
   readOnly?: boolean
   placeholder?: string
+  /** When true the placeholder is hidden even when html contains no text (e.g. link previews). */
+  hasExternalContent?: boolean
   className?: string
   style?: React.CSSProperties
 }
+
+type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se'
 
 function getTextOffset(container: Node, node: Node | null, offset: number): number {
   let count = 0
@@ -56,15 +68,105 @@ function setCaretAtTextOffset(container: Node, targetOffset: number): void {
   }
 }
 
+function hasVisualHtmlContent(html: string): boolean {
+  if (!html) return false
+  if (typeof document === 'undefined') {
+    return html.replace(/<[^>]+>/g, '').trim().length > 0
+  }
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const walker = document.createTreeWalker(
+    div,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT,
+    null
+  )
+  let node: Node | null
+  while ((node = walker.nextNode())) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (node.textContent?.replace(/\s/g, '').length) return true
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const tag = (node as Element).tagName.toLowerCase()
+      if (tag === 'img' || tag === 'svg' || tag === 'table') return true
+    }
+  }
+  return false
+}
+
+function getRelativeRect(el: Element, container: Element) {
+  const elRect = el.getBoundingClientRect()
+  const containerRect = container.getBoundingClientRect()
+  return {
+    top: elRect.top - containerRect.top,
+    left: elRect.left - containerRect.left,
+    width: elRect.width,
+    height: elRect.height,
+  }
+}
+
+interface ImageOverlayProps {
+  container: HTMLElement
+  img: HTMLImageElement
+  version: number
+  onResizeStart: (handle: ResizeHandle, e: React.MouseEvent) => void
+  onMoveStart: (e: React.MouseEvent) => void
+}
+
+function ImageOverlay({ container, img, version, onResizeStart, onMoveStart }: ImageOverlayProps) {
+  const [rect, setRect] = useState(getRelativeRect(img, container))
+
+  useLayoutEffect(() => {
+    if (!img || !container) return
+    setRect(getRelativeRect(img, container))
+  }, [img, container, version])
+
+  const handle = (pos: ResizeHandle, className: string) => (
+    <div
+      key={pos}
+      className={cn(
+        'pointer-events-auto absolute h-2.5 w-2.5 rounded-full border border-white bg-blue-500 shadow-sm',
+        className
+      )}
+      onMouseDown={e => onResizeStart(pos, e)}
+    />
+  )
+
+  return (
+    <div
+      className="pointer-events-none absolute z-20"
+      style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height }}
+    >
+      <div className="absolute inset-0 border-2 border-blue-500/60" />
+      {handle('nw', '-left-1 -top-1 cursor-nw-resize')}
+      {handle('ne', '-right-1 -top-1 cursor-ne-resize')}
+      {handle('sw', '-bottom-1 -left-1 cursor-sw-resize')}
+      {handle('se', '-bottom-1 -right-1 cursor-se-resize')}
+      <div
+        className="pointer-events-auto absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-move rounded bg-blue-500/80 px-1 py-0.5 text-[9px] font-semibold text-white opacity-0 transition-opacity hover:opacity-100"
+        onMouseDown={onMoveStart}
+      >
+        Move
+      </div>
+    </div>
+  )
+}
+
 export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideTextEditorProps>(
   function TaskSlideTextEditor(
-    { html, onHtmlChange, readOnly, placeholder, className, style },
+    { html, onHtmlChange, readOnly, placeholder, hasExternalContent, className, style },
     ref
   ) {
     const divRef = useRef<HTMLDivElement>(null)
     // Track the last HTML we emitted or wrote so we can avoid re-syncing the
     // DOM and clobbering the user's cursor.
     const lastHtmlRef = useRef('')
+    const selectedImgRef = useRef<HTMLImageElement | null>(null)
+    const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null)
+    const [overlayTick, setOverlayTick] = useState(0)
+
+    const updateSelectedImg = useCallback((img: HTMLImageElement | null) => {
+      selectedImgRef.current = img
+      setSelectedImg(img)
+    }, [])
 
     // Load external html changes without clobbering the editor while the user is typing.
     useEffect(() => {
@@ -87,7 +189,15 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
       if (savedOffset !== null) {
         setCaretAtTextOffset(el, savedOffset)
       }
-    }, [html])
+
+      // If the selected image still exists in the new DOM, keep it selected.
+      if (selectedImgRef.current && el.contains(selectedImgRef.current)) {
+        setSelectedImg(selectedImgRef.current)
+        setOverlayTick(t => t + 1)
+      } else if (!selectedImgRef.current || !el.contains(selectedImgRef.current)) {
+        updateSelectedImg(null)
+      }
+    }, [html, updateSelectedImg])
 
     const emitHtml = useCallback(() => {
       const el = divRef.current
@@ -100,9 +210,12 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
         // If sanitization changed the markup, sync it back to the DOM so the two stay aligned.
         if (sanitized !== raw) {
           el.innerHTML = sanitized
+          if (selectedImgRef.current && !el.contains(selectedImgRef.current)) {
+            updateSelectedImg(null)
+          }
         }
       }
-    }, [onHtmlChange])
+    }, [onHtmlChange, updateSelectedImg])
 
     useImperativeHandle(
       ref,
@@ -146,7 +259,6 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           span.setAttribute('style', styleString)
           span.appendChild(extracted)
           range.insertNode(span)
-          // Collapse the selection to the end of the inserted span.
           range.collapse(false)
           selection.removeAllRanges()
           selection.addRange(range)
@@ -205,7 +317,131 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
       [emitHtml]
     )
 
-    const isEmpty = !html || html.replace(/<[^>]+>/g, '').trim() === ''
+    const startResize = useCallback(
+      (handle: ResizeHandle, e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const img = selectedImgRef.current
+        const el = divRef.current
+        if (!img || !el || readOnly) return
+
+        const startX = e.clientX
+        const startY = e.clientY
+        const rect = img.getBoundingClientRect()
+        const startWidth = rect.width
+        const startHeight = rect.height
+        const aspect = startWidth / startHeight
+
+        // Remove max-width constraint while the user is explicitly resizing.
+        const previousMaxWidth = img.style.maxWidth
+        img.style.maxWidth = 'none'
+
+        const onMove = (ev: MouseEvent) => {
+          const dxRaw = ev.clientX - startX
+          const dyRaw = ev.clientY - startY
+          const dx = handle.includes('w') ? -dxRaw : dxRaw
+          const dy = handle.includes('n') ? -dyRaw : dyRaw
+          const scale = Math.max(dx / startWidth, dy / startHeight, -0.9) + 1
+          const newWidth = Math.max(24, startWidth * scale)
+          const newHeight = newWidth / aspect
+          img.style.width = `${Math.round(newWidth)}px`
+          img.style.height = `${Math.round(newHeight)}px`
+          setOverlayTick(t => t + 1)
+        }
+
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove)
+          window.removeEventListener('mouseup', onUp)
+          if (previousMaxWidth) {
+            img.style.maxWidth = previousMaxWidth
+          } else {
+            img.style.removeProperty('max-width')
+          }
+          emitHtml()
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+      },
+      [emitHtml, readOnly]
+    )
+
+    const startMove = useCallback(
+      (e: React.MouseEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const img = selectedImgRef.current
+        const el = divRef.current
+        if (!img || !el || readOnly) return
+
+        const startX = e.clientX
+        const startY = e.clientY
+        const transform = img.style.transform || ''
+        const match = /translate\((-?\d+(?:\.\d+)?)px,\s*(-?\d+(?:\.\d+)?)px\)/.exec(transform)
+        const startTx = match ? parseFloat(match[1]) : 0
+        const startTy = match ? parseFloat(match[2]) : 0
+
+        const onMove = (ev: MouseEvent) => {
+          const dx = ev.clientX - startX
+          const dy = ev.clientY - startY
+          img.style.transform = `translate(${startTx + dx}px, ${startTy + dy}px)`
+          setOverlayTick(t => t + 1)
+        }
+
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove)
+          window.removeEventListener('mouseup', onUp)
+          emitHtml()
+        }
+
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+      },
+      [emitHtml, readOnly]
+    )
+
+    const handleMouseDown = useCallback(
+      (e: React.MouseEvent) => {
+        const el = divRef.current
+        if (!el || readOnly) return
+        const target = e.target
+        if (target instanceof HTMLImageElement && el.contains(target)) {
+          e.preventDefault()
+          if (selectedImgRef.current === target) {
+            startMove(e)
+            return
+          }
+          updateSelectedImg(target)
+          setOverlayTick(t => t + 1)
+          return
+        }
+        if (selectedImgRef.current) {
+          updateSelectedImg(null)
+        }
+      },
+      [readOnly, startMove, updateSelectedImg]
+    )
+
+    // Clicking outside the editor deselects the active image.
+    useEffect(() => {
+      const handleDocMouseDown = (e: MouseEvent) => {
+        if (!divRef.current) return
+        if (!divRef.current.contains(e.target as Node)) {
+          updateSelectedImg(null)
+        }
+      }
+      document.addEventListener('mousedown', handleDocMouseDown)
+      return () => document.removeEventListener('mousedown', handleDocMouseDown)
+    }, [updateSelectedImg])
+
+    // Keep the overlay positioned correctly when the window is resized.
+    useEffect(() => {
+      const handleResize = () => setOverlayTick(t => t + 1)
+      window.addEventListener('resize', handleResize)
+      return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    const isEmpty = !hasVisualHtmlContent(html) && !hasExternalContent
 
     return (
       <div className={cn('relative h-full w-full', className)} style={style}>
@@ -217,6 +453,7 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
             'h-full w-full resize-none overflow-hidden border-0 bg-transparent p-6 leading-relaxed text-[#1F2933] focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
             readOnly && 'cursor-default'
           )}
+          onMouseDown={handleMouseDown}
           onPaste={handlePaste}
           onInput={emitHtml}
           onBlur={emitHtml}
@@ -225,6 +462,15 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           <div className="pointer-events-none absolute inset-0 p-6 leading-relaxed text-slate-400">
             {placeholder}
           </div>
+        )}
+        {selectedImg && divRef.current && !readOnly && (
+          <ImageOverlay
+            container={divRef.current}
+            img={selectedImg}
+            version={overlayTick}
+            onResizeStart={startResize}
+            onMoveStart={startMove}
+          />
         )}
       </div>
     )
