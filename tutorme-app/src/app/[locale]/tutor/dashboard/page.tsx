@@ -719,7 +719,7 @@ function TutorDashboardContent() {
               { value: 'calendar', label: 'Calendar' },
               { value: 'availability', label: 'My Availability' },
               { value: 'oneOnOne', label: '1-on-1 Requests' },
-              { value: 'liveDemos', label: 'Classes' },
+              { value: 'liveDemos', label: 'Demos' },
             ]}
             showCalendarControls={activeTab === 'calendar' || activeTab === 'availability'}
             calendarView={calendarView}
@@ -1187,7 +1187,7 @@ function TutorDashboardContent() {
                                 ) : (
                                   <Video className="mr-1 h-3 w-3" />
                                 )}
-                                Start Session
+                                Enter
                               </Button>
                             ) : isActive ? (
                               <Button

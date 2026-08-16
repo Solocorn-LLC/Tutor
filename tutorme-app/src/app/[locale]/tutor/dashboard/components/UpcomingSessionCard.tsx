@@ -65,22 +65,18 @@ export function UpcomingSessionCard({
   onOpenSchedule,
 }: UpcomingSessionCardProps) {
   const isLive = ['active', 'live'].includes(session.status.toLowerCase())
-  const sessionNumber =
-    session.sessionNo && session.totalSessions
-      ? `Session ${session.sessionNo} of ${session.totalSessions}`
-      : 'Session'
 
   const description = session.description?.trim() || 'No description'
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-slate-700 bg-slate-800 p-4 text-white shadow-sm transition-all duration-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-slate-600 bg-slate-700 p-4 text-white shadow-sm transition-all duration-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
             className="border-white/20 bg-white/10 text-[10px] uppercase tracking-wide text-white"
           >
-            {sessionNumber}
+            Course Session
           </Badge>
           <span className="truncate text-sm font-semibold text-white">{course.name}</span>
           <Badge
