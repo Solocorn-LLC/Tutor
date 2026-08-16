@@ -310,16 +310,27 @@ export function ClassroomDialog({
                       )}
                       <Button
                         onClick={() => {
-                          if (isFeaturedLive) {
+                          if (isFeaturedLive || featuredSession.status === 'ended') {
                             goToSession(featuredSession.id)
                           } else {
                             startAsTutor(featuredSession.id)
                           }
                         }}
-                        className="transition-all duration-200"
+                        className={cn(
+                          'transition-all duration-200',
+                          featuredSession.status === 'ended'
+                            ? 'border border-blue-600 bg-blue-600 text-white hover:bg-white hover:text-blue-600'
+                            : isFeaturedLive
+                              ? ''
+                              : 'border border-emerald-500 bg-emerald-500 text-white hover:bg-white hover:text-emerald-500'
+                        )}
                       >
                         <Video className="mr-1.5 h-4 w-4" />
-                        {isFeaturedLive ? 'Join now' : 'Start now'}
+                        {featuredSession.status === 'ended'
+                          ? 'Enter'
+                          : isFeaturedLive
+                            ? 'Join now'
+                            : 'Start'}
                       </Button>
                     </div>
                   </>
@@ -341,25 +352,8 @@ export function ClassroomDialog({
                       session.scheduledAt &&
                       new Date(session.scheduledAt).getTime() < Date.now() - 5 * 60 * 1000
 
-                    // For virtual sessions, compute dynamic status
-                    let displayStatus = session.status
-                    if (isVirtual && session.scheduledAt) {
-                      const diff = new Date(session.scheduledAt).getTime() - Date.now()
-                      if (diff <= 0) displayStatus = 'opening_soon'
-                      else if (diff <= 60 * 60 * 1000) displayStatus = 'opening_soon'
-                      else displayStatus = 'upcoming'
-                    }
-
-                    const badgeClass =
-                      isActive || displayStatus === 'active'
-                        ? 'bg-success/15 text-success border-success/25'
-                        : isEnded
-                          ? 'bg-muted text-muted-foreground border-border/30'
-                          : displayStatus === 'opening_soon'
-                            ? 'bg-warning/15 text-warning border-warning/25'
-                            : 'bg-info/15 text-info border-info/25'
-
                     const canClick = !isVirtual && (isActive || isEnded || (isScheduled && !isPast))
+                    const isHighlighted = session.id === focusSessionId
 
                     return (
                       <div
@@ -370,12 +364,11 @@ export function ClassroomDialog({
                           }
                         }}
                         className={cn(
-                          'border-border/30 bg-card flex items-center justify-between rounded-lg border p-3 transition-all duration-200',
-                          canClick
-                            ? 'hover:border-border/50 cursor-pointer hover:bg-white'
-                            : 'opacity-80',
-                          session.id === focusSessionId &&
-                            'border-primary ring-primary bg-primary/5 ring-2'
+                          'border-border/30 bg-card flex items-center justify-between rounded-lg border p-3',
+                          canClick ? 'cursor-pointer' : 'opacity-80',
+                          isHighlighted
+                            ? 'border-primary ring-primary bg-slate-800 text-white ring-2'
+                            : 'text-foreground'
                         )}
                         onClick={() => {
                           if (canClick) goToSession(session.id)
@@ -390,34 +383,34 @@ export function ClassroomDialog({
                       >
                         <div className="min-w-0 flex-1 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate font-medium text-gray-900">{session.title}</p>
-                            <Badge
-                              variant="outline"
-                              className={cn('text-[10px] uppercase tracking-wide', badgeClass)}
-                            >
-                              {displayStatus}
-                            </Badge>
-                            <Badge
-                              variant="outline"
+                            <p
                               className={cn(
-                                'text-[10px] uppercase tracking-wide',
-                                isVirtual || session.scheduleId
-                                  ? 'bg-info/10 text-info border-info/25'
-                                  : 'bg-warning/10 text-warning border-warning/25'
+                                'truncate font-medium',
+                                isHighlighted ? 'text-white' : 'text-gray-900'
                               )}
                             >
-                              {isVirtual || session.scheduleId ? 'From schedule' : 'One-time'}
-                            </Badge>
+                              {session.title}
+                            </p>
                             {session.scheduleName && (
                               <Badge
                                 variant="outline"
-                                className="border-primary/25 bg-primary/10 text-primary text-[10px] uppercase tracking-wide"
+                                className={cn(
+                                  'text-[10px] uppercase tracking-wide',
+                                  isHighlighted
+                                    ? 'border-white/30 bg-white/10 text-white'
+                                    : 'border-primary/25 bg-primary/10 text-primary'
+                                )}
                               >
                                 {session.scheduleName}
                               </Badge>
                             )}
                           </div>
-                          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          <div
+                            className={cn(
+                              'flex flex-wrap items-center gap-x-3 gap-y-1 text-xs',
+                              isHighlighted ? 'text-white/80' : 'text-muted-foreground'
+                            )}
+                          >
                             {session.scheduledAt && (
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
@@ -455,17 +448,36 @@ export function ClassroomDialog({
                               href={session.recordingUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                              className={cn(
+                                'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium',
+                                isHighlighted
+                                  ? 'bg-white/10 text-white hover:bg-white/20'
+                                  : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
+                              )}
                               onClick={e => e.stopPropagation()}
                             >
                               <PlayCircle className="h-3.5 w-3.5" /> Recording
                             </a>
                           ) : isEnded ? (
-                            <PlayCircle className="h-4 w-4 text-slate-300" />
+                            <Button
+                              size="sm"
+                              className="h-7 border border-blue-600 bg-blue-600 px-2 py-1 text-xs font-medium text-white transition-all duration-200 hover:bg-white hover:text-blue-600"
+                              onClick={e => {
+                                e.stopPropagation()
+                                goToSession(session.id)
+                              }}
+                            >
+                              Enter
+                            </Button>
                           ) : isActive ? (
                             <Badge
                               variant="outline"
-                              className="border-emerald-200 bg-emerald-50 text-[10px] uppercase tracking-wide text-emerald-700"
+                              className={cn(
+                                'text-[10px] uppercase tracking-wide',
+                                isHighlighted
+                                  ? 'border-emerald-200/50 bg-emerald-500/10 text-emerald-100'
+                                  : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                              )}
                             >
                               Live
                             </Badge>
