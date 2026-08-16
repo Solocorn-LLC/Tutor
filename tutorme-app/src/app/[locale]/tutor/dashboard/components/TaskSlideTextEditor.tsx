@@ -6,6 +6,7 @@ import { sanitizeSlideHtml, isSlideHtml } from './sanitize-slide-html'
 import {
   handleRichPaste,
   uploadPastedImage,
+  urlToFile,
   insertHtmlAtCaret,
   escapeHtml,
 } from '@/lib/paste/rich-paste'
@@ -182,6 +183,11 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
           onHtml: html => {
             insertHtmlAtCaret(html)
             emitHtml()
+          },
+          onUploadImage: async src => {
+            const file = await urlToFile(src, 'pasted-image.png')
+            if (!file) throw new Error('Could not read pasted image')
+            return uploadPastedImage(file)
           },
           onText: text => {
             document.execCommand('insertText', false, text)
