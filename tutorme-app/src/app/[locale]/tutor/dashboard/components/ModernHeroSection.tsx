@@ -407,17 +407,7 @@ export function ModernHeroSection({
 
         {/* Action Bar */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-1 items-center justify-start gap-2">
-            <Button
-              size="sm"
-              className="border border-white bg-[#65A30D] text-white hover:border-[#65A30D] hover:bg-white hover:text-[#65A30D]"
-              onClick={handleGoLiveClick}
-              disabled={goLiveLoading}
-            >
-              <Presentation className="mr-1 h-4 w-4" />
-              Create Class
-            </Button>
-          </div>
+          <div className="flex flex-1 items-center justify-start gap-2" />
           <div className="flex-none text-center">
             <span className="text-base text-white">
               {formatDate(currentTime)} • {formatTime(currentTime)} {timeZoneAbbr}
