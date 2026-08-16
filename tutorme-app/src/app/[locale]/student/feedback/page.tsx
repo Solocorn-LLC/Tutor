@@ -1004,7 +1004,7 @@ function StudentFeedbackContent() {
   const [activeTab, setActiveTab] = useState<'task' | 'tutor-board'>('task')
   const [rightPanelTab, setRightPanelTab] = useState<
     'lessons' | 'dmi' | 'interactions' | 'my-board'
-  >('interactions')
+  >('lessons')
   const [unseenTaskIds, setUnseenTaskIds] = useState<string[]>([])
   const [unseenHomeworkIds, setUnseenHomeworkIds] = useState<string[]>([])
   // Base-task completion state for sequential unlocking in the Lessons panel.
@@ -2693,7 +2693,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative mt-2 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
@@ -2796,431 +2796,446 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div
-              className={cn(
-                'flex-1 pb-3',
-                // Only the whiteboard (My Board) needs a fixed, non-scrolling
-                // canvas; every other tab — including a long DMI/Assessment —
-                // must scroll.
-                rightPanelTab === 'my-board' ? 'overflow-hidden' : 'overflow-y-auto px-4 pt-4'
-              )}
-            >
-              {rightPanelTab === 'lessons' ? (
-                <div className="space-y-4">
-                  {tasks.length === 0 && liveHomework.length === 0 && (
-                    <p className="text-sm text-gray-500">No tasks deployed yet.</p>
-                  )}
+            <div className="flex-1 overflow-hidden p-3">
+              <div
+                className={cn(
+                  'h-full w-full',
+                  // Only the whiteboard (My Board) needs a fixed, non-scrolling
+                  // canvas; every other tab — including a long DMI/Assessment —
+                  // must scroll.
+                  rightPanelTab === 'my-board'
+                    ? 'overflow-hidden rounded-xl border border-gray-100 bg-gray-50'
+                    : 'overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-4'
+                )}
+              >
+                {rightPanelTab === 'lessons' ? (
+                  <div className="space-y-4">
+                    {tasks.length === 0 && liveHomework.length === 0 && (
+                      <p className="text-sm text-gray-500">No tasks deployed yet.</p>
+                    )}
 
-                  {(() => {
-                    const ordered = [...tasks]
-                    const baseTasks = ordered.filter(t => !t.isExtension && t.source !== 'homework')
-                    const { extMap } = groupTasksByParent(ordered)
-                    return (
-                      <div className="space-y-2">
-                        {baseTasks.map((task, idx) => {
-                          const isUnlocked =
-                            idx === 0 || completedTaskIds.has(baseTasks[idx - 1].id)
-                          const isActive = activeTaskId === task.id
-                          const extensions = extMap.get(task.id) ?? []
-                          return (
-                            <div key={task.id} className="space-y-1">
+                    {(() => {
+                      const ordered = [...tasks]
+                      const baseTasks = ordered.filter(
+                        t => !t.isExtension && t.source !== 'homework'
+                      )
+                      const { extMap } = groupTasksByParent(ordered)
+                      return (
+                        <div className="space-y-2">
+                          {baseTasks.map((task, idx) => {
+                            const isUnlocked =
+                              idx === 0 || completedTaskIds.has(baseTasks[idx - 1].id)
+                            const isActive = activeTaskId === task.id
+                            const extensions = extMap.get(task.id) ?? []
+                            return (
+                              <div key={task.id} className="space-y-1">
+                                <button
+                                  type="button"
+                                  disabled={!isUnlocked}
+                                  onClick={() => handleSelectTask(task.id)}
+                                  onDoubleClick={() => {
+                                    handleSelectTask(task.id)
+                                    if (
+                                      task.source === 'assessment' ||
+                                      (task.dmiItems?.length ?? 0) > 0
+                                    ) {
+                                      setRightPanelTab('dmi')
+                                    }
+                                  }}
+                                  className={cn(
+                                    'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
+                                    !isUnlocked
+                                      ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                      : isActive
+                                        ? 'border-blue-200 bg-blue-50'
+                                        : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                  )}
+                                >
+                                  <span
+                                    className={cn(
+                                      'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                                      isUnlocked
+                                        ? 'bg-blue-100 text-blue-700'
+                                        : 'bg-gray-200 text-gray-500'
+                                    )}
+                                  >
+                                    {idx + 1}
+                                  </span>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="text-sm font-medium">{task.title}</span>
+                                      {!isUnlocked ? (
+                                        <Lock className="h-4 w-4 shrink-0 text-gray-400" />
+                                      ) : (
+                                        unseenTaskIds.includes(task.id) && (
+                                          <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                            New
+                                          </span>
+                                        )
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-gray-500">
+                                      Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                                    </span>
+                                  </div>
+                                </button>
+
+                                {extensions.length > 0 && (
+                                  <div className="relative ml-6 space-y-1 border-l-2 border-blue-100 pl-3">
+                                    {extensions.map(ext => {
+                                      const extUnlocked = completedTaskIds.has(task.id)
+                                      return (
+                                        <button
+                                          key={ext.id}
+                                          type="button"
+                                          disabled={!extUnlocked}
+                                          onClick={() => handleSelectTask(ext.id)}
+                                          onDoubleClick={() => {
+                                            handleSelectTask(ext.id)
+                                            if (
+                                              ext.source === 'assessment' ||
+                                              (ext.dmiItems?.length ?? 0) > 0
+                                            ) {
+                                              setRightPanelTab('dmi')
+                                            }
+                                          }}
+                                          className={cn(
+                                            'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                            !extUnlocked
+                                              ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
+                                              : activeTaskId === ext.id
+                                                ? 'border-blue-200 bg-blue-50'
+                                                : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                          )}
+                                        >
+                                          <span className="text-sm font-medium">{ext.title}</span>
+                                          {!extUnlocked ? (
+                                            <Lock className="ml-auto h-4 w-4 shrink-0 text-gray-400" />
+                                          ) : (
+                                            unseenTaskIds.includes(ext.id) && (
+                                              <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                                New
+                                              </span>
+                                            )
+                                          )}
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+
+                    {liveHomework.length > 0 && (
+                      <div className="space-y-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setFoldersOpen(prev => ({ ...prev, homework: !prev.homework }))
+                          }
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-gray-700 hover:bg-slate-100"
+                        >
+                          {foldersOpen.homework ? (
+                            <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                          )}
+                          <Folder className="h-4 w-4 shrink-0 text-blue-400" fill="currentColor" />
+                          Homework
+                          {unseenHomeworkIds.length > 0 && (
+                            <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
+                              {unseenHomeworkIds.length}
+                            </span>
+                          )}
+                        </button>
+                        {foldersOpen.homework && (
+                          <div className="space-y-1">
+                            {liveHomework.map(hw => (
                               <button
+                                key={hw.id}
                                 type="button"
-                                disabled={!isUnlocked}
-                                onClick={() => handleSelectTask(task.id)}
+                                onClick={() => handleSelectTask(hw.id)}
                                 onDoubleClick={() => {
-                                  handleSelectTask(task.id)
+                                  handleSelectTask(hw.id)
                                   if (
-                                    task.source === 'assessment' ||
-                                    (task.dmiItems?.length ?? 0) > 0
+                                    hw.source === 'assessment' ||
+                                    (hw.dmiItems?.length ?? 0) > 0
                                   ) {
                                     setRightPanelTab('dmi')
                                   }
                                 }}
                                 className={cn(
-                                  'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
-                                  !isUnlocked
-                                    ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
-                                    : isActive
-                                      ? 'border-blue-200 bg-blue-50'
-                                      : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                  'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                  activeTaskId === hw.id
+                                    ? 'border-blue-200 bg-blue-50'
+                                    : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
                                 )}
                               >
-                                <span
-                                  className={cn(
-                                    'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                                    isUnlocked
-                                      ? 'bg-blue-100 text-blue-700'
-                                      : 'bg-gray-200 text-gray-500'
-                                  )}
-                                >
-                                  {idx + 1}
+                                <span className="text-sm font-medium text-gray-900">
+                                  {hw.title}
                                 </span>
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-sm font-medium">{task.title}</span>
-                                    {!isUnlocked ? (
-                                      <Lock className="h-4 w-4 shrink-0 text-gray-400" />
-                                    ) : (
-                                      unseenTaskIds.includes(task.id) && (
-                                        <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                                          New
-                                        </span>
-                                      )
-                                    )}
-                                  </div>
-                                  <span className="text-xs text-gray-500">
-                                    Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                                {unseenHomeworkIds.includes(hw.id) && (
+                                  <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
+                                    New
                                   </span>
-                                </div>
+                                )}
                               </button>
-
-                              {extensions.length > 0 && (
-                                <div className="relative ml-6 space-y-1 border-l-2 border-blue-100 pl-3">
-                                  {extensions.map(ext => {
-                                    const extUnlocked = completedTaskIds.has(task.id)
-                                    return (
-                                      <button
-                                        key={ext.id}
-                                        type="button"
-                                        disabled={!extUnlocked}
-                                        onClick={() => handleSelectTask(ext.id)}
-                                        onDoubleClick={() => {
-                                          handleSelectTask(ext.id)
-                                          if (
-                                            ext.source === 'assessment' ||
-                                            (ext.dmiItems?.length ?? 0) > 0
-                                          ) {
-                                            setRightPanelTab('dmi')
-                                          }
-                                        }}
-                                        className={cn(
-                                          'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
-                                          !extUnlocked
-                                            ? 'cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400'
-                                            : activeTaskId === ext.id
-                                              ? 'border-blue-200 bg-blue-50'
-                                              : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                                        )}
-                                      >
-                                        <span className="text-sm font-medium">{ext.title}</span>
-                                        {!extUnlocked ? (
-                                          <Lock className="ml-auto h-4 w-4 shrink-0 text-gray-400" />
-                                        ) : (
-                                          unseenTaskIds.includes(ext.id) && (
-                                            <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                                              New
-                                            </span>
-                                          )
-                                        )}
-                                      </button>
-                                    )
-                                  })}
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : rightPanelTab === 'dmi' ? (
+                  <div className="space-y-4">
+                    {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
+                      <div className="space-y-3">
+                        {activeTask.dmiItems.map((item, idx) => {
+                          const qType = normalizeDmiQuestionType(item.questionType)
+                          // Section heading (ASMT-4): show it once, before the first
+                          // question of each section.
+                          const prevSection =
+                            idx > 0 ? activeTask.dmiItems?.[idx - 1]?.section : undefined
+                          const showSection = !!item.section && item.section !== prevSection
+                          return (
+                            <Fragment key={item.id}>
+                              {showSection && (
+                                <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                                  {item.section}
                                 </div>
                               )}
-                            </div>
+                              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                                <div className="mb-2 flex items-start justify-between gap-2">
+                                  <p className="text-sm font-medium text-gray-800">
+                                    {/* The label is usually self-numbered ("Question 1(a)"); only
+                                    prepend the counter for older free-text questions. */}
+                                    {/^\s*(?:question\b|\d)/i.test(item.questionText)
+                                      ? item.questionText
+                                      : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
+                                  </p>
+                                  <div className="flex shrink-0 items-center gap-1">
+                                    {typeof item.marks === 'number' && item.marks > 0 && (
+                                      <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                                        {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
+                                      </span>
+                                    )}
+                                    {qType !== 'long' && (
+                                      <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
+                                        {DMI_QUESTION_TYPE_LABELS[qType]}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <DmiAnswerField
+                                  item={item}
+                                  value={taskAnswers[item.id] ?? ''}
+                                  // Once the student starts working, stop auto-following
+                                  // the tutor so their navigation can't yank the student
+                                  // away from what they're answering.
+                                  onInteract={() => setFollowTutor(false)}
+                                  onValueChange={next =>
+                                    setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
+                                  }
+                                />
+                              </div>
+                            </Fragment>
                           )
                         })}
                       </div>
-                    )
-                  })()}
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        {activeTask ? 'This task has no questions to answer.' : ''}
+                      </p>
+                    )}
+                    {/* Ask the AI tutor about this task — applies the task's PCI
+                      (TASK-6). Integrity is enforced server-side (ASMT-15). */}
+                    {activeTask && (
+                      <TaskAiHelper
+                        taskId={activeTaskId}
+                        subject={sessionContext?.courseCategory || 'General'}
+                      />
+                    )}
 
-                  {liveHomework.length > 0 && (
-                    <div className="space-y-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setFoldersOpen(prev => ({ ...prev, homework: !prev.homework }))
-                        }
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-gray-700 hover:bg-slate-100"
-                      >
-                        {foldersOpen.homework ? (
-                          <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
-                        )}
-                        <Folder className="h-4 w-4 shrink-0 text-blue-400" fill="currentColor" />
-                        Homework
-                        {unseenHomeworkIds.length > 0 && (
-                          <span className="ml-auto rounded-full bg-blue-600 px-1.5 py-0.5 text-[10px] text-white">
-                            {unseenHomeworkIds.length}
-                          </span>
-                        )}
-                      </button>
-                      {foldersOpen.homework && (
-                        <div className="space-y-1">
-                          {liveHomework.map(hw => (
-                            <button
-                              key={hw.id}
-                              type="button"
-                              onClick={() => handleSelectTask(hw.id)}
-                              onDoubleClick={() => {
-                                handleSelectTask(hw.id)
-                                if (hw.source === 'assessment' || (hw.dmiItems?.length ?? 0) > 0) {
-                                  setRightPanelTab('dmi')
-                                }
-                              }}
-                              className={cn(
-                                'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
-                                activeTaskId === hw.id
-                                  ? 'border-blue-200 bg-blue-50'
-                                  : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                              )}
-                            >
-                              <span className="text-sm font-medium text-gray-900">{hw.title}</span>
-                              {unseenHomeworkIds.includes(hw.id) && (
-                                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] text-white">
-                                  New
-                                </span>
-                              )}
-                            </button>
-                          ))}
+                    {activeTask &&
+                      Array.isArray(activeTask.dmiItems) &&
+                      activeTask.dmiItems.length > 0 && (
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                            disabled={!activeTaskId || !socket || !selectedSessionId}
+                            onClick={() => {
+                              if (!activeTaskId || !socket || !selectedSessionId) return
+                              const answers = (activeTask.dmiItems ?? []).reduce(
+                                (acc, item) => {
+                                  const a = taskAnswers[item.id]
+                                  if (a && a.trim()) acc[item.id] = a.trim()
+                                  return acc
+                                },
+                                {} as Record<string, string>
+                              )
+                              socket
+                                .timeout(20000)
+                                .emit(
+                                  'task:complete',
+                                  { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                                  (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                                    if (err || !resp?.ok) {
+                                      toast.error(
+                                        resp?.error ||
+                                          'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                      )
+                                      return
+                                    }
+                                    toast.success('Assessment submitted')
+                                  }
+                                )
+                            }}
+                          >
+                            Assessment Complete
+                          </Button>
                         </div>
                       )}
+                  </div>
+                ) : rightPanelTab === 'my-board' ? (
+                  <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                    <EnhancedWhiteboard
+                      pages={myBoardPages}
+                      currentPageIndex={myBoardPageIndex}
+                      onPagesChange={setMyBoardPages}
+                      onPageIndexChange={setMyBoardPageIndex}
+                      socket={socket}
+                      roomId={selectedSessionId ?? undefined}
+                      userId={session?.user?.id ?? undefined}
+                      // "My Board" shows only this student's own strokes (not the tutor's or
+                      // other students'), so scope incoming deltas to this user.
+                      filterByUserId={session?.user?.id ?? undefined}
+                      userName={session?.user?.name || 'Student'}
+                      userColor={stringToColor(session?.user?.id || '')}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="mb-2 border-b border-gray-100 pb-2">
+                      <h2 className="text-base font-bold text-gray-900">{interactionsTitle}</h2>
                     </div>
-                  )}
-                </div>
-              ) : rightPanelTab === 'dmi' ? (
-                <div className="space-y-4">
-                  {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
-                    <div className="space-y-3">
-                      {activeTask.dmiItems.map((item, idx) => {
-                        const qType = normalizeDmiQuestionType(item.questionType)
-                        // Section heading (ASMT-4): show it once, before the first
-                        // question of each section.
-                        const prevSection =
-                          idx > 0 ? activeTask.dmiItems?.[idx - 1]?.section : undefined
-                        const showSection = !!item.section && item.section !== prevSection
-                        return (
-                          <Fragment key={item.id}>
-                            {showSection && (
-                              <div className="mt-1 border-b border-indigo-100 pb-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                                {item.section}
-                              </div>
-                            )}
-                            <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-                              <div className="mb-2 flex items-start justify-between gap-2">
-                                <p className="text-sm font-medium text-gray-800">
-                                  {/* The label is usually self-numbered ("Question 1(a)"); only
-                                    prepend the counter for older free-text questions. */}
-                                  {/^\s*(?:question\b|\d)/i.test(item.questionText)
-                                    ? item.questionText
-                                    : `${(item.questionLabel ?? item.questionNumber) ? `${item.questionLabel ?? item.questionNumber}. ` : ''}${item.questionText}`}
-                                </p>
-                                <div className="flex shrink-0 items-center gap-1">
-                                  {typeof item.marks === 'number' && item.marks > 0 && (
-                                    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
-                                      {item.marks} {item.marks === 1 ? 'mark' : 'marks'}
-                                    </span>
-                                  )}
-                                  {qType !== 'long' && (
-                                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-500">
-                                      {DMI_QUESTION_TYPE_LABELS[qType]}
-                                    </span>
+                    {tasks.length === 0 && (
+                      <p className="text-sm text-gray-500">
+                        Select a task to see feedback prompts.
+                      </p>
+                    )}
+                    {tasks.length > 0 && (
+                      <div className="space-y-6">
+                        {feedbackPolls.length > 0 && (
+                          <div className="space-y-3">
+                            {feedbackPolls.map(poll => {
+                              const selectedValue = poll.responses.find(
+                                response => response.studentId === session?.user?.id
+                              )?.value
+                              // Once answered (or the tutor closed it) the vote is
+                              // locked — you can't change your answer.
+                              const answered = selectedValue !== undefined
+                              const locked = poll.status === 'closed' || answered
+                              return (
+                                <div key={poll.id} className="rounded-lg border bg-white p-4">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {poll.question}
+                                  </p>
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    {(
+                                      poll.optionLabels ??
+                                      poll.options.map((_, i) => String.fromCharCode(65 + i))
+                                    ).map((label, i) => (
+                                      <Button
+                                        key={`${poll.id}-${i}`}
+                                        variant={selectedValue === i ? 'default' : 'outline'}
+                                        size="sm"
+                                        disabled={locked}
+                                        onClick={() => handlePollVote(poll, i)}
+                                      >
+                                        {label}
+                                      </Button>
+                                    ))}
+                                  </div>
+                                  {locked && (
+                                    <p className="mt-2 text-xs text-gray-500">
+                                      {answered ? 'Answer submitted — locked' : 'Poll closed'}
+                                    </p>
                                   )}
                                 </div>
-                              </div>
-                              <DmiAnswerField
-                                item={item}
-                                value={taskAnswers[item.id] ?? ''}
-                                // Once the student starts working, stop auto-following
-                                // the tutor so their navigation can't yank the student
-                                // away from what they're answering.
-                                onInteract={() => setFollowTutor(false)}
-                                onValueChange={next =>
-                                  setTaskAnswers(prev => ({ ...prev, [item.id]: next }))
-                                }
-                              />
-                            </div>
-                          </Fragment>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      {activeTask ? 'This task has no questions to answer.' : ''}
-                    </p>
-                  )}
-                  {/* Ask the AI tutor about this task — applies the task's PCI
-                      (TASK-6). Integrity is enforced server-side (ASMT-15). */}
-                  {activeTask && (
-                    <TaskAiHelper
-                      taskId={activeTaskId}
-                      subject={sessionContext?.courseCategory || 'General'}
-                    />
-                  )}
-
-                  {activeTask &&
-                    Array.isArray(activeTask.dmiItems) &&
-                    activeTask.dmiItems.length > 0 && (
-                      <div className="flex justify-end pt-2">
-                        <Button
-                          className="h-11 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                          disabled={!activeTaskId || !socket || !selectedSessionId}
-                          onClick={() => {
-                            if (!activeTaskId || !socket || !selectedSessionId) return
-                            const answers = (activeTask.dmiItems ?? []).reduce(
-                              (acc, item) => {
-                                const a = taskAnswers[item.id]
-                                if (a && a.trim()) acc[item.id] = a.trim()
-                                return acc
-                              },
-                              {} as Record<string, string>
-                            )
-                            socket
-                              .timeout(20000)
-                              .emit(
-                                'task:complete',
-                                { roomId: selectedSessionId, taskId: activeTaskId, answers },
-                                (err: unknown, resp?: { ok?: boolean; error?: string }) => {
-                                  if (err || !resp?.ok) {
-                                    toast.error(
-                                      resp?.error ||
-                                        'Submission did not go through. If you added drawings, try clearing some and resubmit.'
-                                    )
-                                    return
-                                  }
-                                  toast.success('Assessment submitted')
-                                }
                               )
-                          }}
-                        >
-                          Assessment Complete
-                        </Button>
+                            })}
+                          </div>
+                        )}
+
+                        {feedbackQuestions.length > 0 && (
+                          <div className="space-y-3">
+                            {feedbackQuestions.map(question => {
+                              const myAnswer = question.responses.find(
+                                r => r.studentId === session?.user?.id
+                              )?.answer
+                              const answered = myAnswer !== undefined
+                              const closed = (question as { status?: string }).status === 'closed'
+                              return (
+                                <div key={question.id} className="rounded-lg border bg-white p-4">
+                                  <p className="text-sm font-medium text-gray-900">
+                                    {question.prompt}
+                                  </p>
+                                  {answered ? (
+                                    // Your answer is locked once submitted.
+                                    <div className="mt-3">
+                                      <div className="rounded-md border bg-gray-50 p-2 text-sm text-gray-700">
+                                        {myAnswer}
+                                      </div>
+                                      <p className="mt-1 text-xs text-gray-500">
+                                        Answer submitted — locked
+                                      </p>
+                                    </div>
+                                  ) : closed ? (
+                                    <p className="mt-3 text-xs text-gray-500">Question closed</p>
+                                  ) : (
+                                    <div className="mt-3">
+                                      <AutoTextarea
+                                        placeholder="Type your answer..."
+                                        className="min-h-[72px]"
+                                        value={questionDrafts[question.id] || ''}
+                                        onChange={event =>
+                                          setQuestionDrafts(prev => ({
+                                            ...prev,
+                                            [question.id]: event.target.value,
+                                          }))
+                                        }
+                                      />
+                                      <div className="mt-2 flex justify-end">
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleQuestionSend(question)}
+                                          disabled={!questionDrafts[question.id]?.trim()}
+                                        >
+                                          Send
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {feedbackPolls.length === 0 && feedbackQuestions.length === 0 && (
+                          <p className="text-sm text-gray-500">
+                            Waiting for tutor insights to appear here.
+                          </p>
+                        )}
                       </div>
                     )}
-                </div>
-              ) : rightPanelTab === 'my-board' ? (
-                <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                  <EnhancedWhiteboard
-                    pages={myBoardPages}
-                    currentPageIndex={myBoardPageIndex}
-                    onPagesChange={setMyBoardPages}
-                    onPageIndexChange={setMyBoardPageIndex}
-                    socket={socket}
-                    roomId={selectedSessionId ?? undefined}
-                    userId={session?.user?.id ?? undefined}
-                    // "My Board" shows only this student's own strokes (not the tutor's or
-                    // other students'), so scope incoming deltas to this user.
-                    filterByUserId={session?.user?.id ?? undefined}
-                    userName={session?.user?.name || 'Student'}
-                    userColor={stringToColor(session?.user?.id || '')}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  <div className="mb-2 border-b border-gray-100 pb-2">
-                    <h2 className="text-base font-bold text-gray-900">{interactionsTitle}</h2>
                   </div>
-                  {tasks.length === 0 && (
-                    <p className="text-sm text-gray-500">Select a task to see feedback prompts.</p>
-                  )}
-                  {tasks.length > 0 && (
-                    <div className="space-y-6">
-                      {feedbackPolls.length > 0 && (
-                        <div className="space-y-3">
-                          {feedbackPolls.map(poll => {
-                            const selectedValue = poll.responses.find(
-                              response => response.studentId === session?.user?.id
-                            )?.value
-                            // Once answered (or the tutor closed it) the vote is
-                            // locked — you can't change your answer.
-                            const answered = selectedValue !== undefined
-                            const locked = poll.status === 'closed' || answered
-                            return (
-                              <div key={poll.id} className="rounded-lg border bg-white p-4">
-                                <p className="text-sm font-medium text-gray-900">{poll.question}</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {(
-                                    poll.optionLabels ??
-                                    poll.options.map((_, i) => String.fromCharCode(65 + i))
-                                  ).map((label, i) => (
-                                    <Button
-                                      key={`${poll.id}-${i}`}
-                                      variant={selectedValue === i ? 'default' : 'outline'}
-                                      size="sm"
-                                      disabled={locked}
-                                      onClick={() => handlePollVote(poll, i)}
-                                    >
-                                      {label}
-                                    </Button>
-                                  ))}
-                                </div>
-                                {locked && (
-                                  <p className="mt-2 text-xs text-gray-500">
-                                    {answered ? 'Answer submitted — locked' : 'Poll closed'}
-                                  </p>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {feedbackQuestions.length > 0 && (
-                        <div className="space-y-3">
-                          {feedbackQuestions.map(question => {
-                            const myAnswer = question.responses.find(
-                              r => r.studentId === session?.user?.id
-                            )?.answer
-                            const answered = myAnswer !== undefined
-                            const closed = (question as { status?: string }).status === 'closed'
-                            return (
-                              <div key={question.id} className="rounded-lg border bg-white p-4">
-                                <p className="text-sm font-medium text-gray-900">
-                                  {question.prompt}
-                                </p>
-                                {answered ? (
-                                  // Your answer is locked once submitted.
-                                  <div className="mt-3">
-                                    <div className="rounded-md border bg-gray-50 p-2 text-sm text-gray-700">
-                                      {myAnswer}
-                                    </div>
-                                    <p className="mt-1 text-xs text-gray-500">
-                                      Answer submitted — locked
-                                    </p>
-                                  </div>
-                                ) : closed ? (
-                                  <p className="mt-3 text-xs text-gray-500">Question closed</p>
-                                ) : (
-                                  <div className="mt-3">
-                                    <AutoTextarea
-                                      placeholder="Type your answer..."
-                                      className="min-h-[72px]"
-                                      value={questionDrafts[question.id] || ''}
-                                      onChange={event =>
-                                        setQuestionDrafts(prev => ({
-                                          ...prev,
-                                          [question.id]: event.target.value,
-                                        }))
-                                      }
-                                    />
-                                    <div className="mt-2 flex justify-end">
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleQuestionSend(question)}
-                                        disabled={!questionDrafts[question.id]?.trim()}
-                                      >
-                                        Send
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-
-                      {feedbackPolls.length === 0 && feedbackQuestions.length === 0 && (
-                        <p className="text-sm text-gray-500">
-                          Waiting for tutor insights to appear here.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
 
