@@ -63,7 +63,7 @@ export function SlidePageMenu({
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-2xl border border-white/40 bg-white/70 px-4 py-2 shadow-2xl ring-1 ring-black/[0.05] backdrop-blur-xl',
+        'flex items-center gap-2 rounded-2xl border border-white/40 bg-white/70 p-1.5 shadow-2xl ring-1 ring-black/[0.05] backdrop-blur-xl',
         className
       )}
     >
