@@ -2590,7 +2590,7 @@ function StudentFeedbackContent() {
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
                   <div className="mt-3 flex items-center gap-3">
-                    <div className="relative flex h-16 flex-1 items-center gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3">
+                    <div className="relative flex h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
                       <Input
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
@@ -2618,7 +2618,7 @@ function StudentFeedbackContent() {
                         <Send className="h-4 w-4" />
                       </Button>
                       <Button
-                        className="h-16 shrink-0 rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                        className="h-8 shrink-0 rounded-lg bg-[#F17623] px-4 text-sm font-semibold text-white hover:bg-[#d9651a]"
                         disabled={!activeTaskId || !socket}
                         onClick={() => {
                           if (!activeTaskId || !socket || !selectedSessionId) return
@@ -2693,7 +2693,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative mt-2 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
@@ -2798,11 +2798,11 @@ function StudentFeedbackContent() {
 
             <div
               className={cn(
-                'flex-1',
+                'flex-1 pb-3',
                 // Only the whiteboard (My Board) needs a fixed, non-scrolling
                 // canvas; every other tab — including a long DMI/Assessment —
                 // must scroll.
-                rightPanelTab === 'my-board' ? 'overflow-hidden' : 'overflow-y-auto p-4'
+                rightPanelTab === 'my-board' ? 'overflow-hidden' : 'overflow-y-auto px-4 pt-4'
               )}
             >
               {rightPanelTab === 'lessons' ? (
