@@ -5,6 +5,7 @@ import { Calendar, Clock, User, Video, Timer } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { ClampedTitle } from '@/components/common/clamped-title'
 
 type OneOnOneStudent = {
   userId?: string | null
@@ -61,10 +62,10 @@ function studentDisplayName(student?: OneOnOneStudent | null): string {
 
 function statusBadgeClass(status: string) {
   const s = status.toUpperCase()
-  if (s === 'PAID') return 'border-emerald-200/30 bg-emerald-500/15 text-emerald-300'
-  if (s === 'ACCEPTED') return 'border-blue-200/30 bg-blue-500/15 text-blue-300'
-  if (s === 'PENDING') return 'border-amber-200/30 bg-amber-500/15 text-amber-300'
-  return 'border-slate-200/30 bg-white/10 text-white/60'
+  if (s === 'PAID') return 'border-emerald-200 bg-emerald-100 text-emerald-700'
+  if (s === 'ACCEPTED') return 'border-blue-200 bg-blue-100 text-blue-700'
+  if (s === 'PENDING') return 'border-amber-200 bg-amber-100 text-amber-700'
+  return 'border-slate-200 bg-slate-100 text-slate-600'
 }
 
 export function UpcomingOneOnOneCard({
@@ -76,17 +77,19 @@ export function UpcomingOneOnOneCard({
   const isPaid = request.status.toUpperCase() === 'PAID'
   const isJoining = joiningRequestId === request.requestId
 
+  const description = `1-on-1 with ${studentDisplayName(request.student)} · ${request.timezone}`
+
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-l-4 border-white/10 border-l-blue-500 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)] sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-l-4 border-slate-200 border-l-blue-500 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
-            className="border-blue-200/30 bg-blue-500/15 text-[10px] uppercase tracking-wide text-blue-300"
+            className="border-blue-200 bg-blue-100 text-[10px] uppercase tracking-wide text-blue-700"
           >
             1-on-1
           </Badge>
-          <span className="truncate text-sm font-semibold text-white">
+          <span className="truncate text-sm font-semibold text-slate-900">
             {studentDisplayName(request.student)}
           </span>
           <Badge
@@ -97,7 +100,7 @@ export function UpcomingOneOnOneCard({
           </Badge>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/70">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {format(scheduledAt, 'EEEE, MMM d, h:mm a')}
@@ -118,7 +121,13 @@ export function UpcomingOneOnOneCard({
           </span>
         </div>
 
-        <div className="text-xs text-white/50">{request.timezone}</div>
+        <div className="text-xs text-slate-500">{request.timezone}</div>
+      </div>
+
+      <div className="mx-4 hidden h-[44px] min-w-0 flex-1 flex-col justify-center rounded-md border border-slate-200 bg-white px-3 sm:flex">
+        <ClampedTitle text={description} className="text-xs text-slate-600">
+          {description}
+        </ClampedTitle>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
@@ -127,7 +136,7 @@ export function UpcomingOneOnOneCard({
             size="sm"
             disabled={isJoining}
             onClick={() => onJoinOneOnOne(request.requestId)}
-            className="bg-blue-500 text-white transition-all duration-200 hover:bg-blue-400"
+            className="bg-blue-500 text-white transition-all duration-200 hover:bg-blue-600"
           >
             <Video className="mr-1 h-3 w-3" />
             {isJoining ? 'Opening…' : 'Join session'}
@@ -135,7 +144,7 @@ export function UpcomingOneOnOneCard({
         ) : (
           <Badge
             variant="outline"
-            className="border-white/10 bg-white/5 text-[10px] uppercase tracking-wide text-white/70"
+            className="border-slate-200 bg-slate-100 text-[10px] uppercase tracking-wide text-slate-600"
           >
             Awaiting payment
           </Badge>
