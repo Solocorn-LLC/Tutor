@@ -201,21 +201,29 @@ export function AiAssistantPanel({
 
     hasAnimatedRef.current = true
     setIsAnimating(true)
+    const timeouts: NodeJS.Timeout[] = []
 
     // Add messages one at a time with staggered delay
     infoBlocks.forEach((text, index) => {
-      setTimeout(() => {
-        setIntroMessages(prev => [
-          ...prev,
-          { role: 'assistant', text, id: `info-${index}-${Date.now()}` },
-        ])
+      timeouts.push(
+        setTimeout(() => {
+          setIntroMessages(prev => {
+            // Skip if this intro block is already present (e.g. after a reset race).
+            if (prev.some(m => m.role === 'assistant' && m.text === text)) return prev
+            return [...prev, { role: 'assistant', text, id: `info-${index}-${Date.now()}` }]
+          })
 
-        // Clear animating flag after last message
-        if (index === infoBlocks.length - 1) {
-          setTimeout(() => setIsAnimating(false), 500)
-        }
-      }, index * 400)
+          // Clear animating flag after last message
+          if (index === infoBlocks.length - 1) {
+            timeouts.push(setTimeout(() => setIsAnimating(false), 500))
+          }
+        }, index * 400)
+      )
     })
+
+    return () => {
+      timeouts.forEach(id => clearTimeout(id))
+    }
   }, [isActive, introTextBlocks, isDemoSession])
 
   // Reset intro animation when mode/course/session changes so the greeting stays relevant
