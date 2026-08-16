@@ -833,23 +833,29 @@ function CourseBuilderInsightsRouteInner({
   const currentSession = insightsProps?.sessions?.find(s => s.id === insightsProps?.sessionId)
   const isDemoSession = currentSession?.sessionType === 'GO_LIVE_DEMO'
   const scheduledDateStr = currentSession?.scheduledAt
-  const sessionPlannedDurationMinutes = currentSession?.durationMinutes || 60
   let countdownText = '--:--'
   let isOverdue = false
   if (scheduledDateStr && activeMainTab === 'live') {
     const scheduled = new Date(scheduledDateStr).getTime()
-    const endTime = scheduled + sessionPlannedDurationMinutes * 60 * 1000
-    const diff = endTime - now.getTime()
-    if (diff < 0) {
-      isOverdue = true
-      const absDiff = Math.abs(diff)
-      const minutes = Math.floor(absDiff / 60000)
-      const seconds = Math.floor((absDiff % 60000) / 1000)
-      countdownText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} over`
+    const nowTime = now.getTime()
+    const SESSION_LENGTH_MS = 60 * 60 * 1000
+    if (nowTime < scheduled) {
+      // Session has not opened yet: freeze at 60:00 remaining.
+      countdownText = '60:00 remaining'
     } else {
-      const minutes = Math.floor(diff / 60000)
-      const seconds = Math.floor((diff % 60000) / 1000)
-      countdownText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} remaining`
+      const endTime = scheduled + SESSION_LENGTH_MS
+      const diff = endTime - nowTime
+      if (diff < 0) {
+        isOverdue = true
+        const absDiff = Math.abs(diff)
+        const minutes = Math.floor(absDiff / 60000)
+        const seconds = Math.floor((absDiff % 60000) / 1000)
+        countdownText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} over`
+      } else {
+        const minutes = Math.floor(diff / 60000)
+        const seconds = Math.floor((diff % 60000) / 1000)
+        countdownText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} remaining`
+      }
     }
   }
 
@@ -1196,6 +1202,19 @@ function CourseBuilderInsightsRouteInner({
                     // pointer-events-none so the overlay never blocks the back
                     // button / header controls underneath it.
                     <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
+                      {scheduledDateStr && !isDemoSession && (
+                        <span
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-medium shadow-sm transition-colors',
+                            isOverdue
+                              ? 'border-red-200 bg-red-50 text-red-700'
+                              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          )}
+                        >
+                          <Timer className="h-4 w-4" />
+                          <span>{countdownText}</span>
+                        </span>
+                      )}
                       {model.course?.name && (
                         <span className="text-xl font-normal text-slate-500">
                           {model.course.name}
@@ -1208,19 +1227,6 @@ function CourseBuilderInsightsRouteInner({
                         sessionNationality={sessionNationality}
                         sessionVariantName={sessionVariantName}
                       />
-                      {scheduledDateStr && !isDemoSession && (
-                        <span
-                          className={cn(
-                            'ml-2 flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-sm font-medium shadow-sm transition-colors',
-                            isOverdue
-                              ? 'border-red-200 bg-red-50 text-red-700'
-                              : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                          )}
-                        >
-                          <Timer className="h-4 w-4" />
-                          <span>{countdownText}</span>
-                        </span>
-                      )}
                     </h1>
                   )}
                   {activeMainTab === 'test-pci' && (
