@@ -2426,7 +2426,7 @@ function StudentFeedbackContent() {
         <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
           <div
             className={cn(
-              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              'mt-2 flex min-h-0 flex-1 flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -2757,7 +2757,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative mt-2 flex h-full shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
