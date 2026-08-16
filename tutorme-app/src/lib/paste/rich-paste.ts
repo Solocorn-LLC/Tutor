@@ -17,6 +17,12 @@ export interface RichPasteHandlers {
   onHtml?: (html: string) => void
   /** Plain text fallback. */
   onText?: (text: string) => void
+  /**
+   * Optional image uploader used when pasted HTML contains inline images whose
+   * src is not already a safe persistent URL (e.g. data: or blob: URIs).
+   * The returned URL replaces the original src before the HTML is inserted.
+   */
+  onUploadImage?: (src: string) => Promise<string>
 }
 
 export function escapeHtml(str: string): string {
@@ -53,6 +59,86 @@ export function extractFirstTable(html: string): string | null {
   div.innerHTML = html
   const table = div.querySelector('table')
   return table ? table.outerHTML : null
+}
+
+export function dataUrlToFile(dataUrl: string, fileName = 'pasted-image.png'): File | null {
+  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl)
+  if (!match) return null
+  const mimeType = match[1]
+  const base64 = match[2]
+  try {
+    const binary = atob(base64)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    return new File([bytes], fileName, { type: mimeType })
+  } catch {
+    return null
+  }
+}
+
+export async function urlToFile(url: string, fileName = 'pasted-image.png'): Promise<File | null> {
+  if (url.startsWith('data:')) {
+    return dataUrlToFile(url, fileName)
+  }
+  try {
+    const res = await fetch(url, { credentials: 'include' })
+    if (!res.ok) return null
+    const blob = await res.blob()
+    return new File([blob], fileName, { type: blob.type || 'image/png' })
+  } catch {
+    return null
+  }
+}
+
+function isRemoteHttpUrl(src: string): boolean {
+  return /^https?:\/\//i.test(src.trim())
+}
+
+function isUploadableImageSrc(src: string): boolean {
+  const trimmed = src.trim()
+  if (!trimmed) return false
+  if (isRemoteHttpUrl(trimmed)) return false
+  if (trimmed.startsWith('/')) return false
+  return true
+}
+
+export function extractImageSrcs(html: string): string[] {
+  if (typeof document === 'undefined') return []
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const imgs = Array.from(div.querySelectorAll('img'))
+  const srcs = imgs.map(img => img.getAttribute('src')).filter((src): src is string => !!src)
+  return Array.from(new Set(srcs))
+}
+
+/**
+ * Convert inline images in pasted HTML to persistent URLs. Only non-HTTP(S)
+ * src values are uploaded; remote images are left untouched. Images that cannot
+ * be uploaded are removed so the editor does not end up with broken links.
+ */
+export async function uploadImagesInHtml(
+  html: string,
+  upload: (src: string) => Promise<string>
+): Promise<string> {
+  if (typeof document === 'undefined') return html
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const imgs = Array.from(div.querySelectorAll('img'))
+
+  for (const img of imgs) {
+    const src = img.getAttribute('src')
+    if (!src || !isUploadableImageSrc(src)) continue
+    try {
+      const uploadedUrl = await upload(src)
+      img.setAttribute('src', uploadedUrl)
+    } catch {
+      img.remove()
+    }
+  }
+
+  return div.innerHTML
 }
 
 /**
@@ -128,7 +214,7 @@ export async function handleRichPaste(
   const html = dt.getData('text/html')
   const lowerHtml = html.toLowerCase()
   const hasTable = /<table[\s>]/.test(lowerHtml)
-  const hasImage = /]+>/.test(lowerHtml)
+  const hasImage = /<img[\s>]/.test(lowerHtml)
   const hasSvg = /<svg[\s>]/.test(lowerHtml)
 
   // 2. HTML with a table -> route to the table handler.
@@ -144,7 +230,10 @@ export async function handleRichPaste(
   // 3. HTML with images or SVG -> general HTML handler.
   if ((hasImage || hasSvg) && handlers.onHtml) {
     event.preventDefault()
-    handlers.onHtml(sanitizeSlideHtml(html))
+    const processedHtml = handlers.onUploadImage
+      ? await uploadImagesInHtml(html, handlers.onUploadImage)
+      : html
+    handlers.onHtml(sanitizeSlideHtml(processedHtml))
     return true
   }
 

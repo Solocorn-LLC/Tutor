@@ -185,6 +185,10 @@ function normalizeWhitespace(html: string): string {
 }
 
 function hasVisibleContent(node: Node): boolean {
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const el = node as Element
+    if (el.tagName === 'IMG' || el.tagName === 'SVG') return true
+  }
   const children = Array.from(node.childNodes)
   if (children.length === 0) return false
   return children.some(child => {
