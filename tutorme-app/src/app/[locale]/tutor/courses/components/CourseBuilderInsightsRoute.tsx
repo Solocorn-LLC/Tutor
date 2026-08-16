@@ -35,8 +35,9 @@ import {
   Wrench,
   PhoneOff,
   Presentation,
+  ArrowLeft,
 } from 'lucide-react'
-import { BackButton } from '@/components/navigation/BackButton'
+import Link from 'next/link'
 import {
   AnimatedControlButton,
   actionButtonBase,
@@ -1123,7 +1124,11 @@ function CourseBuilderInsightsRouteInner({
         <div className="flex w-full flex-col gap-4">
           <div className="flex min-h-[72px] w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <BackButton href="/tutor/dashboard" className="text-[#344054]" />
+              <Button variant="ghost" size="icon" asChild className="text-[#344054]">
+                <Link href="/tutor/dashboard" aria-label="Go back">
+                  <ArrowLeft className="h-5 w-5" />
+                </Link>
+              </Button>
 
               <div className="flex flex-col justify-center">
                 <div className="flex items-center gap-2">
