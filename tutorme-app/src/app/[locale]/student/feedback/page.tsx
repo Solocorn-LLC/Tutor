@@ -26,7 +26,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Input } from '@/components/ui/input'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSocket } from '@/hooks/use-socket'
@@ -2589,21 +2588,14 @@ function StudentFeedbackContent() {
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
-                  <div className="mt-3 flex items-center gap-3">
-                    <div className="relative flex h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
-                      <Input
+                  <div className="mt-5 flex items-center gap-3">
+                    <div className="relative flex min-h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
+                      <AutoTextarea
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault()
-                            if (chatInput.trim() && socket) {
-                              socket.emit('chat_message', { text: chatInput.trim() })
-                              setChatInput('')
-                            }
-                          }
-                        }}
-                        className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+                        rows={1}
+                        maxRows={3}
+                        className="min-h-0 flex-1 resize-none border-0 bg-transparent px-0 py-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
                       />
                       <Button
                         size="icon"
