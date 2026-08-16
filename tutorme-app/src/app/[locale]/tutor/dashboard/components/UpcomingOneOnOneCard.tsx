@@ -80,7 +80,7 @@ export function UpcomingOneOnOneCard({
   const description = `1-on-1 with ${studentDisplayName(request.student)} · ${request.timezone}`
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-l-4 border-slate-200 border-l-blue-500 bg-white p-4 shadow-sm transition-all duration-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 rounded-lg border border-l-4 border-white/10 border-l-blue-500 bg-[#1F2933] p-4 text-white shadow-sm transition-all duration-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <Badge
@@ -89,7 +89,7 @@ export function UpcomingOneOnOneCard({
           >
             1-on-1
           </Badge>
-          <span className="truncate text-sm font-semibold text-slate-900">
+          <span className="truncate text-sm font-semibold text-white">
             {studentDisplayName(request.student)}
           </span>
           <Badge
@@ -100,7 +100,7 @@ export function UpcomingOneOnOneCard({
           </Badge>
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
           <span className="flex items-center gap-1">
             <Calendar className="h-3 w-3" />
             {format(scheduledAt, 'EEEE, MMM d, h:mm a')}
@@ -121,11 +121,11 @@ export function UpcomingOneOnOneCard({
           </span>
         </div>
 
-        <div className="text-xs text-slate-500">{request.timezone}</div>
+        <div className="text-xs text-white/80">{request.timezone}</div>
       </div>
 
-      <div className="mx-4 hidden h-[44px] min-w-0 flex-1 flex-col justify-center rounded-md border border-slate-200 bg-white px-3 sm:flex">
-        <ClampedTitle text={description} className="text-xs text-slate-600">
+      <div className="mx-4 hidden h-[44px] min-w-0 flex-1 flex-col justify-center rounded-md border border-white/10 bg-[#2A3A4C] px-3 sm:flex">
+        <ClampedTitle text={description} className="text-xs text-white">
           {description}
         </ClampedTitle>
       </div>
