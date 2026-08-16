@@ -285,7 +285,7 @@ export function FloatingToolMenu({
           },
           {
             icon: <Trash2 className="h-5 w-5" />,
-            label: 'Clear Board',
+            label: 'Clear Page',
             action: () => {
               onClear()
               setIsOpen(false)
@@ -402,6 +402,7 @@ export function FloatingToolMenu({
                           ? 'bg-white text-rose-500 hover:bg-rose-50'
                           : 'bg-white text-slate-700 hover:bg-slate-50'
                     )}
+                    aria-label={item.label}
                     title={item.label}
                   >
                     {item.icon}
@@ -414,6 +415,7 @@ export function FloatingToolMenu({
 
         {/* Main Center Button */}
         <motion.button
+          aria-label={isOpen ? 'Close tool menu' : 'Open tool menu'}
           onClick={() => {
             if (isOpen && activeMenu !== 'main') {
               setActiveMenu('main')

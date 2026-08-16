@@ -2347,6 +2347,22 @@ export function EnhancedWhiteboard({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+            {!readOnly && (
+              <>
+                <div className="mx-1 h-6 w-px bg-slate-300" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearPage}
+                  className="h-8 w-8 rounded-xl p-0 text-rose-600 hover:bg-rose-50"
+                  aria-label="Clear page"
+                  title="Clear page"
+                  onMouseDown={e => e.stopPropagation()}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
