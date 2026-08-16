@@ -97,6 +97,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
+import { ClampedTitle } from '@/components/common/clamped-title'
 
 // --- Types ---
 type ModalType = 'register' | 'tutor' | 'academy' | 'schools' | null
@@ -2198,9 +2199,12 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
           {/* Header: Title on left, live indicator + avatar on right */}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <div className="line-clamp-2 text-sm font-semibold text-slate-50">
+              <ClampedTitle
+                text={item?.title || 'Live Demo'}
+                className="text-sm font-semibold text-slate-50"
+              >
                 {item?.title || 'Live Demo'}
-              </div>
+              </ClampedTitle>
               <div className="mt-1 text-xs font-medium text-emerald-100/80">
                 @{item?.tutor?.username || 'tutor'}
               </div>
