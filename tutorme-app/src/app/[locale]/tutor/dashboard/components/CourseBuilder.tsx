@@ -678,21 +678,18 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
   )
 }
 
-/** Small PCI readiness badge shown on task/assessment cards.
- *  Green dot = PCI has been applied (instructions non-empty).
- *  Red dot    = no PCI yet. */
+/** Small PCI readiness indicator shown on task/assessment cards.
+ *  Green text = PCI has been applied (instructions non-empty).
+ *  Red text    = no PCI yet. */
 function PciReadinessBadge({ instructions }: { instructions?: string }) {
   const ready = !!instructions?.trim()
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium',
-        ready
-          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-          : 'border-red-200 bg-red-50 text-red-700'
+        'shrink-0 text-[10px] font-medium',
+        ready ? 'text-emerald-600' : 'text-red-600'
       )}
     >
-      <span className={cn('h-1.5 w-1.5 rounded-full', ready ? 'bg-emerald-500' : 'bg-red-500')} />
       PCI
     </span>
   )
@@ -14319,7 +14316,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 onFontFamilyChange={setSlideFontFamily}
                                                 onFontSizeChange={setSlideFontSize}
                                                 onColorChange={setSlideTextColor}
-                                                className="absolute bottom-6 right-2"
+                                                className="absolute bottom-2 right-2"
                                               />
                                             </div>
                                           ) : (
@@ -14813,7 +14810,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   onFontFamilyChange={setSlideFontFamily}
                                                   onFontSizeChange={setSlideFontSize}
                                                   onColorChange={setSlideTextColor}
-                                                  className="absolute bottom-6 right-2"
+                                                  className="absolute bottom-2 right-2"
                                                 />
                                               </div>
                                             </div>
