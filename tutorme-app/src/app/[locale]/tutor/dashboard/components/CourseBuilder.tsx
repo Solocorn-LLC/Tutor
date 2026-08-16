@@ -2170,15 +2170,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             generatedFromText: baseGeneratedFromText,
           }
           // Tasks deploy immediately using the PCI-derived reveal mode.
+          const deployTitle = enriched.title || src?.title || srcAssessment?.title || 'Task'
           if (payload.source === 'task') {
             insightsProps?.onDeployTask?.({
               ...enriched,
+              title: deployTitle,
               answerReveal: deriveTaskAnswerReveal(basePci, basePciSpec),
             })
             return
           }
           // All non-task sources deploy immediately with instant feedback.
-          insightsProps?.onDeployTask?.({ ...enriched, answerReveal: 'instant' })
+          insightsProps?.onDeployTask?.({
+            ...enriched,
+            title: deployTitle,
+            answerReveal: 'instant',
+          })
           return
         }
 
@@ -2200,6 +2206,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         const baseTask: LiveTask = {
           ...payload,
+          title: payload.title || src?.title || 'Task',
           dmiItems: safeDmiItems,
           answerKey,
           pci: basePci,
@@ -2617,6 +2624,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       courseName,
       liveClassroomMessages,
     ])
+
+    // Flush room state to Redis when the tutor closes/refreshes the page while
+    // inside a live session so tasks/polls/chat/whiteboard are restored on return.
+    useEffect(() => {
+      if (mainTab !== 'live' || !insightsProps?.socket || !insightsProps?.sessionId) return
+      const socket = insightsProps.socket
+      const roomId = insightsProps.sessionId
+      const handleBeforeUnload = () => {
+        try {
+          socket.emit('room:flush', { roomId })
+        } catch {
+          // ignore
+        }
+      }
+      window.addEventListener('beforeunload', handleBeforeUnload)
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+    }, [mainTab, insightsProps?.socket, insightsProps?.sessionId])
 
     // Listen for live task-chat messages and completions, and update the tutor
     // classroom stream accordingly.

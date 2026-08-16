@@ -249,7 +249,7 @@ async function liveTaskFromBuilderItem(
   }
 ): Promise<LiveTask> {
   const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
-  const refreshedSourceDoc =
+  let refreshedSourceDoc =
     opts.sourceDocument ??
     (rawSourceDoc
       ? await ensureViewableSourceDocument({
@@ -260,9 +260,18 @@ async function liveTaskFromBuilderItem(
         })
       : undefined)
 
+  // Drop client-only URLs so homework items don't broadcast broken documents.
+  if (
+    refreshedSourceDoc &&
+    (refreshedSourceDoc.fileUrl?.startsWith('blob:') ||
+      refreshedSourceDoc.fileUrl?.startsWith('data:'))
+  ) {
+    refreshedSourceDoc = undefined
+  }
+
   return {
     id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
-    title: (raw.title as string) || 'Untitled',
+    title: (raw.title as string) || (refreshedSourceDoc?.fileName as string) || 'Task',
     content: (raw.description as string) || (raw.taskContent as string) || '',
     source: opts.source,
     dmiItems: Array.isArray(raw.dmiItems)
@@ -521,7 +530,7 @@ function cleanupInactiveWhiteboards() {
   }
 }
 
-// Redis persistence helpers (stub implementation - expand later)
+// Redis persistence helpers
 async function persistRoomToRedis(roomId: string, room: ClassRoom) {
   if (!redisClient) return
 
@@ -541,6 +550,11 @@ async function persistRoomToRedis(roomId: string, room: ClassRoom) {
         students: Array.from(room.students.entries()),
         chatHistory: room.chatHistory,
         tasks: room.tasks,
+        polls: room.polls,
+        activePoll: room.activePoll ?? null,
+        presentedView: room.presentedView ?? null,
+        codeEditorContent: room.codeEditorContent ?? '',
+        codeLanguage: room.codeLanguage ?? 'javascript',
         ...(Object.keys(compactWhiteboardData).length > 0
           ? { whiteboardData: compactWhiteboardData }
           : {}),
@@ -564,9 +578,13 @@ async function getRoomFromRedis(roomId: string): Promise<ClassRoom | null> {
     return {
       ...parsed,
       students: new Map(parsed.students),
-      // Intentionally do NOT restore tasks from Redis — each session should be independent.
-      // Tasks will be repopulated from DB via the directory API if needed.
-      tasks: [],
+      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+      polls: Array.isArray(parsed.polls) ? parsed.polls : [],
+      activePoll: parsed.activePoll ?? null,
+      presentedView: parsed.presentedView ?? null,
+      codeEditorContent: parsed.codeEditorContent ?? '',
+      codeLanguage: parsed.codeLanguage ?? 'javascript',
+      chatHistory: Array.isArray(parsed.chatHistory) ? parsed.chatHistory : [],
     }
   } catch (error) {
     console.error('Failed to retrieve room from Redis:', error)
@@ -953,7 +971,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
       room.chatHistory = room.chatHistory || []
       room.chatHistory.push(msg)
+      room.lastActivity = Date.now()
       io.to(targetRoomId).emit('chat_message', msg)
+      void persistRoomToRedis(targetRoomId, room)
 
       if (socket.data.userId) {
         drizzleDb
@@ -1665,16 +1685,25 @@ export async function initEnhancedSocketServer(server: NetServer) {
           }
         }
 
+        // Never persist or broadcast a client-only blob/data URL; it will break
+        // for every other participant after a refresh.
+        const safeSourceDocument =
+          refreshedSourceDocument &&
+          !refreshedSourceDocument.fileUrl?.startsWith('blob:') &&
+          !refreshedSourceDocument.fileUrl?.startsWith('data:')
+            ? refreshedSourceDocument
+            : undefined
+
         const normalizedTask: LiveTask = {
           id: task.id,
-          title: task.title,
+          title: task.title || safeSourceDocument?.fileName || 'Task',
           content: task.content,
           source: task.source || 'task',
           dmiItems: task.dmiItems,
           deployedAt: task.deployedAt || Date.now(),
           polls: Array.isArray(task.polls) ? task.polls : [],
           questions: Array.isArray(task.questions) ? task.questions : [],
-          sourceDocument: refreshedSourceDocument,
+          sourceDocument: safeSourceDocument,
           htmlContent: task.htmlContent,
           linkPreviews: task.linkPreviews,
           generatedFromText: task.generatedFromText,
@@ -1954,6 +1983,17 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
       }
     )
+
+    // Tutor requests an explicit flush before closing the tab.
+    socket.on('room:flush', async (data: { roomId: string }) => {
+      const { roomId } = data
+      if (socket.data.role !== 'tutor') return
+      const room = activeRooms.get(roomId)
+      if (!room) return
+      room.lastActivity = Date.now()
+      await persistRoomToRedis(roomId, room)
+      socket.emit('room:flushed', { roomId })
+    })
 
     // Tutor requests course content sync to live session
     socket.on('course:sync', async (data: { roomId: string; courseId: string }) => {
