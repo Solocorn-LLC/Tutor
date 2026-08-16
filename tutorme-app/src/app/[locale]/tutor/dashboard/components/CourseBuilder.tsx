@@ -1588,6 +1588,46 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, TestTaskChatMsg[]>
     >({})
 
+    // Tutor chat input for the live classroom tab (mirrors the student live session).
+    const [liveClassroomChatInput, setLiveClassroomChatInput] = useState('')
+    const sendLiveClassroomChat = () => {
+      const text = liveClassroomChatInput.trim()
+      if (!text || !insightsProps?.socket || !insightsProps?.sessionId) return
+      insightsProps.socket.emit('chat_message', { text })
+      setLiveClassroomChatInput('')
+    }
+
+    // Render the live classroom tutor chat input row (shown only on the Classroom tab
+    // when a live session is connected). Matches the student live-session input.
+    const renderLiveClassroomChatInput = () => {
+      return (
+        <div className="mt-3 flex items-center gap-3">
+          <div className="relative flex h-16 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
+            <Input
+              value={liveClassroomChatInput}
+              onChange={e => setLiveClassroomChatInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  sendLiveClassroomChat()
+                }
+              }}
+              placeholder="Message students..."
+              className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+              size="icon"
+              className="h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+              onClick={sendLiveClassroomChat}
+              disabled={!liveClassroomChatInput.trim()}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )
+    }
+
     // Append a tutor-facing SAI message to the live classroom chat stream.
     const appendLiveClassroomAiMessage = (taskId: string, content: string, name = 'SAI') => {
       setLiveClassroomMessages(prev => ({
@@ -1961,23 +2001,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [dmiEditor, setDmiEditor] = useState<{ source: 'task' | 'assessment' } | null>(null)
     // "Upload marking scheme": parse an uploaded scheme and fill each question's
     // answer/rubric by matching question numbers.
-    // Tutor's answer-reveal policy applied to deploys: when students may see the
-    // correct answers. Default 'instant' preserves the existing live-feedback
-    // behaviour; the tutor can switch to reveal-after-submit or hidden.
-    //
-    // Tasks: answer-reveal is derived from the task PCI (free-text instructions or
-    // the structured answerRevealPolicy). We skip the dialog and deploy immediately.
-    // Assessments and homework still show the dialog so the tutor can choose.
-    const [deployAnswerReveal, setDeployAnswerReveal] = useState<
-      'instant' | 'after_submit' | 'hidden' | 'student_choice'
-    >('instant')
-    // Dialog state for assessments and homework: the tutor picks the reveal mode
-    // before the actual deploy runs.
-    const [deployDialog, setDeployDialog] = useState<{
-      run: (reveal: 'instant' | 'after_submit' | 'hidden' | 'student_choice') => void
-    } | null>(null)
-    // Any Deploy action routes through this. Tasks deploy immediately using the PCI.
-    // Assessments and homework open the answer-reveal dialog first.
+    // All deploys now use instant feedback; the answer-reveal dialog has been removed.
+    // Tasks still derive the reveal mode from the PCI (free-text instructions or the
+    // structured answerRevealPolicy) when available; everything else defaults to instant.
+    // Any Deploy action routes through this. All deploys now skip the dialog and run immediately.
     const deployTaskWithDialog = useCallback(
       (payload: LiveTask) => {
         // Attach the tutor's PCI (free-text `instructions` + finalized structured
@@ -2150,10 +2177,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             })
             return
           }
-          // Assessments and homework still show the answer-reveal dialog.
-          setDeployDialog({
-            run: reveal => insightsProps?.onDeployTask?.({ ...enriched, answerReveal: reveal }),
-          })
+          // All non-task sources deploy immediately with instant feedback.
+          insightsProps?.onDeployTask?.({ ...enriched, answerReveal: 'instant' })
           return
         }
 
@@ -4315,7 +4340,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 acceptableVariants: i.acceptableVariants,
                 marks: i.marks,
               })) || [],
-            answerReveal: deployAnswerReveal,
+            answerReveal: 'instant',
             deployedAt: Date.now(),
             polls: [],
             questions: [],
@@ -13305,10 +13330,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           // plain text (e.g. assessments/live with no source doc).
                                           if (!hasDoc && !hasDmi) {
                                             return (
-                                              <div className="h-full min-h-0 w-full overflow-y-auto p-4">
-                                                <p className="text-muted-foreground whitespace-pre-wrap text-sm">
-                                                  {testPciContent[tab.id] || ''}
-                                                </p>
+                                              <div className="flex h-full min-h-0 w-full flex-col">
+                                                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                                                  <p className="text-muted-foreground whitespace-pre-wrap text-sm">
+                                                    {testPciContent[tab.id] || ''}
+                                                  </p>
+                                                </div>
+                                                {mainTab === 'live' &&
+                                                  tab.id === 'classroom' &&
+                                                  !!insightsProps?.socket &&
+                                                  !!insightsProps?.sessionId &&
+                                                  renderLiveClassroomChatInput()}
                                               </div>
                                             )
                                           }
@@ -13435,303 +13467,312 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
                                           // Document + DMI: use resizable panels side-by-side
                                           return (
-                                            <ResizablePanelGroup
-                                              orientation="horizontal"
-                                              className="h-full w-full"
-                                            >
-                                              <ResizablePanel
-                                                defaultSize={50}
-                                                minSize={20}
-                                                className="h-full"
+                                            <div className="flex h-full min-h-0 w-full flex-col">
+                                              <ResizablePanelGroup
+                                                orientation="horizontal"
+                                                className="min-h-0 flex-1"
                                               >
-                                                <div className="relative h-full w-full pr-1">
-                                                  {doc?.fileUrl || doc?.fileKey ? (
-                                                    <PDFViewer
-                                                      key={doc.fileUrl || doc.fileKey || 'doc'}
-                                                      fileUrl={doc.fileUrl || ''}
-                                                      fileKey={doc.fileKey}
-                                                      className="absolute inset-0 h-full w-full"
-                                                      fitToWidth
-                                                    />
-                                                  ) : (
-                                                    <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
-                                                      {mainTab === 'live'
-                                                        ? testPciSource === 'task'
-                                                          ? liveTask?.description
-                                                          : liveAssessment?.description
-                                                        : doc?.extractedText}
-                                                    </p>
-                                                  )}
-                                                </div>
-                                              </ResizablePanel>
-                                              <ResizableHandle withHandle />
-                                              <ResizablePanel
-                                                defaultSize={50}
-                                                minSize={20}
-                                                className="h-full"
-                                              >
-                                                <div className="ml-1 h-full w-full overflow-y-auto bg-white p-4">
-                                                  <div className="space-y-4">
-                                                    {mainTab === 'test-pci' &&
-                                                      testPciSource === 'assessment' &&
-                                                      canEdit &&
-                                                      (version?.items ?? []).length > 0 && (
-                                                        <div className="flex items-center gap-2 text-xs">
-                                                          <span className="text-slate-500">
-                                                            Test with:
-                                                          </span>
-                                                          <select
-                                                            value={testPciBasis}
-                                                            aria-label="Marking basis to test against (debug — does not affect student grading)"
-                                                            onChange={e =>
-                                                              setTestPciBasis(
-                                                                e.target.value as
-                                                                  | 'all'
-                                                                  | 'pci'
-                                                                  | 'rubric'
-                                                                  | 'model'
-                                                              )
-                                                            }
-                                                            title="Debug: isolate one marking basis to see its effect (test only — never affects student grading)"
-                                                            className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-700"
-                                                          >
-                                                            <option value="all">All bases</option>
-                                                            <option value="pci">PCI only</option>
-                                                            <option value="rubric">
-                                                              Rubric only
-                                                            </option>
-                                                            <option value="model">
-                                                              Model answer only
-                                                            </option>
-                                                          </select>
-                                                        </div>
-                                                      )}
-                                                    {dmiDocumentKind[testPciSource] && canEdit && (
-                                                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                                                        <span>
-                                                          Detected as{' '}
-                                                          <span className="font-semibold">
-                                                            {dmiDocumentKind[testPciSource] ===
-                                                            'question_paper'
-                                                              ? 'a question paper'
-                                                              : 'study material'}
-                                                          </span>
-                                                          {dmiDocumentKind[testPciSource] ===
-                                                          'question_paper'
-                                                            ? ' — extracted the question numbers.'
-                                                            : ' — authored questions from the content.'}
-                                                        </span>
-                                                        <button
-                                                          type="button"
-                                                          disabled={dmiGenerating}
-                                                          onClick={() =>
-                                                            handleGenerateDMI(
-                                                              testPciSource,
-                                                              undefined,
-                                                              dmiDocumentKind[testPciSource] ===
-                                                                'question_paper'
-                                                                ? 'study_material'
-                                                                : 'question_paper'
-                                                            )
-                                                          }
-                                                          className="ml-auto rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
-                                                        >
-                                                          Not right? Regenerate as{' '}
-                                                          {dmiDocumentKind[testPciSource] ===
-                                                          'question_paper'
-                                                            ? 'study material'
-                                                            : 'a question paper'}
-                                                        </button>
-                                                      </div>
-                                                    )}
-                                                    {(version?.items ?? []).length === 0 && (
-                                                      <p className="text-muted-foreground text-sm">
-                                                        No questions in this DMI yet. Open{' '}
-                                                        <span className="font-medium">
-                                                          Edit marks &amp; answers
-                                                        </span>{' '}
-                                                        and generate the DMI — for study material
-                                                        the AI will author questions from the
-                                                        content.
+                                                <ResizablePanel
+                                                  defaultSize={50}
+                                                  minSize={20}
+                                                  className="h-full"
+                                                >
+                                                  <div className="relative h-full w-full pr-1">
+                                                    {doc?.fileUrl || doc?.fileKey ? (
+                                                      <PDFViewer
+                                                        key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                        fileUrl={doc.fileUrl || ''}
+                                                        fileKey={doc.fileKey}
+                                                        className="absolute inset-0 h-full w-full"
+                                                        fitToWidth
+                                                      />
+                                                    ) : (
+                                                      <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
+                                                        {mainTab === 'live'
+                                                          ? testPciSource === 'task'
+                                                            ? liveTask?.description
+                                                            : liveAssessment?.description
+                                                          : doc?.extractedText}
                                                       </p>
                                                     )}
-                                                    {(version?.items ?? []).map(item => (
-                                                      <div
-                                                        key={item.id}
-                                                        className="rounded-lg border bg-gray-50 p-3"
-                                                      >
-                                                        <div className="flex items-start justify-between gap-2">
-                                                          <p className="text-sm font-medium text-gray-900">
-                                                            <span className="mr-1 text-indigo-600">
-                                                              Q
-                                                              {item.questionLabel ??
-                                                                item.questionNumber}
-                                                              :
+                                                  </div>
+                                                </ResizablePanel>
+                                                <ResizableHandle withHandle />
+                                                <ResizablePanel
+                                                  defaultSize={50}
+                                                  minSize={20}
+                                                  className="h-full"
+                                                >
+                                                  <div className="ml-1 h-full w-full overflow-y-auto bg-white p-4">
+                                                    <div className="space-y-4">
+                                                      {mainTab === 'test-pci' &&
+                                                        testPciSource === 'assessment' &&
+                                                        canEdit &&
+                                                        (version?.items ?? []).length > 0 && (
+                                                          <div className="flex items-center gap-2 text-xs">
+                                                            <span className="text-slate-500">
+                                                              Test with:
                                                             </span>
-                                                            {item.questionText}
-                                                          </p>
-                                                          <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                                                            {typeof item.marks === 'number' &&
-                                                            item.marks > 0
-                                                              ? item.marks
-                                                              : 1}{' '}
-                                                            {(typeof item.marks === 'number' &&
-                                                            item.marks > 0
-                                                              ? item.marks
-                                                              : 1) === 1
-                                                              ? 'mark'
-                                                              : 'marks'}
-                                                          </span>
-                                                        </div>
-                                                        <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
-                                                          <span className="font-medium">
-                                                            Answer:
-                                                          </span>{' '}
-                                                          {item.answer}
-                                                        </p>
-                                                        {item.rubric && (
-                                                          <p className="mt-1 whitespace-pre-wrap rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
-                                                            <span className="font-semibold">
-                                                              Marking:
-                                                            </span>{' '}
-                                                            {item.rubric}
-                                                          </p>
+                                                            <select
+                                                              value={testPciBasis}
+                                                              aria-label="Marking basis to test against (debug — does not affect student grading)"
+                                                              onChange={e =>
+                                                                setTestPciBasis(
+                                                                  e.target.value as
+                                                                    | 'all'
+                                                                    | 'pci'
+                                                                    | 'rubric'
+                                                                    | 'model'
+                                                                )
+                                                              }
+                                                              title="Debug: isolate one marking basis to see its effect (test only — never affects student grading)"
+                                                              className="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-xs text-slate-700"
+                                                            >
+                                                              <option value="all">All bases</option>
+                                                              <option value="pci">PCI only</option>
+                                                              <option value="rubric">
+                                                                Rubric only
+                                                              </option>
+                                                              <option value="model">
+                                                                Model answer only
+                                                              </option>
+                                                            </select>
+                                                          </div>
                                                         )}
-                                                        {mainTab === 'test-pci' &&
-                                                          canEdit &&
-                                                          (() => {
-                                                            const ak = `${testPciActiveTab}:${item.id}`
-                                                            const answer = (
-                                                              testDmiAnswers[ak] || ''
-                                                            ).trim()
-                                                            const autoResult =
-                                                              testDmiAutoResults[ak]
-                                                            const llmResult = testDmiResults[ak]
-                                                            return (
-                                                              <div className="mt-2 border-t border-gray-200 pt-2">
-                                                                <textarea
-                                                                  value={testDmiAnswers[ak] || ''}
-                                                                  onChange={e =>
-                                                                    setTestDmiAnswers(prev => ({
-                                                                      ...prev,
-                                                                      [ak]: e.target.value,
-                                                                    }))
-                                                                  }
-                                                                  rows={2}
-                                                                  placeholder="Type a test answer to grade against this question…"
-                                                                  aria-label={`Test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                  className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                                                                />
-                                                                <div className="mt-1 flex flex-wrap items-center gap-2">
-                                                                  <button
-                                                                    type="button"
-                                                                    disabled={
-                                                                      autoResult?.loading || !answer
+                                                      {dmiDocumentKind[testPciSource] &&
+                                                        canEdit && (
+                                                          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                                            <span>
+                                                              Detected as{' '}
+                                                              <span className="font-semibold">
+                                                                {dmiDocumentKind[testPciSource] ===
+                                                                'question_paper'
+                                                                  ? 'a question paper'
+                                                                  : 'study material'}
+                                                              </span>
+                                                              {dmiDocumentKind[testPciSource] ===
+                                                              'question_paper'
+                                                                ? ' — extracted the question numbers.'
+                                                                : ' — authored questions from the content.'}
+                                                            </span>
+                                                            <button
+                                                              type="button"
+                                                              disabled={dmiGenerating}
+                                                              onClick={() =>
+                                                                handleGenerateDMI(
+                                                                  testPciSource,
+                                                                  undefined,
+                                                                  dmiDocumentKind[testPciSource] ===
+                                                                    'question_paper'
+                                                                    ? 'study_material'
+                                                                    : 'question_paper'
+                                                                )
+                                                              }
+                                                              className="ml-auto rounded-md border border-amber-300 bg-white px-2 py-1 font-medium text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                                                            >
+                                                              Not right? Regenerate as{' '}
+                                                              {dmiDocumentKind[testPciSource] ===
+                                                              'question_paper'
+                                                                ? 'study material'
+                                                                : 'a question paper'}
+                                                            </button>
+                                                          </div>
+                                                        )}
+                                                      {(version?.items ?? []).length === 0 && (
+                                                        <p className="text-muted-foreground text-sm">
+                                                          No questions in this DMI yet. Open{' '}
+                                                          <span className="font-medium">
+                                                            Edit marks &amp; answers
+                                                          </span>{' '}
+                                                          and generate the DMI — for study material
+                                                          the AI will author questions from the
+                                                          content.
+                                                        </p>
+                                                      )}
+                                                      {(version?.items ?? []).map(item => (
+                                                        <div
+                                                          key={item.id}
+                                                          className="rounded-lg border bg-gray-50 p-3"
+                                                        >
+                                                          <div className="flex items-start justify-between gap-2">
+                                                            <p className="text-sm font-medium text-gray-900">
+                                                              <span className="mr-1 text-indigo-600">
+                                                                Q
+                                                                {item.questionLabel ??
+                                                                  item.questionNumber}
+                                                                :
+                                                              </span>
+                                                              {item.questionText}
+                                                            </p>
+                                                            <span className="shrink-0 rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                                              {typeof item.marks === 'number' &&
+                                                              item.marks > 0
+                                                                ? item.marks
+                                                                : 1}{' '}
+                                                              {(typeof item.marks === 'number' &&
+                                                              item.marks > 0
+                                                                ? item.marks
+                                                                : 1) === 1
+                                                                ? 'mark'
+                                                                : 'marks'}
+                                                            </span>
+                                                          </div>
+                                                          <p className="mt-2 whitespace-pre-wrap text-sm text-gray-600">
+                                                            <span className="font-medium">
+                                                              Answer:
+                                                            </span>{' '}
+                                                            {item.answer}
+                                                          </p>
+                                                          {item.rubric && (
+                                                            <p className="mt-1 whitespace-pre-wrap rounded bg-sky-50 px-2 py-1 text-xs text-sky-800">
+                                                              <span className="font-semibold">
+                                                                Marking:
+                                                              </span>{' '}
+                                                              {item.rubric}
+                                                            </p>
+                                                          )}
+                                                          {mainTab === 'test-pci' &&
+                                                            canEdit &&
+                                                            (() => {
+                                                              const ak = `${testPciActiveTab}:${item.id}`
+                                                              const answer = (
+                                                                testDmiAnswers[ak] || ''
+                                                              ).trim()
+                                                              const autoResult =
+                                                                testDmiAutoResults[ak]
+                                                              const llmResult = testDmiResults[ak]
+                                                              return (
+                                                                <div className="mt-2 border-t border-gray-200 pt-2">
+                                                                  <textarea
+                                                                    value={testDmiAnswers[ak] || ''}
+                                                                    onChange={e =>
+                                                                      setTestDmiAnswers(prev => ({
+                                                                        ...prev,
+                                                                        [ak]: e.target.value,
+                                                                      }))
                                                                     }
-                                                                    onClick={() =>
-                                                                      autoGradeTestDmiItem(item)
-                                                                    }
-                                                                    aria-label={`Auto-grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                    className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
-                                                                  >
-                                                                    {autoResult?.loading
-                                                                      ? 'Auto-grading…'
-                                                                      : 'Auto-grade'}
-                                                                  </button>
-                                                                  {testPciSource ===
-                                                                    'assessment' && (
+                                                                    rows={2}
+                                                                    placeholder="Type a test answer to grade against this question…"
+                                                                    aria-label={`Test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                    className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                                                  />
+                                                                  <div className="mt-1 flex flex-wrap items-center gap-2">
                                                                     <button
                                                                       type="button"
                                                                       disabled={
-                                                                        llmResult?.loading ||
+                                                                        autoResult?.loading ||
                                                                         !answer
                                                                       }
                                                                       onClick={() =>
-                                                                        gradeTestDmiItem(item)
+                                                                        autoGradeTestDmiItem(item)
                                                                       }
-                                                                      aria-label={`Debug LLM grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                      className="rounded-md bg-slate-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                                                                      aria-label={`Auto-grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                      className="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                                                                     >
-                                                                      {llmResult?.loading
-                                                                        ? 'Grading…'
-                                                                        : 'Debug LLM grade'}
+                                                                      {autoResult?.loading
+                                                                        ? 'Auto-grading…'
+                                                                        : 'Auto-grade'}
                                                                     </button>
-                                                                  )}
+                                                                    {testPciSource ===
+                                                                      'assessment' && (
+                                                                      <button
+                                                                        type="button"
+                                                                        disabled={
+                                                                          llmResult?.loading ||
+                                                                          !answer
+                                                                        }
+                                                                        onClick={() =>
+                                                                          gradeTestDmiItem(item)
+                                                                        }
+                                                                        aria-label={`Debug LLM grade test answer for question ${item.questionLabel ?? item.questionNumber}`}
+                                                                        className="rounded-md bg-slate-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+                                                                      >
+                                                                        {llmResult?.loading
+                                                                          ? 'Grading…'
+                                                                          : 'Debug LLM grade'}
+                                                                      </button>
+                                                                    )}
+                                                                    {autoResult &&
+                                                                      !autoResult.loading &&
+                                                                      autoResult.score !== null && (
+                                                                        <span className="text-xs font-semibold text-emerald-700">
+                                                                          Score: {autoResult.score}%
+                                                                        </span>
+                                                                      )}
+                                                                  </div>
                                                                   {autoResult &&
                                                                     !autoResult.loading &&
-                                                                    autoResult.score !== null && (
-                                                                      <span className="text-xs font-semibold text-emerald-700">
-                                                                        Score: {autoResult.score}%
-                                                                      </span>
-                                                                    )}
-                                                                </div>
-                                                                {autoResult &&
-                                                                  !autoResult.loading &&
-                                                                  Array.isArray(
+                                                                    Array.isArray(
+                                                                      autoResult.questionResults
+                                                                    ) &&
                                                                     autoResult.questionResults
-                                                                  ) &&
-                                                                  autoResult.questionResults
-                                                                    .length > 0 && (
-                                                                    <div className="mt-1 space-y-1">
-                                                                      {autoResult.questionResults.map(
-                                                                        r => (
-                                                                          <div
-                                                                            key={r.questionId}
-                                                                            className="flex items-center gap-2 text-xs"
-                                                                          >
-                                                                            {r.correct ? (
-                                                                              <span className="font-medium text-emerald-700">
-                                                                                Correct
-                                                                              </span>
-                                                                            ) : r.needsReview ? (
-                                                                              <span className="font-medium text-amber-700">
-                                                                                Needs review
-                                                                              </span>
-                                                                            ) : (
-                                                                              <span className="font-medium text-red-700">
-                                                                                Incorrect
-                                                                              </span>
-                                                                            )}
-                                                                            {typeof r.pointsEarned ===
-                                                                              'number' &&
-                                                                              typeof r.pointsMax ===
-                                                                                'number' &&
-                                                                              r.pointsMax > 0 && (
-                                                                                <span className="text-slate-600">
-                                                                                  {r.pointsEarned}/
-                                                                                  {r.pointsMax}
+                                                                      .length > 0 && (
+                                                                      <div className="mt-1 space-y-1">
+                                                                        {autoResult.questionResults.map(
+                                                                          r => (
+                                                                            <div
+                                                                              key={r.questionId}
+                                                                              className="flex items-center gap-2 text-xs"
+                                                                            >
+                                                                              {r.correct ? (
+                                                                                <span className="font-medium text-emerald-700">
+                                                                                  Correct
+                                                                                </span>
+                                                                              ) : r.needsReview ? (
+                                                                                <span className="font-medium text-amber-700">
+                                                                                  Needs review
+                                                                                </span>
+                                                                              ) : (
+                                                                                <span className="font-medium text-red-700">
+                                                                                  Incorrect
                                                                                 </span>
                                                                               )}
-                                                                          </div>
-                                                                        )
-                                                                      )}
-                                                                    </div>
-                                                                  )}
-                                                                {llmResult &&
-                                                                  !llmResult.loading &&
-                                                                  typeof llmResult.score ===
-                                                                    'number' && (
-                                                                    <span className="mt-1 block text-xs font-semibold text-violet-700">
-                                                                      Debug LLM score:{' '}
-                                                                      {llmResult.score}%
-                                                                    </span>
-                                                                  )}
-                                                                {llmResult &&
-                                                                  !llmResult.loading &&
-                                                                  llmResult.feedback && (
-                                                                    <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
-                                                                      {llmResult.feedback}
-                                                                    </p>
-                                                                  )}
-                                                              </div>
-                                                            )
-                                                          })()}
-                                                      </div>
-                                                    ))}
+                                                                              {typeof r.pointsEarned ===
+                                                                                'number' &&
+                                                                                typeof r.pointsMax ===
+                                                                                  'number' &&
+                                                                                r.pointsMax > 0 && (
+                                                                                  <span className="text-slate-600">
+                                                                                    {r.pointsEarned}
+                                                                                    /{r.pointsMax}
+                                                                                  </span>
+                                                                                )}
+                                                                            </div>
+                                                                          )
+                                                                        )}
+                                                                      </div>
+                                                                    )}
+                                                                  {llmResult &&
+                                                                    !llmResult.loading &&
+                                                                    typeof llmResult.score ===
+                                                                      'number' && (
+                                                                      <span className="mt-1 block text-xs font-semibold text-violet-700">
+                                                                        Debug LLM score:{' '}
+                                                                        {llmResult.score}%
+                                                                      </span>
+                                                                    )}
+                                                                  {llmResult &&
+                                                                    !llmResult.loading &&
+                                                                    llmResult.feedback && (
+                                                                      <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
+                                                                        {llmResult.feedback}
+                                                                      </p>
+                                                                    )}
+                                                                </div>
+                                                              )
+                                                            })()}
+                                                        </div>
+                                                      ))}
+                                                    </div>
                                                   </div>
-                                                </div>
-                                              </ResizablePanel>
-                                            </ResizablePanelGroup>
+                                                </ResizablePanel>
+                                              </ResizablePanelGroup>
+                                              {mainTab === 'live' &&
+                                                tab.id === 'classroom' &&
+                                                !!insightsProps?.socket &&
+                                                !!insightsProps?.sessionId &&
+                                                renderLiveClassroomChatInput()}
+                                            </div>
                                           )
                                         })()}
                                       </PanelErrorBoundary>
@@ -16092,88 +16133,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             <DialogFooter>
               <Button variant="modal-secondary-dark" onClick={() => setShowDmiVersionList(false)}>
                 Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Deploy → choose how/when students see the answers, then deploy. */}
-        <Dialog
-          open={!!deployDialog}
-          onOpenChange={open => {
-            if (!open) setDeployDialog(null)
-          }}
-        >
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Deploy to students</DialogTitle>
-              <DialogDescription>
-                Choose how and when students see the correct answers.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-2">
-              {(
-                [
-                  {
-                    v: 'instant',
-                    t: 'Instant feedback',
-                    d: 'Graded live — students see the correct answer as they go.',
-                  },
-                  {
-                    v: 'after_submit',
-                    t: 'After submit',
-                    d: 'Correct answers are revealed only on the results screen.',
-                  },
-                  {
-                    v: 'hidden',
-                    t: 'Hidden',
-                    d: 'Only the score is shown; answers are never revealed.',
-                  },
-                  {
-                    v: 'student_choice',
-                    t: 'Student chooses (self-study)',
-                    d: 'The student picks practice (see answers) or test (hidden).',
-                  },
-                ] as const
-              ).map(o => {
-                const selected = deployAnswerReveal === o.v
-                return (
-                  <button
-                    key={o.v}
-                    type="button"
-                    onClick={() => setDeployAnswerReveal(o.v)}
-                    className={cn(
-                      'w-full rounded-xl border p-3 text-left transition-colors',
-                      selected
-                        ? 'border-[#F17623] bg-[#FFF4EC]'
-                        : 'border-gray-200 hover:bg-gray-50'
-                    )}
-                  >
-                    <p
-                      className={cn(
-                        'text-sm font-semibold',
-                        selected ? 'text-[#9a4a12]' : 'text-gray-800'
-                      )}
-                    >
-                      {o.t}
-                    </p>
-                    <p className="text-xs text-gray-600">{o.d}</p>
-                  </button>
-                )
-              })}
-            </div>
-            <DialogFooter>
-              <Button variant="modal-secondary-dark" onClick={() => setDeployDialog(null)}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => {
-                  const run = deployDialog?.run
-                  setDeployDialog(null)
-                  run?.(deployAnswerReveal)
-                }}
-              >
-                Deploy
               </Button>
             </DialogFooter>
           </DialogContent>
