@@ -40,8 +40,6 @@ import {
   AlertCircle,
   Ban,
   CalendarClock,
-  Pencil,
-  Presentation,
   ArrowLeft,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -62,39 +60,7 @@ import { ModernHeroSection } from './components/ModernHeroSection'
 import { TutorPendingRescheduleBanner } from './components/TutorPendingRescheduleBanner'
 import { CountryFlag } from '@/components/country-flag'
 import { ClassroomDialog } from '@/components/classroom/ClassroomDialog'
-
-function SessionCountdown({ scheduledAt }: { scheduledAt: string }) {
-  const [countdown, setCountdown] = useState('')
-
-  useEffect(() => {
-    const target = new Date(scheduledAt).getTime()
-    const tick = () => {
-      const diff = target - Date.now()
-      if (diff <= 0) {
-        setCountdown('Starting now')
-        return
-      }
-      const h = Math.floor(diff / 3600000)
-      const m = Math.floor((diff % 3600000) / 60000)
-      const s = Math.floor((diff % 60000) / 1000)
-      setCountdown(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-      )
-    }
-    tick()
-    const interval = setInterval(tick, 1000)
-    return () => clearInterval(interval)
-  }, [scheduledAt])
-
-  if (!countdown) return null
-
-  return (
-    <span className="flex items-center gap-1 text-xs font-medium text-emerald-300">
-      <Clock className="h-3 w-3" />
-      <span className="tabular-nums">{countdown}</span>
-    </span>
-  )
-}
+import { UpcomingSessionsPanel } from './components/UpcomingSessionsPanel'
 
 function DashboardSkeleton() {
   return (
@@ -133,7 +99,7 @@ type ScheduleSlot = {
   durationMinutes: number
 }
 
-type EnrolledCourse = {
+export type EnrolledCourse = {
   id: string
   /** The template course id to open in the scheduler/builder (id is the published variant). */
   templateCourseId?: string
@@ -171,7 +137,7 @@ type CourseSession = {
   durationMinutes?: number
 }
 
-type OneOnOneRequest = {
+export type OneOnOneRequest = {
   requestId: string
   studentId: string
   requestedDate: string
@@ -244,6 +210,7 @@ function TutorDashboardContent() {
 
   const [classroomDialogOpen, setClassroomDialogOpen] = useState(false)
   const [classroomCourse, setClassroomCourse] = useState<EnrolledCourse | null>(null)
+  const [classroomSessionId, setClassroomSessionId] = useState<string | null>(null)
 
   // Cancel Course Modal State
   const [cancelModalOpen, setCancelModalOpen] = useState(false)
@@ -799,168 +766,19 @@ function TutorDashboardContent() {
               value="courses"
               className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <div className="h-full overflow-y-auto">
-                <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
-                  Session Schedule
-                  <span className="text-muted-foreground text-sm font-normal">
-                    {new Date().toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </span>
-                </CardTitle>
-                <div className="space-y-3">
-                  {enrolledCourses.length === 0 ? (
-                    <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
-                      No courses have enrolled students yet.
-                    </div>
-                  ) : (
-                    enrolledCourses.map(course => {
-                      const courseClasses = classes.filter(c => c.courseId === course.id)
-                      const hasActive = courseClasses.some(
-                        c =>
-                          c.status === 'active' || c.status === 'live' || c.status === 'preparing'
-                      )
-                      const now = Date.now()
-                      const nextSession = courseClasses
-                        .filter(
-                          c =>
-                            c.status === 'scheduled' &&
-                            new Date(c.scheduledAt).getTime() >= now - 5 * 60 * 1000
-                        )
-                        .sort(
-                          (a, b) =>
-                            new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
-                        )[0]
-                      const isWithin1Hour =
-                        nextSession && new Date(nextSession.scheduledAt).getTime() - now <= 3600000
-
-                      return (
-                        <div
-                          key={course.id}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
-                        >
-                          <div className="min-w-0 space-y-1">
-                            <p className="truncate font-semibold text-white">{course.name}</p>
-                            <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
-                              <span className="text-white">
-                                {course.variantCategory ||
-                                  (course.categories || [])[0] ||
-                                  'Untitled'}
-                              </span>
-                              {course.nationality && course.nationality !== 'Global' && (
-                                <CountryFlag countryName={course.nationality} size="xs" showLabel />
-                              )}
-                              {course.price ? (
-                                <span className="text-white/70">
-                                  • {course.currency ?? 'USD'} {course.price}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2 text-xs">
-                              <Link
-                                href={withLocalePath(`/tutor/courses/${course.id}/enrollments`)}
-                              >
-                                <Badge
-                                  variant="outline"
-                                  className="cursor-pointer border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:bg-[#4a5a65]"
-                                >
-                                  {course.enrollmentCount} enrolled
-                                </Badge>
-                              </Link>
-                            </div>
-                            {/* Countdown to next session */}
-                            {nextSession && (
-                              <SessionCountdown scheduledAt={nextSession.scheduledAt} />
-                            )}
-                            {hasActive &&
-                              (() => {
-                                // A session is live right now — give a one-click
-                                // way back into the classroom. Leaving the live
-                                // room (back arrow) doesn't end the session, so a
-                                // tutor must be able to rejoin without hunting
-                                // through the sessions modal.
-                                const live = courseClasses.find(
-                                  c =>
-                                    c.status === 'active' ||
-                                    c.status === 'live' ||
-                                    c.status === 'preparing'
-                                )
-                                return live ? (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      router.push(
-                                        withLocalePath(`/tutor/classroom?sessionId=${live.id}`)
-                                      )
-                                    }
-                                    className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-emerald-500"
-                                  >
-                                    <Video className="mr-1 h-3 w-3" />
-                                    Rejoin live
-                                  </Button>
-                                ) : null
-                              })()}
-                            {/* Classroom lobby: review past sessions, see the next
-                                session's countdown, and get pulled in when it
-                                starts. Uses the published course id (course.id) —
-                                the one live sessions live under. */}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setClassroomCourse(course)
-                                setClassroomDialogOpen(true)
-                              }}
-                              className="border-transparent bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
-                            >
-                              <Presentation className="mr-1 h-3 w-3" />
-                              Classroom
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-red-500"
-                              onClick={() =>
-                                router.push(
-                                  withLocalePath(
-                                    // The builder edits the TEMPLATE course (where the
-                                    // lessons live). `course.id` is the published
-                                    // variant, which has no builder lessons — opening
-                                    // it showed an empty course after publishing.
-                                    // NOTE: no `mode=edit` — that flag forces the builder
-                                    // into detached/localStorage mode, which reads nothing
-                                    // from the DB (empty course) and can wipe the real
-                                    // lessons on save. A published course must load/save
-                                    // against the DB.
-                                    `/tutor/insights?tab=builder&courseId=${course.templateCourseId || course.id}`
-                                  )
-                                )
-                              }
-                            >
-                              <Pencil className="mr-1 h-3 w-3" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-white/30 bg-[#36454F] text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-purple-500"
-                              onClick={() => handleOpenSessionsModal(course)}
-                            >
-                              <CalendarClock className="mr-1 h-3 w-3" />
-                              Schedule
-                            </Button>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
+              <UpcomingSessionsPanel
+                classes={classes}
+                courses={enrolledCourses}
+                oneOnOneRequests={oneOnOneRequests}
+                joiningRequestId={joiningRequestId}
+                onJoinOneOnOne={handleJoinOneOnOne}
+                onOpenClassroom={(course, sessionId) => {
+                  setClassroomCourse(course)
+                  setClassroomSessionId(sessionId)
+                  setClassroomDialogOpen(true)
+                }}
+                onOpenSchedule={course => handleOpenSessionsModal(course)}
+              />
             </TabsContent>
             <TabsContent
               value="oneOnOne"
@@ -1162,12 +980,16 @@ function TutorDashboardContent() {
 
         <ClassroomDialog
           open={classroomDialogOpen}
-          onOpenChange={setClassroomDialogOpen}
+          onOpenChange={open => {
+            setClassroomDialogOpen(open)
+            if (!open) setClassroomSessionId(null)
+          }}
           courseId={classroomCourse?.id ?? null}
           courseName={classroomCourse?.name ?? ''}
           nationality={classroomCourse?.nationality ?? null}
           variantCategory={classroomCourse?.variantCategory ?? null}
           categories={classroomCourse?.categories ?? null}
+          focusSessionId={classroomSessionId}
         />
 
         {/* Course Sessions Modal */}
