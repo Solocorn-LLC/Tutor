@@ -76,28 +76,18 @@ export const GET = withAuth(
             )
           : new Set<string>()
 
-      const [sessionAgg, enrollmentAgg] = await Promise.all([
+      const [sessionRows, enrollmentAgg] = await Promise.all([
         courseIds.length > 0
           ? drizzleDb
               .select({
                 courseId: liveSession.courseId,
-                hasSessions: sql<boolean>`count(*) > 0`.as('hasSessions'),
-                lastSessionDate: sql<Date | null>`max(${liveSession.scheduledAt})`.as(
-                  'lastSessionDate'
-                ),
-                upcomingSessionsCount:
-                  sql<number>`count(*) filter (where ${liveSession.scheduledAt} > now())`.as(
-                    'upcomingSessionsCount'
-                  ),
-                liveSessionsTotal: sql<number>`count(*)::int`.as('liveSessionsTotal'),
-                liveSessionsCompleted:
-                  sql<number>`count(*) filter (where ${liveSession.status} = 'ended')::int`.as(
-                    'liveSessionsCompleted'
-                  ),
+                status: liveSession.status,
+                endedAt: liveSession.endedAt,
+                scheduledAt: liveSession.scheduledAt,
+                durationMinutes: liveSession.durationMinutes,
               })
               .from(liveSession)
               .where(inArray(liveSession.courseId, courseIds))
-              .groupBy(liveSession.courseId)
           : Promise.resolve([]),
         courseIds.length > 0
           ? drizzleDb
@@ -111,7 +101,53 @@ export const GET = withAuth(
           : Promise.resolve([]),
       ])
 
-      const sessionMap = new Map(sessionAgg.map(s => [s.courseId, s]))
+      const OPEN_STATUSES = ['active', 'live', 'preparing', 'paused'] as const
+      const nowMs = Date.now()
+      const sessionAggByCourse = sessionRows.reduce(
+        (acc, row) => {
+          if (!row.courseId) return acc
+          const meta = acc.get(row.courseId) ?? {
+            hasSessions: false,
+            lastSessionDate: null as Date | null,
+            upcomingSessionsCount: 0,
+            liveSessionsTotal: 0,
+            liveSessionsCompleted: 0,
+          }
+          meta.hasSessions = true
+          const scheduledMs = row.scheduledAt ? new Date(row.scheduledAt).getTime() : null
+          if (scheduledMs != null) {
+            if (!meta.lastSessionDate || scheduledMs > meta.lastSessionDate.getTime()) {
+              meta.lastSessionDate = new Date(row.scheduledAt!)
+            }
+            if (scheduledMs > nowMs) {
+              meta.upcomingSessionsCount++
+            }
+          }
+          meta.liveSessionsTotal++
+          const duration = row.durationMinutes ?? 60
+          const isTimeElapsed =
+            scheduledMs != null &&
+            OPEN_STATUSES.includes(row.status as (typeof OPEN_STATUSES)[number]) &&
+            scheduledMs + duration * 60_000 <= nowMs
+          if (row.status === 'ended' || row.endedAt != null || isTimeElapsed) {
+            meta.liveSessionsCompleted++
+          }
+          acc.set(row.courseId, meta)
+          return acc
+        },
+        new Map<
+          string,
+          {
+            hasSessions: boolean
+            lastSessionDate: Date | null
+            upcomingSessionsCount: number
+            liveSessionsTotal: number
+            liveSessionsCompleted: number
+          }
+        >()
+      )
+
+      const sessionMap = sessionAggByCourse
       const enrollmentMap = new Map(enrollmentAgg.map(e => [e.courseId, e]))
 
       // Fetch variant info for published courses
