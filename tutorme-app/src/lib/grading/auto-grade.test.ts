@@ -164,4 +164,42 @@ describe('autoGradeDmi', () => {
     expect(r.pointsEarned).toBe(2)
     expect(r.score).toBe(100)
   })
+
+  it('uses the typed text from a JSON answer with attachments for matching', () => {
+    const r = autoGradeDmi([{ id: 'q1', answer: 'Paris' }], {
+      q1: JSON.stringify({
+        text: 'Paris',
+        attachments: [{ type: 'image', url: 'https://example.com/img.png' }],
+      }),
+    })
+    expect(r.score).toBe(100)
+    expect(r.correct).toBe(1)
+    const q1 = r.questionResults?.find(x => x.questionId === 'q1')
+    expect(q1).toMatchObject({
+      correct: true,
+      selectedAnswer: expect.stringContaining('attachments'),
+    })
+  })
+
+  it('flags an answer with a pasted table attachment for review', () => {
+    const r = autoGradeDmi([{ id: 'q1', answer: 'Paris' }], {
+      q1: JSON.stringify({
+        text: 'London',
+        attachments: [{ type: 'table', content: '<table><tr><td>A</td></tr></table>' }],
+      }),
+    })
+    expect(r.needsReview).toBe(1)
+    const q1 = r.questionResults?.find(x => x.questionId === 'q1')
+    expect(q1).toMatchObject({ correct: false, needsReview: true })
+  })
+
+  it('flags an answer with a formula attachment for review', () => {
+    const r = autoGradeDmi([{ id: 'q1', answer: 'Paris' }], {
+      q1: JSON.stringify({
+        text: '',
+        attachments: [{ type: 'formula', content: '<svg></svg>' }],
+      }),
+    })
+    expect(r.needsReview).toBe(1)
+  })
 })

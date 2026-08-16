@@ -1,13 +1,19 @@
 'use client'
 
-import { useState, useMemo, useRef, useLayoutEffect } from 'react'
+import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import { DrawingPad } from '@/components/answer/DrawingPad'
 import { MathText } from '@/components/answer/MathText'
 import { cn, resolvePublicUrl } from '@/lib/utils'
 import { toast } from 'sonner'
 import { normalizeDmiQuestionType, type DmiQuestionType } from '@/lib/assessment/question-types'
-import { Loader2, NotebookPen, ChevronUp, ChevronDown } from 'lucide-react'
+import { Loader2, NotebookPen, ChevronUp, ChevronDown, X } from 'lucide-react'
 import type { DMIQuestion } from '@/app/[locale]/tutor/dashboard/components/builder-types'
+import {
+  parseWrittenAnswer,
+  serializeWrittenAnswer,
+  type WrittenAnswerValue,
+} from '@/lib/paste/answer-attachments'
+import { handleRichPaste, uploadPastedImage } from '@/lib/paste/rich-paste'
 
 /**
  * Minimal item shape needed to render a DMI answer input. It deliberately omits
@@ -32,37 +38,41 @@ export interface DmiAnswerFieldItem {
   wordLimit?: number | null
 }
 
-function parseWrittenAnswer(value: string): {
-  text: string
-  converted: string
-  drawing: string
-} {
-  if (!value) return { text: '', converted: '', drawing: '' }
-  try {
-    const parsed = JSON.parse(value)
-    if (
-      parsed &&
-      typeof parsed === 'object' &&
-      !Array.isArray(parsed) &&
-      typeof parsed.text === 'string' &&
-      typeof parsed.converted === 'string' &&
-      typeof parsed.drawing === 'string'
-    ) {
-      return {
-        text: String(parsed.text ?? ''),
-        converted: String(parsed.converted ?? ''),
-        drawing: String(parsed.drawing ?? ''),
-      }
-    }
-  } catch {
-    // not JSON — treat as plain text below
-  }
-  return { text: value, converted: '', drawing: '' }
-}
-
-function serializeWrittenAnswer(text: string, converted: string, drawing: string): string {
-  if (converted || drawing) return JSON.stringify({ text, converted, drawing })
-  return text
+function AttachmentPreview({
+  attachment,
+  onRemove,
+}: {
+  attachment: NonNullable<WrittenAnswerValue['attachments']>[number]
+  onRemove: () => void
+}) {
+  return (
+    <div className="relative inline-block rounded-md border border-gray-200 bg-white p-2 align-top">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute -right-1.5 -top-1.5 rounded-full border border-gray-200 bg-white p-1 text-gray-500 shadow-sm hover:text-gray-700"
+        aria-label="Remove attachment"
+      >
+        <X className="h-3 w-3" />
+      </button>
+      {attachment.type === 'image' && attachment.url && (
+        <img
+          src={attachment.url}
+          alt={attachment.alt || 'Pasted image'}
+          className="max-h-40 max-w-full rounded"
+        />
+      )}
+      {attachment.type === 'table' && attachment.content && (
+        <div
+          className="max-w-xs overflow-auto sm:max-w-sm md:max-w-md"
+          dangerouslySetInnerHTML={{ __html: attachment.content }}
+        />
+      )}
+      {attachment.type === 'formula' && attachment.content && (
+        <div dangerouslySetInnerHTML={{ __html: attachment.content }} />
+      )}
+    </div>
+  )
 }
 
 function WrittenAnswer({
@@ -82,20 +92,36 @@ function WrittenAnswer({
   baseField: string
   wordLimit?: number | null
 }) {
-  const { text, converted, drawing } = parseWrittenAnswer(value)
+  const parsed = parseWrittenAnswer(value)
+  const { text, converted, drawing } = parsed
+  const attachments = parsed.attachments ?? []
   const [showDraw, setShowDraw] = useState(!!drawing || !!converted)
   const [converting, setConverting] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const valueRef = useRef(value)
+
+  useLayoutEffect(() => {
+    valueRef.current = value
+  }, [value])
+
+  const setValue = useCallback(
+    (
+      patchOrFn:
+        | Partial<WrittenAnswerValue>
+        | ((current: WrittenAnswerValue) => Partial<WrittenAnswerValue>)
+    ) => {
+      const current = parseWrittenAnswer(valueRef.current)
+      const patch = typeof patchOrFn === 'function' ? patchOrFn(current) : patchOrFn
+      onInteract()
+      onValueChange(serializeWrittenAnswer({ ...current, ...patch }))
+    },
+    [onInteract, onValueChange]
+  )
 
   const wordCount = useMemo(() => {
     if (!text.trim()) return 0
     return text.trim().split(/\s+/).length
   }, [text])
-
-  const update = (nextText: string, nextConverted: string, nextDrawing: string) => {
-    onInteract()
-    onValueChange(serializeWrittenAnswer(nextText, nextConverted, nextDrawing))
-  }
 
   // Auto-grow the textarea to fit content without a scrollbar.
   useLayoutEffect(() => {
@@ -125,7 +151,7 @@ function WrittenAnswer({
         toast.info('No handwriting to convert.')
         return
       }
-      update(text, newText, drawing)
+      setValue({ converted: newText })
       toast.success('Handwriting converted — see the preview below.')
     } catch {
       toast.error('Failed to convert handwriting')
@@ -134,6 +160,39 @@ function WrittenAnswer({
     }
   }
 
+  const handlePaste = useCallback(
+    async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const handled = await handleRichPaste(e, {
+        onImage: async file => {
+          try {
+            const url = await uploadPastedImage(file)
+            setValue(current => ({
+              attachments: [...(current.attachments ?? []), { type: 'image', url, alt: file.name }],
+            }))
+            toast.success('Image attached.')
+          } catch {
+            toast.error('Failed to upload pasted image.')
+          }
+        },
+        onTable: html => {
+          setValue(current => ({
+            attachments: [...(current.attachments ?? []), { type: 'table', content: html }],
+          }))
+        },
+        onFormula: svg => {
+          setValue(current => ({
+            attachments: [...(current.attachments ?? []), { type: 'formula', content: svg }],
+          }))
+        },
+      })
+      if (!handled) {
+        // Let the browser perform its default plain-text paste.
+        return
+      }
+    },
+    [setValue]
+  )
+
   return (
     <div className="space-y-1.5">
       <div className="relative">
@@ -141,7 +200,8 @@ function WrittenAnswer({
           ref={textareaRef}
           value={text}
           onFocus={onInteract}
-          onChange={e => update(e.target.value, converted, drawing)}
+          onChange={e => setValue({ text: e.target.value })}
+          onPaste={handlePaste}
           placeholder={placeholder}
           rows={multiline ? 4 : 2}
           className={cn(
@@ -173,7 +233,7 @@ function WrittenAnswer({
             </span>
             <button
               type="button"
-              onClick={() => update(text, '', drawing)}
+              onClick={() => setValue({ converted: '' })}
               className="text-[11px] font-medium text-gray-500 hover:text-gray-700"
             >
               Clear
@@ -183,11 +243,27 @@ function WrittenAnswer({
         </div>
       )}
 
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {attachments.map((attachment, idx) => (
+            <AttachmentPreview
+              key={`${attachment.type}-${idx}`}
+              attachment={attachment}
+              onRemove={() =>
+                setValue({
+                  attachments: attachments.filter((_, i) => i !== idx),
+                })
+              }
+            />
+          ))}
+        </div>
+      )}
+
       {showDraw ? (
         <div className="space-y-1.5">
           <DrawingPad
             value={drawing || undefined}
-            onChange={d => update(text, converted, d)}
+            onChange={d => setValue({ drawing: d })}
             onInteract={onInteract}
           />
           {drawing && (

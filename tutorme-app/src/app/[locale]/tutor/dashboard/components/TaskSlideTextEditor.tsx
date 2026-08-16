@@ -3,6 +3,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useCallback } from 'react'
 import { cn } from '@/lib/utils'
 import { sanitizeSlideHtml, isSlideHtml } from './sanitize-slide-html'
+import {
+  handleRichPaste,
+  uploadPastedImage,
+  insertHtmlAtCaret,
+  escapeHtml,
+} from '@/lib/paste/rich-paste'
 
 export interface TaskSlideTextEditorRef {
   applyFormat: (format: { fontFamily?: string; fontSize?: number; color?: string }) => boolean
@@ -151,11 +157,47 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
       [readOnly, emitHtml]
     )
 
-    const handlePaste = useCallback((e: React.ClipboardEvent) => {
-      e.preventDefault()
-      const text = e.clipboardData.getData('text/plain')
-      document.execCommand('insertText', false, text)
-    }, [])
+    const handlePaste = useCallback(
+      async (e: React.ClipboardEvent) => {
+        const handled = await handleRichPaste(e, {
+          onImage: async file => {
+            try {
+              const url = await uploadPastedImage(file)
+              insertHtmlAtCaret(
+                `<img src="${escapeHtml(url)}" alt="${escapeHtml(file.name)}" style="max-width:100%">`
+              )
+              emitHtml()
+            } catch (err) {
+              console.error('Failed to upload pasted image', err)
+            }
+          },
+          onTable: html => {
+            insertHtmlAtCaret(html)
+            emitHtml()
+          },
+          onFormula: svg => {
+            insertHtmlAtCaret(svg)
+            emitHtml()
+          },
+          onHtml: html => {
+            insertHtmlAtCaret(html)
+            emitHtml()
+          },
+          onText: text => {
+            document.execCommand('insertText', false, text)
+            emitHtml()
+          },
+        })
+
+        if (!handled) {
+          e.preventDefault()
+          const text = e.clipboardData.getData('text/plain')
+          document.execCommand('insertText', false, text)
+          emitHtml()
+        }
+      },
+      [emitHtml]
+    )
 
     const isEmpty = !html || html.replace(/<[^>]+>/g, '').trim() === ''
 
