@@ -83,6 +83,32 @@ function wordCount(s: string): number {
   return s ? s.split(' ').filter(Boolean).length : 0
 }
 
+/**
+ * Extract the typed text from an answer value, and flag whether the answer
+ * contains non-text content (drawing, converted handwriting, or pasted attachments)
+ * that should be sent to a tutor for review.
+ */
+function extractAnswerText(raw: string): { text: string; hasRichContent: boolean } {
+  if (!raw) return { text: '', hasRichContent: false }
+  if (raw.startsWith('data:image')) return { text: '', hasRichContent: true }
+  if (!raw.startsWith('{')) return { text: raw, hasRichContent: false }
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const text = typeof parsed.text === 'string' ? parsed.text : ''
+      const hasDrawing =
+        typeof parsed.drawing === 'string' && parsed.drawing.startsWith('data:image')
+      const hasConverted = typeof parsed.converted === 'string' && parsed.converted.length > 0
+      const hasAttachments = Array.isArray(parsed.attachments) && parsed.attachments.length > 0
+      return { text, hasRichContent: hasDrawing || hasConverted || hasAttachments }
+    }
+  } catch {
+    // not JSON — fall through to plain text
+  }
+  return { text: raw, hasRichContent: false }
+}
+
 export function autoGradeDmi(
   items: DmiAnswerItem[] | null | undefined,
   answers: Record<string, string> | null | undefined
@@ -103,14 +129,14 @@ export function autoGradeDmi(
   }
 
   let correct = 0
-  let counted = 0 // items that contribute to the score (correct or confidently wrong)
   let needsReview = 0
   let pointsEarned = 0 // weighted sum of marks earned over counted items
   let pointsPossible = 0 // weighted sum of marks available over counted items
   const questionResults: AutoGradeQuestionResult[] = []
   for (const item of gradable) {
     const rawGiven = given[item.id] ?? ''
-    const g = normalize(rawGiven)
+    const { text: answerText, hasRichContent } = extractAnswerText(String(rawGiven))
+    const g = normalize(answerText)
     const expected = normalize(item.answer)
     // Accept the canonical answer plus any marking-scheme variant. A variant
     // matches the same way as the canonical answer (exact normalized match, or
@@ -122,14 +148,10 @@ export function autoGradeDmi(
         : []),
     ].filter(Boolean)
     const matched = g.length > 0 && accepted.some(a => g === a || ` ${g} `.includes(` ${a} `))
-    // An answer carrying a drawing (a bare PNG data URL or a {drawing} blob) or
-    // converted handwriting can't be reliably auto-matched, so always send it to
-    // the tutor for review instead of marking it wrong.
-    const rawGivenStr = String(rawGiven)
-    const isDrawn =
-      rawGivenStr.startsWith('data:image') ||
-      rawGivenStr.includes('"drawing":"data:image') ||
-      /"converted":"[^"]/.test(rawGivenStr)
+    // An answer carrying a drawing (a bare PNG data URL or a {drawing} blob),
+    // converted handwriting, or pasted attachments can't be reliably auto-matched,
+    // so always send it to the tutor for review instead of marking it wrong.
+    const isDrawn = hasRichContent
     // Open-ended (long-key) items that weren't reproduced can't be auto-judged —
     // exclude and flag rather than penalize a possible paraphrase.
     const review = !matched && (isDrawn || wordCount(expected) > SHORT_ANSWER_MAX_WORDS)
@@ -139,7 +161,6 @@ export function autoGradeDmi(
     if (review) {
       needsReview += 1
     } else {
-      counted += 1
       pointsPossible += marks
       if (matched) pointsEarned += marks
     }
