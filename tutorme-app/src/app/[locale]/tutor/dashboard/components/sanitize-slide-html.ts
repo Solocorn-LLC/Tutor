@@ -51,6 +51,7 @@ const IMG_STYLES = new Set([
   'float',
   'border',
   'border-radius',
+  'transform',
 ])
 const SVG_STYLES = new Set([
   'fill',
