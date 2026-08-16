@@ -14,7 +14,7 @@ import {
   tutorApplication,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, inArray, desc, sql } from 'drizzle-orm'
+import { eq, and, inArray, desc } from 'drizzle-orm'
 import { getTutorRating } from '@/lib/one-on-one/reviews'
 
 export async function GET(
@@ -171,27 +171,40 @@ export async function GET(
     )
 
     // Fetch live-session counts so the public page can categorize courses the same
-    // way the tutor My Page does.
-    const liveSessionCounts =
+    // way the tutor My Page does. A session counts as completed when it is
+    // explicitly ended, has an endedAt timestamp, or its scheduled time block has
+    // elapsed and it is still in an open status.
+    const liveSessionRows =
       courseIds.length > 0
         ? await drizzleDb
             .select({
               courseId: liveSession.courseId,
-              total: sql<number>`count(*)::int`.as('total'),
-              completed:
-                sql<number>`count(*) filter (where ${liveSession.status} = 'ended')::int`.as(
-                  'completed'
-                ),
+              status: liveSession.status,
+              endedAt: liveSession.endedAt,
+              scheduledAt: liveSession.scheduledAt,
+              durationMinutes: liveSession.durationMinutes,
             })
             .from(liveSession)
             .where(inArray(liveSession.courseId, courseIds))
-            .groupBy(liveSession.courseId)
         : []
 
-    const liveSessionCountMap = liveSessionCounts.reduce(
+    const OPEN_STATUSES = ['active', 'live', 'preparing', 'paused'] as const
+    const nowMs = Date.now()
+    const liveSessionCountMap = liveSessionRows.reduce(
       (acc, row) => {
         if (!row.courseId) return acc
-        acc[row.courseId] = { total: row.total, completed: row.completed }
+        const existing = acc[row.courseId] ?? { total: 0, completed: 0 }
+        existing.total++
+        const scheduledMs = row.scheduledAt ? new Date(row.scheduledAt).getTime() : null
+        const duration = row.durationMinutes ?? 60
+        const isTimeElapsed =
+          scheduledMs != null &&
+          OPEN_STATUSES.includes(row.status as (typeof OPEN_STATUSES)[number]) &&
+          scheduledMs + duration * 60_000 <= nowMs
+        if (row.status === 'ended' || row.endedAt != null || isTimeElapsed) {
+          existing.completed++
+        }
+        acc[row.courseId] = existing
         return acc
       },
       {} as Record<string, { total: number; completed: number }>
@@ -242,6 +255,11 @@ export async function GET(
         scheduleArray.length > 0 ? `${scheduleArray.length} time slot(s)` : null
       const liveCounts = liveSessionCountMap[c.courseId] || { total: 0, completed: 0 }
 
+      const total = liveCounts.total
+      const completed = liveCounts.completed
+      const enrollmentStatus: 'ongoing' | 'active' | 'ended' =
+        total > 0 && completed >= total ? 'ended' : completed > 0 ? 'active' : 'ongoing'
+
       return {
         id: c.courseId,
         name: c.name,
@@ -264,7 +282,7 @@ export async function GET(
         variantCategory: c.variantCategory,
         liveSessionsTotal: liveCounts.total,
         liveSessionsCompleted: liveCounts.completed,
-        enrollmentStatus: 'ongoing' as const,
+        enrollmentStatus,
       }
     })
 

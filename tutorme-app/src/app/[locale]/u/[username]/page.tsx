@@ -105,7 +105,7 @@ interface PublicTutorResponse {
     schedule?: any[]
     liveSessionsTotal?: number
     liveSessionsCompleted?: number
-    enrollmentStatus?: 'ongoing' | 'ended'
+    enrollmentStatus?: 'ongoing' | 'active' | 'ended'
     startDate?: string | null
   }>
   demoClasses: Array<{
@@ -946,14 +946,19 @@ export default function PublicTutorPage() {
                               variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
                               className={cn(
                                 'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
-                                enrollmentStatus === 'ongoing'
-                                  ? 'border-transparent bg-emerald-600 text-white hover:bg-emerald-600'
-                                  : 'border-[rgba(255,255,255,0.2)] text-slate-300'
+                                enrollmentStatus === 'ongoing' &&
+                                  'border-transparent bg-emerald-600 text-white hover:bg-emerald-600',
+                                enrollmentStatus === 'active' &&
+                                  'border-transparent bg-blue-600 text-white hover:bg-blue-600',
+                                enrollmentStatus === 'ended' &&
+                                  'border-[rgba(255,255,255,0.2)] text-slate-300'
                               )}
                             >
                               {enrollmentStatus === 'ended'
                                 ? 'Enrollment ended'
-                                : 'Enrollment ongoing'}
+                                : enrollmentStatus === 'active'
+                                  ? 'Active'
+                                  : 'Enrollment ongoing'}
                             </Badge>
                           </div>
                         </div>
@@ -1015,14 +1020,19 @@ export default function PublicTutorPage() {
                             variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
                             className={cn(
                               'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
-                              enrollmentStatus === 'ongoing'
-                                ? 'border-transparent bg-emerald-600 text-white hover:bg-emerald-600'
-                                : 'border-[rgba(255,255,255,0.2)] text-slate-300'
+                              enrollmentStatus === 'ongoing' &&
+                                'border-transparent bg-emerald-600 text-white hover:bg-emerald-600',
+                              enrollmentStatus === 'active' &&
+                                'border-transparent bg-blue-600 text-white hover:bg-blue-600',
+                              enrollmentStatus === 'ended' &&
+                                'border-[rgba(255,255,255,0.2)] text-slate-300'
                             )}
                           >
                             {enrollmentStatus === 'ended'
                               ? 'Enrollment ended'
-                              : 'Enrollment ongoing'}
+                              : enrollmentStatus === 'active'
+                                ? 'Active'
+                                : 'Enrollment ongoing'}
                           </Badge>
                           {course.isFree ? (
                             <span className="text-[13px] font-bold text-emerald-400">Free</span>
