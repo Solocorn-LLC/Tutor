@@ -87,7 +87,7 @@ export function UpcomingOneOnOneCard({
             variant="outline"
             className="border-blue-200 bg-blue-100 text-[10px] uppercase tracking-wide text-blue-700"
           >
-            1-on-1
+            Booking
           </Badge>
           <span className="truncate text-sm font-semibold text-slate-900">
             {studentDisplayName(request.student)}
