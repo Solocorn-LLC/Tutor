@@ -26,6 +26,8 @@ import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
 import { findAlternativeSlots as sharedFindAlternativeSlots } from '@/lib/schedule/conflicts'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
+import { collectFileKeys } from '@/lib/services/course-builder.service'
+import { fileExists } from '@/lib/storage/service'
 
 // GET current variants for this template course
 export const GET = withAuth(
@@ -337,6 +339,32 @@ export const POST = withCsrf(
           .from(courseLesson)
           .where(eq(courseLesson.courseId, templateCourseId))
           .orderBy(courseLesson.order)
+
+        // Storage health check: every file referenced by the course must exist
+        // before we publish. Missing files break PDFs/tasks for enrolled students.
+        const fileKeys = collectFileKeys(templateLessons.map(l => l.builderData))
+        const missingFiles: string[] = []
+        for (const key of fileKeys) {
+          try {
+            const exists = await fileExists(key)
+            if (!exists) missingFiles.push(key)
+          } catch (err) {
+            console.error('[publish] storage check failed for key:', key, err)
+            missingFiles.push(key)
+          }
+        }
+        if (missingFiles.length > 0) {
+          return NextResponse.json(
+            {
+              error: 'Missing storage files',
+              message:
+                'One or more referenced files could not be found in storage. ' +
+                'Restore or replace them before publishing.',
+              missingFiles,
+            },
+            { status: 400 }
+          )
+        }
 
         const now = new Date()
         const result: Array<{

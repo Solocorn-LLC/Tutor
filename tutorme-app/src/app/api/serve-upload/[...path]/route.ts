@@ -74,18 +74,18 @@ export const GET = withAuth(async (request: NextRequest, session: any, context: 
     // public-access-prevention). Stream the bytes back SAME-ORIGIN rather than
     // redirecting to a cross-origin signed URL: redirects break browser PDF viewers
     // (pdf.js range requests hit CORS on the GCS host). Access was authorized above.
+    const gcsRelativePath = pathSegments.join('/')
     try {
       const { isGcsConfigured } = await import('@/lib/storage/gcs')
       if (isGcsConfigured()) {
         const { readFileBuffer } = await import('@/lib/storage/service')
-        const key = pathSegments.join('/')
-        const buf = await readFileBuffer(key)
+        const buf = await readFileBuffer(gcsRelativePath)
         if (buf) {
           // Note: no Accept-Ranges header, so pdf.js fetches the whole file in one
           // same-origin request instead of issuing cross-origin range requests.
           return new NextResponse(new Uint8Array(buf), {
             headers: {
-              'Content-Type': getContentType(key),
+              'Content-Type': getContentType(gcsRelativePath),
               'Content-Length': String(buf.length),
               'Cache-Control': 'private, max-age=3600',
               'Content-Disposition': 'inline',
@@ -93,8 +93,9 @@ export const GET = withAuth(async (request: NextRequest, session: any, context: 
           })
         }
       }
+      console.warn('[serve-upload] File not found in local or GCS storage:', gcsRelativePath)
     } catch (gcsError) {
-      console.error('[serve-upload] GCS resolution failed:', gcsError)
+      console.error('[serve-upload] GCS resolution failed for:', gcsRelativePath, gcsError)
     }
 
     return new NextResponse('File not found', { status: 404 })

@@ -24,6 +24,10 @@ interface PDFViewerProps {
   className?: string
   defaultScale?: number
   onHidePreview?: () => void
+  /** Called when the user clicks the Restore button in the error state.
+   *  Receives the last server-side storage verification result so the parent
+   *  can either retry the original document or offer a replacement. */
+  onRestore?: (result: { found: boolean; checkedKey?: string | null; reason?: string }) => void
   /** When true, the PDF page is scaled to fit the container width on load,
    *  with the zoom slider operating relative to this fit scale (100% = fit). */
   fitToWidth?: boolean
@@ -46,6 +50,7 @@ export function PDFViewer({
   className = '',
   defaultScale = 1.0,
   onHidePreview,
+  onRestore,
   fitToWidth = false,
   fitToScreen = false,
 }: PDFViewerProps) {
@@ -56,6 +61,12 @@ export function PDFViewer({
   const [loading, setLoading] = useState<boolean>(true)
   const [useFallback, setUseFallback] = useState<boolean>(false)
   const [pdfData, setPdfData] = useState<string | ArrayBuffer | null>(null)
+  const [verifyResult, setVerifyResult] = useState<{
+    checkedKey?: string | null
+    found: boolean
+    reason?: string
+  } | null>(null)
+  const [verifying, setVerifying] = useState(false)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   // Fit-to-width state
@@ -119,7 +130,8 @@ export function PDFViewer({
   // Fetch PDF through proxy so expired GCS URLs get refreshed server-side.
   // A durable fileKey is enough on its own — the by-key proxy streams the
   // object directly — so don't require a (possibly empty/expired) fileUrl.
-  const hasKey = typeof fileKey === 'string' && /^(documents|assets|resources)\//.test(fileKey)
+  const hasKey =
+    typeof fileKey === 'string' && /^(documents|assets|resources|messages)\//.test(fileKey)
   useEffect(() => {
     if ((!fileUrl && !hasKey) || isBlobUrl) return
 
@@ -127,6 +139,7 @@ export function PDFViewer({
     setLoading(true)
     setError(null)
     setPdfData(null)
+    setVerifyResult(null)
     hasSetInitialScaleRef.current = false
     setFitScale(null)
     setPageNaturalWidth(null)
@@ -187,6 +200,38 @@ export function PDFViewer({
       cancelled = true
     }
   }, [fileUrl, fileKey, hasKey, isBlobUrl])
+
+  // When a fetch error occurs, ask the server to diagnose which storage key was
+  // actually checked and whether the object exists under any recoverable key.
+  useEffect(() => {
+    if (!error || isBlobUrl) return
+    let cancelled = false
+    setVerifying(true)
+    fetch('/api/tutor/documents/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ fileUrl, fileKey }),
+    })
+      .then(r => r.json().catch(() => null))
+      .then(data => {
+        if (cancelled || !data) return
+        setVerifyResult({
+          checkedKey: data.checkedKey,
+          found: !!data.found,
+          reason: data.reason,
+        })
+      })
+      .catch(err => {
+        console.error('[PDFViewer] verify failed:', err)
+      })
+      .finally(() => {
+        if (!cancelled) setVerifying(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [error, fileUrl, fileKey, isBlobUrl])
 
   // Always render every page in a continuous scroll view, regardless of length.
   const isScrollMode = numPages > 0
@@ -260,7 +305,16 @@ export function PDFViewer({
       {error && !loading && !isBlobUrl && (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
           <p className="max-w-md text-sm text-red-600">Failed to load PDF: {error}</p>
-          <div className="flex gap-2">
+          {verifying ? (
+            <p className="text-xs text-gray-500">Checking storage…</p>
+          ) : verifyResult ? (
+            <p className="max-w-md text-xs text-gray-600">
+              {verifyResult.found
+                ? `Document found in storage${verifyResult.checkedKey ? ` (${verifyResult.checkedKey})` : ''}. Try Retry.`
+                : verifyResult.reason || 'Document not found in storage.'}
+            </p>
+          ) : null}
+          <div className="flex flex-wrap justify-center gap-2">
             <button
               onClick={() => {
                 setError(null)
@@ -271,6 +325,22 @@ export function PDFViewer({
             >
               Retry
             </button>
+            {onRestore && (
+              <button
+                onClick={() =>
+                  onRestore(
+                    verifyResult ?? {
+                      found: false,
+                      reason: 'Document not found in storage.',
+                    }
+                  )
+                }
+                disabled={verifying}
+                className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Restore
+              </button>
+            )}
             <button
               onClick={() => setUseFallback(true)}
               className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"

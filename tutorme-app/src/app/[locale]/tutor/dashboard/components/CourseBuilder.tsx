@@ -953,6 +953,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [assetsViewOpen, setAssetsViewOpen] = useState(false)
     const [isDraggingFromModal, setIsDraggingFromModal] = useState(false)
     const [assetPickerTarget, setAssetPickerTarget] = useState<'task' | 'assessment' | null>(null)
+    const [pdfRestoreKey, setPdfRestoreKey] = useState(0)
     const [assetViewSearch, setAssetViewSearch] = useState('')
     const [assetViewFolder, setAssetViewFolder] = useState<string>('All')
     type WhiteboardPages = NonNullable<ComponentProps<typeof EnhancedWhiteboard>['pages']>
@@ -8125,6 +8126,34 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       pendingAutoGenDmiRef.current = asset.fileKey || asset.url || null
     }
 
+    const handleRestoreDocument = useCallback(
+      ({
+        found,
+        checkedKey,
+        reason,
+      }: {
+        found: boolean
+        checkedKey?: string | null
+        reason?: string
+      }) => {
+        if (found) {
+          toast.success(
+            checkedKey
+              ? `Retrying original document (${checkedKey})…`
+              : 'Retrying original document…'
+          )
+          setPdfRestoreKey(prev => prev + 1)
+          return
+        }
+
+        toast.error(reason || 'Original document not found in storage. Replace it from Assets.')
+        const source = mainBuilderTab === 'assessment' ? 'assessment' : 'task'
+        setAssetPickerTarget(source)
+        setAssetsViewOpen(true)
+      },
+      [mainBuilderTab]
+    )
+
     const handleLoadAsset = (
       asset: {
         name: string
@@ -13550,11 +13579,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   })()
                                                 ) : doc?.fileUrl || doc?.fileKey ? (
                                                   <PDFViewer
-                                                    key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                    key={`${doc.fileUrl || doc.fileKey || 'doc'}-${pdfRestoreKey}`}
                                                     fileUrl={doc.fileUrl || ''}
                                                     fileKey={doc.fileKey}
                                                     className="absolute inset-0 h-full w-full"
                                                     fitToWidth
+                                                    onRestore={handleRestoreDocument}
                                                   />
                                                 ) : (
                                                   <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
@@ -13584,11 +13614,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <div className="relative h-full w-full pr-1">
                                                     {doc?.fileUrl || doc?.fileKey ? (
                                                       <PDFViewer
-                                                        key={doc.fileUrl || doc.fileKey || 'doc'}
+                                                        key={`${doc.fileUrl || doc.fileKey || 'doc'}-${pdfRestoreKey}`}
                                                         fileUrl={doc.fileUrl || ''}
                                                         fileKey={doc.fileKey}
                                                         className="absolute inset-0 h-full w-full"
                                                         fitToWidth
+                                                        onRestore={handleRestoreDocument}
                                                       />
                                                     ) : (
                                                       <p className="text-muted-foreground absolute inset-0 h-full w-full overflow-y-auto whitespace-pre-wrap p-2 text-sm">
@@ -14544,11 +14575,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         currentTaskDocument?.mimeType ===
                                                           'application/pdf')) ? (
                                                       <PDFViewer
-                                                        key={
+                                                        key={`${
                                                           currentTaskDocument.fileUrl ||
                                                           currentTaskDocument.fileKey ||
                                                           'task-doc'
-                                                        }
+                                                        }-${pdfRestoreKey}`}
                                                         fileUrl={currentTaskDocument.fileUrl || ''}
                                                         fileKey={currentTaskDocument.fileKey}
                                                         className="absolute inset-0 h-full w-full"
@@ -14558,6 +14589,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             setTaskTextVisible(true)
                                                           setTaskPdfVisible(false)
                                                         }}
+                                                        onRestore={handleRestoreDocument}
                                                       />
                                                     ) : currentTaskDocument &&
                                                       currentTaskDocument.mimeType !==
@@ -14915,11 +14947,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     currentAssessmentDocument?.mimeType ===
                                                       'application/pdf')) ? (
                                                   <PDFViewer
-                                                    key={
+                                                    key={`${
                                                       currentAssessmentDocument.fileUrl ||
                                                       currentAssessmentDocument.fileKey ||
                                                       'assessment-doc'
-                                                    }
+                                                    }-${pdfRestoreKey}`}
                                                     fileUrl={
                                                       currentAssessmentDocument.fileUrl || ''
                                                     }
@@ -14931,6 +14963,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         setAssessmentTextVisible(true)
                                                       setAssessmentPdfVisible(false)
                                                     }}
+                                                    onRestore={handleRestoreDocument}
                                                   />
                                                 ) : currentAssessmentDocument &&
                                                   currentAssessmentDocument.mimeType !==
@@ -16997,10 +17030,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">
               {liveDocPopup?.fileUrl || liveDocPopup?.fileKey ? (
                 <PDFViewer
+                  key={`${liveDocPopup?.fileUrl || liveDocPopup?.fileKey || 'live-doc'}-${pdfRestoreKey}`}
                   fileUrl={liveDocPopup?.fileUrl || ''}
                   fileKey={liveDocPopup?.fileKey ?? undefined}
                   className="h-full w-full"
                   fitToScreen
+                  onRestore={handleRestoreDocument}
                 />
               ) : (
                 <p className="text-muted-foreground h-full overflow-y-auto whitespace-pre-wrap p-4 text-sm">

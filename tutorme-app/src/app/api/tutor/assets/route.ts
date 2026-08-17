@@ -9,14 +9,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { tutorAsset } from '@/lib/db/schema'
-import { eq, and, inArray } from 'drizzle-orm'
+import { tutorAsset, course, courseLesson } from '@/lib/db/schema'
+import { eq, and, inArray, isNull } from 'drizzle-orm'
 import {
   deleteObject,
   extractGcsKeyFromPublicUrl,
   isGcsConfigured,
   refreshGcsUrl,
 } from '@/lib/storage/gcs'
+import { collectFileKeys } from '@/lib/services/course-builder.service'
 
 interface Asset {
   id: string
@@ -205,6 +206,30 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+/**
+ * Collect storage keys still referenced by this tutor's published courses.
+ * A file that appears in any published course's builderData must not be deleted,
+ * because students enrolled in that course still need it.
+ */
+async function collectPublishedReferencedKeys(tutorId: string): Promise<Set<string>> {
+  const referenced = new Set<string>()
+  const rows = await drizzleDb
+    .select({ builderData: courseLesson.builderData })
+    .from(courseLesson)
+    .innerJoin(course, eq(courseLesson.courseId, course.courseId))
+    .where(
+      and(
+        eq(course.creatorId, tutorId),
+        eq(course.isPublished, true),
+        isNull(courseLesson.deletedAt)
+      )
+    )
+  for (const key of collectFileKeys(rows.map(r => r.builderData))) {
+    referenced.add(key)
+  }
+  return referenced
+}
+
 // ---- DELETE — Delete a specific asset ----
 
 export async function DELETE(req: NextRequest) {
@@ -223,10 +248,31 @@ export async function DELETE(req: NextRequest) {
 
   try {
     const [assetRow] = await drizzleDb
-      .select({ url: tutorAsset.url })
+      .select({ url: tutorAsset.url, fileKey: tutorAsset.fileKey, name: tutorAsset.name })
       .from(tutorAsset)
       .where(and(eq(tutorAsset.assetId, assetId), eq(tutorAsset.tutorId, tutorId)))
       .limit(1)
+
+    if (!assetRow) {
+      return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
+    }
+
+    // Determine the storage key for this asset.
+    const assetKey =
+      assetRow.fileKey || (assetRow.url ? extractGcsKeyFromPublicUrl(assetRow.url) : null)
+
+    // Prevent deletion if the asset is still referenced by a published course.
+    const publishedRefs = await collectPublishedReferencedKeys(tutorId)
+    if (assetKey && publishedRefs.has(assetKey)) {
+      return NextResponse.json(
+        {
+          error: 'Cannot delete — this file is used by a published course.',
+          reason: 'published-course-reference',
+          assetName: assetRow.name,
+        },
+        { status: 409 }
+      )
+    }
 
     if (assetRow?.url && isGcsConfigured()) {
       const key = extractGcsKeyFromPublicUrl(assetRow.url)
