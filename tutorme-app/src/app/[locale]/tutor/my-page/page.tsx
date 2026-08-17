@@ -6,7 +6,9 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { sanitizeHtmlWithMax } from '@/lib/security/sanitize'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Dialog,
   DialogContent,
@@ -174,6 +176,7 @@ interface DemoClass {
   title: string
   description?: string | null
   status: string
+  subject?: string | null
   sessionType?: string | null
   scheduledAt?: string | null
   createdAt?: string | null
@@ -353,169 +356,153 @@ function MyCoursesSection() {
   )
 
   const renderDemoClassRow = (demo: DemoClass) => {
-    const live = ['live', 'active', 'preparing'].includes(demo.status)
-    const isScheduled = demo.status === 'scheduled'
-    const formattedDate = demo.scheduledAt
-      ? new Date(demo.scheduledAt).toLocaleString()
-      : 'No schedule'
+    const subject = demo.subject || 'General'
     return (
       <div
         key={demo.id}
-        className="rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-lg border border-white/20 bg-[#65A30D] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
       >
-        <div className="flex items-stretch gap-4">
-          {/* Left: title + metadata */}
-          <div className="flex w-[220px] min-w-0 flex-col justify-center">
-            <div className="flex items-center gap-2">
-              <h4 className="truncate font-medium text-white">{demo.title || 'Demo Lesson'}</h4>
-              <span
-                className={cn(
-                  'rounded-full px-2 py-0.5 text-xs font-medium',
-                  live
-                    ? 'bg-emerald-50 text-emerald-600'
-                    : isScheduled
-                      ? 'bg-blue-50 text-blue-600'
-                      : 'bg-gray-100 text-gray-600'
-                )}
-              >
-                {live ? 'Live' : isScheduled ? 'Scheduled' : 'Ended'}
-              </span>
-            </div>
-            <p className="mt-0.5 text-xs text-slate-300">{formattedDate}</p>
-            {demo.enrolledStudents !== undefined && (
-              <p className="mt-0.5 text-xs text-slate-400">
-                {demo.enrolledStudents} enrolled
-                {demo.maxStudents ? ` / ${demo.maxStudents} max` : ''}
-              </p>
+        <div className="flex min-w-0 flex-col justify-center gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-semibold text-white">
+              {demo.title
+                ?.replace(/\s*[—-]\s*Live Session$/i, '')
+                .replace(/^Live Session\s*[—-]\s*/i, '')
+                .trim() || 'Demo Class'}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
+            <span>{subject}</span>
+            {(demo.createdAt || demo.scheduledAt) && (
+              <>
+                <span className="text-white/50">•</span>
+                <span className="text-white/70">
+                  Created{' '}
+                  {new Date((demo.createdAt || demo.scheduledAt)!).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+              </>
             )}
           </div>
+        </div>
 
-          {/* Middle: description */}
-          {demo.description ? (
-            <div className="flex min-w-0 flex-1 items-center">
-              <div className="w-full rounded-md bg-white p-3 text-sm text-[#36454F]">
-                {demo.description}
-              </div>
-            </div>
-          ) : (
-            <div className="flex min-w-0 flex-1 items-center">
-              <div className="w-full rounded-md border border-dashed border-white/30 p-3 text-sm text-slate-400">
-                No description provided.
-              </div>
-            </div>
-          )}
+        <div className="h-10 w-[480px] self-center rounded-md bg-white px-3 py-2">
+          <p className="line-clamp-1 text-xs text-gray-700">
+            {demo.description || 'No description'}
+          </p>
+        </div>
 
-          {/* Right: action buttons */}
-          <div className="flex w-[180px] shrink-0 items-center justify-end">
-            <div className="flex items-center divide-x divide-white/20">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.push(`/${locale}/call/${encodeURIComponent(demo.id)}`)}
-                className="text-slate-200 hover:bg-white/10 hover:text-white"
-              >
-                <Play className="mr-1 h-4 w-4" />
-                View
-              </Button>
-            </div>
-          </div>
+        <div className="flex flex-row items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => router.push(`/${locale}/call/${encodeURIComponent(demo.id)}`)}
+            className="border-transparent bg-white text-[#65A30D] transition-all duration-200 hover:border-transparent hover:bg-white/90 hover:text-[#65A30D]"
+          >
+            <Play className="mr-1 h-3 w-3" />
+            View
+          </Button>
         </div>
       </div>
     )
   }
 
   const renderCourseRow = (course: Course, tab: typeof activeTab) => {
-    const hasDesc = course.isPublished && course.description
     const showNationality = course.nationality && course.nationality !== 'Global'
+    const category = course.variantCategory || (course.categories || [])[0] || 'General'
+    const statusBadge =
+      tab === 'catalogued' ? (
+        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/90">
+          Catalogued
+        </span>
+      ) : course.isPublished ? (
+        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/90">
+          Published
+        </span>
+      ) : (
+        <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/90">
+          Draft
+        </span>
+      )
+
     return (
       <div
         key={course.id}
-        className="rounded-lg border border-white/20 bg-[#36454F] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+        className="flex flex-col gap-3 rounded-lg border border-slate-600 bg-slate-700 p-4 text-white shadow-sm transition-all duration-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
       >
-        <div className="flex items-stretch gap-4">
-          {/* Left: title + metadata */}
-          <div className="flex w-[220px] min-w-0 flex-col justify-center">
-            <div className="flex items-center gap-2">
-              <h4 className="truncate font-medium text-white">{course.name}</h4>
-              {tab === 'catalogued' ? (
-                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                  Catalogued
-                </span>
-              ) : course.isPublished ? (
-                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                  Published
-                </span>
-              ) : (
-                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-600">
-                  Draft
-                </span>
-              )}
-            </div>
+        {/* Left: course info */}
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className="border-white/20 bg-white/10 text-[10px] uppercase tracking-wide text-white"
+            >
+              Course
+            </Badge>
+            <span className="truncate text-sm font-semibold text-white">{course.name}</span>
+            {statusBadge}
+            <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] text-white/90">
+              {category}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
             {showNationality && (
-              <p className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-blue-400">
-                {course.variantCategory || (course.categories || [])[0] || 'General'} —{' '}
+              <span className="flex items-center gap-1">
                 <CountryFlag countryName={course.nationality} size="xs" showLabel />
-              </p>
+              </span>
             )}
-            <p className="mt-0.5 text-xs text-slate-300">
-              {showNationality
-                ? `${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`
-                : `${(course.categories || [])[0] || 'Untitled'} • ${course.studentCount || 0} students • Updated ${new Date(course.updatedAt).toLocaleDateString()}`}
-            </p>
+            <span>{course.studentCount || 0} students</span>
+            <span>•</span>
+            <span>Updated {new Date(course.updatedAt).toLocaleDateString()}</span>
             {tab === 'catalogued' && course.lastSessionDate && (
-              <p className="mt-0.5 text-xs text-slate-400">
-                Last session: {new Date(course.lastSessionDate).toLocaleDateString()}
-              </p>
+              <>
+                <span>•</span>
+                <span>Last session: {new Date(course.lastSessionDate).toLocaleDateString()}</span>
+              </>
             )}
           </div>
+        </div>
 
-          {/* Middle: description */}
-          {hasDesc ? (
-            <div className="flex min-w-0 flex-1 items-center">
-              <div className="w-full rounded-md bg-white p-3 text-sm text-[#36454F]">
-                {course.description}
-              </div>
-            </div>
-          ) : (
-            <div className="flex min-w-0 flex-1 items-center">
-              <div className="w-full rounded-md border border-dashed border-white/30 p-3 text-sm text-slate-400">
-                No description provided.
-              </div>
-            </div>
-          )}
+        {/* Middle: description */}
+        <div className="mx-4 hidden h-[44px] min-w-0 flex-1 flex-col justify-center rounded-md border border-slate-200 bg-white px-3 sm:flex">
+          <p className="line-clamp-2 text-xs text-slate-600">
+            {course.description?.trim() || 'No description'}
+          </p>
+        </div>
 
-          {/* Right: action buttons */}
-          <div className="flex w-[180px] shrink-0 items-center justify-end">
-            <div className="flex items-center divide-x divide-white/20">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  const prefix = window.location.pathname.replace(/\/tutor\/my-page\/?$/, '')
-                  router.push(`${prefix}/tutor/insights?tab=builder&courseId=${course.id}`)
-                }}
-                className="text-blue-400 hover:bg-white/10 hover:text-white"
-              >
-                <Edit3 className="mr-1 h-4 w-4" />
-                Edit
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={course.studentCount ? course.studentCount > 0 : false}
-                title={
-                  course.studentCount && course.studentCount > 0
-                    ? 'Cannot delete a course with enrolled students'
-                    : undefined
-                }
-                onClick={() => handleDeleteCourse(course)}
-                className="text-red-400 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Trash2 className="mr-1 h-4 w-4" />
-                Delete
-              </Button>
-            </div>
-          </div>
+        {/* Right: action buttons */}
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const prefix = window.location.pathname.replace(/\/tutor\/my-page\/?$/, '')
+              router.push(`${prefix}/tutor/insights?tab=builder&courseId=${course.id}`)
+            }}
+            className="border-slate-300 bg-white text-slate-700 transition-all duration-200 hover:border-white hover:bg-slate-800 hover:text-white"
+          >
+            <Edit3 className="mr-1 h-3 w-3" />
+            Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={course.studentCount ? course.studentCount > 0 : false}
+            title={
+              course.studentCount && course.studentCount > 0
+                ? 'Cannot delete a course with enrolled students'
+                : undefined
+            }
+            onClick={() => handleDeleteCourse(course)}
+            className="border border-red-400 bg-transparent text-red-400 transition-all duration-200 hover:bg-red-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Trash2 className="mr-1 h-3 w-3" />
+            Delete
+          </Button>
         </div>
       </div>
     )
@@ -1314,159 +1301,177 @@ export default function TutorMyPage() {
                 <ChevronDown className="h-4 w-4 text-white/70" />
               )}
             </div>
-            {profileSettingsOpen && (
-              <CardContent spacing="none" className="space-y-4 bg-white px-6 py-4">
-                <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
-                  <div className="flex min-h-[380px] flex-col gap-2 lg:min-h-0">
-                    <Label className="text-sm text-[#1F2933]">Bio</Label>
-                    <Textarea
-                      value={bio}
-                      onChange={e => {
-                        const val = e.target.value
-                        if (val.length <= 800) {
-                          setBio(val)
-                        }
-                      }}
-                      disabled={loading || saving}
-                      placeholder="Short bio for your public page..."
-                      maxLength={800}
-                      className="min-h-[280px] flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
-                    />
-                    <span
-                      className={
-                        bio.length > 800
-                          ? 'text-xs font-medium text-red-500'
-                          : 'text-xs text-slate-400'
-                      }
-                    >
-                      {bio.length}/800
-                    </span>
-                  </div>
-
-                  <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
-                    <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
-                    <div className="grid gap-2.5 md:grid-cols-2">
-                      <div className="flex items-center gap-2">
-                        <TikTokIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                          <Input
-                            placeholder="username"
-                            value={socialAccounts.tiktok.replace(/^@+/, '')}
-                            onChange={e =>
-                              setSocialAccounts(prev => ({
-                                ...prev,
-                                tiktok: e.target.value.replace(/^@+/, ''),
-                              }))
+            <AnimatePresence initial={false}>
+              {profileSettingsOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="overflow-hidden"
+                >
+                  <CardContent spacing="none" className="space-y-4 bg-white px-6 py-4">
+                    <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
+                      <div className="flex min-h-[380px] flex-col gap-2 lg:min-h-0">
+                        <Label className="text-sm text-[#1F2933]">Bio</Label>
+                        <Textarea
+                          value={bio}
+                          onChange={e => {
+                            const val = e.target.value
+                            if (val.length <= 800) {
+                              setBio(val)
                             }
-                            disabled={loading || saving}
-                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          />
-                        </div>
+                          }}
+                          disabled={loading || saving}
+                          placeholder="Short bio for your public page..."
+                          maxLength={800}
+                          className="min-h-[280px] flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
+                        />
+                        <span
+                          className={
+                            bio.length > 800
+                              ? 'text-xs font-medium text-red-500'
+                              : 'text-xs text-slate-400'
+                          }
+                        >
+                          {bio.length}/800
+                        </span>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <Youtube className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                          <Input
-                            placeholder="username"
-                            value={socialAccounts.youtube.replace(/^@+/, '')}
-                            onChange={e =>
-                              setSocialAccounts(prev => ({
-                                ...prev,
-                                youtube: e.target.value.replace(/^@+/, ''),
-                              }))
-                            }
-                            disabled={loading || saving}
-                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          />
-                        </div>
-                      </div>
+                      <div className="flex min-h-[250px] flex-col gap-2 lg:min-h-0">
+                        <Label className="text-sm text-[#1F2933]">Edit Social Media</Label>
+                        <div className="grid gap-2.5 md:grid-cols-2">
+                          <div className="flex items-center gap-2">
+                            <TikTokIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                            <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                              <span className="inline-flex items-center pl-3 text-[#64748B]">
+                                @
+                              </span>
+                              <Input
+                                placeholder="username"
+                                value={socialAccounts.tiktok.replace(/^@+/, '')}
+                                onChange={e =>
+                                  setSocialAccounts(prev => ({
+                                    ...prev,
+                                    tiktok: e.target.value.replace(/^@+/, ''),
+                                  }))
+                                }
+                                disabled={loading || saving}
+                                className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <Instagram className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                          <Input
-                            placeholder="username"
-                            value={socialAccounts.instagram.replace(/^@+/, '')}
-                            onChange={e =>
-                              setSocialAccounts(prev => ({
-                                ...prev,
-                                instagram: e.target.value.replace(/^@+/, ''),
-                              }))
-                            }
-                            disabled={loading || saving}
-                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          />
-                        </div>
-                      </div>
+                          <div className="flex items-center gap-2">
+                            <Youtube className="h-9 w-9 shrink-0 text-[#64748B]" />
+                            <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                              <span className="inline-flex items-center pl-3 text-[#64748B]">
+                                @
+                              </span>
+                              <Input
+                                placeholder="username"
+                                value={socialAccounts.youtube.replace(/^@+/, '')}
+                                onChange={e =>
+                                  setSocialAccounts(prev => ({
+                                    ...prev,
+                                    youtube: e.target.value.replace(/^@+/, ''),
+                                  }))
+                                }
+                                disabled={loading || saving}
+                                className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <Facebook className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                          <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
-                            https://
-                          </span>
-                          <Input
-                            placeholder="username"
-                            value={socialAccounts.facebook.replace(/^@+/, '')}
-                            onChange={e =>
-                              setSocialAccounts(prev => ({
-                                ...prev,
-                                facebook: e.target.value.replace(/^@+/, ''),
-                              }))
-                            }
-                            disabled={loading || saving}
-                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          />
-                        </div>
-                      </div>
+                          <div className="flex items-center gap-2">
+                            <Instagram className="h-9 w-9 shrink-0 text-[#64748B]" />
+                            <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                              <span className="inline-flex items-center pl-3 text-[#64748B]">
+                                @
+                              </span>
+                              <Input
+                                placeholder="username"
+                                value={socialAccounts.instagram.replace(/^@+/, '')}
+                                onChange={e =>
+                                  setSocialAccounts(prev => ({
+                                    ...prev,
+                                    instagram: e.target.value.replace(/^@+/, ''),
+                                  }))
+                                }
+                                disabled={loading || saving}
+                                className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <XBrandIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                          <span className="inline-flex items-center pl-3 text-[#64748B]">@</span>
-                          <Input
-                            placeholder="username"
-                            value={socialAccounts.x.replace(/^@+/, '')}
-                            onChange={e =>
-                              setSocialAccounts(prev => ({
-                                ...prev,
-                                x: e.target.value.replace(/^@+/, ''),
-                              }))
-                            }
-                            disabled={loading || saving}
-                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          />
-                        </div>
-                      </div>
+                          <div className="flex items-center gap-2">
+                            <Facebook className="h-9 w-9 shrink-0 text-[#64748B]" />
+                            <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                              <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
+                                https://
+                              </span>
+                              <Input
+                                placeholder="username"
+                                value={socialAccounts.facebook.replace(/^@+/, '')}
+                                onChange={e =>
+                                  setSocialAccounts(prev => ({
+                                    ...prev,
+                                    facebook: e.target.value.replace(/^@+/, ''),
+                                  }))
+                                }
+                                disabled={loading || saving}
+                                className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <KakaoTalkIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
-                        <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
-                          <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
-                            https://
-                          </span>
-                          <Input
-                            value={socialAccounts.kakaoTalk.replace(/^@+/, '')}
-                            onChange={e =>
-                              setSocialAccounts(prev => ({
-                                ...prev,
-                                kakaoTalk: e.target.value.replace(/^@+/, ''),
-                              }))
-                            }
-                            disabled={loading || saving}
-                            className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                          />
+                          <div className="flex items-center gap-2">
+                            <XBrandIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                            <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                              <span className="inline-flex items-center pl-3 text-[#64748B]">
+                                @
+                              </span>
+                              <Input
+                                placeholder="username"
+                                value={socialAccounts.x.replace(/^@+/, '')}
+                                onChange={e =>
+                                  setSocialAccounts(prev => ({
+                                    ...prev,
+                                    x: e.target.value.replace(/^@+/, ''),
+                                  }))
+                                }
+                                disabled={loading || saving}
+                                className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <KakaoTalkIcon className="h-9 w-9 shrink-0 text-[#64748B]" />
+                            <div className="flex flex-1 rounded-md border border-[#E2E8F0] focus-within:outline-none focus-within:ring-0">
+                              <span className="inline-flex items-center pl-3 text-xs text-[#64748B]">
+                                https://
+                              </span>
+                              <Input
+                                value={socialAccounts.kakaoTalk.replace(/^@+/, '')}
+                                onChange={e =>
+                                  setSocialAccounts(prev => ({
+                                    ...prev,
+                                    kakaoTalk: e.target.value.replace(/^@+/, ''),
+                                  }))
+                                }
+                                disabled={loading || saving}
+                                className="border-0 pl-0 !outline-none !ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            )}
+                  </CardContent>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </Card>
         </div>
 
