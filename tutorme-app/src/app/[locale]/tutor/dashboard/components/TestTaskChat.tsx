@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2, CheckCircle2, X, RotateCcw } from 'lucide-react'
+import { Send, Loader2, CheckCircle2, X } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
@@ -339,16 +339,6 @@ export function TestTaskChat({
     }
   }
 
-  const reset = () => {
-    const emptyState: TestTaskChatState = { messages: [], draft: '', completed: false }
-    setMessages([])
-    setDraft('')
-    setCompleted(false)
-    onPersist?.(emptyState)
-    onReset?.()
-  }
-
-  const sendButtonBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
   const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
 
@@ -462,7 +452,7 @@ export function TestTaskChat({
 
       {/* Input area — chat composer for both classroom and student tabs. */}
       <div className="border-t border-gray-100 p-2">
-        <div className="flex items-end gap-2">
+        <div className={cn('flex gap-2', isClassroom ? 'items-center' : 'items-end')}>
           <textarea
             value={draft}
             onChange={e => setDraft(e.target.value)}
@@ -481,7 +471,12 @@ export function TestTaskChat({
                   ? 'Ask about this task…'
                   : 'Type a sample answer…'
             }
-            className="max-h-28 min-h-[40px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+            className={cn(
+              'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none',
+              isClassroom
+                ? 'border-2 border-[#F17623] focus:ring-2 focus:ring-[#F17623]/30'
+                : 'border border-gray-300 focus:ring-1 focus:ring-violet-400'
+            )}
           />
           <button
             type="button"
@@ -489,22 +484,14 @@ export function TestTaskChat({
             disabled={busy || !draft.trim()}
             title={isClassroom ? 'Send message' : completed ? 'Send' : 'Add answer'}
             className={cn(
-              'grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white transition-colors hover:opacity-90 disabled:opacity-40',
-              isClassroom ? sendButtonBg : 'bg-violet-600'
+              'grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
+              isClassroom
+                ? 'bg-[#FFF4EC] text-[#F17623] hover:bg-[#FFE8D6]'
+                : 'bg-violet-600 text-white hover:opacity-90'
             )}
           >
             <Send className="h-4 w-4" />
           </button>
-          {isClassroom && (
-            <button
-              type="button"
-              onClick={reset}
-              title="Restart"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full border-2 border-[#F17623] bg-[#F17623] text-white transition-colors hover:opacity-80"
-            >
-              <RotateCcw className="h-4 w-4" />
-            </button>
-          )}
         </div>
         {/* Task Complete button — only shown in test-student mode, not classroom */}
         {!isClassroom && (
