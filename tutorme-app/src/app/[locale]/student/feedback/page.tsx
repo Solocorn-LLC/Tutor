@@ -2783,73 +2783,80 @@ function StudentFeedbackContent() {
               <div className="h-8 w-0.5 rounded-full bg-slate-300" />
             </div>
 
-            <div className="sticky top-0 z-10 flex h-9 shrink-0 items-center justify-between rounded-t-[20px] bg-gradient-to-br from-[#F17623] to-[#D9651A] px-2 text-white">
-              <div className="flex w-full items-center gap-1">
-                <button
-                  type="button"
+            <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-2xl bg-gradient-to-br from-[#F17623] to-[#D9651A] px-4 text-sm font-semibold text-white">
+              Desk
+            </div>
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 pb-3 pt-4">
+              <div className="flex w-full items-center gap-2 rounded-lg bg-gray-100 p-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setRightPanelTab('lessons')}
                   className={cn(
-                    'relative h-6 flex-1 rounded-md px-1 text-[10px] font-medium transition-colors',
+                    'relative h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'lessons'
-                      ? 'bg-white text-[#9a4a12]'
-                      : 'text-white hover:bg-white/20'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   Lessons
                   {unseenTaskIds.length > 0 && (
-                    <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-blue-600 px-1 text-[8px] font-semibold text-white">
+                    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-semibold text-white">
                       {unseenTaskIds.length}
                     </span>
                   )}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setRightPanelTab('interactions')}
                   className={cn(
-                    'relative h-6 flex-1 rounded-md px-1 text-[10px] font-medium transition-colors',
+                    'relative h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'interactions'
-                      ? 'bg-white text-[#9a4a12]'
-                      : 'text-white hover:bg-white/20'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   Interact
                   {unansweredInteractCount > 0 && (
                     <span
-                      className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-blue-600 px-1 text-[8px] font-semibold text-white"
+                      className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-blue-600 px-1 text-[9px] font-semibold text-white"
                       title={`${unansweredInteractCount} unanswered`}
                     >
                       {unansweredInteractCount}
                     </span>
                   )}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() =>
                     setRightPanelTab(prev => (prev === 'dmi' ? 'interactions' : 'dmi'))
                   }
                   className={cn(
-                    'h-6 flex-1 rounded-md px-1 text-[10px] font-medium transition-colors',
+                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'dmi'
-                      ? 'bg-white text-[#9a4a12]'
-                      : 'text-white hover:bg-white/20'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   Assessment
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() =>
                     setRightPanelTab(prev => (prev === 'my-board' ? 'interactions' : 'my-board'))
                   }
                   className={cn(
-                    'h-6 flex-1 rounded-md px-1 text-[10px] font-medium transition-colors',
+                    'h-8 min-w-0 flex-1 rounded-md px-3 text-xs font-medium transition-all',
                     rightPanelTab === 'my-board'
-                      ? 'bg-white text-[#9a4a12]'
-                      : 'text-white hover:bg-white/20'
+                      ? 'bg-gray-800 text-white'
+                      : 'text-gray-500 hover:bg-white hover:text-gray-900'
                   )}
                 >
                   My Board
-                </button>
+                </Button>
               </div>
             </div>
 
