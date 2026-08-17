@@ -5724,6 +5724,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       if (isFirstTask) ensureSectionExpanded(nodeId, 'task')
       setEditingData(newTask)
       revealCurriculumItem('task', newTask.id)
+      loadTaskIntoBuilder(newTask)
+      setMainBuilderTab('task')
+      setSelectedItem({ type: 'task', id: newTask.id })
       setActiveModal({ type: 'task', isOpen: true, nodeId, lessonId })
     }
 
@@ -5766,6 +5769,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCourseBuilderNodes(newCourseBuilderNodes)
       if (isFirstAssessment) ensureSectionExpanded(nodeId, 'assessment')
       revealCurriculumItem('homework', newAssessment.id)
+      loadAssessmentIntoBuilder(newAssessment)
+      setMainBuilderTab('assessment')
+      setSelectedItem({ type: 'homework', id: newAssessment.id })
       // Just add to list without opening modal - same as addTask behavior
       toast.success('Assessment added')
     }
