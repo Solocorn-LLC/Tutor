@@ -115,15 +115,18 @@ export const GET = withAuth(async (req: NextRequest) => {
     // Restrict to known upload prefixes and block path traversal so this can't
     // be used to read arbitrary objects.
     if (!/^(documents|assets|resources|messages)\//.test(objectKey) || objectKey.includes('..')) {
+      console.warn('[proxy-file] Invalid key requested:', objectKey)
       return NextResponse.json({ error: 'Invalid key' }, { status: 400 })
     }
     if (!isGcsConfigured()) {
+      console.warn('[proxy-file] Storage not configured; cannot stream by key:', objectKey)
       return NextResponse.json({ error: 'Storage not configured' }, { status: 503 })
     }
     try {
       const buf = await downloadBuffer(objectKey)
       if (!buf) {
-        return NextResponse.json({ error: 'File not found' }, { status: 404 })
+        console.warn('[proxy-file] File not found in GCS by key:', objectKey)
+        return NextResponse.json({ error: 'File not found', code: 'NoSuchKey' }, { status: 404 })
       }
       return new NextResponse(new Uint8Array(buf), {
         status: 200,
