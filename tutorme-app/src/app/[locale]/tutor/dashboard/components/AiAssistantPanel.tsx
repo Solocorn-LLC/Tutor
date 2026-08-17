@@ -85,6 +85,7 @@ export function AiAssistantPanel({
   const [introMessages, setIntroMessages] = useState<ChatMessage[]>([])
   const [isAnimating, setIsAnimating] = useState(false)
   const hasAnimatedRef = useRef(false)
+  const lastAnimatedBlocksRef = useRef<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const isDemoSession = isDemoSessionProp || sessionType === 'GO_LIVE_DEMO'
 
@@ -185,6 +186,22 @@ export function AiAssistantPanel({
     return [modeGreeting(mode, context, sessionType)]
   }, [mode, context, sessionType, buildCourseInfoMessages, isDemoSession])
 
+  // If the intro content changes after we already animated (e.g. session/student
+  // data arrived after the first render), reset so the richer info is replayed.
+  useEffect(() => {
+    if (isDemoSession) return
+    if (!isActive) return
+    if (!hasAnimatedRef.current) return
+    const currentBlocks = introTextBlocks
+    if (
+      currentBlocks.length > 0 &&
+      JSON.stringify(currentBlocks) !== JSON.stringify(lastAnimatedBlocksRef.current)
+    ) {
+      hasAnimatedRef.current = false
+      setIntroMessages([])
+    }
+  }, [isActive, introTextBlocks, isDemoSession])
+
   // Animate intro messages in one at a time from the bottom.
   // For demo sessions, skip the blocking animation entirely so the chat input is
   // usable immediately, matching a normal live session.
@@ -200,6 +217,7 @@ export function AiAssistantPanel({
     if (infoBlocks.length === 0) return
 
     hasAnimatedRef.current = true
+    lastAnimatedBlocksRef.current = infoBlocks
     setIsAnimating(true)
     const timeouts: NodeJS.Timeout[] = []
 
@@ -229,6 +247,7 @@ export function AiAssistantPanel({
   // Reset intro animation when mode/course/session changes so the greeting stays relevant
   useEffect(() => {
     hasAnimatedRef.current = false
+    lastAnimatedBlocksRef.current = []
     setIntroMessages([])
     resetMessages()
   }, [mode, courseId, sessionType, resetMessages])

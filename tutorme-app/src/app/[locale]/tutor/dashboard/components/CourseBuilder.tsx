@@ -1590,6 +1590,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       Record<string, TestTaskChatMsg[]>
     >({})
 
+    // Tracks which live tasks have already received the auto-seeded "Session ready."
+    // greeting so StrictMode / dependency changes do not append duplicates.
+    const liveGreetingSeededRef = useRef<Set<string>>(new Set())
+
     // Tutor chat input for the live classroom tab (mirrors the student live session).
     const [liveClassroomChatInput, setLiveClassroomChatInput] = useState('')
     const sendLiveClassroomChat = () => {
@@ -2568,12 +2572,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         if (!task) return
         if (task.source !== 'task' || (Array.isArray(task.dmiItems) && task.dmiItems.length > 0))
           return
-        if (
-          liveClassroomMessages[task.id]?.some(
-            m => m.role === 'ai' && m.content.startsWith('Session ready.')
-          )
-        )
-          return
+        if (liveGreetingSeededRef.current.has(task.id)) return
+        liveGreetingSeededRef.current.add(task.id)
         const summary = [
           'Session ready.',
           '',
@@ -2583,7 +2583,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           'Session Number: 1',
           `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
         ].join('\n')
-        appendLiveClassroomAiMessage(task.id, summary, 'SAI')
+        setLiveClassroomMessages(prev => ({
+          ...prev,
+          [task.id]: [
+            ...(prev[task.id] ?? []),
+            { role: 'ai' as const, name: 'SAI', content: summary, timestamp: Date.now() },
+          ],
+        }))
       } else if (testPciSource === 'assessment') {
         const assessmentId = loadedAssessmentId || ''
         let assessment: Assessment | null = null
@@ -2598,12 +2604,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           if (assessment) break
         }
         if (!assessment) return
-        if (
-          liveClassroomMessages[assessment.id]?.some(
-            m => m.role === 'ai' && m.content.startsWith('Session ready.')
-          )
-        )
-          return
+        if (liveGreetingSeededRef.current.has(assessment.id)) return
+        liveGreetingSeededRef.current.add(assessment.id)
         const summary = [
           'Session ready.',
           '',
@@ -2613,7 +2615,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           'Session Number: 1',
           `Attendance: ${enrolledStudents > 0 ? '100%' : '0%'}`,
         ].join('\n')
-        appendLiveClassroomAiMessage(assessment.id, summary, 'SAI')
+        setLiveClassroomMessages(prev => ({
+          ...prev,
+          [assessment.id]: [
+            ...(prev[assessment.id] ?? []),
+            { role: 'ai' as const, name: 'SAI', content: summary, timestamp: Date.now() },
+          ],
+        }))
       }
     }, [
       mainTab,
@@ -2624,7 +2632,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       insightsProps?.liveTasks,
       insightsProps?.students,
       courseName,
-      liveClassroomMessages,
     ])
 
     // Flush room state to Redis when the tutor closes/refreshes the page while
@@ -3346,6 +3353,76 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       },
       [loadedAssessmentId]
     )
+
+    // When a tutor enters the live classroom without a task loaded, auto-load the
+    // most recently deployed live task (if any) or the first task/assessment in the
+    // curriculum so the Classroom tab mirrors the post-deploy view on initial load.
+    const didAutoLoadLiveItemRef = useRef(false)
+    useEffect(() => {
+      if (mainTab !== 'live') {
+        didAutoLoadLiveItemRef.current = false
+        return
+      }
+      if (didAutoLoadLiveItemRef.current) return
+      if (loadedTaskId || loadedAssessmentId) {
+        didAutoLoadLiveItemRef.current = true
+        return
+      }
+      if (!insightsProps?.sessionId || nodes.length === 0) return
+
+      // Prefer the most recently deployed live task from the active session.
+      const liveTasks = insightsProps?.liveTasks ?? []
+      const lastDeployed = liveTasks[liveTasks.length - 1]
+      if (lastDeployed) {
+        for (const mod of nodes) {
+          for (const lesson of mod.lessons) {
+            if (lastDeployed.source === 'assessment') {
+              const assessment = lesson.homework?.find(h => h.id === lastDeployed.id)
+              if (assessment) {
+                didAutoLoadLiveItemRef.current = true
+                loadAssessmentIntoBuilder(assessment)
+                return
+              }
+            } else {
+              const task = lesson.tasks?.find(t => t.id === lastDeployed.id)
+              if (task) {
+                didAutoLoadLiveItemRef.current = true
+                loadTaskIntoBuilder(task)
+                return
+              }
+            }
+          }
+        }
+      }
+
+      // Fallback to the first task or assessment in the curriculum.
+      for (const mod of nodes) {
+        for (const lesson of mod.lessons) {
+          const firstTask = lesson.tasks?.[0]
+          if (firstTask) {
+            didAutoLoadLiveItemRef.current = true
+            loadTaskIntoBuilder(firstTask)
+            return
+          }
+          const firstAssessment = lesson.homework?.[0]
+          if (firstAssessment) {
+            didAutoLoadLiveItemRef.current = true
+            loadAssessmentIntoBuilder(firstAssessment)
+            return
+          }
+        }
+      }
+    }, [
+      mainTab,
+      loadedTaskId,
+      loadedAssessmentId,
+      insightsProps?.sessionId,
+      insightsProps?.liveTasks,
+      nodes,
+      loadTaskIntoBuilder,
+      loadAssessmentIntoBuilder,
+    ])
+
     const addAssessmentPage = useCallback(() => {
       setAssessmentBuilder(prev => {
         const nextIndex = prev.pages.length
