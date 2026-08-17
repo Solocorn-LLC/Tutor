@@ -6,6 +6,7 @@ import { Bot, FileText, ImageIcon } from 'lucide-react'
 import { PDFThumbnail } from '@/components/pdf/PDFThumbnail'
 import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
 import { cn } from '@/lib/utils'
+import { motion } from 'framer-motion'
 
 export type ChatMessageSender = 'tutor' | 'ai' | 'student'
 
@@ -110,7 +111,12 @@ export function ChatMessageBubble({
   })()
 
   return (
-    <div className={cn('flex gap-2', isRight ? 'flex-row justify-end' : 'flex-row justify-start')}>
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className={cn('flex gap-2', isRight ? 'flex-row justify-end' : 'flex-row justify-start')}
+    >
       {/* Avatar */}
       {showAvatar && (
         <div className="flex flex-col items-center gap-1">
@@ -185,6 +191,6 @@ export function ChatMessageBubble({
           </span>
         )}
       </div>
-    </div>
+    </motion.div>
   )
 }
