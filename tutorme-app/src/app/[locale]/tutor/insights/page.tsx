@@ -1626,19 +1626,31 @@ function TutorInsightsPageInner() {
 
       {/* Delete Course Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Course</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete &quot;{detachedCourseName}&quot;? This action cannot
-              be undone.
-            </DialogDescription>
+        <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center text-white">Delete Course</DialogTitle>
           </DialogHeader>
-          <DialogFooter>
+
+          <div className="space-y-4 px-6 py-4">
+            <div className="space-y-2">
+              <div className="text-base font-semibold text-white">
+                Delete &quot;{detachedCourseName}&quot;
+              </div>
+              <div className="text-sm font-normal text-white/80">
+                Are you sure you want to delete this course? This action cannot be undone.
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-3">
             <Button variant="modal-secondary-dark" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteCourse}>
+            <Button
+              variant="modal-primary-dark"
+              onClick={handleDeleteCourse}
+              className="bg-gradient-to-br from-red-500 to-red-700"
+            >
               Delete
             </Button>
           </DialogFooter>
