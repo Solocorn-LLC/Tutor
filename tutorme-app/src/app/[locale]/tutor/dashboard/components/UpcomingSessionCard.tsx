@@ -4,7 +4,6 @@ import { format } from 'date-fns'
 import { Calendar, Clock, Users, MonitorPlay, CalendarClock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
 import { ClampedTitle } from '@/components/common/clamped-title'
 import { SessionCountdown } from './SessionCountdown'
@@ -44,20 +43,6 @@ function formatSchedulePattern(schedule?: EnrolledCourse['schedule']): string | 
   return slots.join(', ')
 }
 
-function statusBadgeClass(status: string) {
-  const s = status.toLowerCase()
-  if (s === 'active' || s === 'live') {
-    return 'border-emerald-200 bg-emerald-100 text-emerald-700'
-  }
-  if (s === 'preparing' || s === 'paused') {
-    return 'border-amber-200 bg-amber-100 text-amber-700'
-  }
-  if (s === 'ended' || s === 'cancelled') {
-    return 'border-slate-200 bg-slate-100 text-slate-600'
-  }
-  return 'border-blue-200 bg-blue-100 text-blue-700'
-}
-
 export function UpcomingSessionCard({
   session,
   course,
@@ -79,12 +64,9 @@ export function UpcomingSessionCard({
             Course Session
           </Badge>
           <span className="truncate text-sm font-semibold text-white">{course.name}</span>
-          <Badge
-            variant="outline"
-            className={cn('text-[10px] uppercase tracking-wide', statusBadgeClass(session.status))}
-          >
-            {session.status}
-          </Badge>
+          <span className="rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] text-white/90">
+            {course.variantCategory || course.categories?.[0] || 'General'}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
@@ -102,15 +84,6 @@ export function UpcomingSessionCard({
             <Users className="h-3 w-3" />
             {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
           </span>
-          {course.nationality && course.nationality !== 'Global' && (
-            <CountryFlag countryName={course.nationality} size="xs" showLabel />
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-xs text-white/80">
-          <span className="rounded-full bg-white/10 px-2 py-0.5">
-            {course.variantCategory || course.categories?.[0] || 'General'}
-          </span>
           {formatSchedulePattern(course.schedule) ? (
             <span className="flex items-center gap-1">
               <CalendarClock className="h-3 w-3" />
@@ -118,6 +91,9 @@ export function UpcomingSessionCard({
             </span>
           ) : null}
           {session.scheduledAt && <SessionCountdown scheduledAt={session.scheduledAt} />}
+          {course.nationality && course.nationality !== 'Global' && (
+            <CountryFlag countryName={course.nationality} size="xs" showLabel />
+          )}
         </div>
       </div>
 
