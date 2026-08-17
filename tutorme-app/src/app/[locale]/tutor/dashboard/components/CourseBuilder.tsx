@@ -1599,11 +1599,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Render the live classroom tutor chat input row (shown only on the Classroom tab
-    // when a live session is connected). Matches the student live-session input.
+    // when a live session is connected). Matches the deployed task chat design.
     const renderLiveClassroomChatInput = () => {
       return (
         <div className="mt-3 flex items-center gap-3">
-          <div className="relative flex h-16 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
+          <div className="relative flex h-12 flex-1 items-center gap-2 rounded-2xl border-2 border-[#F17623] bg-white px-3 py-2 shadow-sm">
             <Input
               value={liveClassroomChatInput}
               onChange={e => setLiveClassroomChatInput(e.target.value)}
@@ -1613,12 +1613,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   sendLiveClassroomChat()
                 }
               }}
-              placeholder="Message students..."
+              placeholder="Send a message to students..."
               className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
             />
             <Button
               size="icon"
-              className="h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+              className="h-9 w-9 shrink-0 rounded-full bg-[#FFF4EC] text-[#F17623] hover:bg-[#FFE8D6] disabled:opacity-40"
               onClick={sendLiveClassroomChat}
               disabled={!liveClassroomChatInput.trim()}
             >
