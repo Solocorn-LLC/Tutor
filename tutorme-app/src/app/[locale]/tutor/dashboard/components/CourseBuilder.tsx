@@ -9711,23 +9711,41 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               className="flex shrink-0 items-center gap-2"
                               onClick={e => e.stopPropagation()}
                             >
-                              {/* Course category badges auto-assigned from usage */}
+                              {/* Course category badges auto-assigned from usage.
+                                  When a specific folder is selected, show that folder name
+                                  so the badge reflects the category being viewed. */}
                               <div className="flex flex-wrap items-center justify-end gap-1">
-                                {(asset.categories?.length ? asset.categories : ['Uncategorized'])
-                                  .slice(0, 3)
-                                  .map(cat => (
-                                    <span
-                                      key={cat}
-                                      className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-emerald-700"
-                                    >
-                                      {cat}
-                                    </span>
-                                  ))}
-                                {(asset.categories?.length ?? 0) > 3 && (
-                                  <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
-                                    +{(asset.categories?.length ?? 0) - 3}
-                                  </span>
-                                )}
+                                {(() => {
+                                  const folderMatch =
+                                    assetViewFolder !== 'All' &&
+                                    (asset.folder === assetViewFolder ||
+                                      (asset.categories ?? []).includes(assetViewFolder))
+                                  const badges = folderMatch
+                                    ? [assetViewFolder]
+                                    : asset.categories?.length
+                                      ? asset.categories
+                                      : asset.folder
+                                        ? [asset.folder]
+                                        : ['Uncategorized']
+                                  const extra = badges.length > 3 ? badges.length - 3 : 0
+                                  return (
+                                    <>
+                                      {badges.slice(0, 3).map(cat => (
+                                        <span
+                                          key={cat}
+                                          className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-emerald-700"
+                                        >
+                                          {cat}
+                                        </span>
+                                      ))}
+                                      {extra > 0 && (
+                                        <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                          +{extra}
+                                        </span>
+                                      )}
+                                    </>
+                                  )
+                                })()}
                               </div>
 
                               {/* Kebab menu for Load / Delete */}

@@ -79,6 +79,7 @@ export function CourseSelectorDialog({
   onSelectDemoClass,
 }: CourseSelectorDialogProps) {
   const [tab, setTab] = useState<CourseState>('unpublished')
+  const isInitialTabSetRef = useRef(false)
   const [selectedFolder, setSelectedFolder] = useState<string>('All')
   const [customFolders, setCustomFolders] = useState<FolderItem[]>([])
   const [loadingFolders, setLoadingFolders] = useState(false)
@@ -201,6 +202,29 @@ export function CourseSelectorDialog({
   useEffect(() => {
     loadFolders()
   }, [open])
+
+  // When the dialog opens, select the tab that contains the currently loaded
+  // course so it is visible immediately.
+  useEffect(() => {
+    if (!open) {
+      isInitialTabSetRef.current = false
+      return
+    }
+    if (isInitialTabSetRef.current) return
+    if (!currentCourseId) {
+      isInitialTabSetRef.current = true
+      return
+    }
+    if (draftCourses.some(c => c.id === currentCourseId)) {
+      setTab('creating')
+    } else {
+      const course = courses.find(c => c.id === currentCourseId)
+      if (course) {
+        setTab(course.isPublished ? 'published' : 'unpublished')
+      }
+    }
+    isInitialTabSetRef.current = true
+  }, [open, currentCourseId, courses, draftCourses])
 
   useEffect(() => {
     loadDemoClasses()
@@ -593,7 +617,7 @@ export function CourseSelectorDialog({
                         return (
                           <div
                             key={demo.id}
-                            className="flex items-center justify-between rounded-xl bg-blue-500/50 px-4 py-3 transition-colors hover:bg-blue-500/60"
+                            className="flex items-center justify-between rounded-xl bg-emerald-500/50 px-4 py-3 transition-colors hover:bg-emerald-500/60"
                           >
                             <div className="mr-3 flex flex-1 items-center gap-3 overflow-hidden">
                               <Play className="h-5 w-5 shrink-0 text-white" />
@@ -604,11 +628,12 @@ export function CourseSelectorDialog({
                                 <p className="text-[11px] text-white/80">
                                   {category || 'Uncategorized'}
                                   {demo.nationality && demo.nationality !== 'Global' && (
-                                    <span className="ml-2 inline-flex items-center gap-1">
+                                    <span className="ml-2 inline-flex items-baseline gap-1">
                                       <CountryFlag
                                         countryName={demo.nationality}
                                         size="xs"
                                         showLabel
+                                        className="align-text-bottom"
                                       />
                                     </span>
                                   )}
@@ -623,7 +648,7 @@ export function CourseSelectorDialog({
                             <div className="flex shrink-0 items-center gap-2">
                               <Button
                                 size="sm"
-                                className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-blue-600 hover:bg-white/90"
+                                className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-emerald-600 hover:bg-white/90"
                                 onClick={() => handleSelectDemoClass(demo.id)}
                               >
                                 <Edit3 className="h-3 w-3" />
@@ -648,8 +673,8 @@ export function CourseSelectorDialog({
                           className={cn(
                             'flex items-center justify-between rounded-xl px-4 py-3 transition-colors',
                             isActive
-                              ? 'bg-emerald-500/70 ring-2 ring-emerald-500'
-                              : 'bg-emerald-500/50 hover:bg-emerald-500/60'
+                              ? 'bg-blue-500/70 hover:bg-blue-500/80'
+                              : 'bg-blue-500/50 hover:bg-blue-500/60'
                           )}
                         >
                           <div className="mr-3 flex flex-1 items-center gap-3 overflow-hidden">
@@ -661,11 +686,12 @@ export function CourseSelectorDialog({
                               <p className="text-[11px] text-white/80">
                                 {category || 'Uncategorized'}
                                 {course.nationality && course.nationality !== 'Global' && (
-                                  <span className="ml-2 inline-flex items-center gap-1">
+                                  <span className="ml-2 inline-flex items-baseline gap-1">
                                     <CountryFlag
                                       countryName={course.nationality}
                                       size="xs"
                                       showLabel
+                                      className="align-text-bottom"
                                     />
                                   </span>
                                 )}
@@ -681,7 +707,7 @@ export function CourseSelectorDialog({
                             </span>
                             <Button
                               size="sm"
-                              className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-emerald-600 hover:bg-white/90"
+                              className="h-7 gap-1 rounded-md bg-white px-3 text-xs font-semibold text-blue-600 hover:bg-white/90"
                               onClick={() => handleSelect(course.id)}
                             >
                               <Edit3 className="h-3 w-3" />
