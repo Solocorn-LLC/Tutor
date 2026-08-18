@@ -3770,6 +3770,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
           if (!res.ok) {
             console.error('Failed to save tutor assets')
+            return
+          }
+
+          const data = await res.json().catch(() => ({}))
+          if (Array.isArray(data.blockedDeletions) && data.blockedDeletions.length > 0) {
+            const names = data.blockedDeletions
+              .map((b: { name?: string }) => b.name)
+              .filter(Boolean)
+              .slice(0, 3)
+              .join(', ')
+            const extra =
+              data.blockedDeletions.length > 3
+                ? ` and ${data.blockedDeletions.length - 3} more`
+                : ''
+            toast.error(
+              `Some assets are still used in courses and were not deleted: ${names}${extra}`
+            )
           }
         } catch (error) {
           console.error('Error saving tutor assets:', error)
@@ -3778,6 +3795,42 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // No reactive deps: the callback only reads its `assets` argument and the
       // module-level fetchWithCsrf. A stale `[insightsProps]` here re-created the
       // callback every render and needlessly re-armed the debounced save timer.
+      []
+    )
+
+    // Explicit asset deletion. The API blocks deletion if the underlying file is
+    // referenced by any course, so we call it first and only remove the asset from
+    // local state when the server confirms deletion is safe.
+    const deleteAsset = useCallback(
+      async (assetId: string, assetName: string): Promise<boolean> => {
+        try {
+          const res = await fetchWithCsrf(`/api/tutor/assets?id=${encodeURIComponent(assetId)}`, {
+            method: 'DELETE',
+          })
+
+          if (res.status === 409) {
+            const data = await res.json().catch(() => ({}))
+            const courses = Array.isArray(data.courses) ? data.courses : []
+            const list = courses.slice(0, 3).join(', ')
+            const extra = courses.length > 3 ? ` and ${courses.length - 3} more` : ''
+            toast.error(`Cannot delete "${assetName}" — used in: ${list}${extra}`)
+            return false
+          }
+
+          if (!res.ok) {
+            toast.error(`Failed to delete "${assetName}"`)
+            return false
+          }
+
+          setCourseAssets(prev => prev.filter(a => a.id !== assetId))
+          toast.success(`Deleted "${assetName}"`)
+          return true
+        } catch (error) {
+          console.error('Error deleting asset:', error)
+          toast.error(`Failed to delete "${assetName}"`)
+          return false
+        }
+      },
       []
     )
 
@@ -8555,7 +8608,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             <DropdownMenuItem
                               className="text-red-600 focus:text-red-600"
                               onClick={() => {
-                                setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
+                                void deleteAsset(asset.id, asset.name)
                               }}
                             >
                               Delete
@@ -9461,7 +9514,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   <DropdownMenuItem
                                     className="text-red-600 focus:text-red-600"
                                     onClick={() => {
-                                      setCourseAssets(prev => prev.filter(a => a.id !== asset.id))
+                                      void deleteAsset(asset.id, asset.name)
                                     }}
                                   >
                                     Delete
