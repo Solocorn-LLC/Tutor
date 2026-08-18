@@ -126,6 +126,11 @@ export async function PUT(req: NextRequest) {
     const body = await req.json()
     const assets: Asset[] = body.assets || []
 
+    // Determine which files are still referenced by any of the tutor's courses
+    // so we never delete an asset that would break an existing task/assessment.
+    const allRefs = await collectAllReferencedKeys(tutorId)
+    const blockedDeletions: { id: string; name?: string; courses: string[] }[] = []
+
     await drizzleDb.transaction(async tx => {
       // Get existing asset IDs for this tutor
       const existingAssets = await tx
@@ -136,15 +141,34 @@ export async function PUT(req: NextRequest) {
       const existingIds = new Set(existingAssets.map(a => a.id))
       const incomingIds = new Set(assets.map(a => a.id))
 
-      // Delete assets that are no longer present (and their GCS files)
+      // Delete assets that are no longer present (and their GCS files),
+      // but only if no course still references the underlying file.
       const idsToDelete = [...existingIds].filter(id => !incomingIds.has(id))
+      const safeIdsToDelete: string[] = []
+
       if (idsToDelete.length > 0) {
         const assetsToDelete = await tx
-          .select({ url: tutorAsset.url })
+          .select({
+            id: tutorAsset.assetId,
+            name: tutorAsset.name,
+            url: tutorAsset.url,
+            fileKey: tutorAsset.fileKey,
+          })
           .from(tutorAsset)
           .where(and(eq(tutorAsset.tutorId, tutorId), inArray(tutorAsset.assetId, idsToDelete)))
 
         for (const asset of assetsToDelete) {
+          const key = getKeyForAsset(asset)
+          const courses = key ? Array.from(allRefs.get(key) ?? []) : []
+          if (courses.length > 0) {
+            blockedDeletions.push({ id: asset.id, name: asset.name ?? undefined, courses })
+          } else {
+            safeIdsToDelete.push(asset.id)
+          }
+        }
+
+        for (const asset of assetsToDelete) {
+          if (!safeIdsToDelete.includes(asset.id)) continue
           if (asset.url && isGcsConfigured()) {
             const key = extractGcsKeyFromPublicUrl(asset.url)
             if (key) {
@@ -157,7 +181,7 @@ export async function PUT(req: NextRequest) {
           }
         }
 
-        for (const id of idsToDelete) {
+        for (const id of safeIdsToDelete) {
           await tx
             .delete(tutorAsset)
             .where(and(eq(tutorAsset.assetId, id), eq(tutorAsset.tutorId, tutorId)))
@@ -199,6 +223,7 @@ export async function PUT(req: NextRequest) {
     return NextResponse.json({
       message: 'Assets saved successfully',
       count: assets.length,
+      blockedDeletions: blockedDeletions.length > 0 ? blockedDeletions : undefined,
     })
   } catch (error) {
     console.error('Error saving tutor assets:', error)
@@ -207,27 +232,38 @@ export async function PUT(req: NextRequest) {
 }
 
 /**
- * Collect storage keys still referenced by this tutor's published courses.
- * A file that appears in any published course's builderData must not be deleted,
- * because students enrolled in that course still need it.
+ * Collect storage keys still referenced by any of this tutor's courses
+ * (published or unpublished), mapped to the names of the courses that use them.
+ * A file that appears in any course's builderData must not be deleted, because
+ * removing it leaves tasks/assessments with broken sourceDocument references.
  */
-async function collectPublishedReferencedKeys(tutorId: string): Promise<Set<string>> {
-  const referenced = new Set<string>()
+async function collectAllReferencedKeys(tutorId: string): Promise<Map<string, Set<string>>> {
+  const keyToCourses = new Map<string, Set<string>>()
   const rows = await drizzleDb
-    .select({ builderData: courseLesson.builderData })
+    .select({
+      builderData: courseLesson.builderData,
+      courseName: course.name,
+      courseId: course.courseId,
+    })
     .from(courseLesson)
     .innerJoin(course, eq(courseLesson.courseId, course.courseId))
-    .where(
-      and(
-        eq(course.creatorId, tutorId),
-        eq(course.isPublished, true),
-        isNull(courseLesson.deletedAt)
-      )
-    )
-  for (const key of collectFileKeys(rows.map(r => r.builderData))) {
-    referenced.add(key)
+    .where(and(eq(course.creatorId, tutorId), isNull(courseLesson.deletedAt)))
+
+  for (const row of rows) {
+    const keys = collectFileKeys([row.builderData])
+    const courseLabel = row.courseName?.trim() || row.courseId || 'Unnamed course'
+    for (const key of keys) {
+      if (!keyToCourses.has(key)) {
+        keyToCourses.set(key, new Set())
+      }
+      keyToCourses.get(key)!.add(courseLabel)
+    }
   }
-  return referenced
+  return keyToCourses
+}
+
+function getKeyForAsset(asset: { url?: string | null; fileKey?: string | null }): string | null {
+  return asset.fileKey || (asset.url ? extractGcsKeyFromPublicUrl(asset.url) : null)
 }
 
 // ---- DELETE — Delete a specific asset ----
@@ -258,17 +294,18 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Determine the storage key for this asset.
-    const assetKey =
-      assetRow.fileKey || (assetRow.url ? extractGcsKeyFromPublicUrl(assetRow.url) : null)
+    const assetKey = getKeyForAsset(assetRow)
 
-    // Prevent deletion if the asset is still referenced by a published course.
-    const publishedRefs = await collectPublishedReferencedKeys(tutorId)
-    if (assetKey && publishedRefs.has(assetKey)) {
+    // Prevent deletion if the asset is still referenced by any course.
+    const allRefs = await collectAllReferencedKeys(tutorId)
+    const blockingCourses = assetKey ? Array.from(allRefs.get(assetKey) ?? []) : []
+    if (blockingCourses.length > 0) {
       return NextResponse.json(
         {
-          error: 'Cannot delete — this file is used by a published course.',
-          reason: 'published-course-reference',
+          error: 'Cannot delete — this file is used by one or more courses.',
+          reason: 'course-reference',
           assetName: assetRow.name,
+          courses: blockingCourses,
         },
         { status: 409 }
       )
