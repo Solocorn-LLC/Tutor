@@ -26,7 +26,13 @@ export const DEFAULT_MAX_SPLIT_PAGES = 200
  */
 export async function splitPdfBufferIntoPages(
   buffer: Buffer,
-  opts: { userId: string; fileName?: string; maxPages?: number }
+  opts: {
+    userId: string
+    fileName?: string
+    maxPages?: number
+    /** Optional 1-based page numbers to extract. When omitted, all pages are returned. */
+    pageNumbers?: number[]
+  }
 ): Promise<SplitResult> {
   const maxPages = opts.maxPages ?? DEFAULT_MAX_SPLIT_PAGES
 
@@ -64,21 +70,41 @@ export async function splitPdfBufferIntoPages(
     .slice(0, 50)
   const stamp = Date.now()
 
+  const requested = opts.pageNumbers?.length
+    ? [
+        ...new Set(opts.pageNumbers.filter(p => Number.isFinite(p) && p >= 1 && p <= pageCount)),
+      ].sort((a, b) => a - b)
+    : null
+
   const pages: SplitPage[] = []
   for (let i = 0; i < pageCount; i++) {
+    const pageNumber = i + 1
+    if (requested && !requested.includes(pageNumber)) continue
+
     const pageDoc = await PDFDocument.create()
     const [copied] = await pageDoc.copyPages(sourceDoc, [i])
     pageDoc.addPage(copied)
     const pageBytes = Buffer.from(await pageDoc.save())
 
-    const storeKey = `documents/${opts.userId}/${base}_page_${i + 1}_${stamp}.pdf`
+    const storeKey = `documents/${opts.userId}/${base}_page_${pageNumber}_${stamp}.pdf`
     const result = await storeFile(pageBytes, storeKey, 'application/pdf')
     pages.push({
-      pageNumber: i + 1,
+      pageNumber,
       url: result.url,
       key: result.key,
-      name: `${base}_page_${i + 1}.pdf`,
+      name: `${base}_page_${pageNumber}.pdf`,
     })
+  }
+
+  if (requested && requested.length !== pages.length) {
+    const missing = requested.filter(r => !pages.some(p => p.pageNumber === r))
+    if (missing.length > 0) {
+      const err = new Error(
+        `Requested page(s) not found: ${missing.join(', ')} (document has ${pageCount} page(s))`
+      ) as Error & { code?: string }
+      err.code = 'PAGE_NOT_FOUND'
+      throw err
+    }
   }
 
   return { pageCount, pages }
