@@ -14,12 +14,7 @@ import crypto from 'crypto'
 import { eq, inArray } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
-import {
-  user,
-  course,
-  liveSession,
-  calendarEvent,
-} from '@/lib/db/schema'
+import { user, course, liveSession, calendarEvent } from '@/lib/db/schema'
 
 const stamp = Date.now()
 const tutorId = crypto.randomUUID()
@@ -179,7 +174,12 @@ describe('course session lifecycle guards', () => {
   })
 
   afterAll(async () => {
-    const allSessionIds = [COURSE_SESSION, ONE_ON_ONE_SESSION, PAST_SCHEDULED_SESSION, `cs_ls_ended_${stamp}`]
+    const allSessionIds = [
+      COURSE_SESSION,
+      ONE_ON_ONE_SESSION,
+      PAST_SCHEDULED_SESSION,
+      `cs_ls_ended_${stamp}`,
+    ]
     const allCourseIds = [COURSE_ID, COURSE_2_ID, COURSE_3_ID, COURSE_4_ID]
 
     await drizzleDb.delete(calendarEvent).where(inArray(calendarEvent.externalId, allSessionIds))
@@ -189,18 +189,24 @@ describe('course session lifecycle guards', () => {
   })
 
   it('PATCH /api/tutor/classes/:id rejects ending a COURSE session', async () => {
-    const res = await patchClass(endClassReq(COURSE_SESSION) as unknown as NextRequest, {
-      params: Promise.resolve({ id: COURSE_SESSION }),
-    } as any)
+    const res = await patchClass(
+      endClassReq(COURSE_SESSION) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: COURSE_SESSION }),
+      } as any
+    )
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toContain('end automatically')
   })
 
   it('PATCH /api/tutor/classes/:id still allows ending a ONE_ON_ONE session', async () => {
-    const res = await patchClass(endClassReq(ONE_ON_ONE_SESSION) as unknown as NextRequest, {
-      params: Promise.resolve({ id: ONE_ON_ONE_SESSION }),
-    } as any)
+    const res = await patchClass(
+      endClassReq(ONE_ON_ONE_SESSION) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: ONE_ON_ONE_SESSION }),
+      } as any
+    )
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.status).toBe('ended')
@@ -214,36 +220,48 @@ describe('course session lifecycle guards', () => {
   })
 
   it('DELETE /api/tutor/courses/:id rejects deletion when course has an active session', async () => {
-    const res = await deleteCourse(deleteCourseReq(COURSE_ID) as unknown as NextRequest, {
-      params: Promise.resolve({ id: COURSE_ID }),
-    } as any)
+    const res = await deleteCourse(
+      deleteCourseReq(COURSE_ID) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: COURSE_ID }),
+      } as any
+    )
     expect(res.status).toBe(409)
     const data = await res.json()
     expect(data.error).toContain('delivered or active sessions')
   })
 
   it('DELETE /api/tutor/courses/:id rejects deletion when course has a past scheduled session', async () => {
-    const res = await deleteCourse(deleteCourseReq(COURSE_2_ID) as unknown as NextRequest, {
-      params: Promise.resolve({ id: COURSE_2_ID }),
-    } as any)
+    const res = await deleteCourse(
+      deleteCourseReq(COURSE_2_ID) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: COURSE_2_ID }),
+      } as any
+    )
     expect(res.status).toBe(409)
     const data = await res.json()
     expect(data.error).toContain('delivered or active sessions')
   })
 
   it('DELETE /api/tutor/courses/:id rejects deletion when course has an ended session', async () => {
-    const res = await deleteCourse(deleteCourseReq(COURSE_3_ID) as unknown as NextRequest, {
-      params: Promise.resolve({ id: COURSE_3_ID }),
-    } as any)
+    const res = await deleteCourse(
+      deleteCourseReq(COURSE_3_ID) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: COURSE_3_ID }),
+      } as any
+    )
     expect(res.status).toBe(409)
     const data = await res.json()
     expect(data.error).toContain('delivered or active sessions')
   })
 
   it('DELETE /api/tutor/courses/:id succeeds when course has no sessions', async () => {
-    const res = await deleteCourse(deleteCourseReq(COURSE_4_ID) as unknown as NextRequest, {
-      params: Promise.resolve({ id: COURSE_4_ID }),
-    } as any)
+    const res = await deleteCourse(
+      deleteCourseReq(COURSE_4_ID) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: COURSE_4_ID }),
+      } as any
+    )
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.message).toContain('deleted successfully')

@@ -3129,14 +3129,18 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (!roomId || !socket.data.userId) return
       try {
         const sessionRow = await drizzleDb.query.liveSession.findFirst({
-          where: and(eq(liveSession.sessionId, roomId), eq(liveSession.tutorId, socket.data.userId)),
+          where: and(
+            eq(liveSession.sessionId, roomId),
+            eq(liveSession.tutorId, socket.data.userId)
+          ),
           columns: { sessionId: true, sessionType: true },
         })
         if (!sessionRow) return
         if (sessionRow.sessionType === 'COURSE') {
           socket.emit('session:error', {
             sessionId: roomId,
-            error: 'Course sessions end automatically at the scheduled time. Use Leave to exit the room.',
+            error:
+              'Course sessions end automatically at the scheduled time. Use Leave to exit the room.',
           })
           return
         }

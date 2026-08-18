@@ -1441,7 +1441,9 @@ function CourseBuilderInsightsRouteInner({
             onEndSession={
               insightsProps.sessionId && !isCourseSession ? handleEndSession : undefined
             }
-            onLeaveSession={insightsProps.sessionId && isCourseSession ? handleLeaveSession : undefined}
+            onLeaveSession={
+              insightsProps.sessionId && isCourseSession ? handleLeaveSession : undefined
+            }
             endingSession={endingSession}
             isConnected={!!insightsProps.isConnected}
             connectionError={!!insightsProps.sessionId && !insightsProps.isConnected}
