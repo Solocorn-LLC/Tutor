@@ -935,6 +935,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         fileKey?: string
         mimeType?: string
         folder?: string
+        categories?: string[]
       }[]
     >([])
     const assetsLoadedRef = useRef(false)
@@ -943,12 +944,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [isSplittingTasks, setIsSplittingTasks] = useState(false)
     const [isSplittingTaskExtensions, setIsSplittingTaskExtensions] = useState(false)
     const [assetToLoad, setAssetToLoad] = useState<{
+      id: string
       name: string
       content?: string
       url?: string
       fileKey?: string
       mimeType?: string
       folder?: string
+      categories?: string[]
     } | null>(null)
     const [assetsViewOpen, setAssetsViewOpen] = useState(false)
     const [isDraggingFromModal, setIsDraggingFromModal] = useState(false)
@@ -3691,6 +3694,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       (a.metadata?.folder as string) ||
                       (a.metadata?.folderName as string) ||
                       undefined,
+                    categories: Array.isArray(a.metadata?.categories)
+                      ? (a.metadata.categories as string[])
+                      : undefined,
                   })
                 })
                 return Array.from(merged.values())
@@ -3746,10 +3752,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const saveAssetsToApi = useCallback(
       async (assets: typeof courseAssets) => {
         try {
-          const payloadAssets = assets.map(a => ({
-            ...a,
-            metadata: a.folder ? { folder: a.folder } : undefined,
-          }))
+          const payloadAssets = assets.map(a => {
+            const metadata: Record<string, unknown> = {}
+            if (a.folder) metadata.folder = a.folder
+            if (a.categories?.length) metadata.categories = a.categories
+            return {
+              ...a,
+              metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+            }
+          })
 
           const res = await fetchWithCsrf('/api/tutor/assets', {
             method: 'PUT',
@@ -7830,6 +7841,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             fileKey,
             mimeType: fileMimeType,
             folder: designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+            categories: liveCourseCategories.length > 0 ? [...liveCourseCategories] : undefined,
           }
 
           setCourseAssets(prev => [...prev, newAsset])
@@ -7974,6 +7986,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   fileKey,
                   mimeType: fileMimeType,
                   folder: designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                  categories:
+                    liveCourseCategories.length > 0 ? [...liveCourseCategories] : undefined,
                 }
                 setCourseAssets(prev => [...prev, newAsset])
 
@@ -8094,12 +8108,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const loadAssetAsAssessment = (
       asset: {
+        id: string
         name: string
         content?: string
         url?: string
         fileKey?: string
         mimeType?: string
         folder?: string
+        categories?: string[]
       } | null
     ) => {
       if (!asset) return
@@ -8231,14 +8247,43 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [mainBuilderTab]
     )
 
+    // When an asset is loaded into a course, tag it with that course's categories
+    // so the Assets dialog can show every course category that has used it.
+    const recordAssetCourseUsage = useCallback(
+      (assetId: string) => {
+        const categoriesToAdd = liveCourseCategories.length > 0 ? liveCourseCategories : []
+        if (categoriesToAdd.length === 0) return
+        setCourseAssets(prev =>
+          prev.map(a => {
+            if (a.id !== assetId) return a
+            const existing = new Set(a.categories ?? [])
+            let changed = false
+            for (const cat of categoriesToAdd) {
+              if (!existing.has(cat)) {
+                existing.add(cat)
+                changed = true
+              }
+            }
+            if (!changed && a.folder) return a
+            const categories = Array.from(existing)
+            const folder = a.folder || categoriesToAdd[0]
+            return { ...a, categories, folder }
+          })
+        )
+      },
+      [liveCourseCategories]
+    )
+
     const handleLoadAsset = (
       asset: {
+        id: string
         name: string
         content?: string
         url?: string
         fileKey?: string
         mimeType?: string
         folder?: string
+        categories?: string[]
       },
       // Explicit target context. The document's own kebab passes `null` so it
       // always shows the lesson picker; the task/assessment "+" doc-picker rows
@@ -8252,6 +8297,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       // sets it later (to the chosen lesson); the task/assessment "+" flows leave
       // it null so resolveAssetLoadTarget() falls back to the open item / Lesson 1.
       setAssetLoadTarget(null)
+
+      // Tag the asset with the current course's categories so the Assets dialog
+      // reflects every course that has used this file.
+      if (asset.id) {
+        recordAssetCourseUsage(asset.id)
+      }
 
       // If we came from an assessment/task "+" picker, the target context is known,
       // so skip the 'main' choice and go straight to options.
@@ -8285,7 +8336,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const filteredViewAssets = useMemo(() => {
       let list = courseAssets
       if (assetViewFolder !== 'All') {
-        list = list.filter(a => a.folder === assetViewFolder)
+        list = list.filter(
+          a => a.folder === assetViewFolder || (a.categories ?? []).includes(assetViewFolder)
+        )
       }
       if (assetViewSearch.trim()) {
         const q = assetViewSearch.toLowerCase()
@@ -8387,6 +8440,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 : uploadData.type || 'application/pdf',
                               folder:
                                 designatedFolder !== 'Uncategorized' ? designatedFolder : undefined,
+                              categories:
+                                liveCourseCategories.length > 0
+                                  ? [...liveCourseCategories]
+                                  : undefined,
                             },
                           }
                         } catch (err: any) {
@@ -9289,7 +9346,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
                                   {folder === 'All'
                                     ? courseAssets.length
-                                    : courseAssets.filter(a => a.folder === folder).length}
+                                    : courseAssets.filter(
+                                        a =>
+                                          a.folder === folder ||
+                                          (a.categories ?? []).includes(folder)
+                                      ).length}
                                 </span>
                               </span>
                             </button>
@@ -9351,36 +9412,30 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <p className="truncate text-sm font-semibold text-white">
                                   {asset.name}
                                 </p>
-                                <p className="text-[11px] text-white/80">
-                                  Folder: {asset.folder || 'Uncategorized'}
-                                </p>
                               </div>
                             </div>
                             <div
                               className="flex shrink-0 items-center gap-2"
                               onClick={e => e.stopPropagation()}
                             >
-                              {/* Folder assignment dropdown */}
-                              <select
-                                onClick={e => e.stopPropagation()}
-                                className="h-7 rounded-md border border-gray-200 bg-white px-2 text-[11px] text-gray-600 outline-none focus-visible:border-blue-400"
-                                value={asset.folder || ''}
-                                onChange={e => {
-                                  const folder = e.target.value || undefined
-                                  setCourseAssets(prev =>
-                                    prev.map(a => (a.id === asset.id ? { ...a, folder } : a))
-                                  )
-                                }}
-                              >
-                                <option value="">Uncategorized</option>
-                                {computedAssetFolders
-                                  .filter(f => f !== 'All')
-                                  .map(f => (
-                                    <option key={f} value={f}>
-                                      {f}
-                                    </option>
+                              {/* Course category badges auto-assigned from usage */}
+                              <div className="flex flex-wrap items-center justify-end gap-1">
+                                {(asset.categories?.length ? asset.categories : ['Uncategorized'])
+                                  .slice(0, 3)
+                                  .map(cat => (
+                                    <span
+                                      key={cat}
+                                      className="rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-medium text-emerald-700"
+                                    >
+                                      {cat}
+                                    </span>
                                   ))}
-                              </select>
+                                {(asset.categories?.length ?? 0) > 3 && (
+                                  <span className="rounded-full bg-white/70 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                                    +{(asset.categories?.length ?? 0) - 3}
+                                  </span>
+                                )}
+                              </div>
 
                               {/* Kebab menu for Load / Delete */}
                               <DropdownMenu>
