@@ -10,7 +10,7 @@ import {
   calendarEvent,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, sql, inArray, isNull } from 'drizzle-orm'
+import { eq, and, sql, inArray, isNull, or, lte } from 'drizzle-orm'
 import { CourseBuilderService } from '@/lib/services/course-builder.service'
 import { z } from 'zod'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
@@ -304,6 +304,36 @@ export const DELETE = withAuth(
           {
             error: 'Cannot delete a course with enrolled students.',
             enrolledCount: enrolledStudentIds.length,
+            courseName: courseRow.name,
+          },
+          { status: 409 }
+        )
+      }
+
+      // A course that has delivered (or is delivering) sessions must not be deleted:
+      // doing so would wipe attendance, chat, recordings, and replay artifacts.
+      // "Delivered" means ended, currently active, or scheduled in the past.
+      const now = new Date()
+      const deliveredSession = await drizzleDb
+        .select({ sessionId: liveSession.sessionId })
+        .from(liveSession)
+        .where(
+          and(
+            eq(liveSession.courseId, id),
+            or(
+              eq(liveSession.status, 'ended'),
+              eq(liveSession.status, 'active'),
+              and(eq(liveSession.status, 'scheduled'), lte(liveSession.scheduledAt, now))
+            )
+          )
+        )
+        .limit(1)
+
+      if (deliveredSession.length > 0) {
+        return NextResponse.json(
+          {
+            error:
+              'Cannot delete a course that has delivered or active sessions. Archive it instead.',
             courseName: courseRow.name,
           },
           { status: 409 }

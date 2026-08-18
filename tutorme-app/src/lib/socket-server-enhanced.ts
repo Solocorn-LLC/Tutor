@@ -806,15 +806,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
           // Demo sessions are intentionally open-ended and never auto-end.
           if (s.sessionType === 'GO_LIVE_DEMO') continue
 
-          const startTime = s.startedAt
-            ? new Date(s.startedAt).getTime()
-            : s.scheduledAt
-              ? new Date(s.scheduledAt).getTime()
-              : null
-          if (!startTime) continue
-
           const durationMs = (s.durationMinutes || 120) * 60 * 1000
-          const endTime = startTime + durationMs
+
+          // Course sessions run on a fixed schedule: ending is determined by
+          // scheduledAt + duration, regardless of when the tutor opened the room.
+          // Non-course sessions (1-on-1, group, clinic) end relative to when
+          // they were actually started.
+          const anchorTime =
+            s.sessionType === 'COURSE' && s.scheduledAt
+              ? new Date(s.scheduledAt).getTime()
+              : s.startedAt
+                ? new Date(s.startedAt).getTime()
+                : s.scheduledAt
+                  ? new Date(s.scheduledAt).getTime()
+                  : null
+          if (!anchorTime) continue
+
+          const endTime = anchorTime + durationMs
           const remaining = endTime - now
 
           // Alert when between 5 min and 4 min 30 sec remaining (deduped across
@@ -3111,11 +3119,27 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // broadcast session:ended), just triggered on demand by the tutor. The
     // booking-completion sweep runs independently, so this only closes the live
     // room early — no refund/series side effects.
+    //
+    // Course sessions are scheduled events: the tutor can leave, but only the
+    // scheduled duration (and the auto-end timeout) can close them. This prevents
+    // a tutor from accidentally cutting a live class short for all students.
     socket.on('tutor:end_session', async (data: { roomId: string }) => {
       if (socket.data.role !== 'tutor') return
       const roomId = data?.roomId || socket.data.roomId
       if (!roomId || !socket.data.userId) return
       try {
+        const sessionRow = await drizzleDb.query.liveSession.findFirst({
+          where: and(eq(liveSession.sessionId, roomId), eq(liveSession.tutorId, socket.data.userId)),
+          columns: { sessionId: true, sessionType: true },
+        })
+        if (!sessionRow) return
+        if (sessionRow.sessionType === 'COURSE') {
+          socket.emit('session:error', {
+            sessionId: roomId,
+            error: 'Course sessions end automatically at the scheduled time. Use Leave to exit the room.',
+          })
+          return
+        }
         // Scope the end to a session THIS tutor owns — `roomId` is client-supplied,
         // so without the tutorId predicate any tutor could end (and kick everyone
         // out of) any session by id. Only broadcast if a row was actually ended.
