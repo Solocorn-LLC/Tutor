@@ -1,5 +1,16 @@
-import { describe, it, expect } from 'vitest'
-import { computeLessonUsage } from './lesson-usage'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { computeLessonUsage, getLessonUsage } from './lesson-usage'
+
+const mockWhere = vi.fn()
+const mockInnerJoin = vi.fn(() => ({ where: mockWhere }))
+const mockFrom = vi.fn(() => ({ innerJoin: mockInnerJoin }))
+const mockSelect = vi.fn(() => ({ from: mockFrom }))
+
+vi.mock('@/lib/db/drizzle', () => ({
+  drizzleDb: {
+    select: (...args: unknown[]) => mockSelect(...args),
+  },
+}))
 
 /**
  * The delete guard blocks deletion of a lesson only when material was deployed
@@ -50,5 +61,42 @@ describe('computeLessonUsage', () => {
   it('counts a target id that only has direct deployments', () => {
     const usage = computeLessonUsage(['brand-new'], ['brand-new'])
     expect(usage['brand-new'].hasDeployments).toBe(true)
+  })
+})
+
+describe('getLessonUsage', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  function setQueryResult(rows: Array<{ lessonId: string | null }>) {
+    mockWhere.mockResolvedValue(rows)
+  }
+
+  it('returns empty when no lesson ids are provided', async () => {
+    const result = await getLessonUsage('course-1', [])
+    expect(result).toEqual({})
+    expect(mockSelect).not.toHaveBeenCalled()
+  })
+
+  it('marks a lesson deletable when no real-session deployments exist', async () => {
+    setQueryResult([])
+    const result = await getLessonUsage('course-1', ['lesson-a'])
+    expect(result['lesson-a']).toEqual({
+      lessonId: 'lesson-a',
+      deployedCount: 0,
+      hasDeployments: false,
+    })
+    expect(mockWhere).toHaveBeenCalled()
+  })
+
+  it('blocks deletion when the lesson has a non-demo deployment in the course', async () => {
+    setQueryResult([{ lessonId: 'lesson-a' }])
+    const result = await getLessonUsage('course-1', ['lesson-a'])
+    expect(result['lesson-a']).toEqual({
+      lessonId: 'lesson-a',
+      deployedCount: 1,
+      hasDeployments: true,
+    })
   })
 })
