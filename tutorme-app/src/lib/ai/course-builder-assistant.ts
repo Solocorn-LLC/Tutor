@@ -33,6 +33,8 @@ export interface CourseBuilderContext {
   courseId?: string | null
   courseName?: string
   courseDescription?: string
+  /** Published lifecycle state of the course. */
+  courseState?: 'creating' | 'unpublished' | 'published' | 'demo' | null
   totalLessons: number
   totalTasks: number
   totalAssessments: number
@@ -74,6 +76,10 @@ function buildContextBlock(ctx: CourseBuilderContext): string {
   }
 
   lines.push(`Course: ${ctx.courseName?.trim() || 'Untitled course'}`)
+
+  if (ctx.courseState) {
+    lines.push(`Course state: ${ctx.courseState}`)
+  }
 
   if (ctx.courseDescription?.trim()) {
     lines.push(`Course description: ${ctx.courseDescription.trim()}`)

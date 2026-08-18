@@ -592,6 +592,56 @@ async function getRoomFromRedis(roomId: string): Promise<ClassRoom | null> {
   }
 }
 
+/** Rehydrate a room's deployed tasks/assessments from Postgres.
+ *  Called during join_class so late joiners and reconnecting tutors see
+ *  everything that was deployed, even if the in-memory room was evicted
+ *  or Redis is unavailable. Idempotent: skips tasks already present in memory. */
+async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<void> {
+  // Private whiteboard sub-rooms have no LiveSession/DeployedMaterial rows.
+  if (roomId.includes(':board:')) return
+
+  try {
+    const rows = await drizzleDb
+      .select({ content: deployedMaterial.content })
+      .from(deployedMaterial)
+      .where(
+        and(
+          eq(deployedMaterial.sessionId, roomId),
+          inArray(deployedMaterial.type, ['task', 'assessment', 'homework'])
+        )
+      )
+      .orderBy(deployedMaterial.sessionSequence, deployedMaterial.deployedAt)
+
+    const existingIds = new Set(room.tasks.map(t => t.id))
+    for (const row of rows) {
+      const snapshot = row.content as Partial<LiveTask> | undefined
+      if (!snapshot?.id || existingIds.has(snapshot.id)) continue
+      const hydrated: LiveTask = {
+        id: snapshot.id,
+        title: snapshot.title || 'Task',
+        content: snapshot.content || '',
+        source: snapshot.source || 'task',
+        dmiItems: Array.isArray(snapshot.dmiItems) ? snapshot.dmiItems : undefined,
+        deployedAt: typeof snapshot.deployedAt === 'number' ? snapshot.deployedAt : Date.now(),
+        polls: Array.isArray(snapshot.polls) ? snapshot.polls : [],
+        questions: Array.isArray(snapshot.questions) ? snapshot.questions : [],
+        sourceDocument: snapshot.sourceDocument,
+        htmlContent: snapshot.htmlContent,
+        linkPreviews: snapshot.linkPreviews,
+        generatedFromText: snapshot.generatedFromText,
+        parentId: snapshot.parentId,
+        isExtension: snapshot.isExtension ?? false,
+        lessonId: snapshot.lessonId,
+        completedBy: [],
+      }
+      room.tasks.push(hydrated)
+      existingIds.add(hydrated.id)
+    }
+  } catch (err) {
+    console.error('[hydrateRoomTasksFromDb] failed:', err)
+  }
+}
+
 // A live session can legitimately have no courseId — it is nullable, and is
 // even nulled out (onDelete: 'set null') when the course is deleted. But
 // BuilderTask.courseId and DeployedMaterial.courseId are NOT NULL, so without a
@@ -1438,6 +1488,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
       } catch (err) {
         console.error('Failed to hydrate polls:', err)
       }
+
+      // Rehydrate deployed tasks/assessments from Postgres so late joiners and
+      // reconnecting tutors always see the current deploy list, even after a
+      // server restart or Redis eviction.
+      await hydrateRoomTasksFromDb(roomId, room)
 
       // Add user to room with activity tracking
       await (effectiveRole === 'student'
