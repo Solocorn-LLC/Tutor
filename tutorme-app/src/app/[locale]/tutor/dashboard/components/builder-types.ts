@@ -41,6 +41,14 @@ export interface ImportedLearningResource {
   generatedFromText?: boolean
   /** Version of the snapshot generator that produced this document. Bumping it forces re-generation of older auto-snapshots. */
   snapshotVersion?: number
+  /** True when this document is a single page extracted from a larger parent PDF. */
+  isSplitPage?: boolean
+  /** Storage key of the original parent PDF, when this document is a split page. */
+  parentFileKey?: string
+  /** Name of the original parent PDF, when this document is a split page. */
+  parentFileName?: string
+  /** 1-based page number within the original parent PDF, when this document is a split page. */
+  pageNumber?: number
 }
 
 export interface VisibleDocumentPayload {

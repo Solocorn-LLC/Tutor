@@ -6,9 +6,11 @@
  * client-side loop that uploaded each page in its own request (which tripped the
  * rate limiter — "too many requests" — on multi-page documents).
  *
- * Body: { key?: string, url?: string, fileName?: string }
+ * Body: { key?: string, url?: string, fileName?: string, pageNumbers?: number[] }
  *   - key: the storage key of the source document (preferred)
  *   - url: a storage URL (/api/serve-upload/<key> or a GCS URL) to derive the key
+ *   - pageNumbers: optional array of 1-based page numbers to return; when omitted,
+ *     all pages are returned.
  *
  * Returns: { pageCount, pages: [{ pageNumber, url, key, name }] }
  */
@@ -55,15 +57,28 @@ export const POST = withCsrf(
         return NextResponse.json({ error: 'Document not found in storage' }, { status: 404 })
       }
 
+      let pageNumbers: number[] | undefined
+      if (body?.pageNumbers && Array.isArray(body.pageNumbers)) {
+        pageNumbers = body.pageNumbers
+          .map((p: unknown) => (typeof p === 'string' ? parseInt(p, 10) : Number(p)))
+          .filter((n: number) => Number.isFinite(n) && n >= 1)
+      }
+
       try {
         const { pageCount, pages } = await splitPdfBufferIntoPages(sourceBuffer, {
           userId: session.user.id,
           fileName: body?.fileName,
+          pageNumbers,
         })
         return NextResponse.json({ pageCount, pages })
       } catch (splitErr) {
         const code = (splitErr as { code?: string }).code
-        if (code === 'INVALID_PDF' || code === 'EMPTY_PDF' || code === 'TOO_MANY_PAGES') {
+        if (
+          code === 'INVALID_PDF' ||
+          code === 'EMPTY_PDF' ||
+          code === 'TOO_MANY_PAGES' ||
+          code === 'PAGE_NOT_FOUND'
+        ) {
           return NextResponse.json({ error: (splitErr as Error).message }, { status: 400 })
         }
         throw splitErr

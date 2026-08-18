@@ -8272,15 +8272,141 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       pendingAutoGenDmiRef.current = asset.fileKey || asset.url || null
     }
 
+    /**
+     * Locate a sourceDocument in any active builder/course state by its
+     * fileUrl/fileKey. Used by the restore flow to know which document is being
+     * repaired and whether it carries split-page parent metadata.
+     */
+    const findSourceDocumentByRef = useCallback(
+      (fileUrl: string, fileKey?: string): ImportedLearningResource | null => {
+        const matches = (doc: ImportedLearningResource | undefined) => {
+          if (!doc) return false
+          if (fileKey && doc.fileKey === fileKey) return true
+          if (doc.fileUrl === fileUrl) return true
+          return false
+        }
+
+        if (matches(taskSourceDocument)) return taskSourceDocument!
+        if (matches(assessmentSourceDocument)) return assessmentSourceDocument!
+        if (matches(taskBuilder.sourceDocument)) return taskBuilder.sourceDocument!
+        for (const ext of taskBuilder.extensions || []) {
+          if (matches(ext.sourceDocument)) return ext.sourceDocument!
+        }
+        if (matches(assessmentBuilder.sourceDocument)) return assessmentBuilder.sourceDocument!
+        for (const node of nodes) {
+          for (const lesson of node.lessons) {
+            for (const task of lesson.tasks || []) {
+              if (matches(task.sourceDocument)) return task.sourceDocument!
+              for (const ext of task.extensions || []) {
+                if (matches(ext.sourceDocument)) return ext.sourceDocument!
+              }
+            }
+            for (const hw of lesson.homework || []) {
+              if (matches(hw.sourceDocument)) return hw.sourceDocument!
+            }
+            for (const c of lesson.content || []) {
+              if (matches(c.sourceDocument)) return c.sourceDocument!
+            }
+          }
+        }
+        return null
+      },
+      [nodes, taskBuilder, assessmentBuilder, taskSourceDocument, assessmentSourceDocument]
+    )
+
+    /**
+     * Apply a sourceDocument transformation to every occurrence that matches the
+     * given fileUrl/fileKey across builder and persisted course state.
+     */
+    const applySourceDocumentRestore = useCallback(
+      (
+        fileUrl: string,
+        fileKey: string | undefined,
+        updater: (doc: ImportedLearningResource) => ImportedLearningResource
+      ) => {
+        const matches = (doc: ImportedLearningResource | undefined) => {
+          if (!doc) return false
+          if (fileKey && doc.fileKey === fileKey) return true
+          if (doc.fileUrl === fileUrl) return true
+          return false
+        }
+
+        setTaskSourceDocument(prev => (matches(prev) ? updater(prev!) : prev))
+        setAssessmentSourceDocument(prev => (matches(prev) ? updater(prev!) : prev))
+
+        setTaskBuilder(prev => {
+          const next: typeof prev = { ...prev }
+          if (matches(prev.sourceDocument)) {
+            next.sourceDocument = updater(prev.sourceDocument!)
+          }
+          next.extensions = (prev.extensions || []).map(ext =>
+            matches(ext.sourceDocument)
+              ? { ...ext, sourceDocument: updater(ext.sourceDocument!) }
+              : ext
+          )
+          return next
+        })
+
+        setAssessmentBuilder(prev => {
+          if (matches(prev.sourceDocument)) {
+            return { ...prev, sourceDocument: updater(prev.sourceDocument!) }
+          }
+          return prev
+        })
+
+        setCourseBuilderNodes(prevNodes =>
+          prevNodes.map(node => ({
+            ...node,
+            lessons: node.lessons.map(lesson => ({
+              ...lesson,
+              tasks: (lesson.tasks || []).map(task => {
+                const nextTask: Task = { ...task }
+                if (matches(task.sourceDocument)) {
+                  nextTask.sourceDocument = updater(task.sourceDocument!)
+                }
+                nextTask.extensions = (task.extensions || []).map(ext =>
+                  matches(ext.sourceDocument)
+                    ? { ...ext, sourceDocument: updater(ext.sourceDocument!) }
+                    : ext
+                )
+                return nextTask
+              }),
+              homework: (lesson.homework || []).map(hw =>
+                matches(hw.sourceDocument)
+                  ? { ...hw, sourceDocument: updater(hw.sourceDocument!) }
+                  : hw
+              ),
+              content: (lesson.content || []).map(c =>
+                matches(c.sourceDocument) ? { ...c, sourceDocument: updater(c.sourceDocument!) } : c
+              ),
+            })),
+          }))
+        )
+      },
+      []
+    )
+
+    /**
+     * Try to restore a missing PDF by:
+     *  1. Simple retry if the stored file was found.
+     *  2. Deterministic re-extraction when the task stores parentFileKey/pageNumber.
+     *  3. Heuristic: parse "Name (Page N)" from fileName, find the parent asset,
+     *     and re-extract that page.
+     *  4. Fall back to the Assets picker so the tutor can manually re-attach a file.
+     */
     const handleRestoreDocument = useCallback(
-      ({
+      async ({
         found,
         checkedKey,
         reason,
+        fileUrl,
+        fileKey,
       }: {
         found: boolean
         checkedKey?: string | null
         reason?: string
+        fileUrl: string
+        fileKey?: string
       }) => {
         if (found) {
           toast.success(
@@ -8292,12 +8418,114 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           return
         }
 
+        const doc = findSourceDocumentByRef(fileUrl, fileKey)
+
+        // Deterministic restore: we know the parent PDF and exact page number.
+        if (
+          doc?.isSplitPage &&
+          doc.parentFileKey &&
+          typeof doc.pageNumber === 'number' &&
+          doc.pageNumber >= 1
+        ) {
+          try {
+            const res = await fetchWithCsrf('/api/tutor/documents/split', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                key: doc.parentFileKey,
+                fileName: doc.parentFileName,
+                pageNumbers: [doc.pageNumber],
+              }),
+            })
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}))
+              throw new Error(errData.error || `Split failed (${res.status})`)
+            }
+            const { pages } = (await res.json()) as {
+              pages: Array<{ pageNumber: number; url: string; key: string; name: string }>
+            }
+            if (pages.length === 0) {
+              throw new Error('Requested page not found in parent document')
+            }
+            const sp = pages[0]
+            applySourceDocumentRestore(fileUrl, fileKey, prev => ({
+              ...prev,
+              fileUrl: sp.url,
+              fileKey: sp.key,
+              mimeType: 'application/pdf',
+              uploadedAt: new Date().toISOString(),
+            }))
+            setPdfRestoreKey(prev => prev + 1)
+            toast.success(`Restored page ${doc.pageNumber} from parent PDF`)
+            return
+          } catch (err) {
+            console.error('Deterministic restore failed:', err)
+            toast.error(
+              `Could not re-extract page ${doc.pageNumber}: ${
+                err instanceof Error ? err.message : 'Unknown error'
+              }`
+            )
+          }
+        }
+
+        // Heuristic restore: parse "Name (Page N)" and search current assets.
+        if (doc?.fileName) {
+          const match = doc.fileName.match(/^(.+?)\s*\(Page\s+(\d+)\)$/i)
+          if (match) {
+            const parentName = match[1].trim()
+            const pageNumber = parseInt(match[2], 10)
+            const parentAsset = courseAssets.find(a => a.name.trim() === parentName)
+            if (parentAsset && (parentAsset.fileKey || parentAsset.url)) {
+              try {
+                const res = await fetchWithCsrf('/api/tutor/documents/split', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    key: parentAsset.fileKey,
+                    url: parentAsset.url,
+                    fileName: parentAsset.name,
+                    pageNumbers: [pageNumber],
+                  }),
+                })
+                if (!res.ok) {
+                  const errData = await res.json().catch(() => ({}))
+                  throw new Error(errData.error || `Split failed (${res.status})`)
+                }
+                const { pages } = (await res.json()) as {
+                  pages: Array<{ pageNumber: number; url: string; key: string; name: string }>
+                }
+                if (pages.length === 0) {
+                  throw new Error('Requested page not found in parent document')
+                }
+                const sp = pages[0]
+                applySourceDocumentRestore(fileUrl, fileKey, prev => ({
+                  ...prev,
+                  fileUrl: sp.url,
+                  fileKey: sp.key,
+                  mimeType: 'application/pdf',
+                  uploadedAt: new Date().toISOString(),
+                }))
+                setPdfRestoreKey(prev => prev + 1)
+                toast.success(`Restored page ${pageNumber} from '${parentName}'`)
+                return
+              } catch (err) {
+                console.error('Heuristic restore failed:', err)
+                toast.error(
+                  `Could not restore from '${parentName}': ${
+                    err instanceof Error ? err.message : 'Unknown error'
+                  }`
+                )
+              }
+            }
+          }
+        }
+
         toast.error(reason || 'Original document not found in storage. Replace it from Assets.')
         const source = mainBuilderTab === 'assessment' ? 'assessment' : 'task'
         setAssetPickerTarget(source)
         setAssetsViewOpen(true)
       },
-      [mainBuilderTab]
+      [mainBuilderTab, courseAssets, findSourceDocumentByRef, applySourceDocumentRestore]
     )
 
     // When an asset is loaded into a course, tag it with that course's categories
@@ -8741,12 +8969,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               const sp = splitPages[i]
                               const desc = pages[i] || `Page ${i + 1} from ${assetToLoad.name}`
                               const sourceDocument = {
-                                fileName: `${assetToLoad.name} (Page ${i + 1})`,
+                                fileName: `${assetToLoad.name} (Page ${sp.pageNumber})`,
                                 fileUrl: sp.url,
                                 fileKey: sp.key,
                                 mimeType: 'application/pdf',
                                 uploadedAt: new Date().toISOString(),
                                 extractedText: desc,
+                                isSplitPage: true,
+                                parentFileKey: assetToLoad.fileKey,
+                                parentFileName: assetToLoad.name,
+                                pageNumber: sp.pageNumber,
                               }
                               if (existingTask && existingTaskIndex !== -1 && i === 0) {
                                 updatedExistingTask = {
@@ -9020,6 +9252,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                             mimeType: 'application/pdf',
                             uploadedAt: new Date().toISOString(),
                             extractedText: pages[0] || textToInsert,
+                            isSplitPage: true,
+                            parentFileKey: assetToLoad.fileKey,
+                            parentFileName: assetToLoad.name,
+                            pageNumber: 1,
                           }
                         } else if (
                           (assetToLoad.url || assetToLoad.fileKey) &&
@@ -9056,6 +9292,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               mimeType: 'application/pdf',
                               uploadedAt: new Date().toISOString(),
                               extractedText: pageContent,
+                              isSplitPage: true,
+                              parentFileKey: assetToLoad.fileKey,
+                              parentFileName: assetToLoad.name,
+                              pageNumber: idx + 2,
                             }
                           }
 
