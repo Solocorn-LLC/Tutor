@@ -9,15 +9,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { tutorAsset, course, courseLesson } from '@/lib/db/schema'
+import { tutorAsset, course } from '@/lib/db/schema'
 import { eq, and, inArray, isNull } from 'drizzle-orm'
-import {
-  deleteObject,
-  extractGcsKeyFromPublicUrl,
-  isGcsConfigured,
-  refreshGcsUrl,
-} from '@/lib/storage/gcs'
-import { collectFileKeys } from '@/lib/services/course-builder.service'
+import { extractGcsKeyFromPublicUrl, isGcsConfigured, refreshGcsUrl } from '@/lib/storage/gcs'
+import { collectReferencedKeysWithSources } from '@/lib/storage/referenced-keys'
 
 interface Asset {
   id: string
@@ -55,7 +50,7 @@ export async function GET(req: NextRequest) {
         metadata: tutorAsset.metadata,
       })
       .from(tutorAsset)
-      .where(eq(tutorAsset.tutorId, tutorId))
+      .where(and(eq(tutorAsset.tutorId, tutorId), isNull(tutorAsset.deletedAt)))
       .orderBy(tutorAsset.createdAt)
 
     // Refresh GCS URLs before returning — presigned URLs expire after 7 days.
@@ -127,8 +122,9 @@ export async function PUT(req: NextRequest) {
     const assets: Asset[] = body.assets || []
 
     // Determine which files are still referenced by any of the tutor's courses
-    // so we never delete an asset that would break an existing task/assessment.
-    const allRefs = await collectAllReferencedKeys(tutorId)
+    // or the asset library so we never delete an asset that would break an
+    // existing task/assessment.
+    const allRefs = await collectReferencedKeysWithSources(tutorId)
     const blockedDeletions: { id: string; name?: string; courses: string[] }[] = []
 
     await drizzleDb.transaction(async tx => {
@@ -141,10 +137,12 @@ export async function PUT(req: NextRequest) {
       const existingIds = new Set(existingAssets.map(a => a.id))
       const incomingIds = new Set(assets.map(a => a.id))
 
-      // Delete assets that are no longer present (and their GCS files),
-      // but only if no course still references the underlying file.
+      // Soft-delete assets that are no longer present. We do NOT remove the
+      // underlying GCS/local file immediately; a sweep job reaps truly orphaned
+      // files later. This prevents data loss if a deletion was accidental or if
+      // a reference was missed. Assets still referenced by a course are preserved
+      // entirely (their row stays live).
       const idsToDelete = [...existingIds].filter(id => !incomingIds.has(id))
-      const safeIdsToDelete: string[] = []
 
       if (idsToDelete.length > 0) {
         const assetsToDelete = await tx
@@ -157,34 +155,24 @@ export async function PUT(req: NextRequest) {
           .from(tutorAsset)
           .where(and(eq(tutorAsset.tutorId, tutorId), inArray(tutorAsset.assetId, idsToDelete)))
 
+        const safeIdsToDelete: string[] = []
         for (const asset of assetsToDelete) {
           const key = getKeyForAsset(asset)
-          const courses = key ? Array.from(allRefs.get(key) ?? []) : []
-          if (courses.length > 0) {
-            blockedDeletions.push({ id: asset.id, name: asset.name ?? undefined, courses })
+          const sources = key ? Array.from(allRefs.get(key) ?? []) : []
+          if (sources.length > 0) {
+            blockedDeletions.push({ id: asset.id, name: asset.name ?? undefined, courses: sources })
           } else {
             safeIdsToDelete.push(asset.id)
           }
         }
 
-        for (const asset of assetsToDelete) {
-          if (!safeIdsToDelete.includes(asset.id)) continue
-          if (asset.url && isGcsConfigured()) {
-            const key = extractGcsKeyFromPublicUrl(asset.url)
-            if (key) {
-              try {
-                await deleteObject(key)
-              } catch (err) {
-                console.error('[assets-put] GCS delete failed:', err)
-              }
-            }
-          }
-        }
-
-        for (const id of safeIdsToDelete) {
+        if (safeIdsToDelete.length > 0) {
           await tx
-            .delete(tutorAsset)
-            .where(and(eq(tutorAsset.assetId, id), eq(tutorAsset.tutorId, tutorId)))
+            .update(tutorAsset)
+            .set({ deletedAt: new Date() })
+            .where(
+              and(eq(tutorAsset.tutorId, tutorId), inArray(tutorAsset.assetId, safeIdsToDelete))
+            )
         }
       }
 
@@ -231,37 +219,6 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-/**
- * Collect storage keys still referenced by any of this tutor's courses
- * (published or unpublished), mapped to the names of the courses that use them.
- * A file that appears in any course's builderData must not be deleted, because
- * removing it leaves tasks/assessments with broken sourceDocument references.
- */
-async function collectAllReferencedKeys(tutorId: string): Promise<Map<string, Set<string>>> {
-  const keyToCourses = new Map<string, Set<string>>()
-  const rows = await drizzleDb
-    .select({
-      builderData: courseLesson.builderData,
-      courseName: course.name,
-      courseId: course.courseId,
-    })
-    .from(courseLesson)
-    .innerJoin(course, eq(courseLesson.courseId, course.courseId))
-    .where(and(eq(course.creatorId, tutorId), isNull(courseLesson.deletedAt)))
-
-  for (const row of rows) {
-    const keys = collectFileKeys([row.builderData])
-    const courseLabel = row.courseName?.trim() || row.courseId || 'Unnamed course'
-    for (const key of keys) {
-      if (!keyToCourses.has(key)) {
-        keyToCourses.set(key, new Set())
-      }
-      keyToCourses.get(key)!.add(courseLabel)
-    }
-  }
-  return keyToCourses
-}
-
 function getKeyForAsset(asset: { url?: string | null; fileKey?: string | null }): string | null {
   return asset.fileKey || (asset.url ? extractGcsKeyFromPublicUrl(asset.url) : null)
 }
@@ -296,34 +253,27 @@ export async function DELETE(req: NextRequest) {
     // Determine the storage key for this asset.
     const assetKey = getKeyForAsset(assetRow)
 
-    // Prevent deletion if the asset is still referenced by any course.
-    const allRefs = await collectAllReferencedKeys(tutorId)
-    const blockingCourses = assetKey ? Array.from(allRefs.get(assetKey) ?? []) : []
-    if (blockingCourses.length > 0) {
+    // Prevent deletion if the asset is still referenced by any course or the
+    // asset library.
+    const allRefs = await collectReferencedKeysWithSources(tutorId)
+    const blockingSources = assetKey ? Array.from(allRefs.get(assetKey) ?? []) : []
+    if (blockingSources.length > 0) {
       return NextResponse.json(
         {
           error: 'Cannot delete — this file is used by one or more courses.',
           reason: 'course-reference',
           assetName: assetRow.name,
-          courses: blockingCourses,
+          courses: blockingSources,
         },
         { status: 409 }
       )
     }
 
-    if (assetRow?.url && isGcsConfigured()) {
-      const key = extractGcsKeyFromPublicUrl(assetRow.url)
-      if (key) {
-        try {
-          await deleteObject(key)
-        } catch (err) {
-          console.error('[assets-delete] GCS delete failed:', err)
-        }
-      }
-    }
-
+    // Soft-delete the row instead of removing it (and the storage object)
+    // immediately. A sweep job reaps truly orphaned soft-deleted assets later.
     await drizzleDb
-      .delete(tutorAsset)
+      .update(tutorAsset)
+      .set({ deletedAt: new Date() })
       .where(and(eq(tutorAsset.assetId, assetId), eq(tutorAsset.tutorId, tutorId)))
 
     return NextResponse.json({ message: 'Asset deleted successfully' })

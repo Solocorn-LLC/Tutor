@@ -304,6 +304,7 @@ export const tutorAsset = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
+    deletedAt: timestamp('deletedAt', { withTimezone: true }),
   },
   table => ({
     TutorAsset_tutorId_idx: index('TutorAsset_tutorId_idx').on(table.tutorId),
@@ -311,5 +312,6 @@ export const tutorAsset = pgTable(
       table.tutorId,
       table.createdAt
     ),
+    TutorAsset_deletedAt_idx: index('TutorAsset_deletedAt_idx').on(table.deletedAt),
   })
 )

@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { removeFile } from '@/lib/storage/service'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
 import { getLessonUsage } from '@/lib/courses/lesson-usage'
+import { collectReferencedKeys } from '@/lib/storage/referenced-keys'
 
 /** Thrown when a save would hard-delete a lesson that has deployed material. */
 export const LESSON_DEPLOYED_ERROR = 'LESSON_HAS_DEPLOYMENTS'
@@ -147,18 +148,50 @@ function toLessonBuilderData(les: BuilderLessonInput) {
 export class CourseBuilderService {
   /**
    * Scan all lessons in a course for fileKeys and delete the GCS objects.
+   * Reference-aware: a file that is also used by another of this tutor's courses
+   * or by the asset library is skipped, so deleting one course doesn't break
+   * shared documents.
+   *
    * Best-effort: errors are logged but not thrown.
    */
   static async cleanupCourseFiles(courseId: string): Promise<void> {
     try {
+      const [courseRow] = await drizzleDb
+        .select({ creatorId: course.creatorId })
+        .from(course)
+        .where(eq(course.courseId, courseId))
+      if (!courseRow) {
+        console.warn('[CourseBuilderService] cleanupCourseFiles: course not found', courseId)
+        return
+      }
+
       const lessons = await drizzleDb
         .select({ builderData: courseLesson.builderData })
         .from(courseLesson)
         .where(eq(courseLesson.courseId, courseId))
 
-      const keys = collectFileKeys(lessons.map(l => l.builderData))
-      if (keys.length > 0) {
-        await deleteGcsFiles(keys)
+      const candidateKeys = collectFileKeys(lessons.map(l => l.builderData))
+      if (candidateKeys.length === 0) return
+
+      // Protect keys still referenced elsewhere by this tutor.
+      if (!courseRow.creatorId) {
+        console.warn(
+          '[CourseBuilderService] cleanupCourseFiles: course has no creatorId, skipping file cleanup',
+          courseId
+        )
+        return
+      }
+      const protectedKeys = await collectReferencedKeys(courseRow.creatorId)
+      const keysToDelete = candidateKeys.filter(k => !protectedKeys.has(k))
+      const skipped = candidateKeys.filter(k => protectedKeys.has(k))
+      if (skipped.length > 0) {
+        console.log(
+          `[CourseBuilderService] cleanupCourseFiles: skipping ${skipped.length} shared key(s)`
+        )
+      }
+
+      if (keysToDelete.length > 0) {
+        await deleteGcsFiles(keysToDelete)
       }
     } catch (err: any) {
       console.warn('[CourseBuilderService] cleanupCourseFiles failed:', err?.message)
