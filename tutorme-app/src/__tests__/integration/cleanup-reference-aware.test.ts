@@ -66,7 +66,11 @@ describe('cleanup reference-awareness', () => {
       title: 'Lesson',
       order: 0,
       builderData: {
-        tasks: [{ id: 't1', sourceDocument: { fileKey: lessonKey } }],
+        tasks: [
+          { id: 't1', sourceDocument: { fileKey: lessonKey } },
+          // Same file also used in the first course — proves cross-course sharing.
+          { id: 't1-shared', sourceDocument: { fileKey: sharedAcrossCourseKey } },
+        ],
         assessments: [
           {
             id: 'a1',
