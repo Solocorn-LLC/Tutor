@@ -25,9 +25,15 @@ interface PDFViewerProps {
   defaultScale?: number
   onHidePreview?: () => void
   /** Called when the user clicks the Restore button in the error state.
-   *  Receives the last server-side storage verification result so the parent
-   *  can either retry the original document or offer a replacement. */
-  onRestore?: (result: { found: boolean; checkedKey?: string | null; reason?: string }) => void
+   *  Receives the last server-side storage verification result plus the
+   *  document reference being restored so the parent can locate and update it. */
+  onRestore?: (result: {
+    found: boolean
+    checkedKey?: string | null
+    reason?: string
+    fileUrl: string
+    fileKey?: string
+  }) => void
   /** When true, the PDF page is scaled to fit the container width on load,
    *  with the zoom slider operating relative to this fit scale (100% = fit). */
   fitToWidth?: boolean
@@ -313,6 +319,11 @@ export function PDFViewer({
                 : verifyResult.reason || 'Document not found in storage.'}
             </p>
           ) : null}
+          <p className="max-w-md text-xs text-gray-500">
+            {onRestore
+              ? 'Restore will try to reconnect the original file. For task pages split from a larger PDF, it will re-extract the page if the parent document is still available; otherwise you can re-attach a replacement file.'
+              : 'The original file may have been deleted or its reference may be stale.'}
+          </p>
           <div className="flex flex-wrap justify-center gap-2">
             <button
               onClick={() => {
@@ -327,12 +338,14 @@ export function PDFViewer({
             {onRestore && (
               <button
                 onClick={() =>
-                  onRestore(
-                    verifyResult ?? {
+                  onRestore({
+                    ...(verifyResult ?? {
                       found: false,
                       reason: 'Document not found in storage.',
-                    }
-                  )
+                    }),
+                    fileUrl,
+                    fileKey,
+                  })
                 }
                 disabled={verifying}
                 className="rounded-md bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
