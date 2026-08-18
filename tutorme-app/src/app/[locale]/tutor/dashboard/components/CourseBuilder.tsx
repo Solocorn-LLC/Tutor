@@ -4092,11 +4092,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // unsynced edit (which previously caused an infinite save/sync toast loop).
     const prevNodesRef = useRef(nodes)
 
-    const handleSyncToLive = useCallback(() => {
-      const cloned = cloneNodes(builderNodes)
-      setLiveNodes(cloned)
-      return cloned
-    }, [builderNodes, cloneNodes, setLiveNodes])
+    const handleSyncToLive = useCallback(
+      (sourceNodes?: CourseBuilderNode[]) => {
+        const cloned = cloneNodes(sourceNodes ?? builderNodes)
+        setLiveNodes(cloned)
+        return cloned
+      },
+      [builderNodes, cloneNodes, setLiveNodes]
+    )
 
     // When the active tab enters "live", refresh the live snapshot from the
     // current builder content so edits made in Build don't vanish on Live. This
@@ -4122,7 +4125,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // builderData from the DB, so emitting before the save resolves would
         // sync the previous content — making edits appear one save behind.
         await doSave(isAuto)
-        const cloned = handleSyncToLive()
+
+        // In live mode the current `nodes` are liveNodes, which already contain
+        // the tutor's latest edits (e.g. an asset loaded during the session).
+        // builderNodes may still hold the pre-edit snapshot; cloning builderNodes
+        // into liveNodes would overwrite those edits and make the loaded asset
+        // disappear. Keep builderNodes in sync with liveNodes and use liveNodes
+        // as the sync source.
+        let cloned: CourseBuilderNode[]
+        if (mainTab === 'live') {
+          setBuilderNodes(nodes)
+          cloned = handleSyncToLive(nodes)
+        } else {
+          cloned = handleSyncToLive()
+        }
         // In live mode `nodes` becomes this clone; record it so the effect below
         // doesn't treat the sync as a new edit and re-arm another auto-sync.
         prevNodesRef.current = cloned
@@ -4130,7 +4146,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setHasUnsyncedChanges(false)
         setAskToastShown(false)
       },
-      [doSave, handleSyncToLive, onSyncToLiveSession]
+      [doSave, handleSyncToLive, onSyncToLiveSession, mainTab, nodes]
     )
 
     // Track when nodes change during an active session to mark unsynced changes
