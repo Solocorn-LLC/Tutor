@@ -1660,10 +1660,10 @@ function CourseBuilderInsightsRouteInner({
 
       {/* Delete Course Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Course</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="max-w-md border border-slate-200 shadow-2xl">
+          <DialogHeader className="text-center">
+            <DialogTitle className="mx-auto text-center text-white">Delete Course</DialogTitle>
+            <DialogDescription className="text-white/80">
               Are you sure you want to delete this course? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>

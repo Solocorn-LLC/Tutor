@@ -48,7 +48,7 @@ export const POST = withAuth(
       // 1. Stored fileKey
       if (
         fileKey &&
-        /^(documents|assets|resources|messages)\//.test(fileKey) &&
+        /^(?:(?:documents|assets|resources|messages)\/|tutors\/[^/]+\/resources\/)/.test(fileKey) &&
         !fileKey.includes('..')
       ) {
         checks.checkedKey = fileKey

@@ -5,7 +5,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css'
 import 'react-pdf/dist/esm/Page/TextLayer.css'
 import { FloatingZoomPill } from './FloatingZoomPill'
-import { resolveDocDisplayUrl } from '@/lib/storage/doc-url'
+import { resolveDocDisplayUrl, isProxyableKey } from '@/lib/storage/doc-url'
 import { cn } from '@/lib/utils'
 
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
@@ -130,8 +130,7 @@ export function PDFViewer({
   // Fetch PDF through proxy so expired GCS URLs get refreshed server-side.
   // A durable fileKey is enough on its own — the by-key proxy streams the
   // object directly — so don't require a (possibly empty/expired) fileUrl.
-  const hasKey =
-    typeof fileKey === 'string' && /^(documents|assets|resources|messages)\//.test(fileKey)
+  const hasKey = isProxyableKey(fileKey)
   useEffect(() => {
     if ((!fileUrl && !hasKey) || isBlobUrl) return
 
