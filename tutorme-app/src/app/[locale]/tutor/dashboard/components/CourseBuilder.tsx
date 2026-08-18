@@ -692,7 +692,12 @@ function PciReadinessBadge({ instructions }: { instructions?: string }) {
         )}
         aria-hidden="true"
       />
-      <span className={cn('text-[10px] font-medium', ready ? 'text-emerald-600' : 'text-red-600')}>
+      <span
+        className={cn(
+          'text-xs font-medium leading-none',
+          ready ? 'text-emerald-600' : 'text-red-600'
+        )}
+      >
         PCI
       </span>
     </span>
@@ -1596,6 +1601,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Tracks which live tasks have already received the auto-seeded "Session ready."
     // greeting so StrictMode / dependency changes do not append duplicates.
     const liveGreetingSeededRef = useRef<Set<string>>(new Set())
+
+    // Fast lookup for items already deployed to the connected live session.
+    const deployedTaskIds = useMemo(
+      () => new Set((insightsProps?.liveTasks ?? []).map((t: any) => t.id)),
+      [insightsProps?.liveTasks]
+    )
 
     // Tutor chat input for the live classroom tab (mirrors the student live session).
     const [liveClassroomChatInput, setLiveClassroomChatInput] = useState('')
@@ -11217,7 +11228,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         ) : (
                                                           <>
                                                             {mainTab === 'live' &&
-                                                              insightsProps?.onDeployTask && (
+                                                              insightsProps?.onDeployTask &&
+                                                              (deployedTaskIds.has(task.id) ? (
+                                                                <span className="flex h-7 items-center px-2 text-xs font-semibold text-emerald-600">
+                                                                  Deployed
+                                                                </span>
+                                                              ) : (
                                                                 <Button
                                                                   variant="ghost"
                                                                   size="sm"
@@ -11259,7 +11275,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   <Send className="h-3.5 w-3.5" />
                                                                   Deploy
                                                                 </Button>
-                                                              )}
+                                                              ))}
                                                             <DropdownMenu>
                                                               <DropdownMenuTrigger asChild>
                                                                 <Button
@@ -11278,7 +11294,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                               </DropdownMenuTrigger>
                                                               <DropdownMenuContent align="end">
                                                                 {mainTab === 'live' &&
-                                                                  insightsProps?.onDeployTask && (
+                                                                  insightsProps?.onDeployTask &&
+                                                                  (deployedTaskIds.has(task.id) ? (
+                                                                    <DropdownMenuItem disabled>
+                                                                      Deployed
+                                                                    </DropdownMenuItem>
+                                                                  ) : (
                                                                     <DropdownMenuItem
                                                                       className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                       onClick={e => {
@@ -11315,7 +11336,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                       <Send className="mr-2 h-4 w-4" />
                                                                       Deploy
                                                                     </DropdownMenuItem>
-                                                                  )}
+                                                                  ))}
 
                                                                 {canEdit && (
                                                                   <DropdownMenuItem
@@ -12034,7 +12055,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       ) : (
                                                         <>
                                                           {mainTab === 'live' &&
-                                                            insightsProps?.onDeployTask && (
+                                                            insightsProps?.onDeployTask &&
+                                                            (deployedTaskIds.has(hw.id) ? (
+                                                              <span className="flex h-7 items-center px-2 text-xs font-semibold text-emerald-600">
+                                                                Deployed
+                                                              </span>
+                                                            ) : (
                                                               <Button
                                                                 variant="ghost"
                                                                 size="sm"
@@ -12069,7 +12095,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 <Send className="h-3.5 w-3.5" />
                                                                 Deploy
                                                               </Button>
-                                                            )}
+                                                            ))}
                                                           <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
                                                               <Button
@@ -12088,7 +12114,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
                                                               {mainTab === 'live' &&
-                                                                insightsProps?.onDeployTask && (
+                                                                insightsProps?.onDeployTask &&
+                                                                (deployedTaskIds.has(hw.id) ? (
+                                                                  <DropdownMenuItem disabled>
+                                                                    Deployed
+                                                                  </DropdownMenuItem>
+                                                                ) : (
                                                                   <DropdownMenuItem
                                                                     className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                     onClick={e => {
@@ -12116,7 +12147,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                     <Send className="mr-2 h-4 w-4" />
                                                                     Deploy
                                                                   </DropdownMenuItem>
-                                                                )}
+                                                                ))}
 
                                                               {canEdit && (
                                                                 <DropdownMenuItem
@@ -12418,7 +12449,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             ) : (
                                                               <>
                                                                 {mainTab === 'live' &&
-                                                                  insightsProps?.onDeployTask && (
+                                                                  insightsProps?.onDeployTask &&
+                                                                  (deployedTaskIds.has(hw.id) ? (
+                                                                    <span className="flex h-7 items-center px-2 text-xs font-semibold text-emerald-600">
+                                                                      Deployed
+                                                                    </span>
+                                                                  ) : (
                                                                     <Button
                                                                       variant="ghost"
                                                                       size="sm"
@@ -12456,7 +12492,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                       <Send className="h-3.5 w-3.5" />
                                                                       Deploy
                                                                     </Button>
-                                                                  )}
+                                                                  ))}
                                                                 <DropdownMenu>
                                                                   <DropdownMenuTrigger asChild>
                                                                     <Button
@@ -12477,7 +12513,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   </DropdownMenuTrigger>
                                                                   <DropdownMenuContent align="end">
                                                                     {mainTab === 'live' &&
-                                                                      insightsProps?.onDeployTask && (
+                                                                      insightsProps?.onDeployTask &&
+                                                                      (deployedTaskIds.has(
+                                                                        hw.id
+                                                                      ) ? (
+                                                                        <DropdownMenuItem disabled>
+                                                                          Deployed
+                                                                        </DropdownMenuItem>
+                                                                      ) : (
                                                                         <DropdownMenuItem
                                                                           className="font-bold text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)] focus:text-emerald-300"
                                                                           onClick={e => {
@@ -12506,7 +12549,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                           <Send className="mr-2 h-4 w-4" />
                                                                           Deploy
                                                                         </DropdownMenuItem>
-                                                                      )}
+                                                                      ))}
 
                                                                     {mainTab === 'builder' &&
                                                                       canEdit && (
