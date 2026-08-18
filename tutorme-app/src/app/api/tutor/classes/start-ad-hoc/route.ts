@@ -7,6 +7,7 @@ import { eq, inArray, sql } from 'drizzle-orm'
 import { notify } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
+import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
 
 const SPECIAL_TOKENS = ['kim.kon#26', 'stephen#26'] // fallback token, should match the one in landing page
 
@@ -29,6 +30,20 @@ export const POST = withAuth(
         targetAudience,
         trainingCategory,
       } = await req.json()
+
+      // A tutor may only run one live session at a time. Expired active sessions
+      // are auto-ended; any remaining active session blocks a new one.
+      const conflictingSession = await ensureSingleActiveSession(currentUser.id)
+      if (conflictingSession) {
+        return NextResponse.json(
+          {
+            error:
+              'You already have an active live session. End or leave it before starting another.',
+            conflictingSessionId: conflictingSession.sessionId,
+          },
+          { status: 409 }
+        )
+      }
 
       if (type === 'training') {
         // Verify token

@@ -28,6 +28,7 @@ import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { getIO } from '@/lib/socket-server-enhanced'
+import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
 
 function buildTranscript(
   messages: Array<{
@@ -374,6 +375,22 @@ export const POST = withCsrf(
 
       if (liveSessionRow.status === 'ended') {
         return NextResponse.json({ error: 'Cannot start a completed class' }, { status: 400 })
+      }
+
+      // Enforce a single active live session per tutor. If another session is
+      // still active, the tutor must leave/end it before starting a new one.
+      const conflictingSession = await ensureSingleActiveSession(tutorId, {
+        excludeSessionId: liveSessionRow.sessionId,
+      })
+      if (conflictingSession) {
+        return NextResponse.json(
+          {
+            error:
+              'You already have an active live session. End or leave it before starting another.',
+            conflictingSessionId: conflictingSession.sessionId,
+          },
+          { status: 409 }
+        )
       }
 
       // Demo classes are always live and do not use the start/end lifecycle.

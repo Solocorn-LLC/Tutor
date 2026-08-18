@@ -43,6 +43,7 @@ import { socketAuthMiddleware } from './socket/socket-auth'
 import { notifyMany } from '@/lib/notifications/notify'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
 import { ensureViewableSourceDocument } from '@/lib/documents/ensure-viewable'
+import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
 import type {
   StrokeDelta,
   ShapeDelta,
@@ -962,13 +963,16 @@ export async function initEnhancedSocketServer(server: NetServer) {
     initPollHandlers(io, socket)
 
     // Enhanced room management with authentication
-    socket.on('chat_message', ({ text, roomId }: { text: string; roomId?: string }) => {
+    socket.on('chat_message', async ({ text, roomId }: { text: string; roomId?: string }) => {
       if (!text || typeof text !== 'string') return
       const targetRoomId = roomId || socket.data.roomId
       if (!targetRoomId) return
 
       const room = activeRooms.get(targetRoomId)
       if (!room) return
+
+      // Tutors cannot send messages into a session that has already ended.
+      if (socket.data.role === 'tutor' && (await isSessionEnded(targetRoomId))) return
 
       const msg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -1005,7 +1009,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
     // chat_message so a live task's answer/comment stream can be rendered inside
     // TestTaskChat on both tutor and student sides without mixing with the
     // general room chat.
-    socket.on('task:chat_message', (data: TaskChatMessagePayload & { roomId?: string }) => {
+    socket.on('task:chat_message', async (data: TaskChatMessagePayload & { roomId?: string }) => {
       const { taskId, role, content } = data
       if (!taskId || typeof taskId !== 'string') return
       if (!content || typeof content !== 'string' || !content.trim()) return
@@ -1025,6 +1029,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (!isTutor && !isStudent) return
       if (role === 'tutor' && !isTutor) return
       if (role === 'student' && !isStudent) return
+
+      // Tutors cannot send task chat messages into a session that has ended.
+      if (role === 'tutor' && (await isSessionEnded(targetRoomId))) return
 
       const message: TaskChatMessagePayload = {
         taskId,
@@ -1181,32 +1188,36 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
     // --- Live poll (ephemeral, one active per room) ---
     // Tutor launches a quick poll; students vote; everyone sees the live tally.
-    socket.on('poll:launch', (data: { roomId: string; question?: string; options?: string[] }) => {
-      if (socket.data.role !== 'tutor') return
-      const roomId = data?.roomId || socket.data.roomId
-      const room = roomId ? activeRooms.get(roomId) : null
-      // `roomId` is client-supplied — only the room's OWN tutor may run a poll in it,
-      // else any tutor could clobber another room's poll (mirrors tutor:end_session).
-      if (!room || room.tutorId !== socket.data.userId) return
-      const question = String(data?.question ?? '')
-        .slice(0, 300)
-        .trim()
-      const options = (Array.isArray(data?.options) ? data.options : [])
-        .map(o => String(o).slice(0, 140).trim())
-        .filter(Boolean)
-        .slice(0, 8)
-      if (!question || options.length < 2) return
-      const poll: LivePoll = {
-        id: crypto.randomUUID(),
-        question,
-        options,
-        votes: {},
-        startedAt: Date.now(),
+    socket.on(
+      'poll:launch',
+      async (data: { roomId: string; question?: string; options?: string[] }) => {
+        if (socket.data.role !== 'tutor') return
+        const roomId = data?.roomId || socket.data.roomId
+        const room = roomId ? activeRooms.get(roomId) : null
+        // `roomId` is client-supplied — only the room's OWN tutor may run a poll in it,
+        // else any tutor could clobber another room's poll (mirrors tutor:end_session).
+        if (!room || room.tutorId !== socket.data.userId) return
+        if (roomId && (await isSessionEnded(roomId))) return
+        const question = String(data?.question ?? '')
+          .slice(0, 300)
+          .trim()
+        const options = (Array.isArray(data?.options) ? data.options : [])
+          .map(o => String(o).slice(0, 140).trim())
+          .filter(Boolean)
+          .slice(0, 8)
+        if (!question || options.length < 2) return
+        const poll: LivePoll = {
+          id: crypto.randomUUID(),
+          question,
+          options,
+          votes: {},
+          startedAt: Date.now(),
+        }
+        room.activePoll = poll
+        room.lastActivity = Date.now()
+        io.to(roomId).emit('poll:started', { id: poll.id, question, options })
       }
-      room.activePoll = poll
-      room.lastActivity = Date.now()
-      io.to(roomId).emit('poll:started', { id: poll.id, question, options })
-    })
+    )
 
     socket.on('poll:vote', (data: { roomId: string; pollId: string; optionIndex: number }) => {
       const roomId = data?.roomId || socket.data.roomId
@@ -1223,11 +1234,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
       io.to(roomId).emit('poll:tally', pollTally(poll))
     })
 
-    socket.on('poll:close', (data: { roomId: string; pollId: string }) => {
+    socket.on('poll:close', async (data: { roomId: string; pollId: string }) => {
       if (socket.data.role !== 'tutor') return
       const roomId = data?.roomId || socket.data.roomId
       const room = roomId ? activeRooms.get(roomId) : null
       if (!room || room.tutorId !== socket.data.userId) return
+      if (roomId && (await isSessionEnded(roomId))) return
       if (!room.activePoll || room.activePoll.id !== data?.pollId) return
       const tally = pollTally(room.activePoll)
       room.activePoll = null
@@ -1314,6 +1326,24 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (effectiveRole === 'student') {
         if (!(await authorizeSessionStudent(userId, roomId))) {
           socket.emit('error', { message: 'You are not enrolled in this course' })
+          return
+        }
+      }
+
+      // Tutors may only run one live session at a time. If they are rejoining the
+      // currently active session it is allowed; joining a different active session
+      // is blocked until they leave/end the other one.
+      if (effectiveRole !== 'student' && boardIdx < 0) {
+        const conflictingSession = await ensureSingleActiveSession(userId, {
+          excludeSessionId: roomId,
+        })
+        if (conflictingSession) {
+          socket.leave(roomId)
+          socket.data.roomId = undefined
+          socket.emit('error', {
+            message:
+              'You already have an active live session. End or leave it before joining another.',
+          })
           return
         }
       }
@@ -1609,28 +1639,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
           return { ok: false, reason: 'Not authorized for this session' }
         }
 
+        // Once a session has ended, no further deployments are allowed — not even
+        // homework. Students retain access to already-deployed materials.
+        if (sessionRec.status === 'ended' || sessionRec.endedAt) {
+          return { ok: false, reason: 'Session has ended' }
+        }
+
         // Demo sessions are open-ended: they have no scheduled end time and tutors
         // must be able to deploy tasks regardless of status/endedAt.
         if (sessionRec.sessionType === 'GO_LIVE_DEMO') {
           return { ok: true }
         }
 
-        // Homework can be dropped even after session ends
-        if (source !== 'homework') {
-          if (sessionRec.status === 'ended') return { ok: false, reason: 'Session has ended' }
-          if (sessionRec.endedAt) return { ok: false, reason: 'Session has ended' }
-        }
-
-        // Must be started (or ended, for homework) to deploy. 'scheduled' is
-        // allowed too: a tutor can only deploy from inside the live room, and
-        // joining promotes the session to 'active' (see join_class) — but that
-        // write races the first deploy, and 1-on-1 sessions historically never
-        // left 'scheduled' at all. 'ended'/endedAt are still blocked above for
-        // non-homework, so this only opens the not-yet-started window.
-        const allowedStatuses =
-          source === 'homework'
-            ? ['active', 'live', 'preparing', 'paused', 'ended', 'scheduled']
-            : ['active', 'live', 'preparing', 'paused', 'scheduled']
+        // Must be started to deploy. 'scheduled' is allowed too: a tutor can only
+        // deploy from inside the live room, and joining promotes the session to
+        // 'active' (see join_class) — but that write races the first deploy, and
+        // 1-on-1 sessions historically never left 'scheduled' at all.
+        const allowedStatuses = ['active', 'live', 'preparing', 'paused', 'scheduled']
         if (!allowedStatuses.includes(sessionRec.status)) {
           return { ok: false, reason: 'Session has not started yet' }
         }
@@ -1638,6 +1663,20 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return { ok: true }
       } catch {
         return { ok: false, reason: 'Unable to verify session state' }
+      }
+    }
+
+    async function isSessionEnded(sessionId: string): Promise<boolean> {
+      try {
+        const [row] = await drizzleDb
+          .select({ status: liveSession.status, endedAt: liveSession.endedAt })
+          .from(liveSession)
+          .where(eq(liveSession.sessionId, sessionId))
+          .limit(1)
+        return row?.status === 'ended' || !!row?.endedAt
+      } catch (err) {
+        console.error('[isSessionEnded] failed to check session status:', err)
+        return false
       }
     }
 

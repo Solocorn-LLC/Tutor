@@ -24,8 +24,10 @@ const COURSE_ID = `cs_course_${stamp}`
 const COURSE_2_ID = `cs_course2_${stamp}`
 const COURSE_3_ID = `cs_course3_${stamp}`
 const COURSE_4_ID = `cs_course4_${stamp}`
+const COURSE_5_ID = `cs_course5_${stamp}`
 
 const COURSE_SESSION = `cs_ls_course_${stamp}`
+const SECOND_COURSE_SESSION = `cs_ls_course2_${stamp}`
 const ONE_ON_ONE_SESSION = `cs_ls_oo_${stamp}`
 const PAST_SCHEDULED_SESSION = `cs_ls_past_${stamp}`
 
@@ -43,8 +45,15 @@ vi.mock('@/lib/api/middleware', async importOriginal => {
 })
 
 // Import route handlers AFTER middleware is mocked.
-import { PATCH as patchClass } from '@/app/api/tutor/classes/[id]/route'
+import { POST as postClass, PATCH as patchClass } from '@/app/api/tutor/classes/[id]/route'
 import { DELETE as deleteCourse } from '@/app/api/tutor/courses/[id]/route'
+
+function startClassReq(sessionId: string) {
+  return new NextRequest(`http://localhost/api/tutor/classes/${sessionId}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+  })
+}
 
 function endClassReq(sessionId: string) {
   return new NextRequest(`http://localhost/api/tutor/classes/${sessionId}`, {
@@ -116,6 +125,15 @@ describe('course session lifecycle guards', () => {
       isPublished: true,
     })
 
+    // Course with a second scheduled session used to test concurrency guard.
+    await drizzleDb.insert(course).values({
+      courseId: COURSE_5_ID,
+      name: 'Course With Second Session',
+      creatorId: tutorId,
+      categories: ['math'],
+      isPublished: true,
+    })
+
     await drizzleDb.insert(liveSession).values([
       {
         sessionId: COURSE_SESSION,
@@ -127,6 +145,18 @@ describe('course session lifecycle guards', () => {
         sessionType: 'COURSE',
         scheduledAt: new Date(Date.now() - 30 * 60 * 1000), // started 30 min ago
         startedAt: new Date(Date.now() - 35 * 60 * 1000), // tutor opened 35 min ago
+        durationMinutes: 60,
+        maxStudents: 50,
+      },
+      {
+        sessionId: SECOND_COURSE_SESSION,
+        tutorId,
+        courseId: COURSE_5_ID,
+        title: 'Second Scheduled Course Session',
+        category: 'math',
+        status: 'scheduled',
+        sessionType: 'COURSE',
+        scheduledAt: new Date(Date.now() + 60 * 60 * 1000), // scheduled in the future
         durationMinutes: 60,
         maxStudents: 50,
       },
@@ -176,16 +206,42 @@ describe('course session lifecycle guards', () => {
   afterAll(async () => {
     const allSessionIds = [
       COURSE_SESSION,
+      SECOND_COURSE_SESSION,
       ONE_ON_ONE_SESSION,
       PAST_SCHEDULED_SESSION,
       `cs_ls_ended_${stamp}`,
     ]
-    const allCourseIds = [COURSE_ID, COURSE_2_ID, COURSE_3_ID, COURSE_4_ID]
+    const allCourseIds = [COURSE_ID, COURSE_2_ID, COURSE_3_ID, COURSE_4_ID, COURSE_5_ID]
 
     await drizzleDb.delete(calendarEvent).where(inArray(calendarEvent.externalId, allSessionIds))
     await drizzleDb.delete(liveSession).where(inArray(liveSession.sessionId, allSessionIds))
     await drizzleDb.delete(course).where(inArray(course.courseId, allCourseIds))
     await drizzleDb.delete(user).where(inArray(user.userId, [tutorId, studentId]))
+  })
+
+  it('POST /api/tutor/classes/:id rejects starting a session when tutor already has an active session', async () => {
+    const res = await postClass(
+      startClassReq(SECOND_COURSE_SESSION) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: SECOND_COURSE_SESSION }),
+      } as any
+    )
+    expect(res.status).toBe(409)
+    const data = await res.json()
+    expect(data.error).toContain('already have an active live session')
+    expect(data.conflictingSessionId).toBe(COURSE_SESSION)
+  })
+
+  it('POST /api/tutor/classes/:id allows re-starting the same active session', async () => {
+    const res = await postClass(
+      startClassReq(COURSE_SESSION) as unknown as NextRequest,
+      {
+        params: Promise.resolve({ id: COURSE_SESSION }),
+      } as any
+    )
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.session.status).toBe('active')
   })
 
   it('PATCH /api/tutor/classes/:id rejects ending a COURSE session', async () => {
