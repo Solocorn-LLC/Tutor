@@ -221,8 +221,10 @@ interface TutorControlsPanelProps {
   canGoLive: boolean
   hasSession: boolean
   isDemoSession?: boolean
+  isCourseSession?: boolean
   hasUnsyncedChanges?: boolean
   onEndSession?: () => void
+  onLeaveSession?: () => void
   endingSession?: boolean
   isConnected?: boolean
   connectionError?: boolean
@@ -250,8 +252,10 @@ function TutorControlsPanel({
   canGoLive,
   hasSession,
   isDemoSession,
+  isCourseSession,
   hasUnsyncedChanges,
   onEndSession,
+  onLeaveSession,
   endingSession,
   isConnected,
   connectionError,
@@ -578,8 +582,25 @@ function TutorControlsPanel({
                     During a session the End Session button replaces scheduling so tutors
                     can't publish while in session. For Creating-mode drafts the action
                     becomes "Create Template", which persists the draft as an unpublished
-                    DB course and keeps the tutor in the builder. */}
-                {hasSession && onEndSession ? (
+                    DB course and keeps the tutor in the builder.
+
+                    Course sessions cannot be ended by the tutor — they run until their
+                    scheduled end time. In that case the button becomes a neutral Leave
+                    action that only disconnects the tutor from the room. */}
+                {hasSession && isCourseSession && onLeaveSession ? (
+                  <button
+                    type="button"
+                    disabled={panelDisabled}
+                    onClick={onLeaveSession}
+                    className={cn(
+                      actionButtonBase,
+                      'mt-2 w-full justify-center bg-white text-slate-700 hover:bg-slate-100 active:bg-slate-200'
+                    )}
+                  >
+                    <PhoneOff className="h-4 w-4" />
+                    Leave classroom
+                  </button>
+                ) : hasSession && onEndSession ? (
                   <button
                     type="button"
                     disabled={panelDisabled || endingSession}
@@ -832,6 +853,7 @@ function CourseBuilderInsightsRouteInner({
 
   const currentSession = insightsProps?.sessions?.find(s => s.id === insightsProps?.sessionId)
   const isDemoSession = currentSession?.sessionType === 'GO_LIVE_DEMO'
+  const isCourseSession = currentSession?.sessionType === 'COURSE'
   const scheduledDateStr = currentSession?.scheduledAt
   let countdownText = '--:--'
   let isOverdue = false
@@ -973,6 +995,13 @@ function CourseBuilderInsightsRouteInner({
     } finally {
       setEndingSession(false)
     }
+  }
+
+  const handleLeaveSession = () => {
+    if (!insightsProps.sessionId) return
+    // Course sessions keep running until their scheduled end time; the tutor
+    // leaving just disconnects them from the room.
+    model.router.push('/tutor/insights')
   }
 
   const handleCreateTemplate = async () => {
@@ -1407,8 +1436,14 @@ function CourseBuilderInsightsRouteInner({
             }
             hasSession={!!insightsProps.sessionId}
             isDemoSession={isDemoSession}
+            isCourseSession={isCourseSession}
             hasUnsyncedChanges={hasUnsyncedChanges}
-            onEndSession={insightsProps.sessionId ? handleEndSession : undefined}
+            onEndSession={
+              insightsProps.sessionId && !isCourseSession ? handleEndSession : undefined
+            }
+            onLeaveSession={
+              insightsProps.sessionId && isCourseSession ? handleLeaveSession : undefined
+            }
             endingSession={endingSession}
             isConnected={!!insightsProps.isConnected}
             connectionError={!!insightsProps.sessionId && !insightsProps.isConnected}

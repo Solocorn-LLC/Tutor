@@ -437,6 +437,19 @@ export const PATCH = withCsrf(
         return NextResponse.json({ success: true, status: 'ended', alreadyEnded: true })
       }
 
+      // Course sessions are scheduled events: the tutor can leave the room, but
+      // only the scheduled duration can end the session. This protects student
+      // attendance and recordings from being cut short by an accidental click.
+      if (liveSessionRow.sessionType === 'COURSE') {
+        return NextResponse.json(
+          {
+            error:
+              'Course sessions end automatically at the scheduled time. Tutors can leave the room, but cannot end the session.',
+          },
+          { status: 400 }
+        )
+      }
+
       const endedAt = new Date()
       await drizzleDb
         .update(liveSession)

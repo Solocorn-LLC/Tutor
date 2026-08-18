@@ -51,6 +51,8 @@
     "backfill:published-course-categories": "tsx scripts/backfill-published-course-categories.ts",
     "audit:orphaned-courses": "tsx scripts/audit-orphaned-courses.ts",
     "cleanup:orphaned-courses": "tsx scripts/cleanup-orphaned-courses.ts",
+    "sweep:deleted-assets": "tsx src/scripts/sweep-deleted-assets.ts --apply",
+    "sweep:deleted-assets:dry-run": "tsx src/scripts/sweep-deleted-assets.ts --dry-run",
     "copy-pdf-worker": "node scripts/copy-pdf-worker.js",
     "postinstall": "node scripts/copy-pdf-worker.js",
     "recover:protected-courses": "tsx scripts/recover-protected-courses.ts"
