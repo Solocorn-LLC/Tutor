@@ -469,16 +469,16 @@ const translations: Translations = {
 
   // Footer
   footerBrand: {
-    en: 'Solocorn',
-    'zh-CN': 'Solocorn',
-    'zh-HK': 'Solocorn',
-    es: 'Solocorn',
-    fr: 'Solocorn',
-    de: 'Solocorn',
-    ja: 'Solocorn',
-    ko: 'Solocorn',
-    pt: 'Solocorn',
-    hi: 'Solocorn',
+    en: 'Solocorn Corporation',
+    'zh-CN': 'Solocorn Corporation',
+    'zh-HK': 'Solocorn Corporation',
+    es: 'Solocorn Corporation',
+    fr: 'Solocorn Corporation',
+    de: 'Solocorn Corporation',
+    ja: 'Solocorn Corporation',
+    ko: 'Solocorn Corporation',
+    pt: 'Solocorn Corporation',
+    hi: 'Solocorn Corporation',
   },
   privacyPolicy: {
     en: 'Privacy Policy',
@@ -505,16 +505,16 @@ const translations: Translations = {
     hi: 'सेवा की शर्तें',
   },
   allRightsReserved: {
-    en: '© 2026 Solocorn. All rights reserved.',
-    'zh-CN': '© 2026 Solocorn。保留所有权利。',
-    'zh-HK': '© 2026 Solocorn。保留所有權利。',
-    es: '© 2026 Solocorn. Todos los derechos reservados.',
-    fr: '© 2026 Solocorn. Tous droits réservés.',
-    de: '© 2026 Solocorn. Alle Rechte vorbehalten.',
-    ja: '© 2026 Solocorn. All rights reserved.',
-    ko: '© 2026 Solocorn. 모든 권리 보유.',
-    pt: '© 2026 Solocorn. Todos os direitos reservados.',
-    hi: '© 2026 Solocorn। सर्वाधिकार सुरक्षित।',
+    en: '© 2026 Solocorn Corporation. All rights reserved.',
+    'zh-CN': '© 2026 Solocorn Corporation。保留所有权利。',
+    'zh-HK': '© 2026 Solocorn Corporation。保留所有權利。',
+    es: '© 2026 Solocorn Corporation. Todos los derechos reservados.',
+    fr: '© 2026 Solocorn Corporation. Tous droits réservés.',
+    de: '© 2026 Solocorn Corporation. Alle Rechte vorbehalten.',
+    ja: '© 2026 Solocorn Corporation. All rights reserved.',
+    ko: '© 2026 Solocorn Corporation. 모든 권리 보유.',
+    pt: '© 2026 Solocorn Corporation. Todos os direitos reservados.',
+    hi: '© 2026 Solocorn Corporation। सर्वाधिकार सुरक्षित।',
   },
 
   // Modal Content
@@ -2210,27 +2210,15 @@ const Panel2SearchResults = ({ query, onClearAll }: { query: string; onClearAll:
               </div>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
-              {(() => {
-                const isActive = !item?.status || item.status !== 'ended'
-                return (
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
-                      isActive
-                        ? 'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
-                        : 'bg-slate-500/20 text-slate-200 ring-slate-400/30'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'h-1.5 w-1.5 rounded-full',
-                        isActive ? 'animate-pulse bg-emerald-400' : 'bg-slate-400'
-                      )}
-                    />
-                    {isActive ? 'Live' : 'Ended'}
-                  </span>
-                )
-              })()}
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1',
+                  'bg-emerald-500/20 text-emerald-200 ring-emerald-400/30'
+                )}
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                Live
+              </span>
               <div className="h-[52px] w-[52px] overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_6px_16px_rgba(0,0,0,0.24)]">
                 {item?.tutor?.avatarUrl ? (
                   <img
