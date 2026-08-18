@@ -17,8 +17,6 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Send, Loader2, CheckCircle2, X } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
@@ -72,6 +70,7 @@ export function TestTaskChat({
   onComplete,
   onGrade,
   taskId,
+  accent = 'orange',
 }: {
   pci?: string
   pciSpec?: unknown
@@ -94,6 +93,8 @@ export function TestTaskChat({
   incomingMessages?: TestTaskChatMsg[]
   /** Which preview mode this is rendering in. */
   mode?: 'classroom' | 'test-student'
+  /** Border/focus accent for the classroom input. */
+  accent?: 'orange' | 'violet'
   /** Tutor avatar URL — shown on tutor messages. */
   tutorAvatarUrl?: string | null
   /** Student avatar URL — shown on student messages. */
@@ -454,9 +455,9 @@ export function TestTaskChat({
 
       {/* Input area — chat composer for both classroom and student tabs. */}
       {isClassroom ? (
-        <div className="mt-3 flex items-center gap-3">
-          <div className="relative flex h-12 flex-1 items-center gap-2 rounded-2xl border-2 border-[#F17623] bg-white px-3 py-2 shadow-sm">
-            <Input
+        <div className="border-t border-gray-100 p-2">
+          <div className="flex items-end gap-2">
+            <textarea
               value={draft}
               onChange={e => setDraft(e.target.value)}
               onKeyDown={e => {
@@ -465,18 +466,25 @@ export function TestTaskChat({
                   sendTutorMessage()
                 }
               }}
-              placeholder="Send a message to students…"
               disabled={busy}
-              className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+              rows={1}
+              placeholder="Send a message to students…"
+              className={cn(
+                'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
+                accent === 'violet'
+                  ? 'border-violet-300 focus:ring-violet-300'
+                  : 'border-orange-300 focus:ring-orange-300'
+              )}
             />
-            <Button
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-full bg-[#FFF4EC] text-[#F17623] hover:bg-[#FFE8D6] disabled:opacity-40"
+            <button
+              type="button"
               onClick={sendTutorMessage}
-              disabled={!draft.trim()}
+              disabled={busy || !draft.trim()}
+              title="Send"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
         </div>
       ) : (

@@ -1618,12 +1618,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     }
 
     // Render the live classroom tutor chat input row (shown only on the Classroom tab
-    // when a live session is connected). Matches the deployed task chat design.
+    // when a live session is connected). Mirrors the student TaskChatPanel design:
+    // textarea nested in the viewport with an external blue send button.
     const renderLiveClassroomChatInput = () => {
       return (
-        <div className="mt-3 flex items-center gap-3">
-          <div className="relative flex h-12 flex-1 items-center gap-2 rounded-2xl border-2 border-[#F17623] bg-white px-3 py-2 shadow-sm">
-            <Input
+        <div className="border-t border-gray-100 p-2">
+          <div className="flex items-end gap-2">
+            <textarea
               value={liveClassroomChatInput}
               onChange={e => setLiveClassroomChatInput(e.target.value)}
               onKeyDown={e => {
@@ -1632,17 +1633,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   sendLiveClassroomChat()
                 }
               }}
+              disabled={false}
+              rows={1}
               placeholder="Send a message to students..."
-              className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-orange-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300"
             />
-            <Button
-              size="icon"
-              className="h-9 w-9 shrink-0 rounded-full bg-[#FFF4EC] text-[#F17623] hover:bg-[#FFE8D6] disabled:opacity-40"
+            <button
+              type="button"
               onClick={sendLiveClassroomChat}
               disabled={!liveClassroomChatInput.trim()}
+              title="Send"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
-            </Button>
+            </button>
           </div>
         </div>
       )
@@ -13772,6 +13776,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       loadedAssessmentId || 'assessment-preview'
                                                     }
                                                     mode="classroom"
+                                                    accent="violet"
                                                     pci={assessmentBuilder.taskPci || ''}
                                                     pciSpec={assessmentBuilder.pciSpec}
                                                     questionText={
@@ -13903,6 +13908,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 <TestTaskChat
                                                   taskId={taskId}
                                                   mode="classroom"
+                                                  accent="orange"
                                                   pci={liveChatTask.pci}
                                                   pciSpec={liveChatTask.pciSpec}
                                                   questionText={`${liveChatTask.title}\n\n${liveChatTask.content}`}
@@ -13985,6 +13991,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         <TestTaskChat
                                                           taskId={assessmentId}
                                                           mode="classroom"
+                                                          accent="orange"
                                                           pci={
                                                             typeof liveAssessment?.instructions ===
                                                             'string'
