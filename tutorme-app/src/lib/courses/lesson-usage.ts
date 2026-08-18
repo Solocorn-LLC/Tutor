@@ -2,15 +2,15 @@
  * Lesson usage lookup for the delete guard.
  *
  * A lesson can be deleted freely until material has been *deployed* from it in
- * a live class. The guard checks the exact lesson ids being deleted in the
- * course currently open in the builder. Published-variant deployments do not
- * block deletion of a template lesson, and vice versa, because each course
- * keeps its own `courseLesson` rows.
+ * a live class that belongs to the course being edited. Deployments from demo
+ * classes (GO_LIVE_DEMO) never block template edits, and deployments from
+ * published variants never block the source template because each course keeps
+ * its own `courseLesson` rows.
  */
 
-import { inArray } from 'drizzle-orm'
+import { and, eq, inArray, not } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { deployedMaterial } from '@/lib/db/schema'
+import { deployedMaterial, liveSession } from '@/lib/db/schema'
 
 export interface LessonUsage {
   lessonId: string
@@ -46,14 +46,16 @@ export function computeLessonUsage(
 }
 
 /**
- * Count deployed material directly tied to each requested lesson id.
+ * Count deployed material directly tied to each requested lesson id, scoped to
+ * the course being edited and excluding ephemeral demo/teaching sessions.
  *
- * `courseId` is kept in the signature for backwards compatibility with the
- * existing API, but the guard is now exact-id based and does not resolve the
- * whole course family.
+ * Only deployments whose `LiveSession` row belongs to `courseId` and whose
+ * session type is not `GO_LIVE_DEMO` are counted. This guarantees that a
+ * template lesson is never blocked by deployments from a demo class or from a
+ * published variant's own course/lesson rows.
  */
 export async function getLessonUsage(
-  _courseId: string,
+  courseId: string,
   lessonIds: string[]
 ): Promise<Record<string, LessonUsage>> {
   const uniqueIds = Array.from(new Set(lessonIds.filter(Boolean)))
@@ -62,7 +64,14 @@ export async function getLessonUsage(
   const deployRows = await drizzleDb
     .select({ lessonId: deployedMaterial.lessonId })
     .from(deployedMaterial)
-    .where(inArray(deployedMaterial.lessonId, uniqueIds))
+    .innerJoin(liveSession, eq(liveSession.sessionId, deployedMaterial.sessionId))
+    .where(
+      and(
+        inArray(deployedMaterial.lessonId, uniqueIds),
+        eq(liveSession.courseId, courseId),
+        not(eq(liveSession.sessionType, 'GO_LIVE_DEMO'))
+      )
+    )
 
   return computeLessonUsage(
     uniqueIds,
