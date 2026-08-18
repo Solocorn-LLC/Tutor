@@ -16,16 +16,21 @@
  * Keep this file free of `@google-cloud/storage` / node imports.
  */
 
-/** Object-key prefixes the by-key proxy is allowed to stream (mirror of the
- *  allowlist in src/app/api/proxy-file/route.ts). */
+/** Top-level object-key prefixes the by-key proxy is allowed to stream. */
 export const PROXYABLE_KEY_PREFIXES = ['documents', 'assets', 'resources', 'messages'] as const
 
-const PROXYABLE_KEY_RE = new RegExp(`^(?:${PROXYABLE_KEY_PREFIXES.join('|')})/`)
+const TOP_LEVEL_KEY_RE = new RegExp(`^(?:${PROXYABLE_KEY_PREFIXES.join('|')})/`)
+
+/** Tutor resource library keys are stored under a per-tutor path. */
+const TUTOR_RESOURCE_KEY_RE = /^tutors\/[^/]+\/resources\//
 
 /** True when `key` is a safe, proxyable object key (known prefix, no traversal). */
 export function isProxyableKey(key: string | null | undefined): key is string {
   return (
-    typeof key === 'string' && key.length > 0 && !key.includes('..') && PROXYABLE_KEY_RE.test(key)
+    typeof key === 'string' &&
+    key.length > 0 &&
+    !key.includes('..') &&
+    (TOP_LEVEL_KEY_RE.test(key) || TUTOR_RESOURCE_KEY_RE.test(key))
   )
 }
 
