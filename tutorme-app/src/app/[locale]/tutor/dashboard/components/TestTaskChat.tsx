@@ -17,6 +17,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { Send, Loader2, CheckCircle2, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
@@ -451,50 +453,60 @@ export function TestTaskChat({
       </div>
 
       {/* Input area — chat composer for both classroom and student tabs. */}
-      <div className="border-t border-gray-100 p-2">
-        <div className={cn('flex gap-2', isClassroom ? 'items-center' : 'items-end')}>
-          <textarea
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                onSend()
-              }
-            }}
-            disabled={busy}
-            rows={1}
-            placeholder={
-              isClassroom
-                ? 'Send a message to students…'
-                : completed
-                  ? 'Ask about this task…'
-                  : 'Type a sample answer…'
-            }
-            className={cn(
-              'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none',
-              isClassroom
-                ? 'border-2 border-[#F17623] focus:ring-2 focus:ring-[#F17623]/30'
-                : 'border border-gray-300 focus:ring-1 focus:ring-violet-400'
-            )}
-          />
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={busy || !draft.trim()}
-            title={isClassroom ? 'Send message' : completed ? 'Send' : 'Add answer'}
-            className={cn(
-              'grid h-10 w-10 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40',
-              isClassroom
-                ? 'bg-[#FFF4EC] text-[#F17623] hover:bg-[#FFE8D6]'
-                : 'bg-violet-600 text-white hover:opacity-90'
-            )}
-          >
-            <Send className="h-4 w-4" />
-          </button>
+      {isClassroom ? (
+        <div className="mt-3 flex items-center gap-3">
+          <div className="relative flex h-12 flex-1 items-center gap-2 rounded-2xl border-2 border-[#F17623] bg-white px-3 py-2 shadow-sm">
+            <Input
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  sendTutorMessage()
+                }
+              }}
+              placeholder="Send a message to students…"
+              disabled={busy}
+              className="h-full flex-1 border-0 bg-transparent px-0 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:ring-0 focus-visible:ring-offset-0"
+            />
+            <Button
+              size="icon"
+              className="h-9 w-9 shrink-0 rounded-full bg-[#FFF4EC] text-[#F17623] hover:bg-[#FFE8D6] disabled:opacity-40"
+              onClick={sendTutorMessage}
+              disabled={!draft.trim()}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-        {/* Task Complete button — only shown in test-student mode, not classroom */}
-        {!isClassroom && (
+      ) : (
+        <div className="border-t border-gray-100 p-2">
+          <div className="flex items-end gap-2">
+            <textarea
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  onSend()
+                }
+              }}
+              disabled={busy}
+              rows={1}
+              placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
+              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+            />
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={busy || !draft.trim()}
+              title={completed ? 'Send' : 'Add answer'}
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition-colors hover:opacity-90 disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+          {/* Task Complete button — only shown in test-student mode, not classroom */}
           <button
             type="button"
             onClick={complete}
@@ -508,8 +520,8 @@ export function TestTaskChat({
             )}
             Task complete
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
