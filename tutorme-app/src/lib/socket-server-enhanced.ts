@@ -1857,19 +1857,32 @@ export async function initEnhancedSocketServer(server: NetServer) {
               sessionSequence = sessionIndex >= 0 ? sessionIndex + 1 : 1
             }
 
-            await drizzleDb.insert(deployedMaterial).values({
-              sessionId: roomId,
-              courseId: effectiveCourseId,
-              type: normalizedTask.source,
-              itemId: normalizedTask.id,
-              title: normalizedTask.title,
-              content: normalizedTask as unknown as Record<string, unknown>,
-              sessionSequence,
-              // Source lesson (deploy-only), so the Desk groups this under the real
-              // lesson instead of always "Lesson 1".
-              lessonId: typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
-              deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
-            })
+            await drizzleDb
+              .insert(deployedMaterial)
+              .values({
+                sessionId: roomId,
+                courseId: effectiveCourseId,
+                type: normalizedTask.source,
+                itemId: normalizedTask.id,
+                title: normalizedTask.title,
+                content: normalizedTask as unknown as Record<string, unknown>,
+                sessionSequence,
+                // Source lesson (deploy-only), so the Desk groups this under the real
+                // lesson instead of always "Lesson 1".
+                lessonId: typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
+                deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
+              })
+              .onConflictDoUpdate({
+                target: [deployedMaterial.sessionId, deployedMaterial.itemId],
+                set: {
+                  title: normalizedTask.title,
+                  content: normalizedTask as unknown as Record<string, unknown>,
+                  sessionSequence,
+                  lessonId:
+                    typeof task.lessonId === 'string' && task.lessonId ? task.lessonId : null,
+                  deployedAt: new Date(normalizedTask.deployedAt || Date.now()),
+                },
+              })
 
             // We notify clients of the session sequence so they can append "(s1, s2)" etc.
             io.to(roomId).emit('task:deployed:sequence', {
@@ -2368,16 +2381,10 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
             // 3) deployedMaterial — without it, the in-session SubmissionsPanel
             //    (/submissions-tree) and live panel filter the submission out.
-            //    No unique constraint on (sessionId, itemId), so check first.
-            const [alreadyDeployed] = await drizzleDb
-              .select({ id: deployedMaterial.id })
-              .from(deployedMaterial)
-              .where(
-                and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, taskId))
-              )
-              .limit(1)
-            if (!alreadyDeployed) {
-              await drizzleDb.insert(deployedMaterial).values({
+            //    Idempotent on (sessionId, itemId) so re-submitting never duplicates.
+            await drizzleDb
+              .insert(deployedMaterial)
+              .values({
                 sessionId: roomId,
                 courseId,
                 type: task.source,
@@ -2387,7 +2394,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 lessonId: lesson.lessonId,
                 deployedAt: now,
               })
-            }
+              .onConflictDoNothing({
+                target: [deployedMaterial.sessionId, deployedMaterial.itemId],
+              })
 
             // 4) sessionParticipant — the tree readers require the student to be
             //    a participant (or course enrollee). The student is here now.
@@ -2475,7 +2484,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
             emitToUser(studentId, 'task:graded', gradedPayload)
 
             // 5) The submission itself. onConflictDoNothing preserves the
-            //    one-per-(task,student) rule and never overwrites a graded row.
+            //    one-per-(session,task,student) rule and never overwrites a graded row.
             //    Status stays 'submitted' so the tutor can still review/override.
             await drizzleDb
               .insert(taskSubmission)
@@ -2483,6 +2492,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 submissionId: crypto.randomUUID(),
                 taskId,
                 studentId,
+                sessionId: roomId,
                 answers: answers ?? {},
                 timeSpent: 0,
                 attempts: 1,
@@ -2493,7 +2503,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 tutorApproved: false,
                 submittedAt: now,
               })
-              .onConflictDoNothing({ target: [taskSubmission.taskId, taskSubmission.studentId] })
+              .onConflictDoNothing({
+                target: [taskSubmission.sessionId, taskSubmission.taskId, taskSubmission.studentId],
+              })
 
             console.log('[task:complete] submission persisted', {
               roomId,

@@ -1188,7 +1188,10 @@ function StudentFeedbackContent() {
       setDirectoryError(null)
       setDirectoryWarnings([])
       try {
-        const res = await fetch('/api/student/directory', {
+        const directoryUrl = selectedSessionId
+          ? `/api/student/directory?sessionId=${encodeURIComponent(selectedSessionId)}`
+          : '/api/student/directory'
+        const res = await fetch(directoryUrl, {
           credentials: 'include',
           cache: 'no-store',
         })
@@ -1266,8 +1269,7 @@ function StudentFeedbackContent() {
       }
     }
     loadDirectory()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedSessionId])
 
   useEffect(() => {
     if (!rightPanelResizing) return

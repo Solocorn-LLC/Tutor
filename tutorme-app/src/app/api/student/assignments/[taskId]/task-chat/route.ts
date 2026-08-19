@@ -14,7 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { randomUUID } from 'crypto'
 import { getServerSession, authOptions } from '@/lib/auth'
@@ -62,6 +62,15 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid task ID' }, { status: 400 })
     }
 
+    const body = (await request.json().catch(() => ({}))) as {
+      answers?: unknown
+      question?: unknown
+      history?: HistoryTurn[]
+      sessionId?: string
+    }
+    const sessionId =
+      typeof body.sessionId === 'string' && body.sessionId.trim() ? body.sessionId.trim() : null
+
     const [task] = await drizzleDb
       .select({
         courseId: builderTask.courseId,
@@ -103,34 +112,42 @@ export async function POST(
         followUps: taskSubmission.followUps,
       })
       .from(taskSubmission)
-      .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
+      .where(
+        and(
+          eq(taskSubmission.taskId, taskId),
+          eq(taskSubmission.studentId, studentId),
+          sessionId ? eq(taskSubmission.sessionId, sessionId) : isNull(taskSubmission.sessionId)
+        )
+      )
       .limit(1)
     let isParticipant = false
     if (!enrolled && !existing && !isOwnerTutor && taskCourseFamily.length > 0) {
+      const participantWhere = sessionId
+        ? and(
+            eq(sessionParticipant.studentId, studentId),
+            eq(sessionParticipant.sessionId, sessionId),
+            inArray(liveSession.courseId, taskCourseFamily)
+          )
+        : and(
+            eq(sessionParticipant.studentId, studentId),
+            inArray(liveSession.courseId, taskCourseFamily)
+          )
       const [p] = await drizzleDb
         .select({ id: sessionParticipant.participantId })
         .from(sessionParticipant)
         .innerJoin(liveSession, eq(liveSession.sessionId, sessionParticipant.sessionId))
-        .where(
-          and(
-            eq(sessionParticipant.studentId, studentId),
-            inArray(liveSession.courseId, taskCourseFamily)
-          )
-        )
+        .where(participantWhere)
         .limit(1)
       isParticipant = !!p
     }
     if (!enrolled && !existing && !isOwnerTutor && !isParticipant) {
-      return NextResponse.json({ error: 'Not enrolled in this task' }, { status: 403 })
+      return NextResponse.json(
+        { error: 'Not enrolled or participating in this session' },
+        { status: 403 }
+      )
     }
     // The tutor previewing their own task never persists a submission.
     const persist = !isOwnerTutor
-
-    const body = (await request.json().catch(() => ({}))) as {
-      answers?: unknown
-      question?: unknown
-      history?: HistoryTurn[]
-    }
 
     const taskChatTask: TaskChatTask = {
       taskId,
@@ -156,6 +173,7 @@ export async function POST(
             submissionId: randomUUID(),
             taskId,
             studentId,
+            sessionId,
             answers: result.answersRecord,
             timeSpent: 0,
             attempts: 1,
@@ -167,7 +185,9 @@ export async function POST(
             submittedAt: new Date(),
           })
           .onConflictDoUpdate({
-            target: [taskSubmission.taskId, taskSubmission.studentId],
+            target: sessionId
+              ? [taskSubmission.sessionId, taskSubmission.taskId, taskSubmission.studentId]
+              : [taskSubmission.taskId, taskSubmission.studentId],
             set: {
               answers: result.answersRecord,
               score: result.avgScore,

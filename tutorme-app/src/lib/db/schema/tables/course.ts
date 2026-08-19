@@ -13,6 +13,7 @@ import {
   uniqueIndex,
   index,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 import * as enums from '../enums'
 
 import { user } from './auth'
@@ -338,6 +339,9 @@ export const taskSubmission = pgTable(
     studentId: text('studentId')
       .notNull()
       .references(() => user.userId, { onDelete: 'cascade' }),
+    // The live session this submission belongs to. Null for assignment submissions
+    // made outside a scheduled live session.
+    sessionId: text('sessionId'),
     answers: jsonb('answers').notNull(),
     timeSpent: integer('timeSpent').notNull(),
     attempts: integer('attempts').notNull(),
@@ -365,10 +369,19 @@ export const taskSubmission = pgTable(
   table => ({
     TaskSubmission_studentId_idx: index('TaskSubmission_studentId_idx').on(table.studentId),
     TaskSubmission_taskId_idx: index('TaskSubmission_taskId_idx').on(table.taskId),
-    TaskSubmission_taskId_studentId_key: uniqueIndex('TaskSubmission_taskId_studentId_key').on(
-      table.taskId,
-      table.studentId
-    ),
+    TaskSubmission_sessionId_idx: index('TaskSubmission_sessionId_idx').on(table.sessionId),
+    // One submission per task/student when there is no live session (assignments).
+    TaskSubmission_taskId_studentId_noSession_key: uniqueIndex(
+      'TaskSubmission_taskId_studentId_noSession_key'
+    )
+      .on(table.taskId, table.studentId)
+      .where(sql`${table.sessionId} IS NULL`),
+    // One submission per task/student/session when deployed in a live session.
+    TaskSubmission_sessionId_taskId_studentId_key: uniqueIndex(
+      'TaskSubmission_sessionId_taskId_studentId_key'
+    )
+      .on(table.sessionId, table.taskId, table.studentId)
+      .where(sql`${table.sessionId} IS NOT NULL`),
   })
 )
 
