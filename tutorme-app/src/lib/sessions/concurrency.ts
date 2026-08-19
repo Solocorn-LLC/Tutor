@@ -28,8 +28,9 @@ export async function ensureSingleActiveSession(
   let remaining: typeof liveSession.$inferSelect | null = null
 
   for (const row of activeRows) {
+    // The excluded session is allowed to remain active; do not return it as a
+    // conflict and do not auto-end it here.
     if (opts?.excludeSessionId && row.sessionId === opts.excludeSessionId) {
-      remaining = row
       continue
     }
 

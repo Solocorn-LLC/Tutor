@@ -1773,8 +1773,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
         room!.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room!)
+        // `task:deployed` carries the full task payload; clients treat it as an
+        // upsert, so the redundant `task:updated` emit is no longer needed.
         io.to(roomId).emit('task:deployed', normalizedTask)
-        io.to(roomId).emit('task:updated', { task: normalizedTask })
 
         // If this task was deployed from a lesson, expose the rest of that lesson's
         // tasks and assessments as unrestricted homework items.

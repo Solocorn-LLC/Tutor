@@ -168,6 +168,14 @@ export function TestTaskChat({
 
   const studentAnswers = messages.filter(m => m.role === 'student').map(m => m.content)
 
+  // In classroom mode, avoid rendering the fallback question-text bubble if the
+  // chat already contains a tutor message with the same task content.
+  const hasTutorTaskBubble =
+    isClassroom &&
+    messages.some(
+      m => m.role === 'tutor' && questionText && m.content.trim() === questionText.trim()
+    )
+
   // Build the proxied document URL (same logic as TaskDocumentCard)
   const rawUrl = sourceDocument?.fileUrl || ''
   const loadable =
@@ -413,7 +421,7 @@ export function TestTaskChat({
         )}
 
         {/* Text-only task: show the question text as the initial tutor message. */}
-        {!sourceDocument && questionText?.trim() && (
+        {!sourceDocument && questionText?.trim() && !hasTutorTaskBubble && (
           <ChatMessageBubble
             sender="tutor"
             name="Tutor"
