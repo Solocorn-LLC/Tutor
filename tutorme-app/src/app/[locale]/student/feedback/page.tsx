@@ -2571,6 +2571,7 @@ function StudentFeedbackContent() {
                                   avatarUrl={sessionContext?.tutorId ? undefined : undefined}
                                   isDocument
                                   document={activeTask.sourceDocument}
+                                  documentTitle={activeTask.title}
                                   onDocumentClick={() =>
                                     setDocumentPopupDoc(activeTask.sourceDocument || null)
                                   }

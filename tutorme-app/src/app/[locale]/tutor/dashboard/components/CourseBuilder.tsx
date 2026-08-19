@@ -3441,6 +3441,41 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       loadAssessmentIntoBuilder,
     ])
 
+    // Keep the live classroom viewport synced to the most recently deployed item:
+    // whenever a new task/assessment is deployed, load it and reveal it in the
+    // Curriculum panel so the tutor always sees what students just received.
+    const lastDeployedRef = useRef<string | null>(null)
+    useEffect(() => {
+      if (mainTab !== 'live') {
+        lastDeployedRef.current = null
+        return
+      }
+      const liveTasks = insightsProps?.liveTasks ?? []
+      const lastDeployed = liveTasks[liveTasks.length - 1]
+      if (!lastDeployed) return
+      const lastKey = `${lastDeployed.source}:${lastDeployed.id}`
+      if (lastDeployedRef.current === lastKey) return
+      lastDeployedRef.current = lastKey
+
+      for (const mod of nodes) {
+        for (const lesson of mod.lessons) {
+          if (lastDeployed.source === 'assessment') {
+            const assessment = lesson.homework?.find(h => h.id === lastDeployed.id)
+            if (assessment) {
+              loadAssessmentIntoBuilder(assessment)
+              return
+            }
+          } else {
+            const task = lesson.tasks?.find(t => t.id === lastDeployed.id)
+            if (task) {
+              loadTaskIntoBuilder(task)
+              return
+            }
+          }
+        }
+      }
+    }, [mainTab, insightsProps?.liveTasks, nodes, loadTaskIntoBuilder, loadAssessmentIntoBuilder])
+
     const addAssessmentPage = useCallback(() => {
       setAssessmentBuilder(prev => {
         const nextIndex = prev.pages.length
@@ -5800,6 +5835,17 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       },
       [setSelectedItem, ensureSectionExpanded]
     )
+
+    // In the live classroom, keep the Curriculum panel open on whichever deployed
+    // task/assessment is currently loaded in the viewport.
+    useEffect(() => {
+      if (mainTab !== 'live') return
+      if (loadedTaskId && deployedTaskIds.has(loadedTaskId)) {
+        revealCurriculumItem('task', loadedTaskId)
+      } else if (loadedAssessmentId && deployedTaskIds.has(loadedAssessmentId)) {
+        revealCurriculumItem('homework', loadedAssessmentId)
+      }
+    }, [mainTab, loadedTaskId, loadedAssessmentId, deployedTaskIds, revealCurriculumItem])
 
     const scrollElementToTopOfCurriculum = (el: HTMLElement) => {
       const viewport = document.querySelector(
@@ -13935,6 +13981,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   pciSpec={liveChatTask.pciSpec}
                                                   questionText={`${liveChatTask.title}\n\n${liveChatTask.content}`}
                                                   sourceDocument={liveChatTask.sourceDocument}
+                                                  documentTitle={liveChatTask.title}
                                                   htmlContent={liveChatTask.htmlContent}
                                                   linkPreviews={liveChatTask.linkPreviews}
                                                   generatedFromText={liveChatTask.generatedFromText}
@@ -14027,6 +14074,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                               : liveAssessment?.description || ''
                                                           }
                                                           sourceDocument={doc}
+                                                          documentTitle={liveAssessment?.title}
                                                           htmlContent={
                                                             liveAssessment?.pages
                                                               ? liveAssessment.pages
