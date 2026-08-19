@@ -115,10 +115,11 @@ async function gradeAndPersistCompletion(answers: Record<string, string>) {
       score: autoScore,
       maxScore: 100,
       status: 'submitted',
+      sessionId,
       tutorApproved: false,
       submittedAt: now,
     })
-    .onConflictDoNothing({ target: [taskSubmission.taskId, taskSubmission.studentId] })
+    .onConflictDoNothing()
   return autoScore
 }
 

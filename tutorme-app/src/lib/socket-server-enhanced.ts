@@ -2503,9 +2503,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 tutorApproved: false,
                 submittedAt: now,
               })
-              .onConflictDoNothing({
-                target: [taskSubmission.sessionId, taskSubmission.taskId, taskSubmission.studentId],
-              })
+              .onConflictDoNothing()
 
             console.log('[task:complete] submission persisted', {
               roomId,
