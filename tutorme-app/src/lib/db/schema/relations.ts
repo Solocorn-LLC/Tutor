@@ -400,6 +400,10 @@ export const taskSubmissionRelations = relations(taskSubmission, ({ one }) => ({
     fields: [taskSubmission.studentId],
     references: [user.userId],
   }),
+  session: one(liveSession, {
+    fields: [taskSubmission.sessionId],
+    references: [liveSession.sessionId],
+  }),
   feedbackWorkflow: one(feedbackWorkflow, {
     fields: [taskSubmission.submissionId],
     references: [feedbackWorkflow.submissionId],
@@ -659,6 +663,10 @@ export const deployedMaterialRelations = relations(deployedMaterial, ({ one }) =
   course: one(course, {
     fields: [deployedMaterial.courseId],
     references: [course.courseId],
+  }),
+  lesson: one(courseLesson, {
+    fields: [deployedMaterial.lessonId],
+    references: [courseLesson.lessonId],
   }),
 }))
 

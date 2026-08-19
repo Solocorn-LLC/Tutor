@@ -11053,8 +11053,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         data-curriculum-item={`task:${task.id}`}
                                                         className={cn(
                                                           'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
-                                                          selectedItem?.type === 'task' &&
-                                                            selectedItem?.id === task.id
+                                                          (selectedItem?.type === 'task' &&
+                                                            selectedItem?.id === task.id) ||
+                                                            (loadedTaskId === task.id &&
+                                                              deployedTaskIds.has(task.id))
                                                             ? 'border-[#4A90FF] bg-[#F2F7FF] ring-1 ring-[#4A90FF]'
                                                             : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                           mainTab === 'test-pci' &&
@@ -11895,8 +11897,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       data-curriculum-item={`homework:${hw.id}`}
                                                       className={cn(
                                                         'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
-                                                        selectedItem?.type === 'homework' &&
-                                                          selectedItem?.id === hw.id
+                                                        (selectedItem?.type === 'homework' &&
+                                                          selectedItem?.id === hw.id) ||
+                                                          (loadedAssessmentId === hw.id &&
+                                                            deployedTaskIds.has(hw.id))
                                                           ? 'border-[#8B6DFF] bg-[#F3EEFF] ring-1 ring-[#8B6DFF]'
                                                           : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                         mainTab === 'test-pci' &&
@@ -12360,8 +12364,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           <div
                                                             className={cn(
                                                               'group/item relative mb-1.5 ml-0 mr-0 flex min-w-0 cursor-pointer items-center gap-1.5 overflow-hidden rounded-xl border px-3 py-2 shadow-sm transition-colors',
-                                                              selectedItem?.type === 'homework' &&
-                                                                selectedItem?.id === hw.id
+                                                              (selectedItem?.type === 'homework' &&
+                                                                selectedItem?.id === hw.id) ||
+                                                                (loadedAssessmentId === hw.id &&
+                                                                  deployedTaskIds.has(hw.id))
                                                                 ? 'border-[#2FC98F] bg-[#ECFBF4] ring-1 ring-[#2FC98F]'
                                                                 : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                               mainTab === 'test-pci' &&

@@ -11,14 +11,21 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { randomUUID } from 'crypto'
 import { getServerSession, authOptions } from '@/lib/auth'
 import { getParamAsync } from '@/lib/api/params'
 import { handleApiError, requireCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { builderTask, builderTaskDmi, courseEnrollment, taskSubmission } from '@/lib/db/schema'
+import {
+  builderTask,
+  builderTaskDmi,
+  courseEnrollment,
+  liveSession,
+  sessionParticipant,
+  taskSubmission,
+} from '@/lib/db/schema'
 import { autoGradeDmi, type DmiAnswerItem } from '@/lib/grading/auto-grade'
 
 const MAX_SCORE = 100
@@ -85,7 +92,10 @@ export async function POST(
       answers?: Record<string, unknown>
       timeSpent?: number
       whiteboard?: string
+      sessionId?: string
     }
+    const sessionId =
+      typeof body.sessionId === 'string' && body.sessionId.trim() ? body.sessionId.trim() : null
     const answers = body.answers ?? {}
     const timeSpent = typeof body.timeSpent === 'number' && body.timeSpent >= 0 ? body.timeSpent : 0
     // Optional attached whiteboard (PNG data URL). Ignore anything that isn't a
@@ -112,9 +122,9 @@ export async function POST(
       return NextResponse.json({ error: 'Task not available' }, { status: 404 })
     }
 
-    // Student must be enrolled in the task's course. The task can be scoped to
-    // the template id while the student enrolled in a published variant, so match
-    // the whole variant family.
+    // Student must be enrolled in the task's course OR a participant in the
+    // provided live session. The task can be scoped to the template id while the
+    // student is enrolled in a published variant, so match the whole variant family.
     const taskCourseFamily = await expandToCourseFamily(task.courseId ? [task.courseId] : [])
     const [enrollment] = await drizzleDb
       .select({ enrollmentId: courseEnrollment.enrollmentId })
@@ -127,15 +137,42 @@ export async function POST(
       )
       .limit(1)
 
-    if (!enrollment) {
-      return NextResponse.json({ error: 'Not enrolled in this course' }, { status: 403 })
+    let isParticipant = false
+    if (!enrollment && sessionId) {
+      const [participant] = await drizzleDb
+        .select({ participantId: sessionParticipant.participantId })
+        .from(sessionParticipant)
+        .innerJoin(liveSession, eq(liveSession.sessionId, sessionParticipant.sessionId))
+        .where(
+          and(
+            eq(sessionParticipant.studentId, studentId),
+            eq(sessionParticipant.sessionId, sessionId),
+            inArray(liveSession.courseId, taskCourseFamily)
+          )
+        )
+        .limit(1)
+      isParticipant = !!participant
     }
 
-    // One submission per (task, student)
+    if (!enrollment && !isParticipant) {
+      return NextResponse.json(
+        { error: 'Not enrolled or participating in this session' },
+        { status: 403 }
+      )
+    }
+
+    // One submission per (session, task, student). For non-session assignments the
+    // unique index scopes by task/student with a NULL sessionId.
     const [existing] = await drizzleDb
       .select({ submissionId: taskSubmission.submissionId })
       .from(taskSubmission)
-      .where(and(eq(taskSubmission.taskId, taskId), eq(taskSubmission.studentId, studentId)))
+      .where(
+        and(
+          eq(taskSubmission.taskId, taskId),
+          eq(taskSubmission.studentId, studentId),
+          sessionId ? eq(taskSubmission.sessionId, sessionId) : isNull(taskSubmission.sessionId)
+        )
+      )
       .limit(1)
 
     if (existing) {
@@ -162,6 +199,7 @@ export async function POST(
       submissionId,
       taskId,
       studentId,
+      sessionId,
       answers,
       timeSpent,
       attempts: 1,

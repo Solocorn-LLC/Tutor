@@ -19,6 +19,8 @@ export const dynamic = 'force-dynamic'
 export const GET = withAuth(
   async (request, session) => {
     const studentId = session.user.id
+    const { searchParams } = new URL(request.url)
+    const requestedSessionId = searchParams.get('sessionId')?.trim() || null
     const errors: string[] = []
 
     // Self-heal: ensure directory tables exist (handles schema drift / missing migrations)
@@ -33,6 +35,7 @@ export const GET = withAuth(
         "title" text NOT NULL,
         "content" jsonb,
         "sessionSequence" integer NOT NULL,
+        "lessonId" text REFERENCES "CourseLesson"("id") ON DELETE SET NULL,
         "deployedAt" timestamp with time zone NOT NULL DEFAULT now()
       )`
       )
@@ -50,6 +53,12 @@ export const GET = withAuth(
       )
       await drizzleDb.execute(
         `CREATE INDEX IF NOT EXISTS "DeployedMaterial_sessionId_sessionSequence_idx" ON "DeployedMaterial"("sessionId", "sessionSequence")`
+      )
+      await drizzleDb.execute(
+        `CREATE INDEX IF NOT EXISTS "DeployedMaterial_lessonId_idx" ON "DeployedMaterial"("lessonId")`
+      )
+      await drizzleDb.execute(
+        `CREATE UNIQUE INDEX IF NOT EXISTS "DeployedMaterial_sessionId_itemId_key" ON "DeployedMaterial"("sessionId", "itemId")`
       )
     } catch (err: any) {
       console.error('Self-heal DeployedMaterial failed:', err?.message)
@@ -152,13 +161,51 @@ export const GET = withAuth(
       enrollments.map(e => e.courseId).filter((id): id is string => id != null)
     )
 
+    // When a specific session is requested, verify the student is allowed to see it
+    // (enrolled in its course or already a participant).
+    if (requestedSessionId) {
+      try {
+        const [asParticipant] = await drizzleDb
+          .select({ participantId: sessionParticipant.participantId })
+          .from(sessionParticipant)
+          .where(
+            and(
+              eq(sessionParticipant.sessionId, requestedSessionId),
+              eq(sessionParticipant.studentId, studentId)
+            )
+          )
+          .limit(1)
+        const [sessionRow] = await drizzleDb
+          .select({ courseId: liveSession.courseId })
+          .from(liveSession)
+          .where(eq(liveSession.sessionId, requestedSessionId))
+          .limit(1)
+        const enrolledCourseIds = new Set(enrollments.map(e => e.courseId).filter(Boolean))
+        if (
+          !asParticipant &&
+          (!sessionRow?.courseId || !enrolledCourseIds.has(sessionRow.courseId))
+        ) {
+          return NextResponse.json({ error: 'Access denied' }, { status: 403 })
+        }
+      } catch (err: any) {
+        errors.push(`session access check failed: ${err?.message || String(err)}`)
+        return NextResponse.json({ directory: {}, errors })
+      }
+    }
+
     // --- 2. Fetch deployed materials ---
     let deployedMaterials: any[] = []
     try {
+      const deployedWhere = requestedSessionId
+        ? and(
+            eq(deployedMaterial.sessionId, requestedSessionId),
+            inArray(deployedMaterial.courseId, courseIds)
+          )
+        : inArray(deployedMaterial.courseId, courseIds)
       deployedMaterials = await drizzleDb
         .select()
         .from(deployedMaterial)
-        .where(inArray(deployedMaterial.courseId, courseIds))
+        .where(deployedWhere)
         .orderBy(deployedMaterial.deployedAt)
     } catch (err: any) {
       errors.push(`deployedMaterials query failed: ${err?.message || String(err)}`)

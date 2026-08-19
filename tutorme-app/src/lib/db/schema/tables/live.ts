@@ -181,7 +181,7 @@ export const deployedMaterial = pgTable(
     sessionSequence: integer('sessionSequence').notNull(), // e.g. 1 for 's1', 2 for 's2'
     // The lesson this material was deployed from, so the Desk can group
     // submissions under the real lesson (not always "Lesson 1"). Nullable.
-    lessonId: text('lessonId'),
+    lessonId: text('lessonId').references(() => courseLesson.lessonId, { onDelete: 'set null' }),
     deployedAt: timestamp('deployedAt', { withTimezone: true }).notNull().defaultNow(),
   },
   table => ({
@@ -192,6 +192,11 @@ export const deployedMaterial = pgTable(
     DeployedMaterial_sessionId_sessionSequence_idx: index(
       'DeployedMaterial_sessionId_sessionSequence_idx'
     ).on(table.sessionId, table.sessionSequence),
+    DeployedMaterial_lessonId_idx: index('DeployedMaterial_lessonId_idx').on(table.lessonId),
+    DeployedMaterial_sessionId_itemId_key: uniqueIndex('DeployedMaterial_sessionId_itemId_key').on(
+      table.sessionId,
+      table.itemId
+    ),
   })
 )
 
