@@ -30,6 +30,8 @@ export interface ChatMessageBubbleProps {
   studentOnRight?: boolean
   /** When true, AI/SAI messages appear on the right (used in the tutor classroom view). */
   aiOnRight?: boolean
+  /** Optional display title for the document card; falls back to document.fileName. */
+  documentTitle?: string | null
 }
 
 export function ChatMessageBubble({
@@ -45,6 +47,7 @@ export function ChatMessageBubble({
   isClassroom = false,
   studentOnRight = false,
   aiOnRight = false,
+  documentTitle,
 }: ChatMessageBubbleProps) {
   // When aiOnRight is true, AI/SAI messages are on the right (tutor classroom view).
   // When studentOnRight is true, student messages are on the right (tutor/AI on left).
@@ -67,7 +70,7 @@ export function ChatMessageBubble({
     // Durable same-origin URL (streams by key, no expiry). See resolveDocDisplayUrl.
     const docUrl = resolveDocDisplayUrl(document)
     const loadable = isDocDisplayable(document)
-    const docName = document.fileName || 'Task document'
+    const docName = documentTitle || document.fileName || 'Task document'
     const isPdf =
       document.mimeType === 'application/pdf' ||
       (!document.mimeType && /\.pdf($|\?|#)/i.test(document.fileName || rawUrl))
