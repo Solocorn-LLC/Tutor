@@ -71,12 +71,15 @@ export function TestTaskChat({
   onGrade,
   taskId,
   accent = 'orange',
+  documentTitle,
 }: {
   pci?: string
   pciSpec?: unknown
   questionText?: string
   /** The task's document — shown as a thumbnail in the chat stream. */
   sourceDocument?: TaskDocumentSource | null
+  /** Display title for the document card; falls back to sourceDocument.fileName. */
+  documentTitle?: string | null
   /** Original HTML content for documents auto-generated from typed text. */
   htmlContent?: string
   /** Visual link-preview cards overlaid on the slide canvas. */
@@ -414,6 +417,7 @@ export function TestTaskChat({
             avatarUrl={tutorAvatarUrl}
             isDocument
             document={sourceDocument}
+            documentTitle={documentTitle}
             onDocumentClick={() => loadable && setPdfPopupOpen(true)}
             isClassroom={isClassroom}
             studentOnRight
