@@ -80,7 +80,7 @@ export default function TutorCourseEnrollmentsPage() {
         <CardContent className="space-y-4">
           {loading ? (
             <div className="flex h-40 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+              <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
             </div>
           ) : enrollments.length === 0 ? (
             <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">

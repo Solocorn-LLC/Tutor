@@ -439,7 +439,7 @@ export function SubmissionsPanel({
         )}
       >
         {!hideHeader && (
-          <div className="sticky top-0 z-10 flex h-9 items-center justify-center gap-2 rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+          <div className="sticky top-0 z-10 flex h-9 items-center justify-center gap-2 rounded-t-[20px] bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] px-4 text-sm font-semibold text-white">
             Desk
             {newCounts.total > 0 && (
               <span

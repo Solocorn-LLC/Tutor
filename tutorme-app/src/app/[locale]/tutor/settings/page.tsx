@@ -328,7 +328,7 @@ function OneOnOneSettingsCard() {
 
         <div className="flex justify-end">
           <Button
-            className="bg-[#2563EB] text-white hover:border-[#2563EB] hover:bg-white hover:text-[#2563EB]"
+            className="bg-[#3B82F6] text-white hover:border-[#3B82F6] hover:bg-white hover:text-[#3B82F6]"
             onClick={handleSave}
             disabled={saving}
           >
@@ -726,7 +726,7 @@ export default function TutorSettings() {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 pt-2 lg:px-4 lg:pt-0">
       {/* Hero */}
-      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
+      <section className="relative mb-4 flex-shrink-0 overflow-hidden rounded-[20px] border border-white/10 bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="text-center">
           <h1 className="text-xl font-bold text-white">Account Settings</h1>
           <p className="mt-1 text-sm text-white/60">Manage your profile and preferences</p>
@@ -797,7 +797,7 @@ export default function TutorSettings() {
                       Contact{' '}
                       <a
                         href="mailto:support@solocorn.co"
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-500 hover:underline"
                       >
                         support@solocorn.co
                       </a>{' '}
@@ -811,7 +811,7 @@ export default function TutorSettings() {
                       Contact{' '}
                       <a
                         href="mailto:support@solocorn.co"
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-500 hover:underline"
                       >
                         support@solocorn.co
                       </a>{' '}
@@ -899,7 +899,7 @@ export default function TutorSettings() {
 
                 <div className="flex justify-end">
                   <Button
-                    className="bg-[#2563EB] text-white hover:border-[#2563EB] hover:bg-white hover:text-[#2563EB]"
+                    className="bg-[#3B82F6] text-white hover:border-[#3B82F6] hover:bg-white hover:text-[#3B82F6]"
                     onClick={handleSaveProfile}
                     disabled={saving}
                   >
@@ -1049,7 +1049,7 @@ export default function TutorSettings() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
-                        <CreditCard className="h-5 w-5 text-blue-600" />
+                        <CreditCard className="h-5 w-5 text-blue-500" />
                       </div>
                       <div>
                         <p className="font-medium">
@@ -1110,7 +1110,7 @@ export default function TutorSettings() {
                   <div className="space-y-2">
                     <Label>Action</Label>
                     <Button
-                      className="w-full bg-[#1D4ED8] text-white hover:bg-[#1E40AF]"
+                      className="w-full bg-[#3B82F6] text-white hover:bg-[#1E40AF]"
                       onClick={() => toast.message('Subscription renewal queued')}
                     >
                       Renew
@@ -1409,10 +1409,10 @@ export default function TutorSettings() {
                   {twoFactorEnabled && (
                     <div className="rounded-lg bg-blue-50 p-4">
                       <div className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 text-blue-600" />
+                        <Check className="mt-0.5 h-4 w-4 text-blue-500" />
                         <div>
-                          <p className="text-sm font-medium text-blue-800">2FA Enabled</p>
-                          <p className="text-xs text-blue-600">
+                          <p className="text-sm font-medium text-blue-700">2FA Enabled</p>
+                          <p className="text-xs text-blue-500">
                             Your account is protected with two-factor authentication
                           </p>
                         </div>

@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
     href: '/tutor/dashboard',
     label: 'Dashboard',
     icon: LayoutDashboard,
-    iconColor: 'text-[#2563EB]',
+    iconColor: 'text-[#3B82F6]',
   },
   { href: '/tutor/my-page', label: 'My Page', icon: Globe, iconColor: 'text-[#7C3AED]' },
   { href: '/tutor/insights', label: 'Course Builder', icon: Wrench, iconColor: 'text-[#EA580C]' },
@@ -222,7 +222,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
           <div className="flex h-full w-60 flex-col">
             <div className="flex min-w-[240px] shrink-0 items-center justify-between px-4 py-2">
               <div className="flex items-center gap-2">
-                <Link href="/tutor/dashboard" className="text-xl font-bold text-blue-600"></Link>
+                <Link href="/tutor/dashboard" className="text-xl font-bold text-blue-500"></Link>
               </div>
               <div className="flex items-center gap-2">
                 <div onClick={e => e.stopPropagation()}>
@@ -248,7 +248,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
                       'flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors',
                       item.inactive && 'pointer-events-none opacity-50',
                       isActive
-                        ? 'bg-blue-50 font-medium text-blue-700'
+                        ? 'bg-blue-50 font-medium text-blue-600'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     )}
                   >
@@ -271,7 +271,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
                       isActive
-                        ? 'bg-blue-50 font-medium text-blue-700'
+                        ? 'bg-blue-50 font-medium text-blue-600'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     )}
                   >
@@ -302,7 +302,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
           desktopNavOpen ? 'left-64' : 'left-0',
           desktopNavOpen
             ? 'border-[#E5E7EB] bg-white'
-            : 'border-[#1D4ED8]/30 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)]',
+            : 'border-[#3B82F6]/30 bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)]',
           isPeeking ? 'w-10' : 'w-8'
         )}
         onClick={() => setDesktopNavOpen(!desktopNavOpen)}
@@ -326,7 +326,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
             <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
-            <Link href="/tutor/dashboard" className="text-xl font-bold text-blue-600"></Link>
+            <Link href="/tutor/dashboard" className="text-xl font-bold text-blue-500"></Link>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/tutor/settings">
@@ -354,7 +354,7 @@ export default function TutorLayout({ children }: { children: React.ReactNode })
                   className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-3 transition-colors',
                     isActive
-                      ? 'bg-blue-50 font-medium text-blue-700'
+                      ? 'bg-blue-50 font-medium text-blue-600'
                       : 'text-gray-600 hover:bg-gray-100'
                   )}
                 >

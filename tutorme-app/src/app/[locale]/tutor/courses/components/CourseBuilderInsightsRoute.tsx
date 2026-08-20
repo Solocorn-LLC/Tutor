@@ -511,7 +511,7 @@ function TutorControlsPanel({
                     <div
                       className={cn(
                         'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
-                        mode === 'edit' && 'bg-[#2563EB]',
+                        mode === 'edit' && 'bg-[#3B82F6]',
                         mode === 'test' && 'bg-[#7C3AED]',
                         mode === 'classroom' && 'bg-[#F97316]'
                       )}
@@ -575,7 +575,7 @@ function TutorControlsPanel({
                       label="New Course"
                       disabled={panelDisabled || mode !== 'edit'}
                       onClick={onCreateCourse}
-                      className="bg-white text-blue-600"
+                      className="bg-white text-blue-500"
                     />
                   </div>
                 </div>
@@ -633,7 +633,7 @@ function TutorControlsPanel({
                           onClick={onCreateTemplate}
                           className={cn(
                             actionButtonBase,
-                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-50 active:bg-blue-100'
+                            'mt-2 w-full bg-white text-[#3B82F6] hover:bg-blue-50 active:bg-blue-100'
                           )}
                         >
                           <Calendar className="h-4 w-4" />
@@ -652,7 +652,7 @@ function TutorControlsPanel({
                           onClick={onSchedule}
                           className={cn(
                             actionButtonBase,
-                            'mt-2 w-full bg-white text-[#2563EB] hover:bg-blue-600 hover:text-white active:bg-blue-700'
+                            'mt-2 w-full bg-white text-[#3B82F6] hover:bg-blue-500 hover:text-white active:bg-blue-600'
                           )}
                         >
                           <Calendar className="h-4 w-4" />
@@ -1114,7 +1114,7 @@ function CourseBuilderInsightsRouteInner({
       label: 'Published',
       dot: 'bg-blue-500',
       bg: 'bg-blue-50',
-      text: 'text-blue-700',
+      text: 'text-blue-600',
       border: 'border-blue-200',
     },
     creating: {
@@ -1207,7 +1207,7 @@ function CourseBuilderInsightsRouteInner({
                           onClick={() => setCourseSelectorOpen(true)}
                           disabled={hasNoCourses}
                           className={cn(
-                            'h-9 min-w-[300px] max-w-[540px] justify-center border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-600 focus-visible:ring-0 focus-visible:ring-offset-0',
+                            'h-9 min-w-[300px] max-w-[540px] justify-center border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-500 focus-visible:ring-0 focus-visible:ring-offset-0',
                             hasNoCourses && 'cursor-not-allowed opacity-60'
                           )}
                         >

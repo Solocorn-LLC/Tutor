@@ -533,7 +533,7 @@ function MyCoursesSection() {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`relative px-4 py-2 text-sm font-medium transition ${
-                  activeTab === tab ? 'text-[#1D4ED8]' : 'text-[#64748B] hover:text-[#1F2933]'
+                  activeTab === tab ? 'text-[#3B82F6]' : 'text-[#64748B] hover:text-[#1F2933]'
                 }`}
               >
                 <span>{TAB_LABELS[tab]}</span>
@@ -541,7 +541,7 @@ function MyCoursesSection() {
                   {courseCounts[tab]}
                 </span>
                 {activeTab === tab && (
-                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#1D4ED8]" />
+                  <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#3B82F6]" />
                 )}
               </button>
             ))}
@@ -559,7 +559,7 @@ function MyCoursesSection() {
             {activeTab === 'demoClasses' ? (
               demoLoading ? (
                 <div className="flex h-full items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#3B82F6] border-t-transparent" />
                 </div>
               ) : demoClasses.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
@@ -573,7 +573,7 @@ function MyCoursesSection() {
               )
             ) : loading ? (
               <div className="flex h-full items-center justify-center">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#1D4ED8] border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#3B82F6] border-t-transparent" />
               </div>
             ) : filteredCourses.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
@@ -944,14 +944,14 @@ export default function TutorMyPage() {
   const headerCardClass =
     'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
   const headerInnerClass =
-    'rounded-[20px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-8 py-5 text-white'
+    'rounded-[20px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-8 py-5 text-white'
   const panelCardClass =
     'group rounded-[18px] bg-white p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
       </div>
     )
   }
@@ -1064,7 +1064,7 @@ export default function TutorMyPage() {
 
                   <Button
                     size="lg"
-                    className="w-full border border-white bg-[#1D4ED8] text-white shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:translate-y-0 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white sm:w-auto"
+                    className="w-full border border-white bg-[#3B82F6] text-white shadow-[0_4px_14px_rgba(0,0,0,0.12)] hover:translate-y-0 hover:bg-[#1F2933] hover:text-white hover:outline hover:outline-1 hover:outline-white sm:w-auto"
                     onClick={() => void save()}
                     disabled={loading || saving}
                   >
@@ -1078,7 +1078,7 @@ export default function TutorMyPage() {
 
         <div className="grid gap-6 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
           <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}>
-            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-5 text-white">
               <User className="h-5 w-5" />
               <span className="text-base font-semibold">Bio</span>
             </div>
@@ -1094,7 +1094,7 @@ export default function TutorMyPage() {
           </div>
 
           <div className={cn(panelCardClass, 'flex flex-col lg:col-start-2 lg:row-start-1')}>
-            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-5 text-white">
               <div className="flex items-center gap-3">
                 <Link2 className="h-5 w-5" />
                 <span className="text-base font-semibold">Connect</span>
@@ -1103,7 +1103,7 @@ export default function TutorMyPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-500 hover:bg-white hover:text-blue-500 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   onClick={handleCopyProfile}
                   disabled={!publicUrl}
                 >
@@ -1114,7 +1114,7 @@ export default function TutorMyPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-500 hover:bg-white hover:text-blue-500 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     onClick={handleShareProfile}
                   >
                     <Share2 className="mr-1.5 h-3.5 w-3.5" />
@@ -1203,7 +1203,7 @@ export default function TutorMyPage() {
                       : `https://${socialAccounts.facebook}`
                     : '—',
                   icon: Facebook,
-                  bgClass: 'bg-blue-600',
+                  bgClass: 'bg-blue-500',
                   muted: !socialAccounts.facebook,
                 },
                 {
@@ -1257,7 +1257,7 @@ export default function TutorMyPage() {
               'flex flex-col lg:col-span-2 lg:col-start-1 lg:row-start-2'
             )}
           >
-            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-5 text-white">
               <Tags className="h-5 w-5" />
               <span className="text-base font-semibold">Categories</span>
               <span className="text-sm text-white/70">({publishedCourseCategories.length})</span>
@@ -1325,7 +1325,7 @@ export default function TutorMyPage() {
                           disabled={loading || saving}
                           placeholder="Short bio for your public page..."
                           maxLength={800}
-                          className="min-h-[280px] flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#1D4ED8]"
+                          className="min-h-[280px] flex-1 resize-none border-[#E2E8F0] focus-visible:ring-[#3B82F6]"
                         />
                         <span
                           className={
@@ -1543,8 +1543,8 @@ export default function TutorMyPage() {
                       onClick={() => toggleCourseCategory(category)}
                       className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
                         active
-                          ? 'border-[#1D4ED8] bg-[#1D4ED8] text-white'
-                          : 'border-[#E2E8F0] text-[#1F2933] hover:border-[#1D4ED8]'
+                          ? 'border-[#3B82F6] bg-[#3B82F6] text-white'
+                          : 'border-[#E2E8F0] text-[#1F2933] hover:border-[#3B82F6]'
                       }`}
                     >
                       {category}

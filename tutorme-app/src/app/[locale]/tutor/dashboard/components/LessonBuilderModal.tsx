@@ -129,7 +129,7 @@ export function LessonBuilderModal({
                           ? level === 'beginner'
                             ? 'border-green-300 bg-green-100 text-green-700'
                             : level === 'intermediate'
-                              ? 'border-blue-300 bg-blue-100 text-blue-700'
+                              ? 'border-blue-300 bg-blue-100 text-blue-600'
                               : 'border-purple-300 bg-purple-100 text-purple-700'
                           : 'border-gray-400 bg-white text-gray-600'
                       )}
@@ -149,7 +149,7 @@ export function LessonBuilderModal({
                         activeVariant === 'beginner'
                           ? 'text-green-700'
                           : activeVariant === 'intermediate'
-                            ? 'text-blue-700'
+                            ? 'text-blue-600'
                             : 'text-purple-700'
                       )}
                     >

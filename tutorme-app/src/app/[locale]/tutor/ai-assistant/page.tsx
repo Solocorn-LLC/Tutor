@@ -185,7 +185,7 @@ export default function AIAssistantPage() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'lesson_idea':
-        return 'bg-blue-100 text-blue-700'
+        return 'bg-blue-100 text-blue-600'
       case 'student_analysis':
         return 'bg-orange-100 text-orange-700'
       case 'content_suggestion':
@@ -201,7 +201,7 @@ export default function AIAssistantPage() {
     return (
       <div className="w-full px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex h-[60vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       </div>
     )
@@ -248,7 +248,7 @@ export default function AIAssistantPage() {
                 <button
                   className={`flex-1 py-2 text-sm font-medium ${
                     activeTab === 'chat'
-                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      ? 'border-b-2 border-blue-500 text-blue-500'
                       : 'text-gray-600 hover:text-gray-800'
                   }`}
                   onClick={() => setActiveTab('chat')}
@@ -258,7 +258,7 @@ export default function AIAssistantPage() {
                 <button
                   className={`flex-1 py-2 text-sm font-medium ${
                     activeTab === 'insights'
-                      ? 'border-b-2 border-blue-500 text-blue-600'
+                      ? 'border-b-2 border-blue-500 text-blue-500'
                       : 'text-gray-600 hover:text-gray-800'
                   }`}
                   onClick={() => setActiveTab('insights')}
@@ -290,7 +290,7 @@ export default function AIAssistantPage() {
                           <div
                             className={`max-w-[80%] rounded-lg p-3 text-sm ${
                               message.role === 'user'
-                                ? 'bg-blue-600 text-white'
+                                ? 'bg-blue-500 text-white'
                                 : 'bg-gray-100 text-gray-800'
                             }`}
                           >
@@ -322,7 +322,7 @@ export default function AIAssistantPage() {
                           }
                         }}
                         disabled={sending}
-                        className="min-h-[44px] flex-1 shadow-sm focus-visible:ring-blue-600"
+                        className="min-h-[44px] flex-1 shadow-sm focus-visible:ring-blue-500"
                       />
                       <Button
                         onClick={sendMessage}
@@ -427,7 +427,7 @@ export default function AIAssistantPage() {
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg bg-gray-50 p-3 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-blue-500">
                     {session?.messages.filter(m => m.role === 'user').length || 0}
                   </p>
                   <p className="text-xs text-gray-500">Your Messages</p>

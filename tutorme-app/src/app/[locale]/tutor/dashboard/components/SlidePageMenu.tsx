@@ -107,7 +107,7 @@ export function SlidePageMenu({
             className={cn(
               'flex items-center gap-1 whitespace-nowrap rounded-xl px-3 py-1.5 text-sm transition-all',
               index === currentPageIndex
-                ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                ? 'bg-blue-500 text-white shadow-md shadow-blue-500/20'
                 : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
             )}
           >

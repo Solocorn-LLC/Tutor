@@ -534,7 +534,7 @@ export function VariantScheduleEditor({
             </div>
             <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-slate-600">
               <span className="flex items-center gap-1">
-                <span className="inline-block h-3 w-3 rounded-sm bg-[#1D4ED8]" />
+                <span className="inline-block h-3 w-3 rounded-sm bg-[#3B82F6]" />
                 Selected
               </span>
               <span className="flex items-center gap-1">
@@ -558,7 +558,7 @@ export function VariantScheduleEditor({
               boxShadow: '0 18px 45px rgba(0,0,0,0.14), 0 6px 18px rgba(0,0,0,0.08)',
             }}
           >
-            <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-[14px] border-b border-[rgba(209,213,219,0.85)] bg-[#1D4ED8] px-4 py-2 text-white">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-[14px] border-b border-[rgba(209,213,219,0.85)] bg-[#3B82F6] px-4 py-2 text-white">
               <div className="flex items-center gap-1">
                 <Button
                   type="button"
@@ -717,7 +717,7 @@ export function VariantScheduleEditor({
                               isPastDay || (!inRange && !slotStatus.available && !isCourseOccupied)
 
                             const cellClass = inRange
-                              ? 'bg-[#1D4ED8] font-semibold text-white'
+                              ? 'bg-[#3B82F6] font-semibold text-white'
                               : isPastDay
                                 ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                 : isCourseOccupied

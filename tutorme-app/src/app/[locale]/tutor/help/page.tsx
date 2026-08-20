@@ -99,7 +99,7 @@ export default function TutorHelpPage() {
   return (
     <SupportPage
       subtitle="Find answers, tutorials, and get support"
-      heroGradient="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]"
+      heroGradient="bg-gradient-to-br from-[#3B82F6] to-[#3B82F6]"
       topics={topics}
     />
   )

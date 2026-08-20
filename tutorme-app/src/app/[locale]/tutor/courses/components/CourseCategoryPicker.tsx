@@ -521,7 +521,7 @@ export function CourseCategoryPicker({
                   size="sm"
                   onClick={addCustomCategory}
                   disabled={!customCategoryInput.trim()}
-                  className="h-10 gap-1 rounded-md border border-white bg-blue-700 text-white hover:border-blue-700 hover:bg-blue-600"
+                  className="h-10 gap-1 rounded-md border border-white bg-blue-600 text-white hover:border-blue-600 hover:bg-blue-500"
                 >
                   <Plus className="h-4 w-4" />
                   Add

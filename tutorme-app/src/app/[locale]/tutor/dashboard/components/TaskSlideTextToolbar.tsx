@@ -284,7 +284,7 @@ export function TaskSlideTextToolbar({
         className={cn(
           'flex h-8 w-8 items-center justify-center rounded-md border bg-white shadow-sm transition-colors',
           isOpen
-            ? 'border-blue-300 text-blue-600 hover:bg-blue-50'
+            ? 'border-blue-300 text-blue-500 hover:bg-blue-50'
             : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700'
         )}
       >

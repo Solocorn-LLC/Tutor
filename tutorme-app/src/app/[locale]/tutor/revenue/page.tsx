@@ -206,7 +206,7 @@ export default function RevenuePage() {
         )
       case 'processing':
         return (
-          <Badge variant="outline" className="border-blue-600 text-blue-600">
+          <Badge variant="outline" className="border-blue-500 text-blue-500">
             Processing
           </Badge>
         )
@@ -241,7 +241,7 @@ export default function RevenuePage() {
         )
       case 'PROCESSING':
         return (
-          <Badge variant="outline" className="border-blue-600 text-blue-600">
+          <Badge variant="outline" className="border-blue-500 text-blue-500">
             <Hourglass className="mr-1 h-3 w-3" />
             Processing
           </Badge>
@@ -362,7 +362,7 @@ export default function RevenuePage() {
     return (
       <div className="flex min-h-full items-center justify-center bg-white pb-0">
         <div className="text-center">
-          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-blue-500" />
           <p className="text-gray-600">Loading revenue data...</p>
         </div>
       </div>
@@ -700,8 +700,8 @@ export default function RevenuePage() {
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                           <div className="rounded-lg bg-blue-50 p-3 text-center">
-                            <p className="text-xl font-bold text-blue-700">{course.enrollments}</p>
-                            <p className="text-xs text-blue-600">Students</p>
+                            <p className="text-xl font-bold text-blue-600">{course.enrollments}</p>
+                            <p className="text-xs text-blue-500">Students</p>
                           </div>
                           <div className="rounded-lg bg-green-50 p-3 text-center">
                             <p className="text-xl font-bold text-green-700">
@@ -733,8 +733,8 @@ export default function RevenuePage() {
                       </p>
                     </div>
                     <div className="rounded-lg bg-blue-50 p-4">
-                      <p className="text-sm text-blue-600">Total Payouts</p>
-                      <p className="text-2xl font-bold text-blue-700">
+                      <p className="text-sm text-blue-500">Total Payouts</p>
+                      <p className="text-2xl font-bold text-blue-600">
                         {formatCurrency(
                           payouts
                             .filter(p => p.status === 'COMPLETED')

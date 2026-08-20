@@ -56,11 +56,11 @@ export function InsightsReportView({
   return (
     <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white/60 p-3 shadow-sm backdrop-blur-md">
       <div className="mb-3 flex items-center justify-between border-b border-blue-100 pb-2">
-        <span className="text-sm font-semibold uppercase tracking-wider text-blue-800">
+        <span className="text-sm font-semibold uppercase tracking-wider text-blue-700">
           {isPoll ? 'Poll Results' : 'Question Results'}
         </span>
         {count > 0 && (
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-600">
+          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-500">
             {count} sent
           </span>
         )}
@@ -93,7 +93,7 @@ export function InsightsReportView({
                       <button
                         type="button"
                         onClick={() => onClose('poll', poll.id)}
-                        className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-50"
+                        className="rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-600 hover:bg-blue-50"
                       >
                         Close
                       </button>
@@ -109,7 +109,7 @@ export function InsightsReportView({
                   >
                     <div className="mb-1 flex justify-between text-xs font-medium text-slate-700">
                       <span>{item.label}</span>
-                      <span className="text-blue-600">
+                      <span className="text-blue-500">
                         {item.count} ({item.percent}%)
                       </span>
                     </div>
@@ -126,7 +126,7 @@ export function InsightsReportView({
                             key={`${poll.id}-${i}-${si}`}
                             type="button"
                             onClick={() => onMentionStudent(s)}
-                            className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-700 hover:bg-blue-100"
+                            className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] text-blue-600 hover:bg-blue-100"
                           >
                             {s}
                           </button>
@@ -155,7 +155,7 @@ export function InsightsReportView({
                     <button
                       type="button"
                       onClick={() => onClose('question', q.id)}
-                      className="shrink-0 rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-700 hover:bg-blue-50"
+                      className="shrink-0 rounded-full border border-blue-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-blue-600 hover:bg-blue-50"
                     >
                       Close
                     </button>
@@ -174,7 +174,7 @@ export function InsightsReportView({
                       <button
                         type="button"
                         onClick={() => onMentionStudent(a.studentName)}
-                        className="text-xs font-semibold text-blue-700 hover:underline"
+                        className="text-xs font-semibold text-blue-600 hover:underline"
                       >
                         {a.studentName}
                       </button>

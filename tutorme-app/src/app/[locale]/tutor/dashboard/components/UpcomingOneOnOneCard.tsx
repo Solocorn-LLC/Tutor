@@ -63,7 +63,7 @@ function studentDisplayName(student?: OneOnOneStudent | null): string {
 function statusBadgeClass(status: string) {
   const s = status.toUpperCase()
   if (s === 'PAID') return 'border-emerald-200 bg-emerald-100 text-emerald-700'
-  if (s === 'ACCEPTED') return 'border-blue-200 bg-blue-100 text-blue-700'
+  if (s === 'ACCEPTED') return 'border-blue-200 bg-blue-100 text-blue-600'
   if (s === 'PENDING') return 'border-amber-200 bg-amber-100 text-amber-700'
   return 'border-slate-200 bg-slate-100 text-slate-600'
 }
@@ -85,7 +85,7 @@ export function UpcomingOneOnOneCard({
         <div className="flex flex-wrap items-center gap-2">
           <Badge
             variant="outline"
-            className="border-blue-200 bg-blue-100 text-[10px] uppercase tracking-wide text-blue-700"
+            className="border-blue-200 bg-blue-100 text-[10px] uppercase tracking-wide text-blue-600"
           >
             Booking
           </Badge>
@@ -136,7 +136,7 @@ export function UpcomingOneOnOneCard({
             size="sm"
             disabled={isJoining}
             onClick={() => onJoinOneOnOne(request.requestId)}
-            className="bg-blue-500 text-white transition-all duration-200 hover:bg-blue-600"
+            className="bg-blue-500 text-white transition-all duration-200 hover:bg-blue-500"
           >
             <Video className="mr-1 h-3 w-3" />
             {isJoining ? 'Opening…' : 'Join session'}

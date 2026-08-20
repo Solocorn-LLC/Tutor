@@ -188,7 +188,7 @@ export default function CreateCoursePage() {
                   <Link href="/tutor/my-page">Cancel</Link>
                 </Button>
                 <Button
-                  className="h-11 flex-1 bg-blue-600 font-semibold shadow-lg shadow-blue-200 hover:bg-blue-700"
+                  className="h-11 flex-1 bg-blue-500 font-semibold shadow-lg shadow-blue-200 hover:bg-blue-600"
                   onClick={handleConfirm}
                   disabled={creating || !courseName.trim() || categories.length === 0}
                 >

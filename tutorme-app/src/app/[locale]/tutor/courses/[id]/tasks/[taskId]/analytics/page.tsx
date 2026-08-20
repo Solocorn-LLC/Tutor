@@ -561,7 +561,7 @@ export default function TaskAnalyticsPage() {
                                 <td className="p-3">
                                   <Link
                                     href={`/tutor/reports/${s.studentId}`}
-                                    className="font-medium text-blue-600 hover:underline"
+                                    className="font-medium text-blue-500 hover:underline"
                                   >
                                     {s.studentName}
                                   </Link>
@@ -581,7 +581,7 @@ export default function TaskAnalyticsPage() {
                                     className={
                                       s.status === 'graded'
                                         ? 'bg-green-100 text-green-700'
-                                        : 'bg-blue-100 text-blue-700'
+                                        : 'bg-blue-100 text-blue-600'
                                     }
                                   >
                                     {s.status}

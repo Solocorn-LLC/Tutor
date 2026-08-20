@@ -454,7 +454,7 @@ export default function TutorResourcesPage() {
                     : 'border-gray-200 hover:bg-gray-50'
                 }`}
               >
-                <Users className="h-6 w-6 text-blue-600" />
+                <Users className="h-6 w-6 text-blue-500" />
                 <span className="text-sm font-medium">All My Students</span>
                 <span className="text-xs text-gray-500">All enrolled students</span>
               </button>

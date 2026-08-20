@@ -130,8 +130,8 @@ export function StudentProgressCard({ students = [], loading }: StudentProgressC
         </div>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div className="rounded-lg bg-blue-50 p-2">
-            <p className="text-lg font-bold text-blue-700">{summary.avgProgress}%</p>
-            <p className="text-xs text-blue-600">Avg progress</p>
+            <p className="text-lg font-bold text-blue-600">{summary.avgProgress}%</p>
+            <p className="text-xs text-blue-500">Avg progress</p>
           </div>
           <div className="rounded-lg bg-green-50 p-2">
             <p className="text-lg font-bold text-green-700">{summary.avgEngagement}%</p>

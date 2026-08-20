@@ -108,7 +108,7 @@ export default function TutorSessionInsightsPage() {
         <p className="text-[#7F7C77]">Session not found.</p>
         <Button
           onClick={() => router.push('/tutor/classes')}
-          className="bg-[#2563EB] text-white hover:brightness-105"
+          className="bg-[#3B82F6] text-white hover:brightness-105"
         >
           Back to Classes
         </Button>
@@ -159,7 +159,7 @@ export default function TutorSessionInsightsPage() {
                 className={
                   session.status === 'ended'
                     ? 'bg-[#D6DBE3] text-[#7F7C77]'
-                    : 'bg-[#1D4ED8] text-white'
+                    : 'bg-[#3B82F6] text-white'
                 }
               >
                 {session.status === 'ended' ? 'Ended' : session.status}
@@ -171,7 +171,7 @@ export default function TutorSessionInsightsPage() {
             <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
-                  <Users className="h-4 w-4 text-[#2563EB]" />
+                  <Users className="h-4 w-4 text-[#3B82F6]" />
                   Attendance
                 </CardTitle>
               </CardHeader>
@@ -220,7 +220,7 @@ export default function TutorSessionInsightsPage() {
             <Card className="rounded-lg border border-[#E5E7EB] bg-[rgba(255,255,255,0.75)] shadow-sm ring-1 ring-white/40 transition-all duration-200 hover:bg-[rgba(255,255,255,0.92)]">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm font-semibold text-[#7F7C77]">
-                  <Clock className="h-4 w-4 text-[#2563EB]" />
+                  <Clock className="h-4 w-4 text-[#3B82F6]" />
                   Duration
                 </CardTitle>
               </CardHeader>
@@ -234,7 +234,7 @@ export default function TutorSessionInsightsPage() {
           <div className="grid gap-6 lg:grid-cols-2">
             <Card className="flex h-full flex-col rounded-lg border border-[#E5E7EB] bg-white shadow-sm ring-1 ring-black/5">
               <CardHeader className="rounded-t-lg border-b border-[#E5E7EB] bg-[linear-gradient(145deg,#EEF4FF_0%,#E4EDFF_60%,#F5F9FF_100%)]">
-                <CardTitle className="text-base font-semibold text-[#2563EB]">AI Summary</CardTitle>
+                <CardTitle className="text-base font-semibold text-[#3B82F6]">AI Summary</CardTitle>
               </CardHeader>
               <CardContent className="flex-1 pt-4">
                 {session.summary ? (
