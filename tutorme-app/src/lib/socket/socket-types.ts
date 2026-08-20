@@ -149,6 +149,8 @@ export interface LiveTask {
   parentId?: string
   isExtension?: boolean
   completedBy?: string[]
+  /** Optional HH:MM time limit for the task/assessment. */
+  timeLimit?: string
 }
 
 export interface TaskChatMessagePayload {

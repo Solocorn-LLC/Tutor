@@ -153,6 +153,8 @@ export interface DMIVersion {
   sections?: DMISection[]
   /** Total marks across all questions (ASMT-4 metadata). */
   totalMarks?: number
+  /** Optional HH:MM time limit for the task/assessment this DMI belongs to. */
+  timeLimit?: string
 }
 
 export interface Task extends WithDifficultyVariants {
@@ -185,6 +187,8 @@ export interface Task extends WithDifficultyVariants {
   /** How the DMI was sourced — persisted so the PCI-chat study-material variant
    *  works for a returning tutor (not just in the DMI-generation session). */
   documentKind?: 'question_paper' | 'study_material'
+  /** Optional HH:MM time limit shown to students when the task is deployed. */
+  timeLimit?: string
   estimatedMinutes: number
   points: number
   submissionType: 'text' | 'file' | 'link' | 'none' | 'questions'
@@ -233,6 +237,8 @@ export interface Assessment extends WithDifficultyVariants {
   category?: 'assessment' | 'homework'
   difficulty?: string
   dueDate?: string
+  /** Optional HH:MM time limit shown to students when the assessment is deployed. */
+  timeLimit?: string
   estimatedMinutes: number
   points: number
   submissionType: 'text' | 'file' | 'link' | 'multiple' | 'questions'
@@ -247,8 +253,9 @@ export interface Assessment extends WithDifficultyVariants {
   questions?: QuizQuestion[]
   /** Whether questions are randomized */
   randomizeQuestions?: boolean
-  /** Time limit for completion (optional) */
-  timeLimit?: number
+  /** @deprecated Legacy numeric time limit in minutes from converted quizzes. Prefer
+   *  the HH:MM `timeLimit` string for new course-builder assessments. */
+  timeLimitMinutes?: number
   enforceTimeLimit?: boolean
   enforceDueDate?: boolean
   attemptsAllowed?: number

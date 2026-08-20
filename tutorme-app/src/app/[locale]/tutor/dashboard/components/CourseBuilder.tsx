@@ -330,6 +330,7 @@ import { LessonSelectorDialog, NEW_LESSON_VALUE } from './LessonSelectorDialog'
 import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTextEditor'
 import { TaskSlideTextToolbar } from './TaskSlideTextToolbar'
 import { SlidePageMenu } from './SlidePageMenu'
+import { TimerInput } from './TimerInput'
 import { useLinkPreview } from '@/hooks/use-link-preview'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { detectUrls, isValidPreviewUrl } from '@/lib/link-preview/detect-urls'
@@ -372,6 +373,7 @@ import {
   formatDuration,
   deepCloneSourceDocument,
   hasTaskOrAssessmentContent,
+  formatMinutesToHHMM,
 } from './builder-utils'
 import { buildTaskFlushedNodes, buildAssessmentFlushedNodes } from './builder-flush'
 
@@ -1292,6 +1294,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskContent: string
       taskPci: string
       details: string
+      /** Optional HH:MM time limit shown to students when deployed. */
+      timeLimit?: string
       /** Append-only PCI approval audit log (TASK-18). */
       pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
       /** Full persisted PCI assistant conversation for the base task (TASK-18+). */
@@ -1335,6 +1339,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       title: string
       taskContent: string
       taskPci: string
+      /** Optional HH:MM time limit shown to students when deployed. */
+      timeLimit?: string
       // Current approved structured PCI spec (TASK-6) — persisted at deploy to
       // BuilderTask.pciSpec, mirroring tasks, so the grader gets it too.
       pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
@@ -2157,6 +2163,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             ? undefined
             : (src?.sourceDocument?.generatedFromText ??
               srcAssessment?.sourceDocument?.generatedFromText))
+        const baseTimeLimit =
+          payload.timeLimit ?? src?.timeLimit ?? srcAssessment?.timeLimit ?? undefined
 
         // For tasks the answer-reveal mode is derived from the PCI, not chosen in
         // a dialog. Fall back to 'instant' to preserve existing behavior.
@@ -2192,6 +2200,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             htmlContent: baseHtmlContent,
             linkPreviews: baseLinkPreviews,
             generatedFromText: baseGeneratedFromText,
+            timeLimit: baseTimeLimit,
           }
           // Tasks deploy immediately using the PCI-derived reveal mode.
           const deployTitle = enriched.title || src?.title || srcAssessment?.title || 'Task'
@@ -2242,6 +2251,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           htmlContent: baseHtmlContent,
           linkPreviews: baseLinkPreviews,
           generatedFromText: baseGeneratedFromText,
+          timeLimit: baseTimeLimit,
         }
 
         const extensionTasks: LiveTask[] = extensions.map(ext => ({
@@ -2263,6 +2273,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           pciSpec: basePciSpec,
           lessonId: baseLessonId,
           answerReveal: taskAnswerReveal,
+          timeLimit: baseTimeLimit,
         }))
 
         const deploySet = [baseTask, ...extensionTasks]
@@ -3248,6 +3259,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           taskContent: content,
           taskPci: task.instructions || '',
           details: task.shortDescription || '',
+          timeLimit: task.timeLimit || task.pciSpec?.timeLimit || '',
           // TASK-18: carry the PCI approval audit log so saves preserve/extend it.
           pciHistory: task.pciHistory,
           // Full persisted PCI conversation thread for the base task.
@@ -3334,6 +3346,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           title: assessment.title || '',
           taskContent: pages.join('\n\n---PAGE BREAK---\n\n'),
           taskPci: assessment.instructions || '',
+          timeLimit:
+            assessment.timeLimit ||
+            assessment.pciSpec?.timeLimit ||
+            (assessment.timeLimitMinutes ? formatMinutesToHHMM(assessment.timeLimitMinutes) : '') ||
+            '',
           pciSpec: assessment.pciSpec,
           pciHistory: assessment.pciHistory,
           pciThread: assessment.pciThread,
@@ -3931,6 +3948,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.details,
       taskBuilder.taskContent,
       taskBuilder.taskPci,
+      taskBuilder.timeLimit,
       taskBuilder.pciHistory,
       taskBuilder.pciSpec,
       taskBuilder.pciThread,
@@ -3967,6 +3985,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.title,
       assessmentBuilder.taskContent,
       assessmentBuilder.taskPci,
+      assessmentBuilder.timeLimit,
       assessmentBuilder.pciHistory,
       assessmentBuilder.pciSpec,
       assessmentBuilder.pciThread,
@@ -5502,6 +5521,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             // ASMT-4: section grouping + total marks derived from the questions.
             sections: deriveSections(dmiItems),
             totalMarks: deriveTotalMarks(dmiItems),
+            timeLimit: builder.timeLimit,
           }
           setTaskDmiItems(dmiItems)
           setTaskDmiVersions(prev => [...prev, newVersion])
@@ -7155,6 +7175,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         taskContent: '',
         taskPci: '',
         details: '',
+        timeLimit: '',
         extensions: [],
         activeExtensionId: null,
         linkPreviews: [],
@@ -7170,6 +7191,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         taskContent: '',
         taskPci: '',
         details: '',
+        timeLimit: '',
         extensions: [],
         activeExtensionId: null,
         pages: [''],
@@ -12856,7 +12878,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       className={cn(
                         'flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white',
                         mainTab === 'live'
-                          ? 'bg-gradient-to-br from-[#3B82F6] to-[#2563EB]'
+                          ? 'bg-gradient-to-br from-[#F59E0B] to-[#D97706]'
                           : 'bg-gradient-to-br from-violet-500 to-purple-600'
                       )}
                     >
@@ -12916,7 +12938,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         className={cn(
                                           'relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=inactive]:hover:bg-slate-50 sm:text-xs',
                                           mainTab === 'live'
-                                            ? 'data-[state=active]:border-blue-200 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600'
+                                            ? 'data-[state=active]:border-[#FDE68A] data-[state=active]:bg-[#FFFBEB] data-[state=active]:text-[#F59E0B]'
                                             : 'data-[state=active]:border-violet-200 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600'
                                         )}
                                         onDoubleClick={() => setEditingTabId(tab.id)}
@@ -14852,6 +14874,38 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         forceMount
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
+                                        <div className="mb-2 flex items-center justify-between">
+                                          <span className="text-xs font-medium text-slate-500">
+                                            Time limit
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <TimerInput
+                                              value={taskBuilder.timeLimit}
+                                              onChange={value =>
+                                                setTaskBuilder(prev => ({
+                                                  ...prev,
+                                                  timeLimit: value,
+                                                }))
+                                              }
+                                              disabled={!canEdit}
+                                            />
+                                            {taskBuilder.pciSpec?.timeLimit && (
+                                              <button
+                                                type="button"
+                                                disabled={!canEdit}
+                                                onClick={() =>
+                                                  setTaskBuilder(prev => ({
+                                                    ...prev,
+                                                    timeLimit: prev.pciSpec?.timeLimit || '',
+                                                  }))
+                                                }
+                                                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                                              >
+                                                Use PCI value
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
                                         <div
                                           className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
                                           onDragOver={e => e.preventDefault()}
@@ -15388,6 +15442,38 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         forceMount
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
+                                        <div className="mb-2 flex items-center justify-between">
+                                          <span className="text-xs font-medium text-slate-500">
+                                            Time limit
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <TimerInput
+                                              value={assessmentBuilder.timeLimit}
+                                              onChange={value =>
+                                                setAssessmentBuilder(prev => ({
+                                                  ...prev,
+                                                  timeLimit: value,
+                                                }))
+                                              }
+                                              disabled={!canEdit}
+                                            />
+                                            {assessmentBuilder.pciSpec?.timeLimit && (
+                                              <button
+                                                type="button"
+                                                disabled={!canEdit}
+                                                onClick={() =>
+                                                  setAssessmentBuilder(prev => ({
+                                                    ...prev,
+                                                    timeLimit: prev.pciSpec?.timeLimit || '',
+                                                  }))
+                                                }
+                                                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                                              >
+                                                Use PCI value
+                                              </button>
+                                            )}
+                                          </div>
+                                        </div>
                                         <div
                                           className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
                                           onDragOver={e => e.preventDefault()}
@@ -16856,6 +16942,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   (sum, it) => sum + (typeof it.marks === 'number' && it.marks > 0 ? it.marks : 1),
                   0
                 )
+                const dmiTimeLimit =
+                  dmiEditor.source === 'task' ? taskBuilder.timeLimit : assessmentBuilder.timeLimit
+
                 return (
                   <>
                     <DialogHeader className="text-center sm:text-center">
@@ -16867,6 +16956,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       <DialogDescription>
                         Set the marks for each question and review the AI-suggested answers. Total:{' '}
                         {totalMarks} mark{totalMarks === 1 ? '' : 's'}.
+                        {dmiTimeLimit && (
+                          <span className="ml-3 inline-flex items-center gap-1 rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-600">
+                            <Clock className="h-3 w-3" />
+                            Time limit: {dmiTimeLimit}
+                          </span>
+                        )}
                       </DialogDescription>
                     </DialogHeader>
                     <div

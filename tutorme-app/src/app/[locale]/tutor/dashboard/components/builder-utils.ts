@@ -231,6 +231,7 @@ export const DEFAULT_HOMEWORK = (
   questions: [],
   randomizeQuestions: false,
   timeLimit: undefined,
+  timeLimitMinutes: undefined,
   attemptsAllowed: 1,
   passingScore: 70,
   showCorrectAnswers: true,
@@ -339,6 +340,12 @@ export function hasTaskOrAssessmentContent(item: {
   return hasFile || hasText || hasPages || hasDmi || hasQuestions || hasCustomTitle
 }
 
+export function formatMinutesToHHMM(minutes: number): string {
+  const hrs = Math.floor(minutes / 60)
+  const mins = minutes % 60
+  return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
 export function convertQuizToAssessment(quiz: Quiz): Assessment {
   return {
     id: `homework-${generateId()}`,
@@ -353,7 +360,8 @@ export function convertQuizToAssessment(quiz: Quiz): Assessment {
     latePenalty: 0,
     questions: quiz.questions || [],
     randomizeQuestions: quiz.randomizeQuestions || false,
-    timeLimit: quiz.timeLimit,
+    timeLimit: quiz.timeLimit ? formatMinutesToHHMM(quiz.timeLimit) : undefined,
+    timeLimitMinutes: quiz.timeLimit,
     attemptsAllowed: quiz.attemptsAllowed || 1,
     passingScore: quiz.passingScore,
     showCorrectAnswers: quiz.showCorrectAnswers ?? true,

@@ -35,6 +35,8 @@ export interface PciSpec {
   followUpBehavior?: string
   /** How long student textual responses should be (word limits, per question). */
   responseLengthPolicy?: string
+  /** Optional HH:MM time limit for the task/assessment (e.g. "01:30"). */
+  timeLimit?: string
 }
 
 /** The canonical field order + human labels for prompts and UI. */
@@ -52,6 +54,7 @@ export const PCI_SPEC_FIELDS: { key: keyof PciSpec; label: string }[] = [
   { key: 'instructionalTone', label: 'Instructional tone' },
   { key: 'followUpBehavior', label: 'Follow-up behaviour' },
   { key: 'responseLengthPolicy', label: 'Response length policy' },
+  { key: 'timeLimit', label: 'Time limit' },
 ]
 
 /** Values that mean "the tutor didn't define this" — dropped, not fabricated. */
