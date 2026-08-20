@@ -279,18 +279,21 @@ export function ClassroomLobby({
           <>
             <div className="mt-3">
               <Select value={selectedSessionId ?? ''} onValueChange={setSelectedSessionId}>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full border-slate-200 bg-white text-slate-900">
                   <SelectValue placeholder="Choose a session" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  position="popper"
+                  className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-700 !bg-slate-800 text-white"
+                >
                   {sessions.map(s => (
                     <SelectItem key={s.id} value={s.id}>
-                      <span className="truncate">{s.title}</span>
-                      <span className="ml-2 shrink-0 text-white/60">· {fmt(s.scheduledAt)}</span>
+                      <span className="truncate text-white">{s.title}</span>
+                      <span className="ml-2 shrink-0 text-white/70">· {fmt(s.scheduledAt)}</span>
                       {s.status === 'active' || s.status === 'live' ? (
                         <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
                       ) : s.status === 'ended' ? (
-                        <span className="ml-2 shrink-0 text-[11px] text-white/50">(ended)</span>
+                        <span className="ml-2 shrink-0 text-[11px] text-white/70">(ended)</span>
                       ) : null}
                     </SelectItem>
                   ))}
