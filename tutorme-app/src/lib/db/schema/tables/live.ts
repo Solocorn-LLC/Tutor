@@ -59,6 +59,11 @@ export const liveSession = pgTable(
     // Set when an upcoming-session reminder notification has been sent, so the
     // reminder scheduler sends exactly one per session (race-safe across workers).
     reminderSentAt: timestamp('reminderSentAt', { withTimezone: true }),
+    // Set when the tutor explicitly leaves the classroom. A left session is no
+    // longer treated as the tutor's active session, freeing them to enter another
+    // session (or re-enter the same one) while the scheduled session keeps its
+    // lifecycle for students until its scheduled end time.
+    tutorLeftAt: timestamp('tutorLeftAt', { withTimezone: true }),
   },
   table => ({
     LiveSession_tutorId_idx: index('LiveSession_tutorId_idx').on(table.tutorId),

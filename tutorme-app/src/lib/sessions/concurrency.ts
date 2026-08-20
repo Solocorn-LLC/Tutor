@@ -53,6 +53,12 @@ export async function ensureSingleActiveSession(
       }
     }
 
+    // A session the tutor explicitly left is no longer treated as their active
+    // session, so they are free to enter another one or re-enter this one.
+    if (row.tutorLeftAt) {
+      continue
+    }
+
     if (!remaining) {
       remaining = row
     }

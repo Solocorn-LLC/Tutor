@@ -86,6 +86,11 @@ ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "maxStudents" integer DEFAULT
 -- LiveSession durationMinutes
 ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "durationMinutes" integer DEFAULT 120 NOT NULL;
 
+-- LiveSession tutorLeftAt: tracks when the tutor explicitly left the classroom.
+-- A left session is no longer counted as the tutor's active session, so they
+-- can enter another session (or re-enter the same one).
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "tutorLeftAt" timestamp with time zone;
+
 -- PayoutStatus enum
 DO $$
 BEGIN

@@ -1,0 +1,1 @@
+ALTER TABLE "LiveSession" ADD COLUMN IF NOT EXISTS "tutorLeftAt" timestamp with time zone;
