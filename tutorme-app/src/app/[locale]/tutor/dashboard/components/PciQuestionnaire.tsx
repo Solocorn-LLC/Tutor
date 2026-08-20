@@ -152,6 +152,11 @@ const FIELD_HELP: Record<
     ],
     placeholder: 'e.g. Short answers up to 30 words; long answers up to 150 words',
   },
+  timeLimit: {
+    explain: 'How long students have to complete this task or assessment, in HH:MM format.',
+    examples: ['00:30 for 30 minutes', '01:00 for one hour', '01:30 for an hour and a half'],
+    placeholder: 'e.g. 00:30',
+  },
 }
 
 /**

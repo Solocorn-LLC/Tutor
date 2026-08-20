@@ -23,6 +23,7 @@ export function buildTaskFlushedNodes(
     details: string
     taskContent: string
     taskPci: string
+    timeLimit?: string
     pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
     pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
     pciThread?: import('./hooks/pci-reducer').PciThread
@@ -53,6 +54,7 @@ export function buildTaskFlushedNodes(
           task.shortDescription === taskBuilder.details &&
           task.description === taskBuilder.taskContent &&
           task.instructions === taskBuilder.taskPci &&
+          task.timeLimit === taskBuilder.timeLimit &&
           task.pciHistory === taskBuilder.pciHistory &&
           task.pciSpec === taskBuilder.pciSpec &&
           task.pciThread === taskBuilder.pciThread &&
@@ -73,6 +75,7 @@ export function buildTaskFlushedNodes(
           shortDescription: taskBuilder.details,
           description: taskBuilder.taskContent,
           instructions: taskBuilder.taskPci,
+          timeLimit: taskBuilder.timeLimit,
           pciHistory: taskBuilder.pciHistory,
           pciSpec: taskBuilder.pciSpec,
           pciThread: taskBuilder.pciThread,
@@ -102,6 +105,7 @@ export function buildAssessmentFlushedNodes(
     title: string
     taskContent: string
     taskPci: string
+    timeLimit?: string
     pciSpec?: import('@/lib/assessment/pci-spec').PciSpec
     pciHistory?: import('@/lib/assessment/pci').PciAuditRecord[]
     pciThread?: import('./hooks/pci-reducer').PciThread
@@ -126,6 +130,7 @@ export function buildAssessmentFlushedNodes(
           hw.title === assessmentBuilder.title &&
           hw.description === assessmentBuilder.taskContent &&
           hw.instructions === assessmentBuilder.taskPci &&
+          hw.timeLimit === assessmentBuilder.timeLimit &&
           hw.pciHistory === assessmentBuilder.pciHistory &&
           hw.pciSpec === assessmentBuilder.pciSpec &&
           hw.pciThread === assessmentBuilder.pciThread &&
@@ -145,6 +150,7 @@ export function buildAssessmentFlushedNodes(
           title: assessmentBuilder.title,
           description: assessmentBuilder.taskContent,
           instructions: assessmentBuilder.taskPci,
+          timeLimit: assessmentBuilder.timeLimit,
           pciHistory: assessmentBuilder.pciHistory,
           pciSpec: assessmentBuilder.pciSpec,
           pciThread: assessmentBuilder.pciThread,

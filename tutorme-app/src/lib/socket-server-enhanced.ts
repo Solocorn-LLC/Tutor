@@ -220,6 +220,8 @@ export interface LiveTask {
   completedBy?: string[]
   /** studentId -> { dmiItemId -> answer } captured when a student submits. */
   responses?: Record<string, Record<string, string>>
+  /** Optional HH:MM time limit for the task/assessment. */
+  timeLimit?: string
 }
 
 /**
@@ -300,6 +302,10 @@ async function liveTaskFromBuilderItem(
     parentId: typeof raw.parentId === 'string' ? raw.parentId : undefined,
     isExtension: raw.isExtension === true,
     lessonId: opts.lessonId,
+    timeLimit:
+      typeof raw.timeLimit === 'string' && raw.timeLimit.trim()
+        ? (raw.timeLimit as string)
+        : undefined,
   }
 }
 
@@ -1761,6 +1767,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           parentId: task.parentId,
           isExtension: task.isExtension ?? false,
           lessonId: task.lessonId,
+          timeLimit: task.timeLimit,
         }
 
         const existingIndex = room!.tasks.findIndex(existing => existing.id === normalizedTask.id)

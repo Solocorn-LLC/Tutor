@@ -59,6 +59,7 @@ import {
   Lock,
   Flag,
   X,
+  Clock,
 } from 'lucide-react'
 import {
   Dialog,
@@ -151,6 +152,21 @@ function stringToColor(str: string): string {
   }
   const c = (hash & 0x00ffffff).toString(16).toUpperCase()
   return '#' + '00000'.substring(0, 6 - c.length) + c
+}
+
+function parseHHMMToSeconds(value: string): number {
+  const match = value.trim().match(/^(\d+):(\d{2})$/)
+  if (!match) return 0
+  const hours = parseInt(match[1] || '0', 10)
+  const minutes = parseInt(match[2] || '0', 10)
+  return hours * 3600 + minutes * 60
+}
+
+function formatSecondsToHHMM(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
 interface SessionSummary {
@@ -1062,6 +1078,13 @@ function StudentFeedbackContent() {
   const [liveHomework, setLiveHomework] = useState<LiveTask[]>([])
   const [selectedDirectoryItem, setSelectedDirectoryItem] = useState<LiveTask | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
+  // Persistent countdown state for the active timed task/assessment.
+  const [taskTimer, setTaskTimer] = useState<{
+    taskId: string
+    totalSeconds: number
+    remainingSeconds: number
+    isUp: boolean
+  } | null>(null)
   // Per-question answers the student types in the task viewer, keyed by DMI item id.
   const [taskAnswers, setTaskAnswers] = useState<Record<string, string>>({})
   const [requestingSessionId, setRequestingSessionId] = useState<string | null>(null)
@@ -2033,6 +2056,41 @@ function StudentFeedbackContent() {
     tasks.find(task => task.id === activeTaskId) ||
     (selectedDirectoryItem?.id === activeTaskId ? selectedDirectoryItem : null) ||
     null
+
+  // Persistent countdown timer for the active task/assessment. Starts once when a
+  // timed task is first loaded and keeps ticking across task switches and reloads.
+  useEffect(() => {
+    if (!activeTaskId || !activeTask?.timeLimit || !selectedSessionId) {
+      setTaskTimer(null)
+      return
+    }
+    const totalSeconds = parseHHMMToSeconds(activeTask.timeLimit)
+    if (totalSeconds <= 0) {
+      setTaskTimer(null)
+      return
+    }
+    const key = `tutor-timer:${selectedSessionId}:${activeTaskId}`
+    let startedAtRaw = localStorage.getItem(key)
+    if (!startedAtRaw) {
+      startedAtRaw = String(Date.now())
+      localStorage.setItem(key, startedAtRaw)
+    }
+    const startedAt = Number(startedAtRaw)
+    const update = () => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+      const remainingSeconds = Math.max(0, totalSeconds - elapsed)
+      setTaskTimer({
+        taskId: activeTaskId,
+        totalSeconds,
+        remainingSeconds,
+        isUp: remainingSeconds === 0,
+      })
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [activeTaskId, activeTask?.timeLimit, selectedSessionId])
+
   // A deployed TASK or ASSESSMENT without a DMI is answered by chatting (new flow).
   // DMI-bearing items keep the structured answer flow.
   const isChatTask =
@@ -2561,6 +2619,22 @@ function StudentFeedbackContent() {
                       Classroom
                     </span>
                   </div>
+
+                  {taskTimer && (
+                    <div className="absolute right-3 top-2 z-20">
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm',
+                          taskTimer.isUp ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                        )}
+                      >
+                        <Clock className="h-3 w-3" />
+                        {taskTimer.isUp
+                          ? "Time's up"
+                          : formatSecondsToHHMM(taskTimer.remainingSeconds)}
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex-1 overflow-hidden p-4 pt-6">
                     {activeTask ? (
@@ -3143,6 +3217,19 @@ function StudentFeedbackContent() {
                   </div>
                 ) : rightPanelTab === 'dmi' ? (
                   <div className="space-y-4">
+                    {taskTimer && (
+                      <div
+                        className={cn(
+                          'flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold',
+                          taskTimer.isUp ? 'bg-red-50 text-red-600' : 'bg-orange-50 text-orange-600'
+                        )}
+                      >
+                        <Clock className="h-4 w-4" />
+                        {taskTimer.isUp
+                          ? "Time's up"
+                          : formatSecondsToHHMM(taskTimer.remainingSeconds)}
+                      </div>
+                    )}
                     {activeTask?.dmiItems && activeTask.dmiItems.length > 0 ? (
                       <div className="space-y-3">
                         {activeTask.dmiItems.map((item, idx) => {
