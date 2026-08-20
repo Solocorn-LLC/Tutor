@@ -255,6 +255,14 @@ describe('course session lifecycle guards', () => {
     const leaveSessionId = `cs_ls_leave_${crypto.randomUUID()}`
     const leaveSession2Id = `cs_ls_leave2_${crypto.randomUUID()}`
 
+    // The shared fixture session COURSE_SESSION is still active from earlier tests.
+    // Mark it as left so this test's concurrency assertions are isolated to the
+    // sessions created here.
+    await drizzleDb
+      .update(liveSession)
+      .set({ tutorLeftAt: new Date() })
+      .where(eq(liveSession.sessionId, COURSE_SESSION))
+
     await drizzleDb.insert(liveSession).values([
       {
         sessionId: leaveSessionId,
