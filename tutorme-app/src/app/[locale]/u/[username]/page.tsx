@@ -96,6 +96,7 @@ interface PublicTutorResponse {
     estimatedHours?: number | null
     enrollmentCount: number
     lessonCount: number
+    sessionCount: number
     price?: number | null
     isFree?: boolean
     currency?: string | null
@@ -926,7 +927,7 @@ export default function PublicTutorPage() {
                         <div className="flex min-w-[200px] shrink-0 flex-col gap-2.5 border-l border-[rgba(255,255,255,0.10)] py-1 pl-6">
                           <div className="flex items-center gap-2 text-sm text-slate-200">
                             <BookOpen className="h-4 w-4 text-slate-400" />
-                            <span>{course.lessonCount} sessions</span>
+                            <span>{course.sessionCount} sessions</span>
                           </div>
                           <div className="flex items-center gap-2 text-sm text-slate-200">
                             <CalendarDays className="h-4 w-4 text-slate-400" />
@@ -996,7 +997,7 @@ export default function PublicTutorPage() {
                         <div className="flex w-full items-center gap-3 text-[11px] text-slate-300">
                           <div className="flex items-center gap-1 font-medium text-slate-200">
                             <BookOpen className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{course.lessonCount} sessions</span>
+                            <span>{course.sessionCount} sessions</span>
                           </div>
                           <div className="h-3.5 w-px bg-[rgba(255,255,255,0.12)]" />
                           <button
@@ -1924,7 +1925,7 @@ export default function PublicTutorPage() {
                 <div className="space-y-0.5">
                   <div className="text-muted-foreground text-xs font-medium">Sessions</div>
                   <div className="text-foreground text-sm font-semibold">
-                    {detailsCourse?.lessonCount ?? 0} sessions
+                    {detailsCourse?.sessionCount ?? 0} sessions
                   </div>
                 </div>
                 <div className="space-y-0.5">

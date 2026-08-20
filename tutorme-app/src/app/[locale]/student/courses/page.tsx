@@ -84,6 +84,8 @@ interface Course {
   }
   /** Real number of live sessions (materialized time slots) for the student's schedule. */
   sessionCount?: number
+  /** Sessions that have not yet occurred. */
+  remainingSessions?: number
   /** The schedule the student enrolled in. */
   chosenSchedule?: { scheduleId: string; name: string | null; scheduleIndex: number } | null
   availability: {
@@ -395,6 +397,7 @@ function CoursePageInner() {
               batches: 0,
             },
             sessionCount: e.sessionCount ?? e.course?.sessionCount ?? 0,
+            remainingSessions: e.remainingSessions ?? e.sessionCount ?? e.course?.sessionCount ?? 0,
             chosenSchedule: e.chosenSchedule ?? null,
             availability: {
               summary: null,
@@ -570,6 +573,12 @@ function CoursePageInner() {
                 <div className="rounded-lg bg-gray-50 p-4">
                   <p className="text-sm text-gray-600">No. of Sessions</p>
                   <p className="font-medium text-gray-900">{detailCourse?.sessionCount || 0}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-sm text-gray-600">Remaining</p>
+                  <p className="font-medium text-gray-900">
+                    {detailCourse?.remainingSessions ?? detailCourse?.sessionCount ?? 0}
+                  </p>
                 </div>
               </div>
 
@@ -1080,7 +1089,8 @@ function CourseCard({
             <div className="flex items-center gap-1.5 text-xs text-slate-300">
               <Calendar className="h-3.5 w-3.5 text-slate-400" />
               <span className="font-medium text-slate-200">
-                {course.sessionCount ?? 0} session{course.sessionCount === 1 ? '' : 's'}
+                {course.remainingSessions ?? course.sessionCount ?? 0} of {course.sessionCount ?? 0}{' '}
+                session{(course.sessionCount ?? 0) === 1 ? '' : 's'} remaining
               </span>
             </div>
             {/* Avatar */}

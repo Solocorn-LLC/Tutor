@@ -6,8 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment } from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, courseSchedule } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
+import { computeCourseSessionCount } from '@/lib/courses/session-count'
 import { getParamAsync } from '@/lib/api/params'
 
 export const GET = withAuth(
@@ -33,6 +34,16 @@ export const GET = withAuth(
       .from(courseLesson)
       .where(eq(courseLesson.courseId, courseId))
 
+    const schedules = await drizzleDb
+      .select({
+        schedule: courseSchedule.schedule,
+        weeksToSchedule: courseSchedule.weeksToSchedule,
+      })
+      .from(courseSchedule)
+      .where(eq(courseSchedule.courseId, courseId))
+
+    const sessionCount = computeCourseSessionCount(schedules)
+
     const [enrollmentRow] = await drizzleDb
       .select({ enrollmentId: courseEnrollment.enrollmentId })
       .from(courseEnrollment)
@@ -49,12 +60,12 @@ export const GET = withAuth(
       name: courseRow.name,
       subject: courseRow.categories?.[0] || 'general',
       description: courseRow.description,
-      difficulty: 'intermediate',
       estimatedHours: 0,
       price: courseRow.isFree ? 0 : courseRow.price,
       currency: courseRow.currency,
       modulesCount: 0,
       lessonsCount: lessonCount?.count ?? 0,
+      sessionCount,
       enrolled: !!enrollmentRow,
     }
 

@@ -15,12 +15,12 @@ interface CourseDetail {
   name: string
   subject: string
   description: string | null
-  difficulty: string
   estimatedHours: number
   price: number | null
   currency: string | null
   modulesCount: number
   lessonsCount: number
+  sessionCount: number
   enrolled?: boolean
 }
 
@@ -47,26 +47,15 @@ function CourseEnrollPageInner() {
   const [unenrolling, setUnenrolling] = useState(false)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [startDate, setStartDate] = useState<string | null>(null)
   const [schedules, setSchedules] = useState<CourseScheduleOption[]>([])
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null)
 
   const coursesUrl = `/student/subjects/${encodeURIComponent(subjectCode)}/courses`
   const isFree = course != null && (course.price == null || course.price === 0)
 
-  // Course stats derived from the actual schedule (the displayed estimate was a
-  // hardcoded 0). Uses the selected schedule, else the first, else course data.
-  const refSchedule = schedules.find(s => s.scheduleId === selectedScheduleId) ?? schedules[0]
-  const scheduleStats = (() => {
-    if (!refSchedule || refSchedule.slots.length === 0) {
-      return { sessions: course?.lessonsCount ?? 0, hours: course?.estimatedHours ?? 0 }
-    }
-    const weeks = refSchedule.weeksToSchedule ?? 8
-    const sessions = refSchedule.slots.length * weeks
-    const weeklyMinutes = refSchedule.slots.reduce((sum, s) => sum + (s.durationMinutes || 0), 0)
-    const hours = Math.round((weeklyMinutes * weeks) / 60)
-    return { sessions, hours }
-  })()
+  // Course stats come from the configured schedule published by the tutor.
+  const totalSessions = course?.sessionCount ?? course?.lessonsCount ?? 0
+  const totalHours = course?.estimatedHours ?? 0
 
   // Concise one-line summary of a schedule's weekly pattern (avoids repeating
   // every slot). e.g. "Mon, Wed · 09:00 · 60 min".
@@ -134,10 +123,6 @@ function CourseEnrollPageInner() {
 
   const handleEnroll = async () => {
     if (!course || !isFree) return
-    if (!startDate) {
-      toast.error('Please select a start date')
-      return
-    }
     if (schedules.length > 0 && !selectedScheduleId) {
       toast.error('Please choose a schedule')
       return
@@ -145,7 +130,7 @@ function CourseEnrollPageInner() {
     setEnrolling(true)
     try {
       const csrf = await getCsrf()
-      const bodyPayload: any = { startDate }
+      const bodyPayload: any = {}
       if (batchId) bodyPayload.batchId = batchId
       if (selectedScheduleId) bodyPayload.scheduleId = selectedScheduleId
 
@@ -207,10 +192,6 @@ function CourseEnrollPageInner() {
 
   const handlePayAndEnroll = async () => {
     if (!course || isFree) return
-    if (!startDate) {
-      toast.error('Please select a start date')
-      return
-    }
     if (schedules.length > 0 && !selectedScheduleId) {
       toast.error('Please choose a schedule')
       return
@@ -224,7 +205,7 @@ function CourseEnrollPageInner() {
         credentials: 'include',
         body: JSON.stringify({
           courseId,
-          metadata: { startDate, scheduleId: selectedScheduleId ?? undefined },
+          metadata: { scheduleId: selectedScheduleId ?? undefined },
         }),
       })
       const json = await res.json().catch(() => ({}))
@@ -293,11 +274,6 @@ function CourseEnrollPageInner() {
               <BookOpen className="h-5 w-5" />
               {course.name}
             </CardTitle>
-            {course.difficulty && (
-              <CardDescription className="flex flex-wrap gap-2">
-                <span className="capitalize">{course.difficulty}</span>
-              </CardDescription>
-            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {course.description && (
@@ -305,8 +281,8 @@ function CourseEnrollPageInner() {
             )}
             <ul className="text-muted-foreground space-y-1 text-sm">
               <li>
-                {scheduleStats.sessions} session{scheduleStats.sessions === 1 ? '' : 's'}
-                {scheduleStats.hours > 0 ? ` · ~${scheduleStats.hours}h total` : ''}
+                {totalSessions} session{totalSessions === 1 ? '' : 's'}
+                {totalHours > 0 ? ` · ~${totalHours}h total` : ''}
               </li>
               <li className="text-foreground font-medium">
                 Price: {formatPrice(course.price, course.currency)}
@@ -347,21 +323,6 @@ function CourseEnrollPageInner() {
               </div>
             ) : (
               <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    When would you like to start?
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={startDate ?? ''}
-                      onChange={e => setStartDate(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
-                      className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-
                 {schedules.length > 0 && (
                   <div className="space-y-2">
                     <label className="text-sm font-medium leading-none">Choose a schedule</label>
