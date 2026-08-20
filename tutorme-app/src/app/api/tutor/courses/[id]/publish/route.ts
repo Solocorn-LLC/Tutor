@@ -1088,6 +1088,18 @@ export const POST = withCsrf(
             }
           }
 
+          // If any generated session could not be materialized because of
+          // availability blocks or conflicts, fail the entire publish atomically
+          // so the tutor never ends up with fewer sessions than configured.
+          if (skippedSessions.length > 0) {
+            const error = new Error(
+              `Cannot publish: ${skippedSessions.length} scheduled session(s) conflict with your availability, calendar events, 1-on-1 bookings, or other courses.`
+            )
+            ;(error as any).skippedSessions = skippedSessions
+            ;(error as any).code = 'SESSION_CONFLICTS'
+            throw error
+          }
+
           // Rename assets folder if it's the first time publishing and the folder matches the draft course name.
           // Skip during drafts-only saves — nothing is being published.
           if (!draftsOnly && result.length > 0 && templateCourse.name) {
@@ -1160,10 +1172,19 @@ export const POST = withCsrf(
           success: true,
           count: result.length,
           variants: result,
-          skippedCount: skippedSessions.length,
-          skippedSessions,
         })
       } catch (error: any) {
+        if (error?.code === 'SESSION_CONFLICTS') {
+          return NextResponse.json(
+            {
+              error: error.message,
+              code: 'SESSION_CONFLICTS',
+              skippedCount: error.skippedSessions?.length ?? 0,
+              skippedSessions: error.skippedSessions ?? [],
+            },
+            { status: 409 }
+          )
+        }
         const pgError = error?.cause || error
         console.error('[POST /api/tutor/courses/[id]/publish] Error:', {
           message: error?.message,

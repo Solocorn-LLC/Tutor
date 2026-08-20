@@ -161,6 +161,29 @@ export const GET = withAuth(
       }
     }
 
+    // Count how many sessions have already occurred (scheduledAt <= now) per course.
+    const pastSessionRows =
+      courseIds.length > 0
+        ? await drizzleDb
+            .select({
+              courseId: liveSession.courseId,
+              count: sql<number>`count(*)::int`,
+            })
+            .from(liveSession)
+            .where(
+              and(
+                inArray(liveSession.courseId, courseIds),
+                sql`${liveSession.scheduledAt} <= NOW()`
+              )
+            )
+            .groupBy(liveSession.courseId)
+        : []
+    const pastSessionCountByCourse = new Map<string, number>()
+    for (const r of pastSessionRows) {
+      const cid = toEnrolled.get(r.courseId ?? '') ?? r.courseId ?? ''
+      pastSessionCountByCourse.set(cid, (pastSessionCountByCourse.get(cid) ?? 0) + (r.count ?? 0))
+    }
+
     // The chosen schedule per enrollment (name/index for display + slots/weeks
     // as a fallback session count before sessions are materialized).
     const scheduleIds = Array.from(
@@ -206,6 +229,8 @@ export const GET = withAuth(
           : (lessonCountByCourse.get(row.courseId) ?? 0)
       const lessonsDone = Math.min(p?.lessonsCompleted ?? 0, lessonTotal)
       const isCompleted = p?.isCompleted === true || row.enrollment.completedAt != null
+      const pastSessions = pastSessionCountByCourse.get(row.courseId) ?? 0
+      const remainingSessions = Math.max(0, sessionCount - pastSessions)
       return {
         ...row.enrollment,
         chosenSchedule: chosen
@@ -216,6 +241,7 @@ export const GET = withAuth(
             }
           : null,
         sessionCount,
+        remainingSessions,
         progress: {
           lessonsCompleted: lessonsDone,
           totalLessons: lessonTotal,

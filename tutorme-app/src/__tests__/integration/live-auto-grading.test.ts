@@ -105,7 +105,7 @@ async function gradeAndPersistCompletion(answers: Record<string, string>) {
   await drizzleDb
     .insert(taskSubmission)
     .values({
-      submissionId: `s_${stamp}`,
+      submissionId: crypto.randomUUID(),
       taskId,
       studentId,
       answers,
@@ -119,7 +119,7 @@ async function gradeAndPersistCompletion(answers: Record<string, string>) {
       tutorApproved: false,
       submittedAt: now,
     })
-    .onConflictDoNothing()
+    .onConflictDoNothing({ target: taskSubmission.submissionId })
   return autoScore
 }
 

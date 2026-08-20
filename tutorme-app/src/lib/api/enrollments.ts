@@ -141,7 +141,7 @@ export async function enrollStudentInCourse(
       studentId,
       courseId,
       scheduleId: scheduleId || undefined,
-      startDate: startDate ? new Date(startDate) : undefined,
+      startDate: startDate ? new Date(startDate) : new Date(),
       enrollmentSource: 'browse',
     })
 

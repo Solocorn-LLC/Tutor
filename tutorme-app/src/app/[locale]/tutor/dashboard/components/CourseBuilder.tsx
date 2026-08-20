@@ -116,7 +116,7 @@ function EditableLikertItem({
           onChange={e => setEditValue(e.target.value)}
           onBlur={handleSave}
           onKeyDown={handleKeyDown}
-          className="flex-1 bg-transparent text-xs text-blue-700 outline-none"
+          className="flex-1 bg-transparent text-xs text-blue-600 outline-none"
         />
       </div>
     )
@@ -130,7 +130,7 @@ function EditableLikertItem({
           setEditValue(label)
           setIsEditing(true)
         }}
-        className="flex-1 text-center text-xs font-medium text-blue-700"
+        className="flex-1 text-center text-xs font-medium text-blue-600"
       >
         {label}
       </button>
@@ -138,7 +138,7 @@ function EditableLikertItem({
         <button
           type="button"
           onClick={() => onDelete(index)}
-          className="flex h-5 w-5 items-center justify-center rounded text-blue-400 opacity-0 transition-opacity hover:bg-blue-100 hover:text-blue-600 group-hover:opacity-100"
+          className="flex h-5 w-5 items-center justify-center rounded text-blue-400 opacity-0 transition-opacity hover:bg-blue-100 hover:text-blue-500 group-hover:opacity-100"
           aria-label={`Delete ${label}`}
         >
           <X className="h-3 w-3" />
@@ -644,7 +644,7 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
       className="group mb-3 rounded-xl border border-blue-200 bg-blue-50/70 px-3 py-2 text-xs text-blue-900"
     >
       <summary className="flex cursor-pointer list-none items-center gap-1.5 font-semibold">
-        <Lightbulb className="h-3.5 w-3.5 text-blue-600" />
+        <Lightbulb className="h-3.5 w-3.5 text-blue-500" />
         What is PCI &amp; what to ask
         <span className="ml-auto text-blue-400 group-open:hidden">show</span>
         <span className="ml-auto hidden text-blue-400 group-open:inline">hide</span>
@@ -667,7 +667,7 @@ function PciGuidance({ kind }: { kind: 'task' | 'assessment' }) {
           </li>
           <li>&ldquo;One mark per valid point, maximum 4.&rdquo;</li>
         </ul>
-        <p className="text-blue-700/80">
+        <p className="text-blue-600/80">
           Flow: chat &rarr; the assistant proposes a {policyWord} &rarr; set it as your{' '}
           <b>Current marking policy</b> &rarr; it&rsquo;s saved and used when grading. The answer
           key itself comes from the DMI / an uploaded marking scheme — PCI is the <i>policy</i> on
@@ -1643,7 +1643,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               onClick={sendLiveClassroomChat}
               disabled={!liveClassroomChatInput.trim()}
               title="Send"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>
@@ -7739,7 +7739,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const getAssetIcon = (name: string) => {
       const ext = name.split('.').pop()?.toLowerCase() || ''
-      if (['doc', 'docx'].includes(ext)) return <FileText className="h-4 w-4 text-blue-600" />
+      if (['doc', 'docx'].includes(ext)) return <FileText className="h-4 w-4 text-blue-500" />
       if (['pdf'].includes(ext)) return <FileText className="h-4 w-4 text-red-600" />
       if (['xls', 'xlsx', 'csv'].includes(ext))
         return <FileText className="h-4 w-4 text-green-600" />
@@ -9648,7 +9648,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                               className={cn(
                                 'flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition-colors',
                                 assetViewFolder === folder
-                                  ? 'bg-blue-50 font-medium text-blue-600'
+                                  ? 'bg-blue-50 font-medium text-blue-500'
                                   : 'text-gray-600 hover:bg-gray-50'
                               )}
                               onClick={() => setAssetViewFolder(folder)}
@@ -9661,7 +9661,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 )}
                                 <span
                                   className={
-                                    assetViewFolder === folder ? 'text-blue-600' : 'text-gray-700'
+                                    assetViewFolder === folder ? 'text-blue-500' : 'text-gray-700'
                                   }
                                 >
                                   {folder}
@@ -10197,7 +10197,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         className = 'bg-amber-100 text-amber-700'
       } else if (value.trim()) {
         label = 'PCI set (manual)'
-        className = 'bg-blue-100 text-blue-700'
+        className = 'bg-blue-100 text-blue-600'
       }
       return (
         <span
@@ -10278,7 +10278,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 type="button"
                 data-pci-anchor="edit-pci"
                 onClick={() => setEditingCurrentPci(v => !v)}
-                className="font-semibold text-blue-700 hover:underline"
+                className="font-semibold text-blue-600 hover:underline"
               >
                 {editingCurrentPci ? 'Done' : 'Edit'}
               </button>
@@ -10730,7 +10730,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         {preparingTestPreview && (
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/60 backdrop-blur-sm">
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-lg">
-              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+              <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
               <span className="text-sm font-medium text-slate-700">Preparing task preview…</span>
             </div>
           </div>
@@ -10738,7 +10738,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         {dmiGenerating && (
           <div className="absolute inset-0 z-[60] flex flex-col items-center justify-center bg-white/70 backdrop-blur-sm">
             <div className="flex max-w-sm flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
               <div className="text-center">
                 <p className="text-base font-semibold text-slate-800">Generating DMI…</p>
                 <p className="mt-1 text-sm text-slate-500">
@@ -10778,7 +10778,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 'absolute top-1/2 z-50 flex h-16 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-full border border-l-0 shadow-[2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-500 ease-in-out',
                 leftPanelHidden && isLeftPeeking ? 'w-10' : 'w-8 hover:w-10',
                 leftPanelHidden
-                  ? 'border-[#1D4ED8]/30 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)]'
+                  ? 'border-[#3B82F6]/30 bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)]'
                   : 'border-[#E5E7EB] bg-white'
               )}
               style={{ left: leftPanelHidden ? 0 : leftPanelWidth }}
@@ -10815,7 +10815,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   elevation="none"
                   className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] rounded-b-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
                 >
-                  <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                  <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] px-4 text-sm font-semibold text-white">
                     Curriculum
                   </div>
                   <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-5">
@@ -10823,7 +10823,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       <Button
                         size="sm"
                         onClick={addCourseBuilderNode}
-                        className="mb-4 h-8 w-full gap-1 border border-blue-600 bg-white text-xs text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                        className="mb-4 h-8 w-full gap-1 border border-blue-500 bg-white text-xs text-blue-500 transition-colors hover:bg-blue-500 hover:text-white"
                       >
                         <Plus className="h-3 w-3" />
                         Lesson
@@ -10906,7 +10906,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       </div>
 
                                       <div className="flex shrink-0 items-center gap-2">
-                                        <div className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-[#1D4ED8] px-2 text-xs font-semibold text-white">
+                                        <div className="flex h-7 min-w-[28px] items-center justify-center rounded-full bg-[#3B82F6] px-2 text-xs font-semibold text-white">
                                           {totalItems}
                                         </div>
                                         {mainTab !== 'builder' || !canEdit ? (
@@ -13017,14 +13017,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
                                                 {/* Header with toggle */}
                                                 <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
-                                                  <span className="flex-1 text-center text-xs font-semibold text-blue-700">
+                                                  <span className="flex-1 text-center text-xs font-semibold text-blue-600">
                                                     New Poll
                                                   </span>
                                                   {pollResults.length > 0 && (
                                                     <button
                                                       type="button"
                                                       onClick={() => setPollComposeMode(false)}
-                                                      className="text-xs text-blue-600 hover:text-blue-800"
+                                                      className="text-xs text-blue-500 hover:text-blue-700"
                                                     >
                                                       View Results
                                                     </button>
@@ -13050,7 +13050,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           <button
                                                             key={num}
                                                             type="button"
-                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600"
                                                           >
                                                             {num}
                                                           </button>
@@ -13072,7 +13072,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         <button
                                                           type="button"
                                                           onClick={addLikertLabel}
-                                                          className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                                                          className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-500 hover:bg-blue-100"
                                                         >
                                                           <Plus className="h-3.5 w-3.5" />
                                                           Add option
@@ -13085,7 +13085,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           <button
                                                             key={letter}
                                                             type="button"
-                                                            className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                            className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600"
                                                           >
                                                             {letter}
                                                           </button>
@@ -13098,7 +13098,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           <button
                                                             key={option}
                                                             type="button"
-                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-600"
                                                           >
                                                             {option}
                                                           </button>
@@ -13111,7 +13111,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           <button
                                                             key={option}
                                                             type="button"
-                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                            className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-600"
                                                           >
                                                             {option}
                                                           </button>
@@ -13131,7 +13131,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }
                                                       className={cn(
                                                         'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
-                                                        'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                                        'bg-[#3B82F6] text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6]'
                                                       )}
                                                     >
                                                       {POLL_OPTION_PRESETS.find(
@@ -13155,8 +13155,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 className={cn(
                                                                   'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
                                                                   pollOptionMode === preset.id
-                                                                    ? 'bg-[#2563EB] text-white'
-                                                                    : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                                    ? 'bg-[#3B82F6] text-white'
+                                                                    : 'border border-blue-200 bg-white text-blue-600 hover:bg-blue-50'
                                                                 )}
                                                               >
                                                                 {preset.label}
@@ -13176,7 +13176,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     }}
                                                     className={cn(
                                                       'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
-                                                      'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                                      'bg-[#3B82F6] text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6]'
                                                     )}
                                                   >
                                                     New
@@ -13189,14 +13189,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     }}
                                                     className={cn(
                                                       'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
-                                                      'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                                      'bg-[#3B82F6] text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6]'
                                                     )}
                                                   >
                                                     Clear
                                                   </button>
                                                   <Button
                                                     size="sm"
-                                                    className="h-8 flex-1 rounded-md bg-[#2563EB] px-3 text-xs text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB] disabled:opacity-30"
+                                                    className="h-8 flex-1 rounded-md bg-[#3B82F6] px-3 text-xs text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6] disabled:opacity-30"
                                                     disabled={
                                                       !activeInsightsTaskId ||
                                                       !insightsProps.sessionId ||
@@ -13247,7 +13247,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }
                                                       setPollComposeMode(true)
                                                     }}
-                                                    className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                                                    className="flex items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600"
                                                   >
                                                     <Send className="h-3 w-3" />
                                                     New Poll
@@ -13307,10 +13307,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     size="icon"
                                                     variant="ghost"
                                                     className={cn(
-                                                      'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                                      'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-600 disabled:opacity-30',
                                                       showAIQuestion
-                                                        ? 'bg-blue-100 text-blue-700'
-                                                        : 'text-blue-600'
+                                                        ? 'bg-blue-100 text-blue-600'
+                                                        : 'text-blue-500'
                                                     )}
                                                     title="Generate with Socratic AI"
                                                     onClick={() =>
@@ -13322,7 +13322,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   </Button>
                                                   <Button
                                                     size="icon"
-                                                    className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                                    className="h-8 w-8 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-30"
                                                     disabled={
                                                       !activeInsightsTaskId ||
                                                       !insightsProps.sessionId ||
@@ -14755,7 +14755,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           'sticky top-0 z-10 flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white transition-colors duration-300',
                           mainBuilderTab === 'assessment'
                             ? 'bg-gradient-to-br from-[#EC4899] to-[#DB2777]'
-                            : 'bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]'
+                            : 'bg-gradient-to-br from-[#3B82F6] to-[#3B82F6]'
                         )}
                       >
                         <div className="flex items-center gap-2">
@@ -15188,7 +15188,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           }
                                                           target="_blank"
                                                           rel="noreferrer"
-                                                          className="text-center text-sm font-medium text-blue-600 hover:underline"
+                                                          className="text-center text-sm font-medium text-blue-500 hover:underline"
                                                         >
                                                           Open {currentTaskDocument.fileName} in new
                                                           tab
@@ -15561,7 +15561,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       }
                                                       target="_blank"
                                                       rel="noreferrer"
-                                                      className="text-center text-sm font-medium text-blue-600 hover:underline"
+                                                      className="text-center text-sm font-medium text-blue-500 hover:underline"
                                                     >
                                                       Open {currentAssessmentDocument.fileName} in
                                                       new tab
@@ -15638,14 +15638,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}
                                                 >
                                                   {!isUser && (
-                                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white">
+                                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] text-white">
                                                       <Bot className="h-4 w-4" />
                                                     </div>
                                                   )}
                                                   <div
                                                     className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
                                                       isUser
-                                                        ? 'bg-blue-600 text-white'
+                                                        ? 'bg-blue-500 text-white'
                                                         : 'bg-gray-100 text-gray-800'
                                                     }`}
                                                   >
@@ -15675,7 +15675,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             {(assessmentPciLoadingMap[loadedAssessmentId || ''] ||
                                               false) && (
                                               <div className="flex items-end gap-2">
-                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white">
+                                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] text-white">
                                                   <Bot className="h-4 w-4" />
                                                 </div>
                                                 <div className="flex items-center gap-2 rounded-2xl bg-gray-100 px-4 py-2.5 text-sm">
@@ -15882,7 +15882,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     'absolute top-1/2 z-50 flex h-16 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l-full border border-r-0 shadow-[-2px_0_8px_rgba(0,0,0,0.08)] transition-all duration-500 ease-in-out',
                     rightPanelHidden && isRightPeeking ? 'w-10' : 'w-8 hover:w-10',
                     rightPanelHidden
-                      ? 'border-[#1D4ED8]/30 bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)]'
+                      ? 'border-[#3B82F6]/30 bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)]'
                       : 'border-[#E5E7EB] bg-white'
                   )}
                   style={{ right: rightPanelHidden ? 0 : rightPanelWidth }}
@@ -15920,7 +15920,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         elevation="none"
                         className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] rounded-b-[20px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF]"
                       >
-                        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] px-4 text-sm font-semibold text-white">
+                        <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] px-4 text-sm font-semibold text-white">
                           Desk
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -15948,7 +15948,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                   },
                                 ]}
                                 triggerClassName="h-8 rounded-md px-3"
-                                pillClassName="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]"
+                                pillClassName="bg-gradient-to-br from-[#3B82F6] to-[#3B82F6]"
                               />
                             </Tabs>
                           </div>
@@ -16032,14 +16032,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       <div className="mb-2 flex flex-1 flex-col overflow-hidden rounded-2xl border border-blue-100 bg-white shadow-sm">
                                         {/* Header with toggle */}
                                         <div className="flex items-center justify-between border-b border-blue-100 px-4 py-2">
-                                          <span className="text-xs font-semibold text-blue-700">
+                                          <span className="text-xs font-semibold text-blue-600">
                                             New Poll
                                           </span>
                                           {pollResults.length > 0 && (
                                             <button
                                               type="button"
                                               onClick={() => setPollComposeMode(false)}
-                                              className="text-xs text-blue-600 hover:text-blue-800"
+                                              className="text-xs text-blue-500 hover:text-blue-700"
                                             >
                                               View Results
                                             </button>
@@ -16063,7 +16063,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     <button
                                                       key={num}
                                                       type="button"
-                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                      className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600"
                                                     >
                                                       {num}
                                                     </button>
@@ -16086,7 +16086,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 <button
                                                   type="button"
                                                   onClick={addLikertLabel}
-                                                  className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-600 hover:bg-blue-100"
+                                                  className="flex h-8 items-center justify-center gap-1 rounded-md border border-dashed border-blue-300 bg-blue-50/50 text-xs font-medium text-blue-500 hover:bg-blue-100"
                                                 >
                                                   <Plus className="h-3.5 w-3.5" />
                                                   Add option
@@ -16099,7 +16099,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <button
                                                     key={letter}
                                                     type="button"
-                                                    className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-700"
+                                                    className="flex h-8 w-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-medium text-blue-600"
                                                   >
                                                     {letter}
                                                   </button>
@@ -16112,7 +16112,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <button
                                                     key={option}
                                                     type="button"
-                                                    className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                    className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-600"
                                                   >
                                                     {option}
                                                   </button>
@@ -16125,7 +16125,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <button
                                                     key={option}
                                                     type="button"
-                                                    className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-700"
+                                                    className="flex h-8 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-4 text-xs font-medium text-blue-600"
                                                   >
                                                     {option}
                                                   </button>
@@ -16143,7 +16143,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               onClick={() => setSpeedDialOpen(!speedDialOpen)}
                                               className={cn(
                                                 'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
-                                                'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                                'bg-[#3B82F6] text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6]'
                                               )}
                                             >
                                               {POLL_OPTION_PRESETS.find(
@@ -16166,8 +16166,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       className={cn(
                                                         'flex h-8 w-[100px] items-center justify-center rounded-md px-2 text-xs font-medium transition-colors',
                                                         pollOptionMode === preset.id
-                                                          ? 'bg-[#2563EB] text-white'
-                                                          : 'border border-blue-200 bg-white text-blue-700 hover:bg-blue-50'
+                                                          ? 'bg-[#3B82F6] text-white'
+                                                          : 'border border-blue-200 bg-white text-blue-600 hover:bg-blue-50'
                                                       )}
                                                     >
                                                       {preset.label}
@@ -16186,7 +16186,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             }}
                                             className={cn(
                                               'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
-                                              'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                              'bg-[#3B82F6] text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6]'
                                             )}
                                           >
                                             New
@@ -16199,14 +16199,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             }}
                                             className={cn(
                                               'flex h-8 flex-1 items-center justify-center rounded-md px-3 text-xs font-medium transition-colors',
-                                              'bg-[#2563EB] text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB]'
+                                              'bg-[#3B82F6] text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6]'
                                             )}
                                           >
                                             Clear
                                           </button>
                                           <Button
                                             size="sm"
-                                            className="h-8 flex-1 rounded-md bg-[#2563EB] px-3 text-xs text-white hover:bg-white hover:text-[#2563EB] hover:ring-1 hover:ring-[#2563EB] disabled:opacity-30"
+                                            className="h-8 flex-1 rounded-md bg-[#3B82F6] px-3 text-xs text-white hover:bg-white hover:text-[#3B82F6] hover:ring-1 hover:ring-[#3B82F6] disabled:opacity-30"
                                             disabled={
                                               !activeInsightsTaskId ||
                                               !insightsProps.sessionId ||
@@ -16255,7 +16255,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               }
                                               setPollComposeMode(true)
                                             }}
-                                            className="flex items-center gap-1 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                                            className="flex items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600"
                                           >
                                             <Send className="h-3 w-3" />
                                             New Poll
@@ -16296,10 +16296,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             size="icon"
                                             variant="ghost"
                                             className={cn(
-                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-700 disabled:opacity-30',
+                                              'h-8 w-8 rounded-xl hover:bg-blue-100 hover:text-blue-600 disabled:opacity-30',
                                               showAIQuestion
-                                                ? 'bg-blue-100 text-blue-700'
-                                                : 'text-blue-600'
+                                                ? 'bg-blue-100 text-blue-600'
+                                                : 'text-blue-500'
                                             )}
                                             title="Generate with Socratic AI"
                                             onClick={() => setShowAIQuestion(!showAIQuestion)}
@@ -16309,7 +16309,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           </Button>
                                           <Button
                                             size="icon"
-                                            className="h-8 w-8 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-30"
+                                            className="h-8 w-8 rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-30"
                                             disabled={
                                               !activeInsightsTaskId ||
                                               !insightsProps.sessionId ||
@@ -17127,7 +17127,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               rubric: 'Manual marking — tutor grades by hand.',
                                             })
                                           }
-                                          className="shrink-0 text-xs font-medium text-blue-700 hover:underline"
+                                          className="shrink-0 text-xs font-medium text-blue-600 hover:underline"
                                         >
                                           Manual marking only
                                         </button>
