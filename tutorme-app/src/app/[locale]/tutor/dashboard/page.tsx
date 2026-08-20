@@ -1065,7 +1065,9 @@ function TutorDashboardContent() {
                   <div className="scrollbar-hide h-[520px] space-y-3 overflow-y-auto pr-2">
                     {courseSessions.map(session => {
                       const isScheduled = session.status === 'scheduled'
-                      const isActive = session.status === 'active'
+                      const isActive = ['active', 'live', 'paused', 'preparing'].includes(
+                        session.status
+                      )
                       const isEnded = session.status === 'ended'
                       const isPast =
                         session.scheduledAt &&
@@ -1174,7 +1176,20 @@ function TutorDashboardContent() {
                                 )}
                               </Button>
                             )}
-                            {isScheduled && !isPast ? (
+                            {isActive ? (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() =>
+                                  router.push(
+                                    withLocalePath(`/tutor/classroom?sessionId=${session.id}`)
+                                  )
+                                }
+                                className="transition-all duration-200"
+                              >
+                                Join Session
+                              </Button>
+                            ) : isScheduled ? (
                               <Button
                                 variant="default"
                                 size="sm"
@@ -1189,7 +1204,7 @@ function TutorDashboardContent() {
                                 )}
                                 Enter
                               </Button>
-                            ) : isActive ? (
+                            ) : (
                               <Button
                                 variant="default"
                                 size="sm"
@@ -1200,11 +1215,7 @@ function TutorDashboardContent() {
                                 }
                                 className="transition-all duration-200"
                               >
-                                Join Session
-                              </Button>
-                            ) : (
-                              <Button variant="ghost" size="sm" disabled>
-                                {isPast ? 'Passed' : isEnded ? 'Ended' : 'N/A'}
+                                Enter
                               </Button>
                             )}
                           </div>

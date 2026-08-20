@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { TabsContent } from '@/components/ui/tabs'
@@ -11,7 +10,7 @@ import {
   type CalendarView,
 } from '@/app/[locale]/tutor/dashboard/components/InteractiveCalendar'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
-import { Badge } from '@/components/ui/badge'
+import { StudentSessionsPanel } from './StudentSessionsPanel'
 import {
   CalendarDays,
   CalendarClock,
@@ -91,7 +90,7 @@ interface DashboardCalendarProps {
   onBookClass?: (classId: string) => void
 }
 
-interface ClassItem {
+export interface ClassItem {
   id: string
   sessionId?: string | null
   title: string
@@ -155,13 +154,15 @@ export function DashboardCalendar({
   // just-submitted request is visible while awaiting the tutor's response.
   const [pendingRequests, setPendingRequests] = useState<OneOnOneRequestSummary[]>([])
   const [cancellingRequestId, setCancellingRequestId] = useState<string | null>(null)
+  const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([])
+  const [upcomingLoading, setUpcomingLoading] = useState(true)
   const monthStart = useMemo(() => new Date(month.getFullYear(), month.getMonth(), 1), [month])
   const monthEnd = useMemo(
     () => new Date(month.getFullYear(), month.getMonth() + 1, 0, 23, 59, 59),
     [month]
   )
 
-  // Fetch calendar events
+  // Fetch calendar events for the calendar grid (month scope).
   useEffect(() => {
     let cancelled = false
     const start = monthStart.toISOString()
@@ -187,6 +188,36 @@ export function DashboardCalendar({
       cancelled = true
     }
   }, [monthStart, monthEnd, onRefresh, refreshTick])
+
+  // Fetch all upcoming sessions for the Sessions tab separately. The calendar grid
+  // stays scoped to the selected month, but the session list must show every
+  // upcoming class across all enrolled courses, not just the current month.
+  useEffect(() => {
+    let cancelled = false
+    const now = new Date()
+    const start = now.toISOString()
+    const end = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString()
+    setUpcomingLoading(true)
+    fetch(
+      `/api/student/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+      { credentials: 'include' }
+    )
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        const list: CalendarEvent[] = Array.isArray(data?.events) ? data.events : []
+        setUpcomingEvents(list)
+        setUpcomingLoading(false)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setUpcomingEvents([])
+        setUpcomingLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [onRefresh, refreshTick])
 
   // Fetch the student's own requests and keep only the PENDING ones — the
   // accepted/paid/completed ones already surface via the calendar-events list.
@@ -294,12 +325,14 @@ export function DashboardCalendar({
     }
   }
 
-  // Derive classes list from calendar events for the Sessions tab.
-  // Exclude completed/ended sessions and sort chronologically so the next session is on top.
+  // Derive classes list from UPCOMING calendar events for the Sessions tab.
+  // 1-on-1 and group sessions have their own Bookings tab, so keep them out.
+  // Only show actionable (scheduled/live/paused/preparing) sessions that haven't
+  // already passed, and sort chronologically so the next session is on top.
   const classes = useMemo<ClassItem[]>(() => {
-    const mapped = events
-      // 1-on-1 and group sessions have their own Bookings tab, so keep them out
-      // of the Sessions (course classes) list.
+    const now = Date.now()
+    const graceMs = 5 * 60 * 1000
+    const mapped = upcomingEvents
       .filter(ev => ev.type !== 'one-on-one' && ev.type !== 'group')
       .map(ev => {
         const evStatus = (ev as any).status as string | undefined
@@ -328,7 +361,11 @@ export function DashboardCalendar({
           courseDescription: ev.courseDescription || null,
         }
       })
-      .filter(cls => cls.status !== 'completed')
+      .filter(cls => {
+        if (cls.status === 'completed') return false
+        const startMs = new Date(cls.scheduledAt).getTime()
+        return startMs >= now - graceMs
+      })
     // Live sessions pinned to the top, then chronological (next session first).
     mapped.sort((a, b) => {
       const aLive = a.status === 'live' ? 0 : 1
@@ -337,7 +374,7 @@ export function DashboardCalendar({
       return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
     })
     return mapped
-  }, [events])
+  }, [upcomingEvents])
 
   const interactiveEvents = useMemo(() => {
     return events.map(ev => {
@@ -719,106 +756,7 @@ export function DashboardCalendar({
 
         {/* My Classes Tab */}
         <TabsContent value="classes" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="h-full overflow-y-auto">
-            {loading ? (
-              <div className="py-8 text-center">
-                <p className="text-muted-foreground text-sm">Loading your classes...</p>
-              </div>
-            ) : classes.length === 0 ? (
-              <div className="rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] py-12 text-center shadow-[0_4px_14px_rgba(0,0,0,0.08)]">
-                <BookOpen className="text-muted-foreground/60 mx-auto mb-3 h-12 w-12" />
-                <p className="text-muted-foreground">There are no upcoming sessions.</p>
-              </div>
-            ) : (
-              <div className="space-y-3 pr-2">
-                {classes.map(cls => (
-                  <div
-                    key={cls.id}
-                    className="flex items-center gap-3 rounded-[14px] border border-[rgba(0,0,0,0.04)] bg-[#FFFFFF] p-3 shadow-[0_4px_14px_rgba(0,0,0,0.08)] transition-colors hover:bg-slate-50"
-                  >
-                    {cls.tutorAvatarUrl ? (
-                      <img
-                        src={cls.tutorAvatarUrl}
-                        alt={cls.tutorName}
-                        className="h-10 w-10 shrink-0 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-500">
-                        {cls.tutorName.charAt(0).toUpperCase()}
-                      </div>
-                    )}
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="truncate font-medium text-gray-900">
-                          {cls.courseName || cls.title}
-                        </h4>
-                        <Badge
-                          variant="secondary"
-                          className={cn(
-                            'text-[10px]',
-                            cls.status === 'live'
-                              ? 'animate-pulse gap-1 bg-emerald-100 text-emerald-700'
-                              : 'bg-blue-100 text-blue-700'
-                          )}
-                        >
-                          {cls.status === 'live' && (
-                            <span className="inline-block h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
-                          )}
-                          {cls.status === 'live' ? 'Live' : 'Scheduled'}
-                        </Badge>
-                      </div>
-                      <p className="text-muted-foreground text-xs">
-                        {cls.courseName ? cls.title : cls.subject}
-                      </p>
-
-                      <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                        <span className="flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          {formatDate(cls.scheduledAt)}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {formatEventTime(cls.scheduledAt)}
-                        </span>
-                        <span className={cn('flex items-center gap-1', 'text-primary')}>
-                          {cls.type === 'online' ? (
-                            <Video className="h-3 w-3" />
-                          ) : (
-                            <MapPin className="h-3 w-3" />
-                          )}
-                          {cls.type === 'online' ? 'Online' : 'In-Person'}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3 w-3" />
-                          {cls.students}/{cls.maxStudents} students
-                        </span>
-                        <span>Tutor: {cls.tutorName}</span>
-                      </div>
-                    </div>
-
-                    <div className="line-clamp-3 hidden w-1/3 shrink-0 rounded-lg border border-gray-200 bg-gray-50 p-2 text-xs text-gray-600 sm:block">
-                      {cls.courseDescription || 'No description available.'}
-                    </div>
-
-                    {cls.sessionId ? (
-                      <Button
-                        size="sm"
-                        className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-500"
-                        onClick={() => router.push(`/call/${cls.sessionId}`)}
-                      >
-                        {cls.status === 'live' ? 'Join' : 'Enter'}
-                      </Button>
-                    ) : (
-                      <Button size="sm" variant="outline" className="shrink-0" asChild>
-                        <Link href={`/student/courses/${cls.id}`}>Details</Link>
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <StudentSessionsPanel classes={classes} loading={upcomingLoading} />
         </TabsContent>
       </SessionCalendarPanel>
       {reviewRequestId && (

@@ -11,11 +11,13 @@ import {
   profile,
   courseLesson,
   courseVariant,
+  courseSchedule,
   tutorApplication,
   liveSession,
 } from '@/lib/db/schema'
 import { eq, and, inArray, desc } from 'drizzle-orm'
 import { getTutorRating } from '@/lib/one-on-one/reviews'
+import { computeCourseSessionCount } from '@/lib/courses/session-count'
 
 export async function GET(
   request: NextRequest,
@@ -170,6 +172,27 @@ export async function GET(
       {} as Record<string, number>
     )
 
+    // Fetch configured session counts from schedules
+    const scheduleRows =
+      courseIds.length > 0
+        ? await drizzleDb
+            .select({
+              courseId: courseSchedule.courseId,
+              schedule: courseSchedule.schedule,
+              weeksToSchedule: courseSchedule.weeksToSchedule,
+            })
+            .from(courseSchedule)
+            .where(inArray(courseSchedule.courseId, courseIds))
+        : []
+    const schedulesByCourse = scheduleRows.reduce(
+      (acc, s) => {
+        acc[s.courseId] = acc[s.courseId] || []
+        acc[s.courseId].push(s)
+        return acc
+      },
+      {} as Record<string, typeof scheduleRows>
+    )
+
     // Fetch live-session counts so the public page can categorize courses the same
     // way the tutor My Page does. A session counts as completed when it is
     // explicitly ended, has an endedAt timestamp, or its scheduled time block has
@@ -260,6 +283,8 @@ export async function GET(
       const enrollmentStatus: 'ongoing' | 'active' | 'ended' =
         total > 0 && completed >= total ? 'ended' : completed > 0 ? 'active' : 'ongoing'
 
+      const configuredSessionCount = computeCourseSessionCount(schedulesByCourse[c.courseId] || [])
+
       return {
         id: c.courseId,
         name: c.name,
@@ -273,6 +298,7 @@ export async function GET(
 
         enrollmentCount: 0, // Placeholder
         lessonCount: lessonCounts[c.courseId] || 0,
+        sessionCount: configuredSessionCount,
         price: c.isFree ? 0 : c.price,
         isFree: c.isFree || c.price == null || c.price === 0,
         currency: c.currency || 'USD',

@@ -470,6 +470,13 @@ export const VariantManager = forwardRef<VariantManagerHandle, VariantManagerPro
           // and any transient draft state is replaced by the server truth.
           await loadVariants()
           onSaved?.()
+        } else if (res.status === 409) {
+          const data = (await res.json().catch(() => ({}))) as PublishResponse
+          const reason = summarizeSkipReasons(data.skippedSessions)
+          toast.error(
+            `${data.error || 'Publish blocked by conflicts.'} ${reason ? `Conflicts: ${reason}.` : ''} Fix your schedule or availability and try again.`,
+            { duration: 8000 }
+          )
         } else {
           const data = await res.json().catch(() => ({}))
           toast.error(data?.error || 'Failed to save variants')

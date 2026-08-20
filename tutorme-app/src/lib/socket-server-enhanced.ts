@@ -2490,6 +2490,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
             // 5) The submission itself. onConflictDoNothing preserves the
             //    one-per-(session,task,student) rule and never overwrites a graded row.
             //    Status stays 'submitted' so the tutor can still review/override.
+            //    Target the primary key because TaskSubmission's uniqueness is enforced
+            //    by partial indexes; a bare ON CONFLICT has no inferable target.
             await drizzleDb
               .insert(taskSubmission)
               .values({
@@ -2507,7 +2509,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 tutorApproved: false,
                 submittedAt: now,
               })
-              .onConflictDoNothing()
+              .onConflictDoNothing({ target: taskSubmission.submissionId })
 
             console.log('[task:complete] submission persisted', {
               roomId,

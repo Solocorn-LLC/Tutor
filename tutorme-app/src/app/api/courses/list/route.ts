@@ -6,9 +6,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseLesson, courseEnrollment, courseVariant } from '@/lib/db/schema'
+import {
+  course,
+  courseLesson,
+  courseEnrollment,
+  courseVariant,
+  courseSchedule,
+} from '@/lib/db/schema'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
+import { computeCourseSessionCount } from '@/lib/courses/session-count'
 
 export const GET = withAuth(
   async (req: NextRequest) => {
@@ -67,21 +74,45 @@ export const GET = withAuth(
     const lessonCountMap = new Map(lessonCounts.map(l => [l.courseId, l.count]))
     const enrollmentCountMap = new Map(enrollmentCounts.map(e => [e.courseId, e.count]))
 
-    const courses = coursesRows.map(c => ({
-      id: c.courseId,
-      name: c.name,
-      variantName: formatCourseVariantName(c.variantCategory, c.variantNationality),
-      subject: c.categories?.[0] || 'general',
-      description: c.description,
-      difficulty: 'intermediate',
-      estimatedHours: 0,
-      price: c.isFree ? 0 : c.price,
-      currency: c.currency,
-      modulesCount: 0,
-      lessonsCount: lessonCountMap.get(c.courseId) ?? 0,
-      studentCount: enrollmentCountMap.get(c.courseId) ?? 0,
-      createdAt: c.createdAt?.toISOString() ?? new Date().toISOString(),
-    }))
+    let schedulesRows: { courseId: string; schedule: unknown; weeksToSchedule: number | null }[] =
+      []
+    if (courseIds.length > 0) {
+      schedulesRows = await drizzleDb
+        .select({
+          courseId: courseSchedule.courseId,
+          schedule: courseSchedule.schedule,
+          weeksToSchedule: courseSchedule.weeksToSchedule,
+        })
+        .from(courseSchedule)
+        .where(inArray(courseSchedule.courseId, courseIds))
+    }
+    const schedulesByCourse = schedulesRows.reduce(
+      (acc, s) => {
+        acc[s.courseId] = acc[s.courseId] || []
+        acc[s.courseId].push(s)
+        return acc
+      },
+      {} as Record<string, typeof schedulesRows>
+    )
+
+    const courses = coursesRows.map(c => {
+      const sessionCount = computeCourseSessionCount(schedulesByCourse[c.courseId] || [])
+      return {
+        id: c.courseId,
+        name: c.name,
+        variantName: formatCourseVariantName(c.variantCategory, c.variantNationality),
+        subject: c.categories?.[0] || 'general',
+        description: c.description,
+        estimatedHours: 0,
+        price: c.isFree ? 0 : c.price,
+        currency: c.currency,
+        modulesCount: 0,
+        lessonsCount: lessonCountMap.get(c.courseId) ?? 0,
+        sessionCount,
+        studentCount: enrollmentCountMap.get(c.courseId) ?? 0,
+        createdAt: c.createdAt?.toISOString() ?? new Date().toISOString(),
+      }
+    })
 
     return NextResponse.json({ courses })
   },

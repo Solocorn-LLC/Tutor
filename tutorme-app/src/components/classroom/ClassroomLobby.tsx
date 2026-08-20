@@ -14,6 +14,13 @@ import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Bell, Calendar, Clock, Loader2, PlayCircle, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { ensurePushSubscription, isPushSupported } from '@/lib/push/client'
 import { categorizeLobbySessions } from '@/lib/classroom/lobby-sessions'
@@ -50,6 +57,7 @@ export function ClassroomLobby({
   const [now, setNow] = useState(() => Date.now())
   const [starting, setStarting] = useState(false)
   const [pushState, setPushState] = useState<'idle' | 'on' | 'denied' | 'unsupported'>('idle')
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null)
 
   const firedAlerts = useRef<Set<string>>(new Set())
   const handedOff = useRef(false)
@@ -102,6 +110,25 @@ export function ClassroomLobby({
   const msUntilStart =
     nextSession?.scheduledAt != null ? new Date(nextSession.scheduledAt).getTime() - now : null
   const isNextLive = nextSession?.status === 'active' || nextSession?.status === 'live'
+
+  // Default the session selector to the next/upcoming session, and keep it valid
+  // if the list refreshes (e.g. the tutor starts a session and its status changes).
+  useEffect(() => {
+    const ids = new Set(sessions.map(s => s.id))
+    if (selectedSessionId && ids.has(selectedSessionId)) return
+    setSelectedSessionId(nextSession?.id ?? null)
+  }, [sessions, nextSession, selectedSessionId])
+
+  const selectedSession = useMemo(
+    () => sessions.find(s => s.id === selectedSessionId) || null,
+    [sessions, selectedSessionId]
+  )
+  const msUntilSelected =
+    selectedSession?.scheduledAt != null
+      ? new Date(selectedSession.scheduledAt).getTime() - now
+      : null
+  const isSelectedLive = selectedSession?.status === 'active' || selectedSession?.status === 'live'
+  const isSelectedEnded = selectedSession?.status === 'ended'
 
   // --- In-lobby countdown alerts (20/10/5/1 min) ---
   useEffect(() => {
@@ -243,48 +270,103 @@ export function ClassroomLobby({
         )}
       </div>
 
-      {/* Next session */}
+      {/* Session selector hero */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Next session</p>
-        {!nextSession ? (
-          <p className="mt-3 text-sm text-slate-500">No upcoming sessions scheduled.</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Session</p>
+        {sessions.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">No sessions scheduled.</p>
         ) : (
           <>
-            <h2 className="mt-1 text-lg font-semibold text-slate-900">{nextSession.title}</h2>
-            <div className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
-              <Calendar className="h-4 w-4" />
-              {fmt(nextSession.scheduledAt)}
+            <div className="mt-3">
+              <Select value={selectedSessionId ?? ''} onValueChange={setSelectedSessionId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a session" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sessions.map(s => (
+                    <SelectItem key={s.id} value={s.id}>
+                      <span className="truncate">{s.title}</span>
+                      <span className="ml-2 shrink-0 text-white/60">· {fmt(s.scheduledAt)}</span>
+                      {s.status === 'active' || s.status === 'live' ? (
+                        <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      ) : s.status === 'ended' ? (
+                        <span className="ml-2 shrink-0 text-[11px] text-white/50">(ended)</span>
+                      ) : null}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="mt-4 flex items-center justify-between gap-3">
-              {isNextLive ? (
-                <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
-                  <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live now
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-2 text-2xl font-bold tabular-nums text-slate-900">
-                  <Clock className="h-5 w-5 text-slate-400" />
-                  {msUntilStart != null && msUntilStart > 0
-                    ? countdownLabel(msUntilStart)
-                    : '0m 0s'}
-                </span>
-              )}
-              {role === 'tutor' ? (
-                <Button onClick={() => startAsTutor(nextSession.id)} disabled={starting}>
-                  {starting ? (
-                    <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+
+            {selectedSession && (
+              <>
+                <div className="mt-3 flex items-center gap-1.5 text-sm text-slate-500">
+                  <Calendar className="h-4 w-4" />
+                  {fmt(selectedSession.scheduledAt)}
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  {isSelectedLive ? (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" /> Live
+                      now
+                    </span>
+                  ) : isSelectedEnded ? (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
+                      <PlayCircle className="h-4 w-4" /> Ended
+                    </span>
                   ) : (
-                    <Video className="mr-1.5 h-4 w-4" />
+                    <span className="inline-flex items-center gap-2 text-2xl font-bold tabular-nums text-slate-900">
+                      <Clock className="h-5 w-5 text-slate-400" />
+                      {msUntilSelected != null && msUntilSelected > 0
+                        ? countdownLabel(msUntilSelected)
+                        : '0m 0s'}
+                    </span>
                   )}
-                  {isNextLive ? 'Join now' : 'Start now'}
-                </Button>
-              ) : (
-                isNextLive && (
-                  <Button onClick={() => goToSession(nextSession.id)}>
-                    <Video className="mr-1.5 h-4 w-4" /> Join now
-                  </Button>
-                )
-              )}
-            </div>
+
+                  {role === 'tutor' ? (
+                    <Button
+                      onClick={() =>
+                        isSelectedLive || isSelectedEnded
+                          ? goToSession(selectedSession.id)
+                          : startAsTutor(selectedSession.id)
+                      }
+                      disabled={starting}
+                    >
+                      {starting ? (
+                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      ) : isSelectedLive ? (
+                        <Video className="mr-1.5 h-4 w-4" />
+                      ) : isSelectedEnded ? (
+                        <PlayCircle className="mr-1.5 h-4 w-4" />
+                      ) : (
+                        <Video className="mr-1.5 h-4 w-4" />
+                      )}
+                      {isSelectedLive
+                        ? 'Join now'
+                        : isSelectedEnded
+                          ? 'Review session'
+                          : 'Start now'}
+                    </Button>
+                  ) : (
+                    <Button onClick={() => goToSession(selectedSession.id)}>
+                      {isSelectedLive ? (
+                        <>
+                          <Video className="mr-1.5 h-4 w-4" /> Join now
+                        </>
+                      ) : isSelectedEnded ? (
+                        <>
+                          <PlayCircle className="mr-1.5 h-4 w-4" /> Review session
+                        </>
+                      ) : (
+                        <>
+                          <Calendar className="mr-1.5 h-4 w-4" /> Load classroom
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
