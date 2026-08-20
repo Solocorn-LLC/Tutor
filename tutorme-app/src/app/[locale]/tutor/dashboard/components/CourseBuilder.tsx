@@ -1942,7 +1942,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               <Button
                 onClick={onComplete}
                 disabled={items.length === 0}
-                className="rounded-xl bg-[#F17623] px-5 text-sm font-semibold text-white hover:bg-[#d9651a]"
+                className="rounded-xl bg-[#FF9F0A] px-5 text-sm font-semibold text-white hover:bg-[#FF9F0A]"
               >
                 Assessment Complete
               </Button>
@@ -10788,7 +10788,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               {leftPanelHidden ? (
                 <ChevronRight className="h-5 w-5 text-white" />
               ) : (
-                <ChevronLeft className="h-5 w-5 text-[#2B5FB8]" />
+                <ChevronLeft className="h-5 w-5 text-[#FF9F0A]" />
               )}
             </div>
 
@@ -10837,7 +10837,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           placeholder="Search course..."
                           value={searchQuery}
                           onChange={e => setSearchQuery(e.target.value)}
-                          className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1F2933] outline-none placeholder:text-[#98A2B3] focus-visible:border-[#B8CCFF] focus-visible:ring-2 focus-visible:ring-[#DCEAFF]"
+                          className="w-full rounded-2xl border border-[#E5E7EB] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1F2933] outline-none placeholder:text-[#98A2B3] focus-visible:border-[#FF9F0A] focus-visible:ring-2 focus-visible:ring-[#FFF4EC]"
                         />
                       </div>
                     )}
@@ -11022,14 +11022,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             <DroppableTaskZone
                                               nodeId={node.id}
                                               lessonId={primaryLesson.id}
-                                              className="flex items-center justify-between gap-3 rounded-2xl border border-[#D5E5FF] bg-[#EEF4FF] px-3 py-1.5"
+                                              className="flex items-center justify-between gap-3 rounded-2xl border border-[#FFF4EC] bg-[#FFF4EC] px-3 py-1.5"
                                             >
                                               <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#DCEAFF] text-[#2B5FB8]">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF4EC] text-[#FF9F0A]">
                                                   <ClipboardList className="h-4 w-4" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                  <div className="text-sm font-semibold text-[#2B5FB8]">
+                                                  <div className="text-sm font-semibold text-[#FF9F0A]">
                                                     Tasks
                                                   </div>
                                                   <div className="text-[11px] text-[#667085]">
@@ -11045,7 +11045,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   size="sm"
                                                   disabled={mainTab !== 'builder' || !canEdit}
                                                   className={cn(
-                                                    'h-6 w-6 rounded-md bg-[#2B5FB8]/10 p-0 text-[#2B5FB8] hover:bg-[#2B5FB8]/20',
+                                                    'h-6 w-6 rounded-md bg-[#FF9F0A]/10 p-0 text-[#FF9F0A] hover:bg-[#FF9F0A]/20',
                                                     (mainTab !== 'builder' || !canEdit) &&
                                                       'cursor-not-allowed opacity-40'
                                                   )}
@@ -11058,7 +11058,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 </Button>
                                                 <button
                                                   type="button"
-                                                  className="flex h-6 w-6 items-center justify-center rounded-md text-[#2B5FB8] hover:bg-[#2B5FB8]/10"
+                                                  className="flex h-6 w-6 items-center justify-center rounded-md text-[#FF9F0A] hover:bg-[#FF9F0A]/10"
                                                   onClick={e => {
                                                     e.stopPropagation()
                                                     toggleSection(node.id, 'task')
@@ -11103,7 +11103,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             selectedItem?.id === task.id) ||
                                                             (loadedTaskId === task.id &&
                                                               deployedTaskIds.has(task.id))
-                                                            ? 'border-[#4A90FF] bg-[#F2F7FF] ring-1 ring-[#4A90FF]'
+                                                            ? 'border-[#FF9F0A] bg-[#FFF4EC] ring-1 ring-[#FF9F0A]'
                                                             : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                           mainTab === 'test-pci' &&
                                                             !(
@@ -11213,9 +11213,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           }
                                                         }}
                                                       >
-                                                        <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#4A90FF]" />
+                                                        <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#FF9F0A]" />
                                                         <DragHandle className="shrink-0" />
-                                                        <ListTodo className="h-3 w-3 shrink-0 text-[#2B5FB8]" />
+                                                        <ListTodo className="h-3 w-3 shrink-0 text-[#FF9F0A]" />
                                                         {renamingItemId === task.id ? (
                                                           <Input
                                                             autoFocus
@@ -11869,14 +11869,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             <DroppableAssessmentZone
                                               nodeId={node.id}
                                               lessonId={primaryLesson.id}
-                                              className="flex items-center justify-between gap-3 rounded-2xl border border-[#E2D8FF] bg-[#F3EEFF] px-3 py-1.5"
+                                              className="flex items-center justify-between gap-3 rounded-2xl border border-[#FFF4EC] bg-[#FFF4EC] px-3 py-1.5"
                                             >
                                               <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#E7DEFF] text-[#6D59D8]">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF4EC] text-[#FF9F0A]">
                                                   <FileText className="h-4 w-4" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                  <div className="text-sm font-semibold text-[#6D59D8]">
+                                                  <div className="text-sm font-semibold text-[#FF9F0A]">
                                                     Assessments
                                                   </div>
                                                   <div className="text-[11px] text-[#667085]">
@@ -11892,7 +11892,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   size="sm"
                                                   disabled={mainTab !== 'builder' || !canEdit}
                                                   className={cn(
-                                                    'h-6 w-6 rounded-md bg-[#6D59D8]/10 p-0 text-[#6D59D8] hover:bg-[#6D59D8]/20',
+                                                    'h-6 w-6 rounded-md bg-[#FF9F0A]/10 p-0 text-[#FF9F0A] hover:bg-[#FF9F0A]/20',
                                                     (mainTab !== 'builder' || !canEdit) &&
                                                       'cursor-not-allowed opacity-40'
                                                   )}
@@ -11905,7 +11905,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 </Button>
                                                 <button
                                                   type="button"
-                                                  className="flex h-6 w-6 items-center justify-center rounded-md text-[#6D59D8] hover:bg-[#6D59D8]/10"
+                                                  className="flex h-6 w-6 items-center justify-center rounded-md text-[#FF9F0A] hover:bg-[#FF9F0A]/10"
                                                   onClick={e => {
                                                     e.stopPropagation()
                                                     toggleSection(node.id, 'assessment')
@@ -11947,7 +11947,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           selectedItem?.id === hw.id) ||
                                                           (loadedAssessmentId === hw.id &&
                                                             deployedTaskIds.has(hw.id))
-                                                          ? 'border-[#8B6DFF] bg-[#F3EEFF] ring-1 ring-[#8B6DFF]'
+                                                          ? 'border-[#FF9F0A] bg-[#FFF4EC] ring-1 ring-[#FF9F0A]'
                                                           : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                         mainTab === 'test-pci' &&
                                                           !(
@@ -12049,9 +12049,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         }
                                                       }}
                                                     >
-                                                      <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#8B6DFF]" />
+                                                      <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#FF9F0A]" />
                                                       <DragHandle className="shrink-0" />
-                                                      <FileQuestion className="h-3 w-3 shrink-0 text-[#6D59D8]" />
+                                                      <FileQuestion className="h-3 w-3 shrink-0 text-[#FF9F0A]" />
                                                       {renamingItemId === hw.id ? (
                                                         <Input
                                                           autoFocus
@@ -12352,14 +12352,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   <DroppableHomeworkZone
                                                     nodeId={node.id}
                                                     lessonId={primaryLesson.id}
-                                                    className="flex items-center justify-between gap-3 rounded-2xl border border-[#D2F3E3] bg-[#ECFBF4] px-3 py-1.5"
+                                                    className="flex items-center justify-between gap-3 rounded-2xl border border-[#FFF4EC] bg-[#FFF4EC] px-3 py-1.5"
                                                   >
                                                     <div className="flex min-w-0 items-center gap-3">
-                                                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#D7F6E8] text-[#1E9E72]">
+                                                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FFF4EC] text-[#FF9F0A]">
                                                         <FolderOpen className="h-4 w-4" />
                                                       </div>
                                                       <div className="min-w-0">
-                                                        <div className="text-sm font-semibold text-[#1E9E72]">
+                                                        <div className="text-sm font-semibold text-[#FF9F0A]">
                                                           Homework
                                                         </div>
                                                         <div className="text-[11px] text-[#667085]">
@@ -12372,7 +12372,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     <div className="flex items-center gap-2">
                                                       <button
                                                         type="button"
-                                                        className="flex h-6 w-6 items-center justify-center rounded-md text-[#1E9E72] hover:bg-[#1E9E72]/10"
+                                                        className="flex h-6 w-6 items-center justify-center rounded-md text-[#FF9F0A] hover:bg-[#FF9F0A]/10"
                                                         onClick={e => {
                                                           e.stopPropagation()
                                                           toggleSection(node.id, 'homework')
@@ -12414,7 +12414,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 selectedItem?.id === hw.id) ||
                                                                 (loadedAssessmentId === hw.id &&
                                                                   deployedTaskIds.has(hw.id))
-                                                                ? 'border-[#2FC98F] bg-[#ECFBF4] ring-1 ring-[#2FC98F]'
+                                                                ? 'border-[#FF9F0A] bg-[#FFF4EC] ring-1 ring-[#FF9F0A]'
                                                                 : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                               mainTab === 'test-pci' &&
                                                                 !(
@@ -12434,9 +12434,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                               }
                                                             }}
                                                           >
-                                                            <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#2FC98F]" />
+                                                            <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#FF9F0A]" />
                                                             <DragHandle className="shrink-0" />
-                                                            <FolderOpen className="h-3 w-3 shrink-0 text-[#1E9E72]" />
+                                                            <FolderOpen className="h-3 w-3 shrink-0 text-[#FF9F0A]" />
                                                             {renamingItemId === hw.id ? (
                                                               <Input
                                                                 autoFocus
@@ -12907,7 +12907,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         onKeyDown={(e: any) => {
                                           if (e.key === 'Enter') setEditingTabId(null)
                                         }}
-                                        className="w-full rounded-xl border border-[#CFE0FF] bg-[#EEF4FF] px-3 py-2.5 text-center text-sm font-medium text-[#2B5FB8] focus:outline-none focus-visible:ring-0"
+                                        className="w-full rounded-xl border border-[#FFF4EC] bg-[#FFF4EC] px-3 py-2.5 text-center text-sm font-medium text-[#FF9F0A] focus:outline-none focus-visible:ring-0"
                                         autoFocus
                                       />
                                     ) : (
@@ -14709,7 +14709,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             <Button
                                               variant="outline"
                                               size="sm"
-                                              className="h-8 gap-1 rounded-lg border-[#F17623] px-2 text-xs text-[#F17623] shadow-sm hover:bg-[#FFF4EC]"
+                                              className="h-8 gap-1 rounded-lg border-[#FF9F0A] px-2 text-xs text-[#FF9F0A] shadow-sm hover:bg-[#FFF4EC]"
                                               title="View the loaded DMI"
                                               onClick={() => setShowLiveDmiModal(true)}
                                             >
@@ -14754,7 +14754,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         className={cn(
                           'sticky top-0 z-10 flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white transition-colors duration-300',
                           mainBuilderTab === 'assessment'
-                            ? 'bg-gradient-to-br from-[#EC4899] to-[#DB2777]'
+                            ? 'bg-gradient-to-br from-[#FF9F0A] to-[#FF9F0A]'
                             : 'bg-gradient-to-br from-[#3B82F6] to-[#3B82F6]'
                         )}
                       >
@@ -14834,14 +14834,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
                                         <TabsTrigger
                                           value="content"
-                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FFF4EC] data-[state=active]:bg-[#FFF4EC] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#FF9F0A] data-[state=inactive]:hover:bg-slate-50"
                                         >
                                           <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
                                           Slide
                                         </TabsTrigger>
                                         <TabsTrigger
                                           value="pci"
-                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#CFE0FF] data-[state=active]:bg-[#EEF4FF] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#2B5FB8] data-[state=inactive]:hover:bg-slate-50"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FFF4EC] data-[state=active]:bg-[#FFF4EC] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#FF9F0A] data-[state=inactive]:hover:bg-slate-50"
                                         >
                                           <Brain className="mr-2 h-4 w-4 shrink-0" />
                                           PCI
@@ -15370,14 +15370,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       <TabsList className="mb-px grid h-[46px] w-full grid-cols-2 gap-2 rounded-xl bg-transparent p-0 shadow-none">
                                         <TabsTrigger
                                           value="content"
-                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FBCFE8] data-[state=active]:bg-[#FDF2F8] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#EC4899] data-[state=inactive]:hover:bg-slate-50"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FFF4EC] data-[state=active]:bg-[#FFF4EC] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#FF9F0A] data-[state=inactive]:hover:bg-slate-50"
                                         >
                                           <LayoutPanelTop className="mr-2 h-4 w-4 shrink-0" />
                                           Assessment
                                         </TabsTrigger>
                                         <TabsTrigger
                                           value="pci"
-                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FBCFE8] data-[state=active]:bg-[#FDF2F8] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#EC4899] data-[state=inactive]:hover:bg-slate-50"
+                                          className="w-full rounded-xl border border-[#E5E7EB] text-sm font-medium text-[#667085] transition-all data-[state=active]:border-[#FFF4EC] data-[state=active]:bg-[#FFF4EC] data-[state=inactive]:bg-white data-[state=active]:font-medium data-[state=active]:text-[#FF9F0A] data-[state=inactive]:hover:bg-slate-50"
                                         >
                                           <Brain className="mr-2 h-4 w-4 shrink-0" />
                                           PCI
@@ -15808,7 +15808,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           variant="ghost"
                                                           size="sm"
                                                           data-pci-anchor="edit-marks"
-                                                          className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-[#F17623] hover:bg-[#FFF4EC] hover:text-[#d9651a]"
+                                                          className="h-7 rounded-full border border-gray-200 bg-white px-2.5 text-xs font-medium text-[#FF9F0A] hover:bg-[#FFF4EC] hover:text-[#FF9F0A]"
                                                           disabled={!canEdit}
                                                           title="Set marks per question and review the AI answers"
                                                           onClick={() =>
@@ -15892,7 +15892,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   {rightPanelHidden ? (
                     <ChevronLeft className="h-5 w-5 text-white" />
                   ) : (
-                    <ChevronRight className="h-5 w-5 text-[#2B5FB8]" />
+                    <ChevronRight className="h-5 w-5 text-[#FF9F0A]" />
                   )}
                 </div>
 
@@ -17312,7 +17312,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                 type="button"
                 variant="outline"
                 size="sm"
-                className="h-10 rounded-[10px] border border-white bg-[#22C55E] px-6 text-sm font-medium text-white hover:border-[#22C55E] hover:bg-white hover:text-[#22C55E]"
+                className="h-10 rounded-[10px] border border-white bg-[#FF9F0A] px-6 text-sm font-medium text-white hover:border-[#FF9F0A] hover:bg-white hover:text-[#FF9F0A]"
                 onClick={() => setDmiSpecRows(prev => [...prev, { type: 'short', count: 3 }])}
               >
                 <Plus className="mr-1 h-4 w-4" /> Add type
