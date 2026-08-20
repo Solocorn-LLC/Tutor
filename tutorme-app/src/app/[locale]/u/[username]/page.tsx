@@ -680,7 +680,7 @@ export default function PublicTutorPage() {
   const headerCardClass =
     'group relative overflow-hidden rounded-[20px] p-[1px] shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
   const headerInnerClass =
-    'rounded-[20px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-8 py-5 text-white'
+    'rounded-[20px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-8 py-5 text-white'
   const panelCardClass =
     'group rounded-[18px] bg-white p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] transition-all duration-200 ease-in-out hover:shadow-[0_20px_60px_rgba(0,0,0,0.16)]'
 
@@ -822,7 +822,7 @@ export default function PublicTutorPage() {
                             <Badge
                               variant="secondary"
                               title={course.variantCategory || course.categories[0] || 'general'}
-                              className="mt-2 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs"
+                              className="mt-2 w-fit max-w-full border-0 bg-blue-500 text-[10px] font-semibold text-white transition-all hover:bg-blue-600 hover:brightness-105 sm:text-xs"
                             >
                               <span className="truncate whitespace-nowrap">
                                 {course.variantCategory || course.categories[0] || 'general'}
@@ -884,7 +884,7 @@ export default function PublicTutorPage() {
                             variant="secondary"
                             title={`${course.variantCategory || course.categories[0] || 'general'}${course.country && course.country !== 'Global' ? ` • ${course.country}` : ''}`}
                             className={cn(
-                              'mt-2 w-fit max-w-full border-0 bg-blue-600 text-[10px] font-semibold text-white transition-all hover:bg-blue-700 hover:brightness-105 sm:text-xs',
+                              'mt-2 w-fit max-w-full border-0 bg-blue-500 text-[10px] font-semibold text-white transition-all hover:bg-blue-600 hover:brightness-105 sm:text-xs',
                               isCompact && 'mt-1.5'
                             )}
                           >
@@ -950,7 +950,7 @@ export default function PublicTutorPage() {
                                 enrollmentStatus === 'ongoing' &&
                                   'border-transparent bg-emerald-600 text-white hover:bg-emerald-600',
                                 enrollmentStatus === 'active' &&
-                                  'border-transparent bg-blue-600 text-white hover:bg-blue-600',
+                                  'border-transparent bg-blue-500 text-white hover:bg-blue-500',
                                 enrollmentStatus === 'ended' &&
                                   'border-[rgba(255,255,255,0.2)] text-slate-300'
                               )}
@@ -1024,7 +1024,7 @@ export default function PublicTutorPage() {
                               enrollmentStatus === 'ongoing' &&
                                 'border-transparent bg-emerald-600 text-white hover:bg-emerald-600',
                               enrollmentStatus === 'active' &&
-                                'border-transparent bg-blue-600 text-white hover:bg-blue-600',
+                                'border-transparent bg-blue-500 text-white hover:bg-blue-500',
                               enrollmentStatus === 'ended' &&
                                 'border-[rgba(255,255,255,0.2)] text-slate-300'
                             )}
@@ -1245,7 +1245,7 @@ export default function PublicTutorPage() {
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                             <span
                               title={category}
-                              className="inline-flex max-w-full items-center truncate whitespace-nowrap rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-semibold text-white"
+                              className="inline-flex max-w-full items-center truncate whitespace-nowrap rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-semibold text-white"
                             >
                               {category}
                             </span>
@@ -1542,7 +1542,7 @@ export default function PublicTutorPage() {
 
         <div className="mt-7 grid gap-5 lg:grid-cols-2 lg:grid-rows-[auto_auto]">
           <div className={cn(panelCardClass, 'flex flex-col lg:col-start-1 lg:row-start-1')}>
-            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-5 text-white">
               <User className="h-5 w-5" />
               <span className="text-base font-semibold">Bio</span>
             </div>
@@ -1580,7 +1580,7 @@ export default function PublicTutorPage() {
           </div>
 
           <div className={cn(panelCardClass, 'flex flex-col lg:col-start-2 lg:row-start-1')}>
-            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center justify-between rounded-t-[18px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-5 text-white">
               <div className="flex items-center gap-3">
                 <Link2 className="h-5 w-5" />
                 <span className="text-base font-semibold">Connect</span>
@@ -1589,7 +1589,7 @@ export default function PublicTutorPage() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-500 hover:bg-white hover:text-blue-500 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   onClick={() => void handleCopyPublicUrl()}
                   disabled={!publicUrl}
                 >
@@ -1600,7 +1600,7 @@ export default function PublicTutorPage() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-600 hover:bg-white hover:text-blue-600 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="h-8 border border-white bg-transparent text-xs text-white hover:border-blue-500 hover:bg-white hover:text-blue-500 hover:shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     onClick={() => void handleSharePublicUrl()}
                   >
                     <Share2 className="mr-1.5 h-3.5 w-3.5" />
@@ -1691,7 +1691,7 @@ export default function PublicTutorPage() {
                       : `https://${stripAt(tutor.socialLinks.facebook)}`
                     : '—',
                   icon: Facebook,
-                  bgClass: 'bg-blue-600',
+                  bgClass: 'bg-blue-500',
                   muted: !tutor.socialLinks?.facebook,
                 },
                 {
@@ -1745,7 +1745,7 @@ export default function PublicTutorPage() {
               'flex flex-col lg:col-span-2 lg:col-start-1 lg:row-start-2'
             )}
           >
-            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#0B3A9B_0%,#1D4ED8_35%,#0A2F78_100%)] px-5 text-white">
+            <div className="-mx-5 -mt-5 mb-4 flex h-14 items-center gap-3 rounded-t-[18px] bg-[linear-gradient(135deg,#3B82F6_0%,#3B82F6_35%,#3B82F6_100%)] px-5 text-white">
               <Tags className="h-5 w-5" />
               <span className="text-base font-semibold">Categories</span>
               <span className="text-sm text-white">({tutor.specialties.length})</span>
@@ -1973,7 +1973,7 @@ export default function PublicTutorPage() {
                       setDetailsCourse(null)
                       setScheduleCourse(detailsCourse)
                     }}
-                    className="text-sm font-semibold text-blue-600 hover:underline"
+                    className="text-sm font-semibold text-blue-500 hover:underline"
                   >
                     View schedules
                   </button>
