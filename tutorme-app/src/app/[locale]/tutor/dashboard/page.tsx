@@ -11,7 +11,7 @@ import {
   groupIntoSeries,
 } from '@/components/one-on-one/one-on-one-request-card'
 import { resolveOneOnOneSession, joinableRequestId } from '@/lib/one-on-one/enter-classroom'
-import { CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TabsContent } from '@/components/ui/tabs'
 import {
@@ -878,90 +878,95 @@ function TutorDashboardContent() {
               value="liveDemos"
               className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <div className="h-full overflow-y-auto">
-                <CardTitle className="text-card-foreground mb-4 flex items-center gap-2">
-                  Classes
-                  <span className="text-muted-foreground text-sm font-normal">
-                    Demo classes you have created
-                  </span>
-                </CardTitle>
-                {loadingLiveDemos ? (
-                  <div className="space-y-3">
-                    {[1, 2].map(i => (
-                      <div key={i} className="bg-muted h-20 animate-pulse rounded-lg" />
-                    ))}
-                  </div>
-                ) : liveDemos.length === 0 ? (
-                  <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
-                    No classes yet. Click <strong>Create Class</strong> to start one.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {liveDemos.map(demo => (
-                      <div
-                        key={demo.id}
-                        className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-lg border border-white/20 bg-[#65A30D] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
-                      >
-                        <div className="flex min-w-0 flex-col justify-center gap-1">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="truncate font-semibold text-white">
-                              {demo.title
-                                ?.replace(/\s*[—-]\s*Live Session$/i, '')
-                                .replace(/^Live Session\s*[—-]\s*/i, '')
-                                .trim() || 'Demo Class'}
+              <Card className="flex h-full flex-col overflow-hidden border border-slate-200 bg-white/95 shadow-2xl backdrop-blur-md">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                    <Calendar className="h-5 w-5 text-slate-600" />
+                    Classes
+                    <span className="text-muted-foreground text-sm font-normal">
+                      Demo classes you have created
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="scrollbar-hide min-h-0 flex-1 overflow-y-auto">
+                  {loadingLiveDemos ? (
+                    <div className="space-y-3">
+                      {[1, 2].map(i => (
+                        <div key={i} className="bg-muted h-20 animate-pulse rounded-lg" />
+                      ))}
+                    </div>
+                  ) : liveDemos.length === 0 ? (
+                    <div className="text-muted-foreground border-border/30 rounded-lg border border-dashed p-6 text-center text-sm">
+                      No classes yet. Click <strong>Create Class</strong> to start one.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {liveDemos.map(demo => (
+                        <div
+                          key={demo.id}
+                          className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 rounded-lg border border-white/20 bg-[#34C759] p-4 shadow-[0_8px_30px_rgba(0,0,0,0.35)] transition-all duration-200 hover:shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+                        >
+                          <div className="flex min-w-0 flex-col justify-center gap-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="truncate font-semibold text-white">
+                                {demo.title
+                                  ?.replace(/\s*[—-]\s*Live Session$/i, '')
+                                  .replace(/^Live Session\s*[—-]\s*/i, '')
+                                  .trim() || 'Demo Class'}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
+                              <span>{demo.subject}</span>
+                              {(demo.createdAt || demo.scheduledAt) && (
+                                <>
+                                  <span className="text-white/50">•</span>
+                                  <span className="text-white/70">
+                                    Created{' '}
+                                    {new Date(
+                                      (demo.createdAt || demo.scheduledAt)!
+                                    ).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric',
+                                    })}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-10 w-[480px] self-center rounded-md bg-white px-3 py-2">
+                            <p className="line-clamp-1 text-xs text-gray-700">
+                              {demo.description || 'No description'}
                             </p>
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-white/90">
-                            <span>{demo.subject}</span>
-                            {(demo.createdAt || demo.scheduledAt) && (
-                              <>
-                                <span className="text-white/50">•</span>
-                                <span className="text-white/70">
-                                  Created{' '}
-                                  {new Date(
-                                    (demo.createdAt || demo.scheduledAt)!
-                                  ).toLocaleDateString('en-US', {
-                                    month: 'short',
-                                    day: 'numeric',
-                                    year: 'numeric',
-                                  })}
-                                </span>
-                              </>
-                            )}
+                          <div className="flex flex-row items-center justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
+                              }
+                              className="border-transparent bg-white text-[#34C759] transition-all duration-200 hover:border-transparent hover:bg-white/90 hover:text-[#34C759]"
+                            >
+                              <Video className="mr-1 h-3 w-3" />
+                              Enter
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRemoveLiveDemo(demo.id)}
+                              className="border-white/30 bg-white/10 text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-red-500"
+                              title="Delete demo class"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
-                        <div className="h-10 w-[480px] self-center rounded-md bg-white px-3 py-2">
-                          <p className="line-clamp-1 text-xs text-gray-700">
-                            {demo.description || 'No description'}
-                          </p>
-                        </div>
-                        <div className="flex flex-row items-center justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              router.push(withLocalePath(`/tutor/classroom?sessionId=${demo.id}`))
-                            }
-                            className="border-transparent bg-white text-[#65A30D] transition-all duration-200 hover:border-transparent hover:bg-white/90 hover:text-[#65A30D]"
-                          >
-                            <Video className="mr-1 h-3 w-3" />
-                            Enter
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoveLiveDemo(demo.id)}
-                            className="border-white/30 bg-white/10 text-white transition-all duration-200 hover:border-transparent hover:bg-white hover:text-red-500"
-                            title="Delete demo class"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
           </SessionCalendarPanel>
         </div>
