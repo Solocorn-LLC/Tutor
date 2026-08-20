@@ -1364,7 +1364,11 @@ export async function initEnhancedSocketServer(server: NetServer) {
             .update(liveSession)
             // Preserve an existing startedAt (COALESCE) so a re-promotion can never
             // reset the recorded start time / session-duration metric.
-            .set({ status: 'active', startedAt: sql`COALESCE(${liveSession.startedAt}, now())` })
+            .set({
+              status: 'active',
+              startedAt: sql`COALESCE(${liveSession.startedAt}, now())`,
+              tutorLeftAt: null,
+            })
             .where(and(eq(liveSession.sessionId, roomId), eq(liveSession.status, 'scheduled')))
         } catch (goLiveErr) {
           console.warn('[join_class] failed to promote session to active:', goLiveErr)

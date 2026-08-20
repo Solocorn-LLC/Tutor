@@ -85,7 +85,7 @@ export const GET = withAuth(
       const startedAt = liveSessionRow.startedAt || new Date()
       await drizzleDb
         .update(liveSession)
-        .set({ status: 'active', startedAt })
+        .set({ status: 'active', startedAt, tutorLeftAt: null })
         .where(eq(liveSession.sessionId, classId))
       liveSessionRow.status = 'active'
       liveSessionRow.startedAt = startedAt
@@ -411,6 +411,7 @@ export const POST = withCsrf(
         .set({
           status: 'active',
           startedAt: liveSessionRow.startedAt || new Date(),
+          tutorLeftAt: null,
         })
         .where(eq(liveSession.sessionId, classId))
         .returning()

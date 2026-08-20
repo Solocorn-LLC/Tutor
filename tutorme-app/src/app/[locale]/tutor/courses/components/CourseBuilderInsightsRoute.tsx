@@ -226,6 +226,7 @@ interface TutorControlsPanelProps {
   onEndSession?: () => void
   onLeaveSession?: () => void
   endingSession?: boolean
+  leavingSession?: boolean
   isConnected?: boolean
   connectionError?: boolean
   scheduleButtonLabel?: string
@@ -257,6 +258,7 @@ function TutorControlsPanel({
   onEndSession,
   onLeaveSession,
   endingSession,
+  leavingSession,
   isConnected,
   connectionError,
   scheduleButtonLabel,
@@ -590,15 +592,19 @@ function TutorControlsPanel({
                 {hasSession && isCourseSession && onLeaveSession ? (
                   <button
                     type="button"
-                    disabled={panelDisabled}
+                    disabled={panelDisabled || leavingSession}
                     onClick={onLeaveSession}
                     className={cn(
                       actionButtonBase,
                       'mt-2 w-full justify-center bg-white text-slate-700 hover:bg-slate-100 active:bg-slate-200'
                     )}
                   >
-                    <PhoneOff className="h-4 w-4" />
-                    Leave classroom
+                    {leavingSession ? (
+                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                    ) : (
+                      <PhoneOff className="h-4 w-4" />
+                    )}
+                    {leavingSession ? 'Leaving…' : 'Leave classroom'}
                   </button>
                 ) : hasSession && onEndSession ? (
                   <button
@@ -709,6 +715,7 @@ function CourseBuilderInsightsRouteInner({
   })
 
   const [endingSession, setEndingSession] = useState(false)
+  const [leavingSession, setLeavingSession] = useState(false)
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const isClassroomMode =
@@ -997,11 +1004,34 @@ function CourseBuilderInsightsRouteInner({
     }
   }
 
-  const handleLeaveSession = () => {
-    if (!insightsProps.sessionId) return
-    // Course sessions keep running until their scheduled end time; the tutor
-    // leaving just disconnects them from the room.
-    model.router.push('/tutor/insights')
+  const handleLeaveSession = async () => {
+    if (!insightsProps.sessionId || leavingSession) return
+    setLeavingSession(true)
+    try {
+      const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
+      const csrfData = await csrfRes.json().catch(() => ({}))
+      const csrfToken = csrfData?.token ?? null
+
+      const res = await fetch(`/api/tutor/classes/${insightsProps.sessionId}/leave`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+        },
+        credentials: 'include',
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data?.error || 'Failed to leave session')
+      }
+
+      model.router.push('/tutor/dashboard')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to leave session')
+    } finally {
+      setLeavingSession(false)
+    }
   }
 
   const handleCreateTemplate = async () => {
@@ -1445,6 +1475,7 @@ function CourseBuilderInsightsRouteInner({
               insightsProps.sessionId && isCourseSession ? handleLeaveSession : undefined
             }
             endingSession={endingSession}
+            leavingSession={leavingSession}
             isConnected={!!insightsProps.isConnected}
             connectionError={!!insightsProps.sessionId && !insightsProps.isConnected}
           />

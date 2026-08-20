@@ -46,6 +46,7 @@ vi.mock('@/lib/api/middleware', async importOriginal => {
 
 // Import route handlers AFTER middleware is mocked.
 import { POST as postClass, PATCH as patchClass } from '@/app/api/tutor/classes/[id]/route'
+import { POST as postLeaveClass } from '@/app/api/tutor/classes/[id]/leave/route'
 import { DELETE as deleteCourse } from '@/app/api/tutor/courses/[id]/route'
 
 function startClassReq(sessionId: string) {
@@ -58,6 +59,13 @@ function startClassReq(sessionId: string) {
 function endClassReq(sessionId: string) {
   return new NextRequest(`http://localhost/api/tutor/classes/${sessionId}`, {
     method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+function leaveClassReq(sessionId: string) {
+  return new NextRequest(`http://localhost/api/tutor/classes/${sessionId}/leave`, {
+    method: 'POST',
     headers: { 'content-type': 'application/json' },
   })
 }
@@ -241,6 +249,99 @@ describe('course session lifecycle guards', () => {
     expect(res.status).toBe(200)
     const data = await res.json()
     expect(data.session.status).toBe('active')
+  })
+
+  it('POST /api/tutor/classes/:id/leave releases the concurrency lock and allows entering another session or re-entering the same one', async () => {
+    const leaveSessionId = `cs_ls_leave_${crypto.randomUUID()}`
+    const leaveSession2Id = `cs_ls_leave2_${crypto.randomUUID()}`
+
+    // The shared fixture session COURSE_SESSION is still active from earlier tests.
+    // Mark it as left so this test's concurrency assertions are isolated to the
+    // sessions created here.
+    await drizzleDb
+      .update(liveSession)
+      .set({ tutorLeftAt: new Date() })
+      .where(eq(liveSession.sessionId, COURSE_SESSION))
+
+    await drizzleDb.insert(liveSession).values([
+      {
+        sessionId: leaveSessionId,
+        tutorId,
+        courseId: COURSE_ID,
+        title: 'Leave Test Session 1',
+        category: 'math',
+        status: 'active',
+        sessionType: 'COURSE',
+        scheduledAt: new Date(Date.now() - 30 * 60 * 1000),
+        startedAt: new Date(Date.now() - 35 * 60 * 1000),
+        durationMinutes: 60,
+        maxStudents: 50,
+      },
+      {
+        sessionId: leaveSession2Id,
+        tutorId,
+        courseId: COURSE_5_ID,
+        title: 'Leave Test Session 2',
+        category: 'math',
+        status: 'scheduled',
+        sessionType: 'COURSE',
+        scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
+        durationMinutes: 60,
+        maxStudents: 50,
+      },
+    ])
+
+    // Leave the first session.
+    const leaveRes = await postLeaveClass(
+      leaveClassReq(leaveSessionId) as unknown as NextRequest,
+      { params: Promise.resolve({ id: leaveSessionId }) } as any
+    )
+    expect(leaveRes.status).toBe(200)
+
+    const [leftRow] = await drizzleDb
+      .select({ tutorLeftAt: liveSession.tutorLeftAt })
+      .from(liveSession)
+      .where(eq(liveSession.sessionId, leaveSessionId))
+      .limit(1)
+    expect(leftRow?.tutorLeftAt).toBeTruthy()
+
+    // Starting a different session now succeeds because the first is treated as left.
+    const startOtherRes = await postClass(
+      startClassReq(leaveSession2Id) as unknown as NextRequest,
+      { params: Promise.resolve({ id: leaveSession2Id }) } as any
+    )
+    expect(startOtherRes.status).toBe(200)
+    const otherData = await startOtherRes.json()
+    expect(otherData.session.status).toBe('active')
+
+    // Leave the second session too.
+    const leaveOtherRes = await postLeaveClass(
+      leaveClassReq(leaveSession2Id) as unknown as NextRequest,
+      { params: Promise.resolve({ id: leaveSession2Id }) } as any
+    )
+    expect(leaveOtherRes.status).toBe(200)
+
+    // Re-entering the original session clears tutorLeftAt and succeeds.
+    const restartRes = await postClass(
+      startClassReq(leaveSessionId) as unknown as NextRequest,
+      { params: Promise.resolve({ id: leaveSessionId }) } as any
+    )
+    expect(restartRes.status).toBe(200)
+    const restartData = await restartRes.json()
+    expect(restartData.session.status).toBe('active')
+
+    const [restartedRow] = await drizzleDb
+      .select({ tutorLeftAt: liveSession.tutorLeftAt, status: liveSession.status })
+      .from(liveSession)
+      .where(eq(liveSession.sessionId, leaveSessionId))
+      .limit(1)
+    expect(restartedRow?.status).toBe('active')
+    expect(restartedRow?.tutorLeftAt).toBeNull()
+
+    // Clean up the ad-hoc test sessions.
+    await drizzleDb
+      .delete(liveSession)
+      .where(inArray(liveSession.sessionId, [leaveSessionId, leaveSession2Id]))
   })
 
   it('PATCH /api/tutor/classes/:id rejects ending a COURSE session', async () => {
