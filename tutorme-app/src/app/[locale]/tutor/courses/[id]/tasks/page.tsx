@@ -112,7 +112,7 @@ export default function CourseTasksPage() {
       case 'assigned':
         return <Badge className="border-green-200 bg-green-100 text-green-700">Assigned</Badge>
       case 'completed':
-        return <Badge className="border-blue-200 bg-blue-100 text-blue-700">Completed</Badge>
+        return <Badge className="border-blue-200 bg-blue-100 text-blue-600">Completed</Badge>
       default:
         return <Badge className="border-gray-200 bg-gray-100 text-gray-700">Draft</Badge>
     }
@@ -125,7 +125,7 @@ export default function CourseTasksPage() {
         : type === 'assignment'
           ? 'bg-purple-100 text-purple-700'
           : type === 'project'
-            ? 'bg-blue-100 text-blue-700'
+            ? 'bg-blue-100 text-blue-600'
             : 'bg-orange-100 text-orange-700'
     return <Badge className={`${color} border-0 capitalize`}>{type}</Badge>
   }

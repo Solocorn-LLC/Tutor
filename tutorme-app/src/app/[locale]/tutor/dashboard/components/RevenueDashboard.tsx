@@ -262,7 +262,7 @@ export function RevenueDashboard({
         )
       case 'processing':
         return (
-          <Badge variant="outline" className="border-blue-600 text-blue-600">
+          <Badge variant="outline" className="border-blue-500 text-blue-500">
             Processing
           </Badge>
         )
@@ -473,9 +473,9 @@ export function RevenueDashboard({
                 </p>
               </div>
               <div className="border-border rounded-xl border bg-blue-50 p-3">
-                <p className="mb-1 text-xs text-blue-600">This Month</p>
+                <p className="mb-1 text-xs text-blue-500">This Month</p>
                 <div className="flex items-center gap-2">
-                  <p className="text-xl font-bold text-blue-800">
+                  <p className="text-xl font-bold text-blue-700">
                     {formatCurrency(thisMonthRevenue)}
                   </p>
                   <Badge

@@ -1445,7 +1445,7 @@ function TutorInsightsPageInner() {
   if (loading) {
     return (
       <div className="flex h-full w-full flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
       </div>
     )
   }
@@ -1457,7 +1457,7 @@ function TutorInsightsPageInner() {
     if (searchParams.get('sessionId') && !linkedCourseResolved) {
       return (
         <div className="flex h-full w-full flex-1 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-500" />
         </div>
       )
     }
@@ -1497,7 +1497,7 @@ function TutorInsightsPageInner() {
                         <div>
                           <p className="text-sm font-semibold text-gray-900">{course.name}</p>
                           {course.nationality && course.nationality !== 'Global' && (
-                            <p className="inline-flex items-center gap-1 text-xs font-medium text-blue-600">
+                            <p className="inline-flex items-center gap-1 text-xs font-medium text-blue-500">
                               {course.variantCategory || (course.categories || [])[0] || 'General'}{' '}
                               — <CountryFlag countryName={course.nationality} size="xs" showLabel />
                             </p>
@@ -1509,7 +1509,7 @@ function TutorInsightsPageInner() {
                               : 'Unavailable'}
                           </p>
                         </div>
-                        <span className="text-xs font-medium text-blue-600">Open</span>
+                        <span className="text-xs font-medium text-blue-500">Open</span>
                       </button>
                     ))}
                   </div>

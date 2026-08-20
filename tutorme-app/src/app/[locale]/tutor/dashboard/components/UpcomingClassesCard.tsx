@@ -256,7 +256,7 @@ function ShareDialog({ open, onOpenChange, classId, classTitle }: ShareDialogPro
                             onCheckedChange={() => {}}
                           />
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                            <UserIcon className="h-4 w-4 text-blue-600" />
+                            <UserIcon className="h-4 w-4 text-blue-500" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <Label className="block cursor-pointer truncate text-sm font-medium">
@@ -396,7 +396,7 @@ export function UpcomingClassesCard({
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-100">
-                            <BookOpen className="h-4 w-4 text-blue-600" />
+                            <BookOpen className="h-4 w-4 text-blue-500" />
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{cls.title}</p>
@@ -420,7 +420,7 @@ export function UpcomingClassesCard({
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                          className="border-blue-200 text-blue-500 hover:bg-blue-50"
                           onClick={() => setSelectedClass(cls)}
                         >
                           Open

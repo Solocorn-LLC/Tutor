@@ -346,7 +346,7 @@ export default function TutorReports() {
   return (
     <div className="flex h-full min-h-full flex-col bg-white px-3 pb-0 lg:px-4">
       {/* Hero */}
-      <section className="relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
+      <section className="relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20">
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-center">
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <h1 className="text-xl font-bold text-white">Analytics</h1>
@@ -674,14 +674,14 @@ function ItemAIChat({
                 >
                   {msg.role === 'assistant' && (
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                      <Bot className="h-4 w-4 text-blue-600" />
+                      <Bot className="h-4 w-4 text-blue-500" />
                     </div>
                   )}
                   <div
                     className={cn(
                       'max-w-[85%] rounded-2xl px-4 py-2.5 text-sm shadow-sm',
                       msg.role === 'user'
-                        ? 'rounded-tr-sm bg-blue-600 text-white'
+                        ? 'rounded-tr-sm bg-blue-500 text-white'
                         : 'rounded-tl-sm border border-gray-100 bg-white text-gray-800'
                     )}
                   >
@@ -692,7 +692,7 @@ function ItemAIChat({
               {isLoading && (
                 <div className="flex gap-3">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100">
-                    <Bot className="h-4 w-4 text-blue-600" />
+                    <Bot className="h-4 w-4 text-blue-500" />
                   </div>
                   <div className="rounded-2xl rounded-tl-sm border border-gray-100 bg-white px-4 py-3 shadow-sm">
                     <div className="flex gap-1.5">
@@ -731,7 +731,7 @@ function ItemAIChat({
               className={cn(
                 'mb-1 mr-1 h-9 w-9 shrink-0 rounded-xl transition-all',
                 input.trim()
-                  ? 'bg-blue-600 text-white shadow-md hover:bg-blue-700'
+                  ? 'bg-blue-500 text-white shadow-md hover:bg-blue-600'
                   : 'bg-gray-200 text-white hover:bg-gray-200'
               )}
               onClick={handleSend}
@@ -1038,7 +1038,7 @@ function CoursesAndClassesTab() {
                                   ? 'bg-emerald-500 text-white'
                                   : isEnded
                                     ? 'bg-slate-100 text-slate-500'
-                                    : 'bg-blue-100 text-blue-700'
+                                    : 'bg-blue-100 text-blue-600'
                               )}
                             >
                               {statusLabel}

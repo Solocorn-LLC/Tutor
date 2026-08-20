@@ -52,7 +52,7 @@ export function StudentsNeedingAttentionCard({ students, loading }: Props) {
                 className="flex items-center justify-between rounded-lg border border-slate-200 bg-white/50 p-3 shadow-sm transition-all hover:shadow-md"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 font-semibold text-blue-700">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 font-semibold text-blue-600">
                     {s.initial}
                   </div>
                   <div>
@@ -63,7 +63,7 @@ export function StudentsNeedingAttentionCard({ students, loading }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-blue-200 text-blue-700 hover:bg-blue-50"
+                  className="border-blue-200 text-blue-600 hover:bg-blue-50"
                   onClick={() => router.push(`/tutor/reports/${s.id}`)}
                 >
                   View Details

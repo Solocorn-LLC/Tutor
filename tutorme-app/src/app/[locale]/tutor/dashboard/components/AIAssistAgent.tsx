@@ -142,7 +142,7 @@ Format your response clearly and concisely.`
               >
                 <div
                   className={`max-w-[80%] rounded-lg p-3 text-sm ${
-                    msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-800'
+                    msg.role === 'user' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-800'
                   }`}
                 >
                   <div className="whitespace-pre-wrap">{msg.content}</div>

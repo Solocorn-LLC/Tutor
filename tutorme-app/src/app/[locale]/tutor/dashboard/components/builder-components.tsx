@@ -308,12 +308,12 @@ export function ResourceImportPanel<
           )}
           {!isPdf && !source.mimeType.startsWith('image/') && (
             <div className="flex items-center gap-2 rounded border bg-white p-3">
-              <FileText className="h-5 w-5 text-blue-600" />
+              <FileText className="h-5 w-5 text-blue-500" />
               <a
                 href={source.fileUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-blue-600 underline"
+                className="text-xs text-blue-500 underline"
               >
                 Open {source.fileName}
               </a>
@@ -985,7 +985,7 @@ export function DifficultyBadge({
   if (mode === 'fixed' && fixedDifficulty) {
     const colors = {
       beginner: 'bg-green-100 text-green-700 border-green-400',
-      intermediate: 'bg-blue-100 text-blue-700 border-blue-400',
+      intermediate: 'bg-blue-100 text-blue-600 border-blue-400',
       advanced: 'bg-purple-100 text-purple-700 border-purple-400',
     }
     const icons = {

@@ -493,7 +493,7 @@ export function TestTaskChat({
               onClick={sendTutorMessage}
               disabled={busy || !draft.trim()}
               title="Send"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-600 text-white transition-colors hover:bg-blue-700 disabled:opacity-40"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>

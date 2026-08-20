@@ -501,7 +501,7 @@ export function CommunicationCenter() {
         {/* Bulk Actions Bar */}
         {showMultiSelect && selectedMessages.size > 0 && (
           <div className="mt-2 flex items-center justify-between rounded-lg bg-blue-50 p-2">
-            <span className="text-sm text-blue-700">{selectedMessages.size} selected</span>
+            <span className="text-sm text-blue-600">{selectedMessages.size} selected</span>
             <div className="flex gap-1">
               <Button size="sm" variant="ghost" onClick={() => handleBulkAction('read')}>
                 <Check className="mr-1 h-4 w-4" />
@@ -585,7 +585,7 @@ export function CommunicationCenter() {
                         <AvatarFallback
                           className={cn(
                             'text-xs',
-                            message.type === 'system' ? 'bg-gray-200' : 'bg-blue-100 text-blue-700'
+                            message.type === 'system' ? 'bg-gray-200' : 'bg-blue-100 text-blue-600'
                           )}
                         >
                           {message.studentName
@@ -731,7 +731,7 @@ export function CommunicationCenter() {
                   <div className="flex items-center gap-3">
                     <div className="relative">
                       <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-blue-100 text-blue-700">
+                        <AvatarFallback className="bg-blue-100 text-blue-600">
                           {selectedMessage.studentName
                             .split(' ')
                             .map(n => n[0])
@@ -787,7 +787,7 @@ export function CommunicationCenter() {
                     <p className="whitespace-pre-wrap text-gray-800">{selectedMessage.content}</p>
                     {selectedMessage.translatedContent && (
                       <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-3">
-                        <p className="text-sm text-blue-800">{selectedMessage.translatedContent}</p>
+                        <p className="text-sm text-blue-700">{selectedMessage.translatedContent}</p>
                         <p className="mt-1 text-xs text-blue-500">
                           Translated from {selectedMessage.translatedFrom}
                         </p>
@@ -1098,7 +1098,7 @@ export function CommunicationCenter() {
                         'text-xs',
                         msg.studentName === 'You'
                           ? 'bg-green-100 text-green-700'
-                          : 'bg-blue-100 text-blue-700'
+                          : 'bg-blue-100 text-blue-600'
                       )}
                     >
                       {msg.studentName

@@ -88,7 +88,7 @@ export default function StudentsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                      <Users className="h-6 w-6 text-blue-600" />
+                      <Users className="h-6 w-6 text-blue-500" />
                     </div>
                     <div>
                       <h3 className="font-medium text-gray-900">{student.name}</h3>

@@ -130,7 +130,7 @@ export default function TutorCalendarPage() {
   const getEventColor = (type: string) => {
     switch (type) {
       case 'class':
-        return 'bg-blue-100 text-blue-700 border-blue-200'
+        return 'bg-blue-100 text-blue-600 border-blue-200'
       case 'clinic':
         return 'bg-purple-100 text-purple-700 border-purple-200'
       case 'course_start':
@@ -224,7 +224,7 @@ export default function TutorCalendarPage() {
                     className={`aspect-square overflow-hidden rounded-lg border p-1 ${isToday ? 'border-blue-300 bg-blue-50' : 'hover:bg-gray-50'} ${dayEvents.length > 0 ? 'cursor-pointer' : ''} `}
                   >
                     <div
-                      className={`mb-1 text-sm font-medium ${isToday ? 'text-blue-700' : 'text-gray-700'} `}
+                      className={`mb-1 text-sm font-medium ${isToday ? 'text-blue-600' : 'text-gray-700'} `}
                     >
                       {day}
                     </div>
@@ -324,7 +324,7 @@ export default function TutorCalendarPage() {
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div className="rounded-lg bg-gray-50 p-3 text-center">
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-2xl font-bold text-blue-500">
                     {events.filter(e => e.type === 'class').length}
                   </p>
                   <p className="text-xs text-gray-500">Classes</p>

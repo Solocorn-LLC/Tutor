@@ -12,7 +12,7 @@ import {
   type ComponentProps,
 } from 'react'
 import { useSession } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -1052,6 +1052,7 @@ function StudentFeedbackContent() {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const sessionIdFromQuery = searchParams.get('sessionId')
 
   const [sessions, setSessions] = useState<SessionSummary[]>([])
@@ -1514,6 +1515,43 @@ function StudentFeedbackContent() {
       cancelled = true
     }
   }, [selectedSessionId, getCsrfToken])
+
+  // Load the course's sessions so the student can switch between them from the hero.
+  useEffect(() => {
+    const courseId = sessionContext?.courseId
+    if (!courseId) {
+      setSessions([])
+      setSessionsLoading(false)
+      return
+    }
+    let active = true
+    setSessionsLoading(true)
+    const loadSessions = async () => {
+      try {
+        const res = await fetch(`/api/student/courses/${encodeURIComponent(courseId)}/sessions`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (!active) return
+        if (!res.ok) {
+          setSessions([])
+          return
+        }
+        const data = await res.json()
+        const list = Array.isArray(data.sessions) ? data.sessions : []
+        setSessions(list)
+      } catch (err) {
+        console.error('Failed to load course sessions:', err)
+        setSessions([])
+      } finally {
+        if (active) setSessionsLoading(false)
+      }
+    }
+    loadSessions()
+    return () => {
+      active = false
+    }
+  }, [sessionContext?.courseId])
 
   // Fetch the demo-class video (if any) so students see a "Play class video?" prompt
   // on entry. The prompt is dismissed per session once the student skips or finishes it.
@@ -2342,6 +2380,52 @@ function StudentFeedbackContent() {
                       </span>
                     )}
                   </div>
+                  {sessions.length > 0 && (
+                    <div className="mt-1.5 min-w-0 max-w-[360px]">
+                      <Select
+                        value={selectedSessionId ?? ''}
+                        onValueChange={value => {
+                          if (!value || value === selectedSessionId) return
+                          const params = new URLSearchParams(searchParams.toString())
+                          params.set('sessionId', value)
+                          router.replace(`${pathname}?${params.toString()}`)
+                        }}
+                        disabled={sessionsLoading}
+                      >
+                        <SelectTrigger className="h-7 text-xs">
+                          <SelectValue placeholder="Choose a session" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sessions.map(s => (
+                            <SelectItem key={s.id} value={s.id} className="text-xs">
+                              <div className="flex min-w-0 max-w-[320px] items-center gap-2">
+                                <span className="truncate font-medium">{s.title}</span>
+                                <span className="shrink-0 text-slate-400">
+                                  ·{' '}
+                                  {s.scheduledAt
+                                    ? new Date(s.scheduledAt).toLocaleString('en-US', {
+                                        weekday: 'short',
+                                        month: 'short',
+                                        day: 'numeric',
+                                        hour: 'numeric',
+                                        minute: '2-digit',
+                                      })
+                                    : 'TBD'}
+                                </span>
+                                {s.status === 'active' || s.status === 'live' ? (
+                                  <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                ) : s.status === 'ended' ? (
+                                  <span className="shrink-0 text-[11px] text-slate-400">
+                                    (ended)
+                                  </span>
+                                ) : null}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
                   <p className="truncate text-xs text-slate-500">
                     {[sessionContext.scheduleName, `with ${sessionContext.tutorUsername}`]
                       .filter(Boolean)

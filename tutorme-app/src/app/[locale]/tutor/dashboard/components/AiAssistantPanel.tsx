@@ -337,7 +337,7 @@ export function AiAssistantPanel({
           />
           <Button
             size="icon"
-            className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+            className="absolute bottom-2 right-2 h-8 w-8 rounded-lg bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
             onClick={handleSend}
             disabled={isBusy || !input.trim()}
           >

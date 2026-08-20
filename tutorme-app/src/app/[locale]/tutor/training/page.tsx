@@ -73,7 +73,7 @@ export default function TutorTrainingPage() {
         <div className="mb-6 min-h-[52px] shrink-0">
           <div className="flex h-full w-full items-center justify-between gap-2 rounded-2xl border border-[#D8E0EA] bg-[linear-gradient(to_bottom,_#F8FAFC,_#F1F5F9)] p-1.5 px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_1px_2px_rgba(15,23,42,0.04)]">
             <div className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-[#2563EB]" />
+              <GraduationCap className="h-5 w-5 text-[#3B82F6]" />
               <h1 className="text-sm font-semibold text-[#1F2933]">Training Sessions</h1>
             </div>
             <p className="hidden text-xs text-[#667085] sm:block">

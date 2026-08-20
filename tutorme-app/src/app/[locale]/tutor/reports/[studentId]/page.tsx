@@ -243,7 +243,7 @@ export default function StudentReportPage() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-6">
               <Avatar className="h-24 w-24">
-                <AvatarFallback className="bg-blue-100 text-2xl text-blue-700">
+                <AvatarFallback className="bg-blue-100 text-2xl text-blue-600">
                   {studentInfo.name
                     ?.split(' ')
                     .map(n => n[0])
@@ -272,7 +272,7 @@ export default function StudentReportPage() {
               </div>
               <div className="flex items-center gap-8">
                 <div className="text-center">
-                  <p className="text-3xl font-bold text-blue-600">{overallMetrics.averageScore}%</p>
+                  <p className="text-3xl font-bold text-blue-500">{overallMetrics.averageScore}%</p>
                   <p className="text-sm text-gray-500">Average Score</p>
                 </div>
                 <div className="text-center">
@@ -486,7 +486,7 @@ export default function StudentReportPage() {
                 <div className="space-y-4">
                   {recommendations.map((rec, index) => (
                     <div key={index} className="flex items-start gap-4 rounded-lg bg-blue-50 p-4">
-                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 font-medium text-blue-700">
+                      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 font-medium text-blue-600">
                         {index + 1}
                       </div>
                       <div>
@@ -534,19 +534,19 @@ export default function StudentReportPage() {
                 <CardContent>
                   <ul className="space-y-3">
                     <li className="flex items-center gap-2 text-sm">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-700">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-600">
                         1
                       </span>
                       <span>Complete pending assignments</span>
                     </li>
                     <li className="flex items-center gap-2 text-sm">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-700">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-600">
                         2
                       </span>
                       <span>Schedule class session for weak areas</span>
                     </li>
                     <li className="flex items-center gap-2 text-sm">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-700">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs text-blue-600">
                         3
                       </span>
                       <span>Join study group for peer learning</span>

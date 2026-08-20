@@ -45,12 +45,12 @@ export function SourceDocumentPreview({
     <div className="space-y-2">
       <p className="text-muted-foreground text-xs font-medium">Uploaded document</p>
       <div className="flex items-center gap-2 rounded border bg-white p-3">
-        <FileText className="h-5 w-5 text-blue-600" />
+        <FileText className="h-5 w-5 text-blue-500" />
         <a
           href={proxiedUrl}
           target="_blank"
           rel="noreferrer"
-          className="text-xs text-blue-600 underline"
+          className="text-xs text-blue-500 underline"
         >
           Open {sourceDocument.fileName}
         </a>

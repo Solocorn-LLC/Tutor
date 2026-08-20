@@ -1037,7 +1037,7 @@ export function InteractiveCalendar({
           spacing={embedded ? 'none' : 'default'}
           className="flex h-full items-center justify-center"
         >
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
         </CardContent>
       </Card>
     )
@@ -1158,7 +1158,7 @@ export function InteractiveCalendar({
                           aria-label={`${notifications.length} upcoming sessions in the next 24 hours`}
                           className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                         >
-                          <Badge className="cursor-pointer gap-1 bg-blue-600 text-xs text-white transition-transform hover:scale-105 hover:bg-blue-700">
+                          <Badge className="cursor-pointer gap-1 bg-blue-500 text-xs text-white transition-transform hover:scale-105 hover:bg-blue-600">
                             <Clock className="h-3 w-3" />
                             {notifications.length}
                           </Badge>
@@ -1760,8 +1760,8 @@ export function InteractiveCalendar({
                           <div
                             className={cn(
                               'flex h-10 w-10 items-center justify-center rounded-lg',
-                              connection.provider === 'google' && 'bg-blue-100 text-blue-600',
-                              connection.provider === 'outlook' && 'bg-blue-600 text-white',
+                              connection.provider === 'google' && 'bg-blue-100 text-blue-500',
+                              connection.provider === 'outlook' && 'bg-blue-500 text-white',
                               connection.provider === 'apple' && 'bg-gray-900 text-white'
                             )}
                           >
@@ -2239,7 +2239,7 @@ function MonthView({
                     <div
                       className={cn(
                         'flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium',
-                        isToday(date) && 'bg-blue-600 text-white'
+                        isToday(date) && 'bg-blue-500 text-white'
                       )}
                     >
                       {date.getDate()}
@@ -2320,7 +2320,7 @@ function WeekViewHeader({ currentDate }: { currentDate: Date }) {
             className="flex h-10 items-center justify-center gap-1 border-r border-gray-200 p-1.5 text-center text-xs font-medium text-gray-600 last:border-r-0"
           >
             <span>{day.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-            <span className={cn('text-xs tabular-nums', isToday && 'text-blue-600')}>
+            <span className={cn('text-xs tabular-nums', isToday && 'text-blue-500')}>
               {day.getDate()}
             </span>
           </div>
@@ -2700,7 +2700,7 @@ function AvailabilityView({
           <button
             type="button"
             onClick={() => setShowAllDays(!showAllDays)}
-            className="text-xs text-blue-600 hover:text-blue-800"
+            className="text-xs text-blue-500 hover:text-blue-700"
           >
             {showAllDays ? 'Show active day' : 'View all days'}
           </button>

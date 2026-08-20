@@ -218,7 +218,7 @@ export default function TutorNotificationsPage() {
     return (
       <div className="px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex h-64 items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       </div>
     )

@@ -250,7 +250,7 @@ export function ModernHeroSection({
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-8 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
+      <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] p-8 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
         <div className="animate-pulse space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-2">
@@ -274,7 +274,7 @@ export function ModernHeroSection({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
+    <div className="relative overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] p-5 shadow-[0_14px_45px_rgba(0,0,0,0.12)] ring-1 ring-white/20">
       {/* Content */}
       <div className="relative z-10">
         {/* Header Row */}
