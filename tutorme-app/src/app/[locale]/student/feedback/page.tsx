@@ -2455,15 +2455,23 @@ function StudentFeedbackContent() {
                       }}
                       disabled={sessionsLoading}
                     >
-                      <SelectTrigger className="h-7 text-xs">
+                      <SelectTrigger className="h-7 border-slate-200 bg-white text-xs text-slate-900">
                         <SelectValue placeholder="Choose a session" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent
+                        position="popper"
+                        sideOffset={0}
+                        className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
+                      >
                         {sessions.map(s => (
-                          <SelectItem key={s.id} value={s.id} className="text-xs">
+                          <SelectItem
+                            key={s.id}
+                            value={s.id}
+                            className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
+                          >
                             <div className="flex min-w-0 max-w-[320px] items-center gap-2">
                               <span className="truncate font-medium">{s.title}</span>
-                              <span className="shrink-0 text-slate-400">
+                              <span className="shrink-0 text-slate-500">
                                 ·{' '}
                                 {s.scheduledAt
                                   ? new Date(s.scheduledAt).toLocaleString('en-US', {
@@ -2476,9 +2484,9 @@ function StudentFeedbackContent() {
                                   : 'TBD'}
                               </span>
                               {s.status === 'active' || s.status === 'live' ? (
-                                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                               ) : s.status === 'ended' ? (
-                                <span className="shrink-0 text-[11px] text-slate-400">(ended)</span>
+                                <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
                               ) : null}
                             </div>
                           </SelectItem>
