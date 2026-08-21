@@ -1,9 +1,8 @@
 'use client'
 
-import { useMemo, useState, type RefObject } from 'react'
+import { useState, useMemo, type RefObject } from 'react'
 import { cn } from '@/lib/utils'
 import { Type } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -87,7 +86,6 @@ export function TaskSlideTextToolbar({
   const [customColors, setCustomColors] = useState(DEFAULT_COLORS)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerColor, setPickerColor] = useState(color)
-  const [isOpen, setIsOpen] = useState(false)
 
   const rgb = useMemo(() => hexToRgb(pickerColor), [pickerColor])
   const currentFamilyLabel = FONT_FAMILIES.find(f => f.value === fontFamily)?.label ?? 'Sans'
@@ -135,161 +133,137 @@ export function TaskSlideTextToolbar({
         className
       )}
     >
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ width: 0, opacity: 0, x: 16 }}
-            animate={{ width: 'auto', opacity: 1, x: 0 }}
-            exit={{ width: 0, opacity: 0, x: 16 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="flex items-center gap-2 overflow-hidden"
-          >
-            {/* Font family */}
-            <Select value={fontFamily} onValueChange={handleFontFamilyChange}>
-              <SelectTrigger
-                className="h-8 w-[90px] border-slate-200 bg-white text-xs font-medium text-slate-700"
-                aria-label="Font family"
-              >
-                <SelectValue placeholder={currentFamilyLabel} />
-              </SelectTrigger>
-              <SelectContent>
-                {FONT_FAMILIES.map(f => (
-                  <SelectItem key={f.label} value={f.value} className="text-xs">
-                    {f.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Font family */}
+      <Select value={fontFamily} onValueChange={handleFontFamilyChange}>
+        <SelectTrigger
+          className="h-8 w-[90px] border-slate-200 bg-white text-xs font-medium text-slate-700"
+          aria-label="Font family"
+        >
+          <SelectValue placeholder={currentFamilyLabel} />
+        </SelectTrigger>
+        <SelectContent>
+          {FONT_FAMILIES.map(f => (
+            <SelectItem key={f.label} value={f.value} className="text-xs">
+              {f.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
-            {/* Font size */}
-            <div className="flex h-8 items-center overflow-hidden rounded-md border border-slate-200 bg-white">
-              <input
-                type="number"
-                min={MIN_SIZE}
-                max={MAX_SIZE}
-                value={fontSize}
-                onChange={e => handleFontSizeChange(parseInt(e.target.value, 10) || DEFAULT_SIZE)}
-                className="h-full w-12 border-0 bg-transparent px-1.5 text-center text-xs font-medium text-slate-700 focus:outline-none focus-visible:ring-0"
-                aria-label="Font size"
+      {/* Font size */}
+      <div className="flex h-8 items-center overflow-hidden rounded-md border border-slate-200 bg-white">
+        <input
+          type="number"
+          min={MIN_SIZE}
+          max={MAX_SIZE}
+          value={fontSize}
+          onChange={e => handleFontSizeChange(parseInt(e.target.value, 10) || DEFAULT_SIZE)}
+          className="h-full w-12 border-0 bg-transparent px-1.5 text-center text-xs font-medium text-slate-700 focus:outline-none focus-visible:ring-0"
+          aria-label="Font size"
+        />
+        <div className="flex h-full flex-col border-l border-slate-200">
+          <button
+            type="button"
+            onClick={() => handleFontSizeChange(fontSize + 1)}
+            disabled={fontSize >= MAX_SIZE}
+            className="flex h-4 w-5 items-center justify-center text-[9px] text-slate-600 hover:bg-slate-50 disabled:opacity-30"
+            aria-label="Increase font size"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={() => handleFontSizeChange(fontSize - 1)}
+            disabled={fontSize <= MIN_SIZE}
+            className="flex h-4 w-5 items-center justify-center text-[9px] text-slate-600 hover:bg-slate-50 disabled:opacity-30"
+            aria-label="Decrease font size"
+          >
+            ▼
+          </button>
+        </div>
+      </div>
+
+      {/* Color picker */}
+      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            aria-label="Open text color picker"
+          >
+            <span
+              className="h-4 w-4 rounded border border-slate-200"
+              style={{ backgroundColor: color }}
+            />
+            Color
+          </button>
+        </PopoverTrigger>
+        <PopoverContent variant="panel" align="end" className="w-64 p-4">
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div
+                className="h-10 w-10 rounded-lg border border-slate-200 shadow-sm"
+                style={{ backgroundColor: pickerColor }}
               />
-              <div className="flex h-full flex-col border-l border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => handleFontSizeChange(fontSize + 1)}
-                  disabled={fontSize >= MAX_SIZE}
-                  className="flex h-4 w-5 items-center justify-center text-[9px] text-slate-600 hover:bg-slate-50 disabled:opacity-30"
-                  aria-label="Increase font size"
-                >
-                  ▲
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleFontSizeChange(fontSize - 1)}
-                  disabled={fontSize <= MIN_SIZE}
-                  className="flex h-4 w-5 items-center justify-center text-[9px] text-slate-600 hover:bg-slate-50 disabled:opacity-30"
-                  aria-label="Decrease font size"
-                >
-                  ▼
-                </button>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-900">Color</p>
+                <p className="text-xs text-slate-500">{pickerColor.toUpperCase()}</p>
               </div>
             </div>
 
-            {/* Color picker */}
-            <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-              <PopoverTrigger asChild>
-                <button
-                  type="button"
-                  className="flex h-8 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
-                  aria-label="Open text color picker"
-                >
-                  <span
-                    className="h-4 w-4 rounded border border-slate-200"
-                    style={{ backgroundColor: color }}
-                  />
-                  Color
-                </button>
-              </PopoverTrigger>
-              <PopoverContent variant="panel" align="end" className="w-64 p-4">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="h-10 w-10 rounded-lg border border-slate-200 shadow-sm"
-                      style={{ backgroundColor: pickerColor }}
+            <div className="space-y-2">
+              <Label className="text-xs text-slate-600">RGB</Label>
+              <div className="flex gap-2">
+                {(['r', 'g', 'b'] as const).map(key => (
+                  <div key={key} className="flex-1">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={255}
+                      value={rgb[key]}
+                      onChange={e => handleRgbChange(key, e.target.value)}
+                      className="h-8 px-2 text-center text-xs"
                     />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-900">Color</p>
-                      <p className="text-xs text-slate-500">{pickerColor.toUpperCase()}</p>
-                    </div>
+                    <span className="block text-center text-[10px] uppercase text-slate-400">
+                      {key}
+                    </span>
                   </div>
+                ))}
+              </div>
+            </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-xs text-slate-600">RGB</Label>
-                    <div className="flex gap-2">
-                      {(['r', 'g', 'b'] as const).map(key => (
-                        <div key={key} className="flex-1">
-                          <Input
-                            type="number"
-                            min={0}
-                            max={255}
-                            value={rgb[key]}
-                            onChange={e => handleRgbChange(key, e.target.value)}
-                            className="h-8 px-2 text-center text-xs"
-                          />
-                          <span className="block text-center text-[10px] uppercase text-slate-400">
-                            {key}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            <Button size="sm" variant="outline" className="w-full text-xs" onClick={addColor}>
+              Add color
+            </Button>
 
-                  <Button size="sm" variant="outline" className="w-full text-xs" onClick={addColor}>
-                    Add color
-                  </Button>
+            <div>
+              <Label className="text-xs text-slate-600">Swatches</Label>
+              <div className="mt-2 grid grid-cols-5 gap-2">
+                {customColors.map((swatch, i) => (
+                  <button
+                    key={`${swatch}-${i}`}
+                    type="button"
+                    onClick={() => selectSwatch(swatch)}
+                    className={cn(
+                      'h-7 w-7 rounded-full border shadow-sm transition-transform hover:scale-110',
+                      swatch.toUpperCase() === color.toUpperCase()
+                        ? 'border-slate-900 ring-2 ring-slate-400'
+                        : 'border-slate-200'
+                    )}
+                    style={{ backgroundColor: swatch }}
+                    aria-label={`Select color ${swatch}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
 
-                  <div>
-                    <Label className="text-xs text-slate-600">Swatches</Label>
-                    <div className="mt-2 grid grid-cols-5 gap-2">
-                      {customColors.map((swatch, i) => (
-                        <button
-                          key={`${swatch}-${i}`}
-                          type="button"
-                          onClick={() => selectSwatch(swatch)}
-                          className={cn(
-                            'h-7 w-7 rounded-full border shadow-sm transition-transform hover:scale-110',
-                            swatch.toUpperCase() === color.toUpperCase()
-                              ? 'border-slate-900 ring-2 ring-slate-400'
-                              : 'border-slate-200'
-                          )}
-                          style={{ backgroundColor: swatch }}
-                          aria-label={`Select color ${swatch}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Toggle formatting toolbar */}
-      <button
-        type="button"
-        onClick={() => setIsOpen(prev => !prev)}
-        aria-expanded={isOpen}
-        aria-label={isOpen ? 'Close text editor toolbar' : 'Open text editor toolbar'}
-        title={isOpen ? 'Close formatting toolbar' : 'Open formatting toolbar'}
-        className={cn(
-          'flex h-8 w-8 items-center justify-center rounded-md border bg-white shadow-sm transition-colors',
-          isOpen
-            ? 'border-blue-300 text-blue-500 hover:bg-blue-50'
-            : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-        )}
-      >
+      {/* Static format indicator */}
+      <div className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500">
         <Type className="h-4 w-4" />
-      </button>
+      </div>
     </div>
   )
 }

@@ -40,8 +40,8 @@ export function TimerInput({ value, onChange, disabled }: TimerInputProps) {
   }
 
   return (
-    <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1 shadow-sm">
-      <Timer className="h-3.5 w-3.5 text-slate-400" />
+    <div className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1.5 shadow-sm">
+      <Timer className="h-4 w-4 text-slate-400" />
       <div className="flex items-center gap-1">
         <input
           type="text"
@@ -55,7 +55,7 @@ export function TimerInput({ value, onChange, disabled }: TimerInputProps) {
             commit(h, minutes)
           }}
           onBlur={() => setHourValue(String(hours).padStart(2, '0'))}
-          className="h-6 w-9 rounded border border-slate-200 bg-slate-50 text-center text-xs font-medium text-slate-700 focus:border-blue-400 focus:outline-none disabled:opacity-50"
+          className="h-8 w-9 rounded border border-slate-200 bg-slate-50 text-center text-xs font-medium text-slate-700 focus:border-blue-400 focus:outline-none disabled:opacity-50"
         />
         <span className="text-xs text-slate-400">:</span>
         <input
@@ -70,7 +70,7 @@ export function TimerInput({ value, onChange, disabled }: TimerInputProps) {
             commit(hours, m)
           }}
           onBlur={() => setMinuteValue(String(minutes).padStart(2, '0'))}
-          className="h-6 w-9 rounded border border-slate-200 bg-slate-50 text-center text-xs font-medium text-slate-700 focus:border-blue-400 focus:outline-none disabled:opacity-50"
+          className="h-8 w-9 rounded border border-slate-200 bg-slate-50 text-center text-xs font-medium text-slate-700 focus:border-blue-400 focus:outline-none disabled:opacity-50"
         />
       </div>
       <span className="text-[11px] text-slate-400">HH:MM</span>
