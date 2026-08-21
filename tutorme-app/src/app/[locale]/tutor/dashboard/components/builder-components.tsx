@@ -862,10 +862,7 @@ export function DroppableAssessmentZone({
   const id = `drop-assessment-${nodeId}::${lessonId}`
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(className, isOver && 'bg-purple-100 ring-1 ring-purple-400')}
-    >
+    <div ref={setNodeRef} className={cn(className, isOver && 'bg-pink-100 ring-1 ring-pink-400')}>
       {children}
     </div>
   )

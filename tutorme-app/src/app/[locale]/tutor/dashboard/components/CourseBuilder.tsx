@@ -11897,14 +11897,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             <DroppableAssessmentZone
                                               nodeId={node.id}
                                               lessonId={primaryLesson.id}
-                                              className="flex items-center justify-between gap-3 rounded-2xl border border-[#E2D8FF] bg-[#F3EEFF] px-3 py-1.5"
+                                              className="flex items-center justify-between gap-3 rounded-2xl border border-[#FBCFE8] bg-[#FDF2F8] px-3 py-1.5"
                                             >
                                               <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#E7DEFF] text-[#6D59D8]">
+                                                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#FCE7F3] text-[#EC4899]">
                                                   <FileText className="h-4 w-4" />
                                                 </div>
                                                 <div className="min-w-0">
-                                                  <div className="text-sm font-semibold text-[#6D59D8]">
+                                                  <div className="text-sm font-semibold text-[#EC4899]">
                                                     Assessments
                                                   </div>
                                                   <div className="text-[11px] text-[#667085]">
@@ -11920,7 +11920,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   size="sm"
                                                   disabled={mainTab !== 'builder' || !canEdit}
                                                   className={cn(
-                                                    'h-6 w-6 rounded-md bg-[#6D59D8]/10 p-0 text-[#6D59D8] hover:bg-[#6D59D8]/20',
+                                                    'h-6 w-6 rounded-md bg-[#EC4899]/10 p-0 text-[#EC4899] hover:bg-[#EC4899]/20',
                                                     (mainTab !== 'builder' || !canEdit) &&
                                                       'cursor-not-allowed opacity-40'
                                                   )}
@@ -11933,7 +11933,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 </Button>
                                                 <button
                                                   type="button"
-                                                  className="flex h-6 w-6 items-center justify-center rounded-md text-[#6D59D8] hover:bg-[#6D59D8]/10"
+                                                  className="flex h-6 w-6 items-center justify-center rounded-md text-[#EC4899] hover:bg-[#EC4899]/10"
                                                   onClick={e => {
                                                     e.stopPropagation()
                                                     toggleSection(node.id, 'assessment')
@@ -11975,7 +11975,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           selectedItem?.id === hw.id) ||
                                                           (loadedAssessmentId === hw.id &&
                                                             deployedTaskIds.has(hw.id))
-                                                          ? 'border-[#8B6DFF] bg-[#F3EEFF] ring-1 ring-[#8B6DFF]'
+                                                          ? 'border-[#F472B6] bg-[#FDF2F8] ring-1 ring-[#F472B6]'
                                                           : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                         mainTab === 'test-pci' &&
                                                           !(
@@ -12077,9 +12077,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                         }
                                                       }}
                                                     >
-                                                      <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#8B6DFF]" />
+                                                      <div className="absolute bottom-0 left-0 top-0 w-1.5 bg-[#F472B6]" />
                                                       <DragHandle className="shrink-0" />
-                                                      <FileQuestion className="h-3 w-3 shrink-0 text-[#6D59D8]" />
+                                                      <FileQuestion className="h-3 w-3 shrink-0 text-[#EC4899]" />
                                                       {renamingItemId === hw.id ? (
                                                         <Input
                                                           autoFocus
