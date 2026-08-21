@@ -275,6 +275,8 @@ async function fetchYoutubeOEmbed(url: string): Promise<LinkPreviewMetadata> {
     title: data.title || (videoId ? 'YouTube video' : 'YouTube'),
     description: data.author_name || undefined,
     imageUrl: data.thumbnail_url || (videoId ? getYoutubeThumbnailUrl(videoId) : undefined),
+    imageWidth: data.thumbnail_width,
+    imageHeight: data.thumbnail_height,
     faviconUrl: undefined,
     siteName: data.provider_name || 'YouTube',
     contentType: response.headers.get('content-type') || 'application/json',
