@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
+
 import { ensurePushSubscription, isPushSupported } from '@/lib/push/client'
 import { categorizeLobbySessions } from '@/lib/classroom/lobby-sessions'
 
@@ -284,7 +284,8 @@ export function ClassroomLobby({
                 </SelectTrigger>
                 <SelectContent
                   position="popper"
-                  className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-700 !bg-slate-800 text-white"
+                  sideOffset={0}
+                  className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-700 !bg-slate-800 bg-none text-white"
                 >
                   {sessions.map(s => (
                     <SelectItem key={s.id} value={s.id}>

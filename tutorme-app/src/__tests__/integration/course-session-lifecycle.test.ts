@@ -263,6 +263,13 @@ describe('course session lifecycle guards', () => {
       .set({ tutorLeftAt: new Date() })
       .where(eq(liveSession.sessionId, COURSE_SESSION))
 
+    const [courseSessionLeftRow] = await drizzleDb
+      .select({ tutorLeftAt: liveSession.tutorLeftAt })
+      .from(liveSession)
+      .where(eq(liveSession.sessionId, COURSE_SESSION))
+      .limit(1)
+    expect(courseSessionLeftRow?.tutorLeftAt).toBeTruthy()
+
     await drizzleDb.insert(liveSession).values([
       {
         sessionId: leaveSessionId,
