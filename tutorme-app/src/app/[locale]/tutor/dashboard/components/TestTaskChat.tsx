@@ -23,6 +23,7 @@ import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import type { LinkPreviewItem } from '@/lib/link-preview/types'
+import type { AudioPlayerTrack } from '@/components/task/AudioPlayer'
 
 export interface TestTaskChatMsg {
   role: 'student' | 'ai' | 'tutor'
@@ -56,6 +57,7 @@ export function TestTaskChat({
   htmlContent,
   linkPreviews,
   generatedFromText,
+  audioTrack,
   initialState,
   onPersist,
   onBroadcast,
@@ -86,6 +88,8 @@ export function TestTaskChat({
   linkPreviews?: LinkPreviewItem[]
   /** True when the backing document was auto-generated from typed text. */
   generatedFromText?: boolean
+  /** Optional audio track played alongside the task. */
+  audioTrack?: AudioPlayerTrack | null
   initialState?: TestTaskChatState
   onPersist?: (state: TestTaskChatState) => void
   /** Called when a new message is sent from this tab so the parent can relay it to other tabs. */
@@ -457,6 +461,7 @@ export function TestTaskChat({
                 htmlContent={htmlContent}
                 linkPreviews={linkPreviews}
                 generatedFromText={generatedFromText}
+                audioTrack={audioTrack}
                 alwaysOpen
                 accent={isClassroom ? 'orange' : 'violet'}
               />

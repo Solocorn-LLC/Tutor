@@ -254,6 +254,7 @@ import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 import type {
+  AudioTrack,
   Video,
   Image,
   Document,
@@ -281,6 +282,7 @@ import type {
 } from './builder-types'
 
 export type {
+  AudioTrack,
   Video,
   Image,
   Document,
@@ -331,6 +333,7 @@ import { TaskSlideTextEditor, type TaskSlideTextEditorRef } from './TaskSlideTex
 import { TaskSlideTextToolbar } from './TaskSlideTextToolbar'
 import { SlidePageMenu } from './SlidePageMenu'
 import { TimerInput } from './TimerInput'
+import { AudioPlayer, type AudioPlayerTrack } from '@/components/task/AudioPlayer'
 import { useLinkPreview } from '@/hooks/use-link-preview'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { detectUrls, isValidPreviewUrl } from '@/lib/link-preview/detect-urls'
@@ -526,6 +529,7 @@ import {
   RefreshCw,
   Type,
   Bot,
+  Headphones,
 } from 'lucide-react'
 import { ChevronLeft as ChevronLeftIcon } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -1319,11 +1323,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         content: string
         pci: string
         sourceDocument?: any
+        /** Optional audio track played alongside this extension slide. */
+        audioTrack?: AudioTrack | null
         /** Full persisted PCI assistant conversation for this extension. */
         pciThread?: PciThread
       }[]
       activeExtensionId: string | null
       linkPreviews: LinkPreviewItem[]
+      /** Optional audio track played alongside the task slide. */
+      audioTrack?: AudioTrack | null
     }>({
       title: '',
       taskContent: '', // Base task content (never overwritten by extensions)
@@ -1333,6 +1341,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       extensions: [],
       activeExtensionId: null, // null = viewing task, string = viewing extension
       linkPreviews: [],
+      audioTrack: null,
     })
 
     const [assessmentBuilder, setAssessmentBuilder] = useState<{
@@ -2329,6 +2338,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         extensions: [],
         activeExtensionId: null,
         linkPreviews: [],
+        audioTrack: null,
       })
       setAssessmentBuilder({
         title: '',
@@ -2794,6 +2804,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const taskSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
     const assessmentSlideEditorRef = useRef<TaskSlideTextEditorRef | null>(null)
+    const taskAudioInputRef = useRef<HTMLInputElement | null>(null)
     const [slideFontFamilyMap, setSlideFontFamilyMap] = useState<Record<string, string>>({})
     const [slideFontSizeMap, setSlideFontSizeMap] = useState<Record<string, number>>({})
     const [slideTextColorMap, setSlideTextColorMap] = useState<Record<string, string>>({})
@@ -3276,6 +3287,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           })),
           activeExtensionId,
           linkPreviews: task.linkPreviews || [],
+          audioTrack: task.audioTrack || null,
         })
         setTaskDmiItems(task.dmiItems || [])
         // Rehydrate the DMI source kind so the PCI-chat study-material variant
@@ -3963,6 +3975,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.extensions,
       taskBuilder.sourceDocument,
       taskBuilder.linkPreviews,
+      taskBuilder.audioTrack,
       taskDmiItems,
       taskDmiVersions,
       dmiDocumentKind.task,
@@ -4380,8 +4393,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const collectTaskFileKeys = useCallback((task: Task): string[] => {
       const keys: string[] = []
       if (task.sourceDocument?.fileKey) keys.push(task.sourceDocument.fileKey)
+      if (task.audioTrack?.fileKey) keys.push(task.audioTrack.fileKey)
       for (const ext of task.extensions || []) {
         if (ext.sourceDocument?.fileKey) keys.push(ext.sourceDocument.fileKey)
+        if (ext.audioTrack?.fileKey) keys.push(ext.audioTrack.fileKey)
       }
       return keys
     }, [])
@@ -4568,6 +4583,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             extensions: [],
             activeExtensionId: null,
             linkPreviews: [],
+            audioTrack: null,
           })
         } else {
           if (loadedAssessmentId === item.id) {
@@ -6128,6 +6144,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         extensions: [],
         activeExtensionId: null,
         linkPreviews: [],
+        audioTrack: null,
       })
       toast.success('New task created')
       return newTask
@@ -7193,6 +7210,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         extensions: [],
         activeExtensionId: null,
         linkPreviews: [],
+        audioTrack: null,
       })
       setTaskDmiItems([])
       setTaskDmiVersions([])
@@ -7714,6 +7732,88 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       setCourseBuilderNodes(newCourseBuilderNodes)
       toast.success(`${uploadedDocs.length} document(s) uploaded`)
     }
+
+    /**
+     * Upload an audio file for the currently loaded task (base task or extension).
+     * Replaces any existing audio track for the active slide after best-effort cleanup.
+     */
+    const handleTaskAudioUpload = useCallback(
+      async (files: FileList | null) => {
+        if (!files || files.length === 0) return
+        const file = files[0]
+        const uploadForm = new FormData()
+        uploadForm.append('file', file)
+
+        try {
+          const uploadRes = await fetchWithCsrf('/api/uploads/audio', {
+            method: 'POST',
+            body: uploadForm,
+          })
+          if (!uploadRes.ok) {
+            const data = await uploadRes.json().catch(() => ({}))
+            toast.error(data.error || `Failed to upload ${file.name}`)
+            return
+          }
+          const uploadData = await uploadRes.json()
+          const url = uploadData.url || ''
+          const key = uploadData.key || ''
+          if (!url || !key) {
+            toast.error(`Failed to get URL for ${file.name}`)
+            return
+          }
+
+          const newTrack: AudioTrack = {
+            fileName: file.name,
+            mimeType: uploadData.mimeType || file.type || 'audio/mpeg',
+            fileUrl: url,
+            fileKey: key,
+            uploadedAt: new Date().toISOString(),
+          }
+
+          setTaskBuilder(prev => {
+            const oldTrack = prev.activeExtensionId
+              ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.audioTrack
+              : prev.audioTrack
+            if (oldTrack?.fileKey) {
+              cleanupGcsFiles([oldTrack.fileKey])
+            }
+            if (prev.activeExtensionId) {
+              return {
+                ...prev,
+                extensions: prev.extensions.map(ext =>
+                  ext.id === prev.activeExtensionId ? { ...ext, audioTrack: newTrack } : ext
+                ),
+              }
+            }
+            return { ...prev, audioTrack: newTrack }
+          })
+          toast.success('Audio track uploaded')
+        } catch {
+          toast.error(`Upload failed for ${file.name}`)
+        }
+      },
+      [cleanupGcsFiles]
+    )
+
+    const handleRemoveTaskAudio = useCallback(() => {
+      setTaskBuilder(prev => {
+        const oldTrack = prev.activeExtensionId
+          ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.audioTrack
+          : prev.audioTrack
+        if (oldTrack?.fileKey) {
+          cleanupGcsFiles([oldTrack.fileKey])
+        }
+        if (prev.activeExtensionId) {
+          return {
+            ...prev,
+            extensions: prev.extensions.map(ext =>
+              ext.id === prev.activeExtensionId ? { ...ext, audioTrack: null } : ext
+            ),
+          }
+        }
+        return { ...prev, audioTrack: null }
+      })
+    }, [cleanupGcsFiles])
 
     const handleAssetsMediaUpload = async (files: FileList | null, type: 'video' | 'image') => {
       const { nodeId, lessonId } = ensureFirstLessonContext()
@@ -13704,6 +13804,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       ? previewExt.sourceDocument?.generatedFromText
                                                       : currentTaskDocument?.generatedFromText
                                                   }
+                                                  audioTrack={
+                                                    previewExt
+                                                      ? previewExt.audioTrack
+                                                      : taskBuilder.audioTrack
+                                                  }
                                                   initialState={
                                                     isClassroomTab
                                                       ? undefined
@@ -13993,6 +14098,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                       : undefined,
                                                   pciSpec: localLiveChatTask.pciSpec,
                                                   sourceDocument: localLiveChatTask.sourceDocument,
+                                                  audioTrack: localLiveChatTask.audioTrack,
                                                 }
                                               : null
                                           if (
@@ -14021,6 +14127,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   htmlContent={liveChatTask.htmlContent}
                                                   linkPreviews={liveChatTask.linkPreviews}
                                                   generatedFromText={liveChatTask.generatedFromText}
+                                                  audioTrack={liveChatTask.audioTrack}
                                                   incomingMessages={liveClassroomMessages[taskId]}
                                                   tutorAvatarUrl={tutorAvatarUrl}
                                                   onBroadcast={msg => {
@@ -14928,6 +15035,60 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                               </button>
                                             )}
                                           </div>
+                                        </div>
+                                        <div className="mb-2 flex items-center justify-between">
+                                          {(() => {
+                                            const activeAudioTrack = taskBuilder.activeExtensionId
+                                              ? taskBuilder.extensions.find(
+                                                  e => e.id === taskBuilder.activeExtensionId
+                                                )?.audioTrack
+                                              : taskBuilder.audioTrack
+                                            return activeAudioTrack ? (
+                                              <div className="flex flex-1 items-center gap-2">
+                                                <AudioPlayer
+                                                  track={activeAudioTrack}
+                                                  className="max-w-md flex-1"
+                                                />
+                                                {canEdit && (
+                                                  <button
+                                                    type="button"
+                                                    disabled={!canEdit}
+                                                    onClick={handleRemoveTaskAudio}
+                                                    className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+                                                  >
+                                                    Remove
+                                                  </button>
+                                                )}
+                                              </div>
+                                            ) : (
+                                              <div className="flex flex-1 items-center gap-2">
+                                                <input
+                                                  ref={taskAudioInputRef}
+                                                  type="file"
+                                                  accept="audio/*"
+                                                  className="hidden"
+                                                  onChange={e => {
+                                                    handleTaskAudioUpload(e.target.files)
+                                                    if (taskAudioInputRef.current) {
+                                                      taskAudioInputRef.current.value = ''
+                                                    }
+                                                  }}
+                                                />
+                                                <button
+                                                  type="button"
+                                                  disabled={!canEdit}
+                                                  onClick={() => taskAudioInputRef.current?.click()}
+                                                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                                >
+                                                  <Headphones className="h-4 w-4" />
+                                                  Upload audio
+                                                </button>
+                                                <span className="text-xs text-slate-400">
+                                                  Optional audio track for this slide
+                                                </span>
+                                              </div>
+                                            )
+                                          })()}
                                         </div>
                                         <div
                                           className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"

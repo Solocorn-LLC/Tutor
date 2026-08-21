@@ -51,6 +51,15 @@ export interface ImportedLearningResource {
   pageNumber?: number
 }
 
+export interface AudioTrack {
+  fileName: string
+  mimeType: string
+  fileUrl: string
+  fileKey: string
+  durationSeconds?: number
+  uploadedAt: string
+}
+
 export interface VisibleDocumentPayload {
   id: string
   title: string
@@ -178,9 +187,13 @@ export interface Task extends WithDifficultyVariants {
     content: string
     pci: string
     sourceDocument?: ImportedLearningResource
+    /** Audio track played alongside the extension slide. */
+    audioTrack?: AudioTrack | null
     /** Full persisted PCI assistant conversation for this extension. */
     pciThread?: PciThread
   }>
+  /** Audio track played alongside the task slide. */
+  audioTrack?: AudioTrack | null
   dmiItems?: DMIQuestion[]
   dmiVersions?: DMIVersion[]
   activeDmiVersionId?: string

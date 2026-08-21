@@ -151,6 +151,15 @@ export interface LiveTask {
   completedBy?: string[]
   /** Optional HH:MM time limit for the task/assessment. */
   timeLimit?: string
+  /** Optional audio track played alongside the task slide. */
+  audioTrack?: {
+    fileName: string
+    mimeType: string
+    fileUrl: string
+    fileKey: string
+    durationSeconds?: number
+    uploadedAt: string
+  }
 }
 
 export interface TaskChatMessagePayload {

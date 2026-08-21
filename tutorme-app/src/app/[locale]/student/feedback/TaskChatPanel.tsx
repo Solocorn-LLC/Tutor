@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Send, Loader2, CheckCircle2, Sparkles } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { TaskDocumentCard, type TaskDocumentSource } from '@/components/task/TaskDocumentCard'
+import { AudioPlayer, type AudioPlayerTrack } from '@/components/task/AudioPlayer'
 import { toast } from 'sonner'
 import type { LinkPreviewItem } from '@/lib/link-preview/types'
 
@@ -30,6 +31,7 @@ export function TaskChatPanel({
   htmlContent,
   linkPreviews,
   generatedFromText,
+  audioTrack,
   onCompleted,
   previewMode = false,
   onInteract,
@@ -45,6 +47,8 @@ export function TaskChatPanel({
   linkPreviews?: LinkPreviewItem[]
   /** True when the backing document was auto-generated from typed text. */
   generatedFromText?: boolean
+  /** Optional audio track played alongside the task. */
+  audioTrack?: AudioPlayerTrack | null
   /** Fired after the task is completed, with the student's answers — the page
    *  uses it to broadcast the live "completed" tick to the tutor. */
   onCompleted?: (answers: string[]) => void
@@ -217,6 +221,7 @@ export function TaskChatPanel({
         htmlContent={htmlContent}
         linkPreviews={linkPreviews}
         generatedFromText={generatedFromText}
+        audioTrack={audioTrack}
         autoOpen={loaded && !hasSentMessage}
       />
 

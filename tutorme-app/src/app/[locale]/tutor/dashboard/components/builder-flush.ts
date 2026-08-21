@@ -1,4 +1,5 @@
 import type {
+  AudioTrack,
   CourseBuilderNode,
   DMIQuestion,
   DMIVersion,
@@ -30,6 +31,7 @@ export function buildTaskFlushedNodes(
     extensions: NonNullable<Task['extensions']>
     sourceDocument?: ImportedLearningResource
     linkPreviews?: import('@/lib/link-preview/types').LinkPreviewItem[]
+    audioTrack?: AudioTrack | null
   },
   taskDmiItems: DMIQuestion[],
   taskDmiVersions: DMIVersion[],
@@ -64,7 +66,8 @@ export function buildTaskFlushedNodes(
           task.dmiVersions === taskDmiVersions &&
           task.activeDmiVersionId === nextActiveDmiVersionId &&
           task.sourceDocument === taskBuilder.sourceDocument &&
-          task.linkPreviews === taskBuilder.linkPreviews
+          task.linkPreviews === taskBuilder.linkPreviews &&
+          task.audioTrack === taskBuilder.audioTrack
         ) {
           return task
         }
@@ -86,6 +89,7 @@ export function buildTaskFlushedNodes(
           activeDmiVersionId: nextActiveDmiVersionId,
           sourceDocument: taskBuilder.sourceDocument,
           linkPreviews: taskBuilder.linkPreviews,
+          audioTrack: taskBuilder.audioTrack,
         }
       }),
     })),
