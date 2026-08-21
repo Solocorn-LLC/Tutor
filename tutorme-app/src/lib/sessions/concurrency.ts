@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession } from '@/lib/db/schema'
 
@@ -7,6 +7,9 @@ const ACTIVE_STATUSES: string[] = ['active', 'live', 'preparing', 'paused']
 /**
  * Returns the first active LiveSession for a tutor, after auto-ending any that
  * have passed their scheduled end time (scheduledAt + durationMinutes).
+ * Sessions the tutor explicitly left (tutorLeftAt is set) are excluded both at
+ * the query level and by the lifecycle check, so they do not block entering
+ * another session or re-entering the same one.
  *
  * @param tutorId - tutor to inspect
  * @param opts.excludeSessionId - optional session that is allowed to remain active
@@ -21,7 +24,11 @@ export async function ensureSingleActiveSession(
     .select()
     .from(liveSession)
     .where(
-      and(eq(liveSession.tutorId, tutorId), inArray(liveSession.status, ACTIVE_STATUSES as any))
+      and(
+        eq(liveSession.tutorId, tutorId),
+        inArray(liveSession.status, ACTIVE_STATUSES as any),
+        isNull(liveSession.tutorLeftAt)
+      )
     )
 
   const now = Date.now()
@@ -51,12 +58,6 @@ export async function ensureSingleActiveSession(
       } catch (err) {
         console.error('[ensureSingleActiveSession] failed to auto-end session:', err)
       }
-    }
-
-    // A session the tutor explicitly left is no longer treated as their active
-    // session, so they are free to enter another one or re-enter this one.
-    if (row.tutorLeftAt) {
-      continue
     }
 
     if (!remaining) {
