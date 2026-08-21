@@ -14889,10 +14889,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div className="mb-2 flex items-center justify-between">
-                                          <span className="text-xs font-medium text-slate-500">
-                                            Time limit
-                                          </span>
+                                          <TaskSlideTextToolbar
+                                            editorRef={taskSlideEditorRef}
+                                            fontFamily={slideFontFamily}
+                                            fontSize={slideFontSize}
+                                            color={slideTextColor}
+                                            onFontFamilyChange={setSlideFontFamily}
+                                            onFontSizeChange={setSlideFontSize}
+                                            onColorChange={setSlideTextColor}
+                                          />
                                           <div className="flex items-center gap-2">
+                                            <span className="text-xs font-medium text-slate-500">
+                                              Task Timer
+                                            </span>
                                             <TimerInput
                                               value={taskBuilder.timeLimit}
                                               onChange={value =>
@@ -15053,16 +15062,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   />
                                                 ))}
                                               </div>
-                                              <TaskSlideTextToolbar
-                                                editorRef={taskSlideEditorRef}
-                                                fontFamily={slideFontFamily}
-                                                fontSize={slideFontSize}
-                                                color={slideTextColor}
-                                                onFontFamilyChange={setSlideFontFamily}
-                                                onFontSizeChange={setSlideFontSize}
-                                                onColorChange={setSlideTextColor}
-                                                className="absolute bottom-2 right-2"
-                                              />
                                             </div>
                                           ) : (
                                             <div className="flex h-full w-full flex-row">
@@ -15457,10 +15456,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
                                         <div className="mb-2 flex items-center justify-between">
-                                          <span className="text-xs font-medium text-slate-500">
-                                            Time limit
-                                          </span>
+                                          <TaskSlideTextToolbar
+                                            editorRef={assessmentSlideEditorRef}
+                                            fontFamily={slideFontFamily}
+                                            fontSize={slideFontSize}
+                                            color={slideTextColor}
+                                            onFontFamilyChange={setSlideFontFamily}
+                                            onFontSizeChange={setSlideFontSize}
+                                            onColorChange={setSlideTextColor}
+                                          />
                                           <div className="flex items-center gap-2">
+                                            <span className="text-xs font-medium text-slate-500">
+                                              Task Timer
+                                            </span>
                                             <TimerInput
                                               value={assessmentBuilder.timeLimit}
                                               onChange={value =>
@@ -15580,16 +15588,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                     />
                                                   ))}
                                                 </div>
-                                                <TaskSlideTextToolbar
-                                                  editorRef={assessmentSlideEditorRef}
-                                                  fontFamily={slideFontFamily}
-                                                  fontSize={slideFontSize}
-                                                  color={slideTextColor}
-                                                  onFontFamilyChange={setSlideFontFamily}
-                                                  onFontSizeChange={setSlideFontSize}
-                                                  onColorChange={setSlideTextColor}
-                                                  className="absolute bottom-2 right-2"
-                                                />
                                               </div>
                                             </div>
                                           )}
