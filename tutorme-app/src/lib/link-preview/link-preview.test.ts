@@ -77,6 +77,30 @@ describe('removeStandaloneUrlsFromHtml', () => {
     )
   })
 
+  it('removes URLs that are not surrounded by whitespace', () => {
+    const html = '<div>Hellohttps://example.comworld</div>'
+    expect(removeStandaloneUrlsFromHtml(html, ['https://example.com'])).toBe(
+      '<div>Helloworld</div>'
+    )
+  })
+
+  it('removes a URL at the start of a text node', () => {
+    const html = '<div>https://example.com world</div>'
+    expect(removeStandaloneUrlsFromHtml(html, ['https://example.com'])).toBe('<div>world</div>')
+  })
+
+  it('removes a URL at the end of a text node', () => {
+    const html = '<div>Hello https://example.com</div>'
+    expect(removeStandaloneUrlsFromHtml(html, ['https://example.com'])).toBe('<div>Hello</div>')
+  })
+
+  it('collapses whitespace around removed URLs', () => {
+    const html = '<div>Hello  https://example.com  world</div>'
+    expect(removeStandaloneUrlsFromHtml(html, ['https://example.com'])).toBe(
+      '<div>Hello world</div>'
+    )
+  })
+
   it('does not remove URLs inside attributes', () => {
     const html = '<a href="https://example.com">link</a>'
     expect(removeStandaloneUrlsFromHtml(html, ['https://example.com'])).toBe(html)
@@ -86,6 +110,13 @@ describe('removeStandaloneUrlsFromHtml', () => {
     const html = '<div>https://a.com</div><div>https://b.com</div>'
     expect(removeStandaloneUrlsFromHtml(html, ['https://a.com', 'https://b.com'])).toBe(
       '<div></div><div></div>'
+    )
+  })
+
+  it('does not remove a URL that is a substring of a longer word', () => {
+    const html = '<div>visitprefixhttps://example.comsuffixnow</div>'
+    expect(removeStandaloneUrlsFromHtml(html, ['https://example.com'])).toBe(
+      '<div>visitprefixsuffixnow</div>'
     )
   })
 })
