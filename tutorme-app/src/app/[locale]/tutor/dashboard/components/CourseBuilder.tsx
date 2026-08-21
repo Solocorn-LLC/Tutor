@@ -4459,15 +4459,21 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const findAssessmentById = useCallback(
       (id: string): Assessment | null => {
-        for (const mod of nodes) {
-          for (const lesson of mod.lessons) {
-            const assessment = lesson.homework?.find(h => h.id === id)
-            if (assessment) return assessment
+        const search = (list: CourseBuilderNode[]) => {
+          for (const mod of list) {
+            for (const lesson of mod.lessons) {
+              const assessment = lesson.homework?.find(h => h.id === id)
+              if (assessment) return assessment
+            }
           }
+          return null
         }
-        return null
+        // In live mode, `nodes` reflects liveNodes. A tutor may upload an
+        // assessment directly in the classroom before auto-sync has promoted it
+        // to liveNodes, so fall back to builderNodes when missing.
+        return search(nodes) || search(builderNodes)
       },
-      [nodes]
+      [nodes, builderNodes]
     )
 
     // The DMI currently loaded in the live Classroom — preferred from the
