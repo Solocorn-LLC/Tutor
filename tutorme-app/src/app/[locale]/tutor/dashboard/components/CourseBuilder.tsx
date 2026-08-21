@@ -3565,6 +3565,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         title: meta.title,
         description: meta.description,
         imageUrl: meta.imageUrl,
+        imageWidth: meta.imageWidth,
+        imageHeight: meta.imageHeight,
         faviconUrl: meta.faviconUrl,
         siteName: meta.siteName,
         contentType: meta.contentType,
@@ -3579,6 +3581,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         a.title !== b.title ||
         a.description !== b.description ||
         a.imageUrl !== b.imageUrl ||
+        a.imageWidth !== b.imageWidth ||
+        a.imageHeight !== b.imageHeight ||
         a.faviconUrl !== b.faviconUrl ||
         a.siteName !== b.siteName ||
         a.contentType !== b.contentType ||
@@ -3633,6 +3637,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             title: meta.title,
             description: meta.description,
             imageUrl: meta.imageUrl,
+            imageWidth: meta.imageWidth,
+            imageHeight: meta.imageHeight,
             faviconUrl: meta.faviconUrl,
             siteName: meta.siteName,
             contentType: meta.contentType,
@@ -3714,6 +3720,8 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             title: meta.title,
             description: meta.description,
             imageUrl: meta.imageUrl,
+            imageWidth: meta.imageWidth,
+            imageHeight: meta.imageHeight,
             faviconUrl: meta.faviconUrl,
             siteName: meta.siteName,
             contentType: meta.contentType,

@@ -109,7 +109,15 @@ export function LinkPreviewCard({
 
   const title = item.title || item.siteName || item.url
   const hasImage = Boolean(item.imageUrl) && !item.isFile
-  const imageHeight = hasImage ? item.height * 0.45 : 0
+  const imageAspectRatio =
+    hasImage &&
+    typeof item.imageWidth === 'number' &&
+    typeof item.imageHeight === 'number' &&
+    item.imageWidth > 0 &&
+    item.imageHeight > 0
+      ? item.imageWidth / item.imageHeight
+      : 16 / 9
+  const imageHeight = hasImage ? item.width / imageAspectRatio : 0
 
   return (
     <div
@@ -122,7 +130,8 @@ export function LinkPreviewCard({
         left: item.x,
         top: item.y,
         width: item.width,
-        height: item.height,
+        height: hasImage && imageHeight > 0 ? 'auto' : item.height,
+        minHeight: item.height,
       }}
     >
       {/* Header / drag handle */}
@@ -197,7 +206,7 @@ export function LinkPreviewCard({
             <img
               src={item.imageUrl}
               alt={title}
-              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
+              className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
               onError={e => {
                 ;(e.target as HTMLImageElement).style.display = 'none'
               }}

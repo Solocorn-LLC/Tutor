@@ -5,6 +5,8 @@ export const LinkPreviewMetadataSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   imageUrl: z.string().url().optional(),
+  imageWidth: z.number().optional(),
+  imageHeight: z.number().optional(),
   faviconUrl: z.string().url().optional(),
   siteName: z.string().optional(),
   contentType: z.string().optional(),
