@@ -285,16 +285,20 @@ export function ClassroomLobby({
                 <SelectContent
                   position="popper"
                   sideOffset={0}
-                  className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-700 !bg-slate-800 bg-none text-white"
+                  className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
                 >
                   {sessions.map(s => (
-                    <SelectItem key={s.id} value={s.id}>
-                      <span className="truncate text-white">{s.title}</span>
-                      <span className="ml-2 shrink-0 text-white/70">· {fmt(s.scheduledAt)}</span>
+                    <SelectItem
+                      key={s.id}
+                      value={s.id}
+                      className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
+                    >
+                      <span className="truncate font-medium text-slate-900">{s.title}</span>
+                      <span className="ml-2 shrink-0 text-slate-500">· {fmt(s.scheduledAt)}</span>
                       {s.status === 'active' || s.status === 'live' ? (
-                        <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       ) : s.status === 'ended' ? (
-                        <span className="ml-2 shrink-0 text-[11px] text-white/70">(ended)</span>
+                        <span className="ml-2 shrink-0 text-[11px] text-slate-500">(ended)</span>
                       ) : null}
                     </SelectItem>
                   ))}
