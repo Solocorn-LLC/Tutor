@@ -3761,6 +3761,49 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.activePageIndex,
     ])
 
+    // Defensive cleanup: if a URL already has a link preview, make sure the URL
+    // text is not still sitting in the slide HTML. This covers races where the
+    // creation effect above did not manage to strip the URL before the browser
+    // painted.
+    useEffect(() => {
+      if (taskBuilder.linkPreviews.length === 0) return
+      setTaskBuilder(prev => {
+        const activeHtml = prev.activeExtensionId
+          ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.content || ''
+          : prev.taskContent
+        const previewUrls = prev.linkPreviews.map(p => p.url)
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, previewUrls)
+        if (cleanedHtml === activeHtml) return prev
+        const next = { ...prev }
+        if (prev.activeExtensionId) {
+          next.extensions = prev.extensions.map(e =>
+            e.id === prev.activeExtensionId ? { ...e, content: cleanedHtml } : e
+          )
+        } else {
+          next.taskContent = cleanedHtml
+        }
+        return next
+      })
+    }, [
+      taskBuilder.linkPreviews,
+      taskBuilder.activeExtensionId,
+      taskBuilder.extensions,
+      taskBuilder.taskContent,
+    ])
+
+    useEffect(() => {
+      if (assessmentBuilder.linkPreviews.length === 0) return
+      setAssessmentBuilder(prev => {
+        const activeHtml = prev.pages[prev.activePageIndex] ?? ''
+        const previewUrls = prev.linkPreviews.map(p => p.url)
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, previewUrls)
+        if (cleanedHtml === activeHtml) return prev
+        const next = { ...prev, pages: [...prev.pages] }
+        next.pages[prev.activePageIndex] = cleanedHtml
+        return next
+      })
+    }, [assessmentBuilder.linkPreviews, assessmentBuilder.pages, assessmentBuilder.activePageIndex])
+
     // Load tutor assets from API on mount
     useEffect(() => {
       const loadAssets = async () => {
