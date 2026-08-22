@@ -157,7 +157,9 @@ export const GET = withAuth(async (req: NextRequest) => {
         ? await downloadBuffer(objectKey, bucket)
         : await readFileBuffer(objectKey)
       if (!buf) {
-        console.warn(`[proxy-file] File not found in storage by key: ${objectKey} (bucket: ${bucket})`)
+        console.warn(
+          `[proxy-file] File not found in storage by key: ${objectKey} (bucket: ${bucket})`
+        )
         return NextResponse.json({ error: 'File not found', code: 'NoSuchKey' }, { status: 404 })
       }
       return new NextResponse(new Uint8Array(buf), {
