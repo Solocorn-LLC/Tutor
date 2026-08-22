@@ -2011,6 +2011,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [dmiKindDialog, setDmiKindDialog] = useState<{
       type: 'task' | 'assessment'
       signal: 'strong' | 'weak' | 'none' | null
+      isWorksheet?: boolean
     } | null>(null)
     // Content-source chooser: shown when a PDF is attached AND the text box was
     // edited away from the document's own extraction (the two sources disagree).
@@ -3760,6 +3761,49 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       assessmentBuilder.activePageIndex,
     ])
 
+    // Defensive cleanup: if a URL already has a link preview, make sure the URL
+    // text is not still sitting in the slide HTML. This covers races where the
+    // creation effect above did not manage to strip the URL before the browser
+    // painted.
+    useEffect(() => {
+      if (taskBuilder.linkPreviews.length === 0) return
+      setTaskBuilder(prev => {
+        const activeHtml = prev.activeExtensionId
+          ? prev.extensions.find(e => e.id === prev.activeExtensionId)?.content || ''
+          : prev.taskContent
+        const previewUrls = prev.linkPreviews.map(p => p.url)
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, previewUrls)
+        if (cleanedHtml === activeHtml) return prev
+        const next = { ...prev }
+        if (prev.activeExtensionId) {
+          next.extensions = prev.extensions.map(e =>
+            e.id === prev.activeExtensionId ? { ...e, content: cleanedHtml } : e
+          )
+        } else {
+          next.taskContent = cleanedHtml
+        }
+        return next
+      })
+    }, [
+      taskBuilder.linkPreviews,
+      taskBuilder.activeExtensionId,
+      taskBuilder.extensions,
+      taskBuilder.taskContent,
+    ])
+
+    useEffect(() => {
+      if (assessmentBuilder.linkPreviews.length === 0) return
+      setAssessmentBuilder(prev => {
+        const activeHtml = prev.pages[prev.activePageIndex] ?? ''
+        const previewUrls = prev.linkPreviews.map(p => p.url)
+        const cleanedHtml = removeStandaloneUrlsFromHtml(activeHtml, previewUrls)
+        if (cleanedHtml === activeHtml) return prev
+        const next = { ...prev, pages: [...prev.pages] }
+        next.pages[prev.activePageIndex] = cleanedHtml
+        return next
+      })
+    }, [assessmentBuilder.linkPreviews, assessmentBuilder.pages, assessmentBuilder.activePageIndex])
+
     // Load tutor assets from API on mount
     useEffect(() => {
       const loadAssets = async () => {
@@ -4955,12 +4999,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       return fileUrl
     }
 
-    // Helper: render PDF pages to base64 PNG images
+    // Helper: render PDF pages to base64 JPEG images.
+    // scale/quality can be raised for scanned/image-only PDFs so small worksheet
+    // text and math notation remain readable for the vision model.
     const renderPdfToImages = async (
       pdfUrl: string,
       maxPages = 3,
-      fileKey?: string
+      fileKey?: string,
+      options?: { scale?: number; quality?: number }
     ): Promise<string[]> => {
+      const { scale = 1.0, quality = 0.8 } = options ?? {}
       try {
         // Proxy through our API to avoid CORS issues (e.g. GCS); by key when possible.
         const fetchUrl = proxyFetchUrl(pdfUrl, fileKey)
@@ -4983,11 +5031,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
         for (let i = 1; i <= Math.min(maxPages, doc.numPages); i++) {
           const page = await doc.getPage(i)
-          const viewport = page.getViewport({ scale: 1.0 })
+          const viewport = page.getViewport({ scale })
           canvas.width = viewport.width
           canvas.height = viewport.height
           await page.render({ canvasContext: ctx, viewport }).promise
-          images.push(canvas.toDataURL('image/jpeg', 0.8))
+          images.push(canvas.toDataURL('image/jpeg', quality))
         }
         return images
       } catch (error) {
@@ -5288,6 +5336,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       try {
         let pdfPages: string[] | undefined
         let pdfText: string | undefined
+        let isImageOnlyPdf = false
         if (effectiveHasPdf) {
           toast.info('Analyzing PDF with AI...')
           // Prefer full-text extraction so EVERY page of a multi-page paper is
@@ -5297,8 +5346,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           // budget is spent on the actual questions. Fall back to page images
           // for scanned PDFs.
           const extracted = await extractPdfText(sourceDoc.fileUrl, 60, sourceDoc.fileKey)
+          const extractedTrimmed = extracted.trim()
           const priorText = (sourceDoc.extractedText || '').trim()
-          if (extracted.trim().length > 200) {
+          isImageOnlyPdf = extractedTrimmed.length <= 200 && priorText.length <= 200
+          if (extractedTrimmed.length > 200) {
             pdfText = focusOnQuestions(extracted).slice(0, 70000)
           } else if (priorText.length > 200) {
             // Server-side re-extraction came back thin (large/complex PDF, slow
@@ -5309,7 +5360,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             pdfText = focusOnQuestions(priorText).slice(0, 70000)
           } else {
             try {
-              pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 8, sourceDoc.fileKey)
+              // Scanned / photographed worksheet: render more pages at higher
+              // resolution so small text, sub-parts, and answer blanks are legible.
+              pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 12, sourceDoc.fileKey, {
+                scale: 1.5,
+                quality: 0.9,
+              })
             } catch (fetchErr) {
               // The stored PDF couldn't be fetched (e.g. a broken/expired storage
               // link). Rather than failing outright with "Failed to fetch PDF",
@@ -5359,7 +5415,12 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           try {
             toast.info('Rendering diagrams for analysis...')
             const figures = await renderNonPdfFigures(sourceDoc)
-            if (figures.length > 0) pdfPages = figures
+            if (figures.length > 0) {
+              pdfPages = figures
+              // A photographed worksheet uploaded as an image file has no useful
+              // extracted text, so the vision model must read it directly.
+              if (sourceDoc.mimeType?.startsWith('image/')) isImageOnlyPdf = true
+            }
           } catch (figErr) {
             console.warn('Diagram rendering for DMI failed; using text only:', figErr)
           }
@@ -5376,6 +5437,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             pdfPages,
             questionSpec,
             documentKindOverride,
+            isImageOnlyPdf,
             // Board override is the only context sent; subject and course category
             // are intentionally omitted so the model infers everything from the
             // uploaded document rather than relying on course metadata.
@@ -5398,7 +5460,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         // study material" before proceeding, instead of silently treating it as a
         // paper. On confirm we re-run with an explicit override.
         if (data.needsKindConfirmation && !documentKindOverride) {
-          setDmiKindDialog({ type, signal: data.documentSignal ?? null })
+          setDmiKindDialog({
+            type,
+            signal: data.documentSignal ?? null,
+            isWorksheet: isImageOnlyPdf,
+          })
           return
         }
 
@@ -17517,10 +17583,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         >
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Is this a question paper?</DialogTitle>
+              <DialogTitle>
+                {dmiKindDialog?.isWorksheet ? 'Is this a worksheet?' : 'Is this a question paper?'}
+              </DialogTitle>
               <DialogDescription>
-                We couldn&rsquo;t tell whether this document is a question paper (a set of questions
-                for students to answer) or study material to learn from.
+                {dmiKindDialog?.isWorksheet
+                  ? "This looks like a photographed or scanned worksheet. The pages will be read as images. Please confirm whether it's a set of questions for students to answer, or study material to learn from."
+                  : "We couldn't tell whether this document is a question paper (a set of questions for students to answer) or study material to learn from."}
                 {dmiKindDialog?.signal === 'none'
                   ? ' It reads mostly like explanatory material.'
                   : dmiKindDialog?.signal === 'strong'
