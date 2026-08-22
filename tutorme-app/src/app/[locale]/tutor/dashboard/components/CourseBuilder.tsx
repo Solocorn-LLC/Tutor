@@ -15012,89 +15012,97 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             onColorChange={setSlideTextColor}
                                           />
                                           <div className="flex items-center gap-2">
-                                            <span className="text-xs font-medium text-slate-500">
-                                              Task Timer
-                                            </span>
-                                            <TimerInput
-                                              value={taskBuilder.timeLimit}
-                                              onChange={value =>
-                                                setTaskBuilder(prev => ({
-                                                  ...prev,
-                                                  timeLimit: value,
-                                                }))
-                                              }
-                                              disabled={!canEdit}
-                                            />
-                                            {taskBuilder.pciSpec?.timeLimit && (
-                                              <button
-                                                type="button"
-                                                disabled={!canEdit}
-                                                onClick={() =>
+                                            {(() => {
+                                              const activeAudioTrack = taskBuilder.activeExtensionId
+                                                ? taskBuilder.extensions.find(
+                                                    e => e.id === taskBuilder.activeExtensionId
+                                                  )?.audioTrack
+                                                : taskBuilder.audioTrack
+                                              const documentLoaded = hasUploadedTaskDocument
+                                              return (
+                                                <>
+                                                  <input
+                                                    ref={taskAudioInputRef}
+                                                    type="file"
+                                                    accept="audio/*"
+                                                    className="hidden"
+                                                    onChange={e => {
+                                                      handleTaskAudioUpload(e.target.files)
+                                                      if (taskAudioInputRef.current) {
+                                                        taskAudioInputRef.current.value = ''
+                                                      }
+                                                    }}
+                                                  />
+                                                  {activeAudioTrack ? (
+                                                    <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white/90 px-3 shadow-lg backdrop-blur-md">
+                                                      <Headphones className="h-4 w-4 shrink-0 text-slate-500" />
+                                                      <span className="max-w-[140px] truncate text-xs font-medium text-slate-700">
+                                                        {activeAudioTrack.fileName}
+                                                      </span>
+                                                      {canEdit && (
+                                                        <button
+                                                          type="button"
+                                                          disabled={!canEdit}
+                                                          onClick={handleRemoveTaskAudio}
+                                                          className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-600 disabled:opacity-50"
+                                                          aria-label="Remove audio track"
+                                                        >
+                                                          <X className="h-3 w-3" />
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  ) : (
+                                                    <button
+                                                      type="button"
+                                                      disabled={!canEdit || documentLoaded}
+                                                      title={
+                                                        documentLoaded
+                                                          ? 'Audio cannot be added to slides with a loaded document'
+                                                          : 'Upload an audio track for this slide'
+                                                      }
+                                                      onClick={() =>
+                                                        taskAudioInputRef.current?.click()
+                                                      }
+                                                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white/90 px-3 text-xs font-medium text-slate-700 shadow-lg backdrop-blur-md hover:bg-white disabled:opacity-50"
+                                                    >
+                                                      <Headphones className="h-4 w-4" />
+                                                      Upload audio
+                                                    </button>
+                                                  )}
+                                                </>
+                                              )
+                                            })()}
+                                            <div className="flex items-end gap-2">
+                                              <span className="text-xs font-medium text-slate-500">
+                                                Task Timer
+                                              </span>
+                                              <TimerInput
+                                                value={taskBuilder.timeLimit}
+                                                onChange={value =>
                                                   setTaskBuilder(prev => ({
                                                     ...prev,
-                                                    timeLimit: prev.pciSpec?.timeLimit || '',
+                                                    timeLimit: value,
                                                   }))
                                                 }
-                                                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
-                                              >
-                                                Use PCI value
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div className="mb-2 flex items-center justify-between">
-                                          {(() => {
-                                            const activeAudioTrack = taskBuilder.activeExtensionId
-                                              ? taskBuilder.extensions.find(
-                                                  e => e.id === taskBuilder.activeExtensionId
-                                                )?.audioTrack
-                                              : taskBuilder.audioTrack
-                                            return activeAudioTrack ? (
-                                              <div className="flex flex-1 items-center gap-2">
-                                                <AudioPlayer
-                                                  track={activeAudioTrack}
-                                                  className="max-w-md flex-1"
-                                                />
-                                                {canEdit && (
-                                                  <button
-                                                    type="button"
-                                                    disabled={!canEdit}
-                                                    onClick={handleRemoveTaskAudio}
-                                                    className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
-                                                  >
-                                                    Remove
-                                                  </button>
-                                                )}
-                                              </div>
-                                            ) : (
-                                              <div className="flex flex-1 items-center gap-2">
-                                                <input
-                                                  ref={taskAudioInputRef}
-                                                  type="file"
-                                                  accept="audio/*"
-                                                  className="hidden"
-                                                  onChange={e => {
-                                                    handleTaskAudioUpload(e.target.files)
-                                                    if (taskAudioInputRef.current) {
-                                                      taskAudioInputRef.current.value = ''
-                                                    }
-                                                  }}
-                                                />
+                                                disabled={!canEdit}
+                                              />
+                                              {taskBuilder.pciSpec?.timeLimit && (
                                                 <button
                                                   type="button"
                                                   disabled={!canEdit}
-                                                  onClick={() => taskAudioInputRef.current?.click()}
-                                                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                                                  onClick={() =>
+                                                    setTaskBuilder(prev => ({
+                                                      ...prev,
+                                                      timeLimit: prev.pciSpec?.timeLimit || '',
+                                                    }))
+                                                  }
+                                                  className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
                                                 >
-                                                  <Headphones className="h-4 w-4" />
-                                                  Upload audio
+                                                  Use PCI value
                                                 </button>
-                                                <span className="text-xs text-slate-400">
-                                                  Optional audio track for this slide
-                                                </span>
-                                              </div>
-                                            )
-                                          })()}
+                                              )}
+                                            </div>
+                                          </div>
                                         </div>
                                         <div
                                           className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
@@ -15141,95 +15149,133 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           {!hasUploadedTaskDocument ? (
                                             // Text-only task: locked 1100 x 620 slide canvas.
                                             // No PDF preview here; the snapshot is generated only when entering Test/Live.
-                                            <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                              <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
-                                                <TaskSlideTextEditor
-                                                  ref={taskSlideEditorRef}
-                                                  html={
-                                                    taskBuilder.activeExtensionId
-                                                      ? taskBuilder.extensions.find(
-                                                          e =>
-                                                            e.id === taskBuilder.activeExtensionId
-                                                        )?.content || ''
-                                                      : taskBuilder.taskContent
-                                                  }
-                                                  onHtmlChange={(newContent: string) => {
-                                                    if (
-                                                      !loadedTaskId &&
-                                                      !taskBuilder.activeExtensionId
-                                                    ) {
-                                                      autoCreateTask()
-                                                    }
-                                                    if (taskBuilder.activeExtensionId) {
-                                                      setTaskBuilder(prev => ({
-                                                        ...prev,
-                                                        extensions: prev.extensions.map(ext =>
-                                                          ext.id === prev.activeExtensionId
-                                                            ? { ...ext, content: newContent }
-                                                            : ext
-                                                        ),
-                                                      }))
-                                                    } else {
-                                                      setTaskBuilder(prev => ({
-                                                        ...prev,
-                                                        taskContent: newContent,
-                                                      }))
-                                                    }
-                                                  }}
-                                                  readOnly={!canEdit}
-                                                  placeholder="Type the task content here — or load a document above to work from it."
-                                                  className="h-full w-full"
-                                                />
-                                                {taskBuilder.linkPreviews.map(preview => (
-                                                  <LinkPreviewCard
-                                                    key={preview.id}
-                                                    item={preview}
-                                                    containerWidth={1100}
-                                                    containerHeight={620}
-                                                    onChange={updates =>
-                                                      setTaskBuilder(prev => ({
-                                                        ...prev,
-                                                        linkPreviews: prev.linkPreviews.map(p =>
-                                                          p.id === preview.id
-                                                            ? { ...p, ...updates }
-                                                            : p
-                                                        ),
-                                                      }))
-                                                    }
-                                                    onRemove={() => {
-                                                      setTaskBuilder(prev => {
-                                                        const activeHtml = prev.activeExtensionId
-                                                          ? prev.extensions.find(
-                                                              e => e.id === prev.activeExtensionId
-                                                            )?.content || ''
-                                                          : prev.taskContent
-                                                        const cleanedHtml =
-                                                          removeStandaloneUrlsFromHtml(activeHtml, [
-                                                            preview.url,
-                                                          ])
-                                                        const next = {
-                                                          ...prev,
-                                                          linkPreviews: prev.linkPreviews.filter(
-                                                            p => p.id !== preview.id
-                                                          ),
+                                            (() => {
+                                              const activeAudioTrack = taskBuilder.activeExtensionId
+                                                ? taskBuilder.extensions.find(
+                                                    e => e.id === taskBuilder.activeExtensionId
+                                                  )?.audioTrack
+                                                : taskBuilder.audioTrack
+                                              return (
+                                                <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
+                                                  <div className="relative flex h-[620px] w-[1100px] flex-shrink-0 flex-col bg-white shadow-md">
+                                                    <div
+                                                      className={cn(
+                                                        'relative overflow-auto',
+                                                        activeAudioTrack ? 'h-1/2' : 'h-full'
+                                                      )}
+                                                    >
+                                                      <TaskSlideTextEditor
+                                                        ref={taskSlideEditorRef}
+                                                        html={
+                                                          taskBuilder.activeExtensionId
+                                                            ? taskBuilder.extensions.find(
+                                                                e =>
+                                                                  e.id ===
+                                                                  taskBuilder.activeExtensionId
+                                                              )?.content || ''
+                                                            : taskBuilder.taskContent
                                                         }
-                                                        if (prev.activeExtensionId) {
-                                                          next.extensions = prev.extensions.map(
-                                                            e =>
-                                                              e.id === prev.activeExtensionId
-                                                                ? { ...e, content: cleanedHtml }
-                                                                : e
-                                                          )
-                                                        } else {
-                                                          next.taskContent = cleanedHtml
-                                                        }
-                                                        return next
-                                                      })
-                                                    }}
-                                                  />
-                                                ))}
-                                              </div>
-                                            </div>
+                                                        onHtmlChange={(newContent: string) => {
+                                                          if (
+                                                            !loadedTaskId &&
+                                                            !taskBuilder.activeExtensionId
+                                                          ) {
+                                                            autoCreateTask()
+                                                          }
+                                                          if (taskBuilder.activeExtensionId) {
+                                                            setTaskBuilder(prev => ({
+                                                              ...prev,
+                                                              extensions: prev.extensions.map(
+                                                                ext =>
+                                                                  ext.id === prev.activeExtensionId
+                                                                    ? {
+                                                                        ...ext,
+                                                                        content: newContent,
+                                                                      }
+                                                                    : ext
+                                                              ),
+                                                            }))
+                                                          } else {
+                                                            setTaskBuilder(prev => ({
+                                                              ...prev,
+                                                              taskContent: newContent,
+                                                            }))
+                                                          }
+                                                        }}
+                                                        readOnly={!canEdit}
+                                                        placeholder="Type the task content here — or load a document above to work from it."
+                                                        className="h-full w-full"
+                                                      />
+                                                      {taskBuilder.linkPreviews.map(preview => (
+                                                        <LinkPreviewCard
+                                                          key={preview.id}
+                                                          item={preview}
+                                                          containerWidth={1100}
+                                                          containerHeight={620}
+                                                          onChange={updates =>
+                                                            setTaskBuilder(prev => ({
+                                                              ...prev,
+                                                              linkPreviews: prev.linkPreviews.map(
+                                                                p =>
+                                                                  p.id === preview.id
+                                                                    ? { ...p, ...updates }
+                                                                    : p
+                                                              ),
+                                                            }))
+                                                          }
+                                                          onRemove={() => {
+                                                            setTaskBuilder(prev => {
+                                                              const activeHtml =
+                                                                prev.activeExtensionId
+                                                                  ? prev.extensions.find(
+                                                                      e =>
+                                                                        e.id ===
+                                                                        prev.activeExtensionId
+                                                                    )?.content || ''
+                                                                  : prev.taskContent
+                                                              const cleanedHtml =
+                                                                removeStandaloneUrlsFromHtml(
+                                                                  activeHtml,
+                                                                  [preview.url]
+                                                                )
+                                                              const next = {
+                                                                ...prev,
+                                                                linkPreviews:
+                                                                  prev.linkPreviews.filter(
+                                                                    p => p.id !== preview.id
+                                                                  ),
+                                                              }
+                                                              if (prev.activeExtensionId) {
+                                                                next.extensions =
+                                                                  prev.extensions.map(e =>
+                                                                    e.id === prev.activeExtensionId
+                                                                      ? {
+                                                                          ...e,
+                                                                          content: cleanedHtml,
+                                                                        }
+                                                                      : e
+                                                                  )
+                                                              } else {
+                                                                next.taskContent = cleanedHtml
+                                                              }
+                                                              return next
+                                                            })
+                                                          }}
+                                                        />
+                                                      ))}
+                                                    </div>
+                                                    {activeAudioTrack && (
+                                                      <div className="flex h-1/2 flex-col justify-center border-t border-slate-200 bg-slate-50 p-4">
+                                                        <AudioPlayer
+                                                          track={activeAudioTrack}
+                                                          className="w-full"
+                                                        />
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              )
+                                            })()
                                           ) : (
                                             <div className="flex h-full w-full flex-row">
                                               {taskTextVisible && (
