@@ -12998,7 +12998,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                       className={cn(
                         'flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white',
                         mainTab === 'live'
-                          ? 'bg-gradient-to-br from-[#F59E0B] to-[#D97706]'
+                          ? 'bg-gradient-to-br from-[#F4A9A0] to-[#E19990]'
                           : 'bg-gradient-to-br from-violet-500 to-purple-600'
                       )}
                     >
@@ -13058,7 +13058,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         className={cn(
                                           'relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=inactive]:hover:bg-slate-50 sm:text-xs',
                                           mainTab === 'live'
-                                            ? 'data-[state=active]:border-[#FDE68A] data-[state=active]:bg-[#FFFBEB] data-[state=active]:text-[#F59E0B]'
+                                            ? 'data-[state=active]:border-[#F4A9A0] data-[state=active]:bg-[#FFF5F4] data-[state=active]:text-[#F4A9A0]'
                                             : 'data-[state=active]:border-violet-200 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600'
                                         )}
                                         onDoubleClick={() => setEditingTabId(tab.id)}
@@ -13497,7 +13497,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0',
                                         mainTab === 'live'
-                                          ? 'border-orange-300'
+                                          ? 'border-[#F4A9A0]'
                                           : 'border-violet-300'
                                       )}
                                     >
@@ -14691,7 +14691,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <div
                                   className={cn(
                                     'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
-                                    mainTab === 'live' ? 'border-orange-300' : 'border-violet-300'
+                                    mainTab === 'live' ? 'border-[#F4A9A0]' : 'border-violet-300'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
