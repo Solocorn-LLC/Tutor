@@ -21,6 +21,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
+import { AudioPlayer, type AudioPlayerTrack } from '@/components/task/AudioPlayer'
 import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
 import { sanitizeSlideHtml } from '@/app/[locale]/tutor/dashboard/components/sanitize-slide-html'
 import { cn } from '@/lib/utils'
@@ -53,6 +54,8 @@ export function TaskDocumentCard({
   linkPreviews,
   /** True when the backing document was auto-generated from typed text. */
   generatedFromText = false,
+  /** Optional audio track played alongside the document. */
+  audioTrack,
 }: {
   sourceDocument?: TaskDocumentSource | null
   autoOpen?: boolean
@@ -61,34 +64,39 @@ export function TaskDocumentCard({
   htmlContent?: string
   linkPreviews?: LinkPreviewItem[]
   generatedFromText?: boolean
+  audioTrack?: AudioPlayerTrack | null
 }) {
   // Manual toggle overrides the auto (message-driven) state. Deriving the shown
   // state instead of syncing it via an effect keeps it flicker-free.
   const [manualOpen, setManualOpen] = useState<boolean | null>(null)
   const regionId = useId()
 
-  if (!sourceDocument) return null
+  const hasDocument = !!sourceDocument
+  const hasAudio = !!audioTrack?.fileKey || !!audioTrack?.fileUrl
 
-  const rawUrl = sourceDocument.fileUrl || ''
+  if (!hasDocument && !hasAudio) return null
+
+  const rawUrl = sourceDocument?.fileUrl || ''
   // Always resolve to a durable same-origin URL: streams by object key through
   // our proxy (no signed/public URL, so it never expires), recovering the key
   // from the stored URL when no fileKey was persisted. See resolveDocDisplayUrl.
-  const url = resolveDocDisplayUrl(sourceDocument)
+  const url = hasDocument ? resolveDocDisplayUrl(sourceDocument) : ''
   // A blob: URL only resolves in the uploader's browser and an empty URL never
   // reached storage — those are unavailable to the viewer.
-  const loadable = isDocDisplayable(sourceDocument)
-  const name = sourceDocument.fileName || 'Task document'
-  const isPdf =
-    sourceDocument.mimeType === 'application/pdf' ||
-    (!sourceDocument.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument.fileName || rawUrl))
-  const isImage = !!sourceDocument.mimeType?.startsWith('image/')
+  const loadable = hasDocument ? isDocDisplayable(sourceDocument) : false
+  const name = sourceDocument?.fileName || 'Task document'
+  const isPdf = hasDocument
+    ? sourceDocument.mimeType === 'application/pdf' ||
+      (!sourceDocument.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument.fileName || rawUrl))
+    : false
+  const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
   const styles = ACCENTS[accent]
 
   const showHtmlView = generatedFromText && !!htmlContent?.trim()
 
   // The actual document view (or a clear "unavailable" notice instead of a
   // silently blank frame). Shared by both modes so the fallback is consistent.
-  const viewer = !loadable ? (
+  const viewer = !hasDocument ? null : !loadable ? (
     <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border bg-slate-50 p-4 text-center">
       <FileText className="h-8 w-8 text-slate-400" />
       <p className="text-sm text-slate-500">
@@ -117,11 +125,14 @@ export function TaskDocumentCard({
     </div>
   )
 
+  const audioPlayer = hasAudio ? <AudioPlayer track={audioTrack} className="mb-3" /> : null
+
   // Non-collapsible: just the viewer, filling whatever height the caller sets.
   if (alwaysOpen) {
     return (
       <div className="h-full w-full" id={regionId}>
-        {viewer}
+        {audioPlayer}
+        {hasDocument ? viewer : null}
       </div>
     )
   }
@@ -129,35 +140,42 @@ export function TaskDocumentCard({
   const open = manualOpen ?? autoOpen
 
   return (
-    <div className={cn('shrink-0 border-b bg-white', styles.border)}>
-      <button
-        type="button"
-        onClick={() => setManualOpen(!open)}
-        aria-expanded={open}
-        aria-controls={regionId}
-        className={cn(
-          'flex w-full items-center gap-2 px-4 py-2 text-left transition-colors',
-          styles.hover
-        )}
-      >
-        <FileText className={cn('h-4 w-4 shrink-0', styles.icon)} />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{name}</span>
-        <span className="text-xs text-gray-500">{open ? 'Hide' : 'Click to view'}</span>
-        {open ? (
-          <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
-        ) : (
-          <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
-        )}
-      </button>
-      {open && (
-        <div
-          id={regionId}
-          className={cn('h-[42vh] max-h-[560px] min-h-[220px] w-full border-t', styles.border)}
-        >
-          {viewer}
+    <>
+      {audioPlayer}
+      {hasDocument && (
+        <div className={cn('shrink-0 border-b bg-white', styles.border)}>
+          <button
+            type="button"
+            onClick={() => setManualOpen(!open)}
+            aria-expanded={open}
+            aria-controls={regionId}
+            className={cn(
+              'flex w-full items-center gap-2 px-4 py-2 text-left transition-colors',
+              styles.hover
+            )}
+          >
+            <FileText className={cn('h-4 w-4 shrink-0', styles.icon)} />
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">
+              {name}
+            </span>
+            <span className="text-xs text-gray-500">{open ? 'Hide' : 'Click to view'}</span>
+            {open ? (
+              <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
+            ) : (
+              <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+            )}
+          </button>
+          {open && (
+            <div
+              id={regionId}
+              className={cn('h-[42vh] max-h-[560px] min-h-[220px] w-full border-t', styles.border)}
+            >
+              {viewer}
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </>
   )
 }
 

@@ -2660,6 +2660,7 @@ function StudentFeedbackContent() {
                             htmlContent={activeTask.htmlContent}
                             linkPreviews={activeTask.linkPreviews}
                             generatedFromText={activeTask.generatedFromText}
+                            audioTrack={activeTask.audioTrack}
                             initialState={taskChatInitial}
                             incomingMessages={taskChatIncoming}
                             studentAvatarUrl={session?.user?.image}
@@ -2770,6 +2771,7 @@ function StudentFeedbackContent() {
                                         htmlContent={activeTask?.htmlContent}
                                         linkPreviews={activeTask?.linkPreviews}
                                         generatedFromText={activeTask?.generatedFromText}
+                                        audioTrack={activeTask?.audioTrack}
                                         alwaysOpen
                                       />
                                     </div>

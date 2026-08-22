@@ -40,6 +40,12 @@ export async function canReadUploadKey(session: Session, pathSegments: string[])
     return role === 'TUTOR' && (await tutorHasStudent(userId, studentId))
   }
 
+  if (pathSegments[0] === 'audio' && pathSegments.length >= 3) {
+    const ownerId = pathSegments[1]
+    if (ownerId === userId) return true
+    return role === 'TUTOR' && (await tutorHasStudent(userId, ownerId))
+  }
+
   if (pathSegments[0] === 'tutors' && pathSegments[2] === 'resources' && pathSegments.length >= 4) {
     const tutorId = pathSegments[1]
     if (tutorId === userId) return true
@@ -89,6 +95,10 @@ export function canDeleteUploadKey(session: Session, key: string): boolean {
   }
 
   if (segments[0] === 'tutors' && segments[2] === 'resources' && segments.length >= 4) {
+    return segments[1] === userId
+  }
+
+  if (segments[0] === 'audio' && segments.length >= 3) {
     return segments[1] === userId
   }
 

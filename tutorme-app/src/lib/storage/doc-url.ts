@@ -17,7 +17,13 @@
  */
 
 /** Top-level object-key prefixes the by-key proxy is allowed to stream. */
-export const PROXYABLE_KEY_PREFIXES = ['documents', 'assets', 'resources', 'messages'] as const
+export const PROXYABLE_KEY_PREFIXES = [
+  'documents',
+  'assets',
+  'resources',
+  'messages',
+  'audio',
+] as const
 
 const TOP_LEVEL_KEY_RE = new RegExp(`^(?:${PROXYABLE_KEY_PREFIXES.join('|')})/`)
 

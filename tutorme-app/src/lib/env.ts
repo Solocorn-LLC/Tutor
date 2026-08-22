@@ -15,6 +15,8 @@ const WARN_IF_MISSING_IN_PROD = [
   'NEXT_PUBLIC_SENTRY_DSN',
   // Web search for answer-key / mark-scheme lookup during DMI generation.
   'SERPER_API_KEY',
+  // Audio file storage for task-slide audio tracks.
+  'GCS_AUDIO_BUCKET',
 ] as const
 
 const REQUIRED_MESSAGES: Record<string, string> = {

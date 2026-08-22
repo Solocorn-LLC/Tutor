@@ -14,6 +14,17 @@ import { isGcsConfigured, refreshGcsUrl, downloadBuffer } from '@/lib/storage/gc
  * Infer an inline-renderable content type from an object key's extension.
  * Used by the by-key streaming path so PDFs/images display in an <iframe>/<img>.
  */
+/**
+ * Resolve the GCS bucket for a proxyable key. Audio files use the dedicated
+ * GCS_AUDIO_BUCKET when available, falling back to GCS_BUCKET.
+ */
+function bucketNameForKey(key: string): string | undefined {
+  if (key.startsWith('audio/')) {
+    return process.env.GCS_AUDIO_BUCKET || process.env.GCS_BUCKET
+  }
+  return process.env.GCS_BUCKET
+}
+
 function contentTypeForKey(key: string): string {
   const ext = key.split('.').pop()?.toLowerCase() ?? ''
   switch (ext) {
@@ -30,6 +41,16 @@ function contentTypeForKey(key: string): string {
       return 'image/webp'
     case 'svg':
       return 'image/svg+xml'
+    case 'mp3':
+      return 'audio/mpeg'
+    case 'wav':
+      return 'audio/wav'
+    case 'm4a':
+      return 'audio/mp4'
+    case 'ogg':
+      return 'audio/ogg'
+    case 'webm':
+      return 'audio/webm'
     default:
       return 'application/octet-stream'
   }
@@ -115,7 +136,7 @@ export const GET = withAuth(async (req: NextRequest) => {
     // Restrict to known upload prefixes and block path traversal so this can't
     // be used to read arbitrary objects.
     if (
-      !/^(?:(?:documents|assets|resources|messages)\/|tutors\/[^/]+\/resources\/)/.test(
+      !/^(?:(?:documents|assets|resources|messages|audio)\/|tutors\/[^/]+\/resources\/)/.test(
         objectKey
       ) ||
       objectKey.includes('..')
@@ -123,12 +144,13 @@ export const GET = withAuth(async (req: NextRequest) => {
       console.warn('[proxy-file] Invalid key requested:', objectKey)
       return NextResponse.json({ error: 'Invalid key' }, { status: 400 })
     }
-    if (!isGcsConfigured()) {
+    const bucket = bucketNameForKey(objectKey)
+    if (!bucket) {
       console.warn('[proxy-file] Storage not configured; cannot stream by key:', objectKey)
       return NextResponse.json({ error: 'Storage not configured' }, { status: 503 })
     }
     try {
-      const buf = await downloadBuffer(objectKey)
+      const buf = await downloadBuffer(objectKey, bucket)
       if (!buf) {
         console.warn('[proxy-file] File not found in GCS by key:', objectKey)
         return NextResponse.json({ error: 'File not found', code: 'NoSuchKey' }, { status: 404 })

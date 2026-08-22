@@ -222,6 +222,15 @@ export interface LiveTask {
   responses?: Record<string, Record<string, string>>
   /** Optional HH:MM time limit for the task/assessment. */
   timeLimit?: string
+  /** Optional audio track played alongside the task slide. */
+  audioTrack?: {
+    fileName: string
+    mimeType: string
+    fileUrl: string
+    fileKey: string
+    durationSeconds?: number
+    uploadedAt: string
+  }
 }
 
 /**
@@ -272,6 +281,23 @@ async function liveTaskFromBuilderItem(
     refreshedSourceDoc = undefined
   }
 
+  const rawAudioTrack = raw.audioTrack as Record<string, unknown> | undefined
+  const audioTrackKey = rawAudioTrack?.fileKey as string | undefined
+  const audioTrack =
+    rawAudioTrack && audioTrackKey
+      ? {
+          fileName: (rawAudioTrack.fileName as string) || '',
+          mimeType: (rawAudioTrack.mimeType as string) || 'audio/mpeg',
+          fileUrl: (rawAudioTrack.fileUrl as string) || '',
+          fileKey: audioTrackKey,
+          durationSeconds:
+            typeof rawAudioTrack.durationSeconds === 'number'
+              ? (rawAudioTrack.durationSeconds as number)
+              : undefined,
+          uploadedAt: (rawAudioTrack.uploadedAt as string) || new Date().toISOString(),
+        }
+      : undefined
+
   return {
     id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
     title: (raw.title as string) || (refreshedSourceDoc?.fileName as string) || 'Task',
@@ -299,6 +325,7 @@ async function liveTaskFromBuilderItem(
     polls: [],
     questions: [],
     sourceDocument: refreshedSourceDoc,
+    audioTrack,
     parentId: typeof raw.parentId === 'string' ? raw.parentId : undefined,
     isExtension: raw.isExtension === true,
     lessonId: opts.lessonId,
