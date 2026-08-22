@@ -1650,8 +1650,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               }}
               disabled={false}
               rows={1}
-              placeholder="Send a message to students..."
-              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-orange-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-orange-300"
+              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-[#F4A9A0] bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#F4A9A0]"
             />
             <button
               type="button"
