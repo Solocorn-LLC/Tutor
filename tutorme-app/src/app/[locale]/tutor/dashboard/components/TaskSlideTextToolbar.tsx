@@ -2,7 +2,6 @@
 
 import { useState, useMemo, type RefObject } from 'react'
 import { cn } from '@/lib/utils'
-import { Type } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -32,6 +31,42 @@ const FONT_FAMILIES = [
   {
     value: '"Fira Code", "Courier New", Courier, monospace',
     label: 'Mono',
+  },
+  {
+    value: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", "SimHei", sans-serif',
+    label: 'Chinese',
+  },
+  {
+    value: '"Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif',
+    label: 'Korean',
+  },
+  {
+    value: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif',
+    label: 'Japanese',
+  },
+  {
+    value: '"Noto Sans Arabic", "Scheherazade New", "Arial", sans-serif',
+    label: 'Arabic',
+  },
+  {
+    value: '"Noto Sans Devanagari", "Mangal", "Kokila", "Arial", sans-serif',
+    label: 'Hindi',
+  },
+  {
+    value: '"Noto Sans Tamil", "Latha", "Vijaya", "Arial", sans-serif',
+    label: 'Tamil',
+  },
+  {
+    value: '"Noto Sans Thai", "Tahoma", "Leelawadee", "Arial", sans-serif',
+    label: 'Thai',
+  },
+  {
+    value: '"Noto Sans Hebrew", "Arial Hebrew", "Tahoma", sans-serif',
+    label: 'Hebrew',
+  },
+  {
+    value: '"Noto Sans Greek", "Arial", "Helvetica", sans-serif',
+    label: 'Greek',
   },
 ]
 
@@ -136,7 +171,7 @@ export function TaskSlideTextToolbar({
       {/* Font family */}
       <Select value={fontFamily} onValueChange={handleFontFamilyChange}>
         <SelectTrigger
-          className="h-8 w-[90px] border-slate-200 bg-white text-xs font-medium text-slate-700"
+          className="h-8 w-[140px] border-slate-200 bg-white text-xs font-medium text-slate-700"
           aria-label="Font family"
         >
           <SelectValue placeholder={currentFamilyLabel} />
@@ -259,11 +294,6 @@ export function TaskSlideTextToolbar({
           </div>
         </PopoverContent>
       </Popover>
-
-      {/* Static format indicator */}
-      <div className="flex h-8 w-8 items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500">
-        <Type className="h-4 w-4" />
-      </div>
     </div>
   )
 }
