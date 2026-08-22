@@ -490,7 +490,7 @@ export function TestTaskChat({
                 'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
                 accent === 'violet'
                   ? 'border-violet-300 focus:ring-violet-300'
-                  : 'border-orange-300 focus:ring-orange-300'
+                  : 'border-[#F4A9A0] focus:ring-[#F4A9A0]'
               )}
             />
             <button
