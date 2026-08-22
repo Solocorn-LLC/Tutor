@@ -51,7 +51,13 @@ const GenerateDmiRequestSchema = z.object({
   // Up to ~80k chars (~20k tokens) so a full multi-section paper's questions fit
   // after front matter is trimmed client-side; still well under the model limit.
   content: z.string().max(80000).optional(),
-  pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
+  pdfPages: z.array(z.string().max(5_000_000)).max(12).optional(),
+  /**
+   * True when the PDF is an image-only scan/photograph with little or no
+   * extractable text. Informs the model that it must read the page images directly
+   * and that the document is likely an informal worksheet.
+   */
+  isImageOnlyPdf: z.boolean().optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
    * Ignored for a question paper (its questions are mirrored as-is).
@@ -516,6 +522,7 @@ export async function POST(request: NextRequest) {
       documentKindOverride,
       examBody,
       subject,
+      isImageOnlyPdf,
     } = parsed.data
 
     if (!content?.trim() && (!pdfPages || pdfPages.length === 0)) {
@@ -562,6 +569,13 @@ export async function POST(request: NextRequest) {
       ? `\n\nThe tutor indicates this ${type} is ${examBody}. Use this only as a board label; do NOT apply generic ${examBody} rubrics, conventions, or assumptions. Every answer, mark, and rubric must be grounded in the document's own content.`
       : ''
 
+    // Extra guidance for scanned/photographed worksheets where the PDF has no
+    // extractable text and the vision model must read the page images directly.
+    const worksheetInstruction =
+      isImageOnlyPdf && pdfPages && pdfPages.length > 0
+        ? `\n\nThis is a photographed or scanned worksheet with little or no selectable text. Read every page image carefully. Look for numbered questions (1, 2, 3...) and sub-parts such as (a), (b), (i), (ii). Blank lines, underlines, or empty boxes usually indicate where the student should write an answer — create one DMI field per blank. If a single question part contains multiple blanks, create one field per blank. Preserve the exact printed question reference in each label, e.g. "Question 1(a)".`
+        : ''
+
     // Web search: try to find a readily accessible answer key / mark scheme for
     // assessments before asking the model to prepopulate answers. Search is best-
     // effort and fully optional; missing key or empty results just fall back to the
@@ -589,7 +603,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
+          text: `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}${worksheetInstruction}`,
         },
         ...(hasSourceText
           ? [
@@ -710,6 +724,9 @@ export async function POST(request: NextRequest) {
       // The code-level paper-signal strength, for an optional "we think this is …"
       // note on the confirm prompt.
       documentSignal: signals?.paperSignal ?? null,
+      // True when the request was image-only (scanned/photographed PDF). The UI can
+      // use this to tailor the confirmation prompt.
+      isImageOnlyPdf: !!isImageOnlyPdf,
       // True when the source is study material and the tutor hasn't yet chosen
       // the question types/counts — the builder should prompt before deploying.
       needsQuestionSpec: documentKind === 'study_material' && !questionSpec,
