@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { assertSafeProxyUrl } from '@/lib/security/proxy-url'
 import { isGcsConfigured, refreshGcsUrl, downloadBuffer } from '@/lib/storage/gcs'
+import { readFileBuffer } from '@/lib/storage/service'
 
 /**
  * Infer an inline-renderable content type from an object key's extension.
@@ -150,9 +151,13 @@ export const GET = withAuth(async (req: NextRequest) => {
       return NextResponse.json({ error: 'Storage not configured' }, { status: 503 })
     }
     try {
-      const buf = await downloadBuffer(objectKey, bucket)
+      // Audio keys live in GCS_AUDIO_BUCKET; everything else can fall back to the
+      // persistent local-storage fallback used in dev / test environments.
+      const buf = objectKey.startsWith('audio/')
+        ? await downloadBuffer(objectKey, bucket)
+        : await readFileBuffer(objectKey)
       if (!buf) {
-        console.warn('[proxy-file] File not found in GCS by key:', objectKey)
+        console.warn(`[proxy-file] File not found in storage by key: ${objectKey} (bucket: ${bucket})`)
         return NextResponse.json({ error: 'File not found', code: 'NoSuchKey' }, { status: 404 })
       }
       return new NextResponse(new Uint8Array(buf), {
