@@ -67,7 +67,7 @@ export function buildTaskFlushedNodes(
           task.activeDmiVersionId === nextActiveDmiVersionId &&
           task.sourceDocument === taskBuilder.sourceDocument &&
           task.linkPreviews === taskBuilder.linkPreviews &&
-          task.audioTrack === taskBuilder.audioTrack
+          (task.audioTrack ?? null) === (taskBuilder.audioTrack ?? null)
         ) {
           return task
         }

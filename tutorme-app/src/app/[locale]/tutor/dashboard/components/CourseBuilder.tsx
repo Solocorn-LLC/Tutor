@@ -4940,7 +4940,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // that 403 under uniform bucket-level access (the cause of "Failed to fetch
     // PDF"). Fall back to ?url= for non-GCS or keyless sources.
     const proxyFetchUrl = (fileUrl: string, fileKey?: string): string => {
-      if (fileKey && /^(documents|assets|resources)\//.test(fileKey) && !fileKey.includes('..')) {
+      if (
+        fileKey &&
+        /^(?:(?:documents|assets|resources|messages|audio)\/|tutors\/[^/]+\/resources\/)/.test(
+          fileKey
+        ) &&
+        !fileKey.includes('..')
+      ) {
         return `/api/proxy-file?key=${encodeURIComponent(fileKey)}`
       }
       if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
