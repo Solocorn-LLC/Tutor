@@ -5363,7 +5363,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               // Scanned / photographed worksheet: render more pages at higher
               // resolution so small text, sub-parts, and answer blanks are legible.
               pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 12, sourceDoc.fileKey, {
-                scale: 1.5,
+                scale: 2.0,
                 quality: 0.9,
               })
             } catch (fetchErr) {
