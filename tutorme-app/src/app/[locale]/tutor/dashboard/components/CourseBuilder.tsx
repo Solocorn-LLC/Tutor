@@ -737,6 +737,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       onUnsyncedChangesChange,
       focusLessonId,
       isDemoSession = false,
+      isTestMode = false,
     },
     ref
   ) {
@@ -1657,7 +1658,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               rows={1}
               className={cn(
                 'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none',
-                mainTab === 'live'
+                mainTab === 'live' && !isTestMode
                   ? 'border-[#F4A9A0] focus:ring-1 focus:ring-[#F4A9A0]'
                   : 'border-[#8B5CF6]'
               )}

@@ -539,6 +539,12 @@ export interface CourseBuilderProps {
    * assumptions in child panels (e.g. the AI Assistant skips scheduling intro blocks).
    */
   isDemoSession?: boolean
+  /**
+   * True when the top-level controls mode is Test. Used to theme the classroom
+   * chat input purple like the Test selector while leaving the real live classroom
+   * input orange.
+   */
+  isTestMode?: boolean
 }
 
 export interface CourseBuilderRef {
