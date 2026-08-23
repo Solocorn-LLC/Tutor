@@ -649,8 +649,9 @@ export async function POST(request: NextRequest) {
 
     // Prefer the strict-JSON output; fall back to the legacy line parser if the
     // model didn't return usable JSON.
-    let parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
-    let { documentKind: modelKind, questions } = parsedResult
+    const parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
+    const { documentKind: modelKind, questions: initialQuestions } = parsedResult
+    let questions = initialQuestions
     console.log('[generate-dmi] parsed questions:', questions.length, { modelKind })
 
     // Second-pass extraction for image-only worksheets where the first pass was
