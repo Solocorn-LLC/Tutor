@@ -202,4 +202,51 @@ describe('autoGradeDmi', () => {
     })
     expect(r.needsReview).toBe(1)
   })
+
+  it('grades a table answer with partial credit by cell', () => {
+    const tableItem = {
+      id: 'q-table',
+      answer: JSON.stringify([
+        ['1', '6'],
+        ['1', '8'],
+        ['1', '9'],
+      ]),
+      marks: 6,
+    }
+    const r = autoGradeDmi([tableItem], {
+      'q-table': JSON.stringify([
+        ['1', '6'],
+        ['1', '7'],
+        ['1', '9'],
+      ]),
+    })
+    expect(r.gradable).toBe(1)
+    expect(r.correct).toBe(0)
+    expect(r.score).toBe(83) // 5 of 6 cells correct -> 83%
+    expect(r.pointsEarned).toBe(5)
+    expect(r.pointsPossible).toBe(6)
+    const q = r.questionResults?.find(x => x.questionId === 'q-table')
+    expect(q).toMatchObject({ correct: false, pointsEarned: 5, pointsMax: 6 })
+  })
+
+  it('awards full marks for a fully correct table answer', () => {
+    const tableItem = {
+      id: 'q-table',
+      answer: JSON.stringify([
+        ['1', '6'],
+        ['1', '8'],
+      ]),
+      marks: 2,
+    }
+    const r = autoGradeDmi([tableItem], {
+      'q-table': JSON.stringify([
+        ['1', '6'],
+        ['1', '8'],
+      ]),
+    })
+    expect(r.score).toBe(100)
+    expect(r.correct).toBe(1)
+    const q = r.questionResults?.find(x => x.questionId === 'q-table')
+    expect(q).toMatchObject({ correct: true, pointsEarned: 2, pointsMax: 2 })
+  })
 })

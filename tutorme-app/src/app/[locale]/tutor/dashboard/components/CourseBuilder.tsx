@@ -737,6 +737,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       onUnsyncedChangesChange,
       focusLessonId,
       isDemoSession = false,
+      isTestMode = false,
     },
     ref
   ) {
@@ -1657,7 +1658,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               rows={1}
               className={cn(
                 'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none',
-                mainTab === 'live'
+                mainTab === 'live' && !isTestMode
                   ? 'border-[#F4A9A0] focus:ring-1 focus:ring-[#F4A9A0]'
                   : 'border-[#8B5CF6]'
               )}
@@ -5536,6 +5537,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           questionType: q.questionType,
           options: Array.isArray(q.options) ? q.options : undefined,
           pairs: Array.isArray(q.pairs) ? q.pairs : undefined,
+          rows: Array.isArray(q.rows) ? q.rows : undefined,
+          columns: Array.isArray(q.columns) ? q.columns : undefined,
+          answers: Array.isArray(q.answers) ? q.answers : undefined,
           hotspotImageUrl: q.hotspotImageUrl,
           regions: Array.isArray(q.regions) ? q.regions : undefined,
           // Paper section this part belongs to (ASMT-4), when present.
@@ -17200,7 +17204,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             if (!open) setDmiEditor(null)
           }}
         >
-          <DialogContent className="border border-slate-200 shadow-2xl sm:max-w-2xl">
+          <DialogContent className="border border-slate-200 shadow-2xl sm:max-w-4xl">
             {dmiEditor &&
               (() => {
                 const editItems = dmiEditor.source === 'task' ? taskDmiItems : assessmentDmiItems
@@ -17422,27 +17426,115 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 )}
                               </div>
                             )}
-                            <div className="mt-2">
-                              <label className="mb-1 block text-xs font-medium text-gray-600">
-                                Answer key
-                                {hasOptions
-                                  ? isMultiSelect
-                                    ? ' — click the correct options above'
-                                    : ' — click the correct option above'
-                                  : ''}
-                              </label>
-                              <textarea
-                                value={item.answer || ''}
-                                disabled={!canEdit}
-                                placeholder="Correct answer (vet the AI suggestion)…"
-                                onChange={e =>
-                                  applyDmiEdit(dmiEditor.source, item.id, {
-                                    answer: e.target.value,
-                                  })
-                                }
-                                className="min-h-[44px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
-                              />
-                            </div>
+                            {item.questionType === 'table' && item.rows && item.columns ? (
+                              <div className="mt-2">
+                                <label className="mb-1 block text-xs font-medium text-gray-600">
+                                  Answer key
+                                </label>
+                                <div className="overflow-x-auto rounded-md border border-gray-300">
+                                  <table className="w-full border-collapse text-sm">
+                                    <thead>
+                                      <tr>
+                                        <th className="border border-gray-200 bg-gray-50 p-2"></th>
+                                        {item.columns.map((col, ci) => (
+                                          <th
+                                            key={ci}
+                                            className="min-w-[80px] border border-gray-200 bg-gray-50 p-2 text-center font-medium text-gray-700"
+                                          >
+                                            {col}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {(() => {
+                                        const rowCount = item.rows!.length
+                                        const colCount = item.columns!.length
+                                        let matrix: string[][] = Array.from(
+                                          { length: rowCount },
+                                          () => Array(colCount).fill('')
+                                        )
+                                        try {
+                                          const parsed = item.answer
+                                            ? JSON.parse(item.answer)
+                                            : null
+                                          if (
+                                            Array.isArray(parsed) &&
+                                            parsed.length === rowCount &&
+                                            parsed.every(
+                                              (r: unknown) =>
+                                                Array.isArray(r) &&
+                                                r.length === colCount &&
+                                                r.every((c: unknown) => typeof c === 'string')
+                                            )
+                                          ) {
+                                            matrix = parsed as string[][]
+                                          }
+                                        } catch {
+                                          // fall back to blank matrix
+                                        }
+                                        const updateCell = (
+                                          ri: number,
+                                          ci: number,
+                                          text: string
+                                        ) => {
+                                          const next = matrix.map((row, r) =>
+                                            r === ri
+                                              ? row.map((cell, c) => (c === ci ? text : cell))
+                                              : row
+                                          )
+                                          applyDmiEdit(dmiEditor.source, item.id, {
+                                            answer: JSON.stringify(next),
+                                            answers: next,
+                                          })
+                                        }
+                                        return item.rows!.map((row, ri) => (
+                                          <tr key={ri}>
+                                            <th className="border border-gray-200 bg-gray-50 p-2 text-left font-medium text-gray-700">
+                                              {row}
+                                            </th>
+                                            {item.columns!.map((_, ci) => (
+                                              <td key={ci} className="border border-gray-200 p-1">
+                                                <input
+                                                  type="text"
+                                                  value={matrix[ri][ci]}
+                                                  disabled={!canEdit}
+                                                  onChange={e => updateCell(ri, ci, e.target.value)}
+                                                  className="w-full min-w-[80px] rounded border-0 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#F17623] disabled:bg-gray-50"
+                                                  placeholder=""
+                                                />
+                                              </td>
+                                            ))}
+                                          </tr>
+                                        ))
+                                      })()}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="mt-2">
+                                <label className="mb-1 block text-xs font-medium text-gray-600">
+                                  Answer key
+                                  {hasOptions
+                                    ? isMultiSelect
+                                      ? ' — click the correct options above'
+                                      : ' — click the correct option above'
+                                    : ''}
+                                </label>
+                                <textarea
+                                  value={item.answer || ''}
+                                  disabled={!canEdit}
+                                  placeholder="Correct answer (vet the AI suggestion)…"
+                                  onChange={e =>
+                                    applyDmiEdit(dmiEditor.source, item.id, {
+                                      answer: e.target.value,
+                                    })
+                                  }
+                                  className="min-h-[44px] w-full resize-y rounded-md border border-gray-300 p-2 text-sm text-gray-900"
+                                />
+                              </div>
+                            )}
                             <div className="mt-2">
                               <label className="mb-1 block text-xs font-medium text-gray-600">
                                 Accepted variants (one per line)

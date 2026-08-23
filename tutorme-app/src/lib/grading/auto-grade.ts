@@ -71,6 +71,57 @@ function itemMarks(item: DmiAnswerItem): number {
   return Number.isFinite(m) && m > 0 ? m : DEFAULT_MARKS
 }
 
+/**
+ * Try to parse a table answer value into a 2-D string array. Returns null when
+ * the value is not a valid table matrix.
+ */
+function parseTableMatrix(raw: string): string[][] | null {
+  try {
+    const parsed = JSON.parse(raw)
+    if (
+      Array.isArray(parsed) &&
+      parsed.length > 0 &&
+      parsed.every(
+        (row: unknown) =>
+          Array.isArray(row) &&
+          row.length > 0 &&
+          row.every((cell: unknown) => typeof cell === 'string')
+      )
+    ) {
+      return parsed as string[][]
+    }
+  } catch {
+    // not a table
+  }
+  return null
+}
+
+/**
+ * Grade a table answer by comparing each submitted cell to the answer key.
+ * Returns the fraction of cells matched (0–1).
+ */
+function gradeTable(expectedRaw: string, givenRaw: string): number {
+  const expected = parseTableMatrix(expectedRaw)
+  const given = parseTableMatrix(givenRaw)
+  if (!expected) return 0
+  if (!given) return 0
+  let total = 0
+  let correct = 0
+  for (let r = 0; r < expected.length; r++) {
+    const expectedRow = expected[r]
+    const givenRow = given[r]
+    if (!givenRow || givenRow.length !== expectedRow.length) {
+      total += expectedRow.length
+      continue
+    }
+    for (let c = 0; c < expectedRow.length; c++) {
+      total++
+      if (normalize(expectedRow[c]) === normalize(givenRow[c])) correct++
+    }
+  }
+  return total > 0 ? correct / total : 0
+}
+
 function normalize(s: unknown): string {
   return String(s ?? '')
     .toLowerCase()
@@ -135,6 +186,27 @@ export function autoGradeDmi(
   const questionResults: AutoGradeQuestionResult[] = []
   for (const item of gradable) {
     const rawGiven = given[item.id] ?? ''
+    const tableScore = parseTableMatrix(String(item.answer))
+      ? gradeTable(String(item.answer), String(rawGiven))
+      : null
+    if (tableScore !== null) {
+      // Table items: award marks proportionally by correct cells.
+      const marks = itemMarks(item)
+      const earned = Math.round(tableScore * marks * 100) / 100
+      const matched = tableScore === 1
+      if (matched) correct += 1
+      pointsPossible += marks
+      pointsEarned += earned
+      questionResults.push({
+        questionId: item.id,
+        correct: matched,
+        pointsEarned: earned,
+        pointsMax: marks,
+        selectedAnswer: String(rawGiven),
+      })
+      continue
+    }
+
     const { text: answerText, hasRichContent } = extractAnswerText(String(rawGiven))
     const g = normalize(answerText)
     const expected = normalize(item.answer)

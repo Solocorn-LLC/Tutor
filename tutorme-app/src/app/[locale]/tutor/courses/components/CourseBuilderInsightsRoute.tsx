@@ -1422,6 +1422,7 @@ function CourseBuilderInsightsRouteInner({
                 isClassroomMode ? (searchParams.get('lessonId') ?? undefined) : undefined
               }
               isDemoSession={isDemoSession}
+              isTestMode={controlsMode === 'test'}
             />
           </PanelErrorBoundary>
         )}

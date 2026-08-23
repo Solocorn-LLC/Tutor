@@ -81,6 +81,10 @@ export interface LiveTaskDmiItem {
   matchPrompts?: string[]
   /** Sorted option bank for matching & drag_drop — never the correct pairing. */
   matchBank?: string[]
+  /** Row labels for a `table` item (the leftmost column headers). */
+  rows?: string[]
+  /** Column labels for a `table` item (the top headers). */
+  columns?: string[]
   /** Paper section heading (delivery-layer — shown to the student). */
   section?: string
 }
