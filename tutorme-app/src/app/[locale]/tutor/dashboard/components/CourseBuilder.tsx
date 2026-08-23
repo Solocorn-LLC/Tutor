@@ -12970,8 +12970,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         </div>
                       </DndContext>
                     </ScrollArea>
-                    {/* Assets Folder added to the bottom of the left panel */}
-                    <div>{renderAssetsFolder()}</div>
+                    {/* Assets Folder added to the bottom of the left panel.
+                        Hidden in Test and Classroom modes because assets are not
+                        managed from those preview views. */}
+                    {mainTab === 'builder' && <div>{renderAssetsFolder()}</div>}
                   </CardContent>
                 </Card>
               </div>
