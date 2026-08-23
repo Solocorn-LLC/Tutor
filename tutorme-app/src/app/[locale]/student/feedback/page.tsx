@@ -1389,6 +1389,17 @@ function StudentFeedbackContent() {
       onRoomState: (state: { tasks?: LiveTask[]; whiteboardData?: any }) => {
         if (state.tasks) {
           setTasks(state.tasks)
+          // Hydrate the student's own completed-task set from the server state so
+          // sequential unlocking works after a refresh or rejoin.
+          const studentId = session?.user?.id
+          if (studentId) {
+            const completedIds = state.tasks
+              .filter(t => t.completedBy?.includes(studentId))
+              .map(t => t.id)
+            if (completedIds.length > 0) {
+              setCompletedTaskIds(prev => new Set([...prev, ...completedIds]))
+            }
+          }
         }
         const tutorBoard = state?.whiteboardData?.tutorBoard
         if (tutorBoard?.pages && Array.isArray(tutorBoard.pages)) {
@@ -2889,6 +2900,10 @@ function StudentFeedbackContent() {
                                   return
                                 }
                                 toast.success('Task submitted')
+                                // Unlock the next task immediately even if the server
+                                // ack'd an already-completed task without re-broadcasting
+                                // task:completed.
+                                setCompletedTaskIds(prev => new Set([...prev, activeTaskId]))
                               }
                             )
                         }}
