@@ -573,7 +573,7 @@ export async function POST(request: NextRequest) {
     // extractable text and the vision model must read the page images directly.
     const worksheetInstruction =
       isImageOnlyPdf && pdfPages && pdfPages.length > 0
-        ? `\n\nThis is a photographed or scanned worksheet with little or no selectable text. Read every page image carefully. Look for numbered questions (1, 2, 3...) and sub-parts such as (a), (b), (i), (ii). Blank lines, underlines, or empty boxes usually indicate where the student should write an answer — create one DMI field per blank. If a single question part contains multiple blanks, create one field per blank. Preserve the exact printed question reference in each label, e.g. "Question 1(a)".`
+        ? `\n\nCRITICAL: This is a photographed or scanned worksheet / test paper with little or no selectable text. Read every page image carefully and extract EVERY numbered question and EVERY sub-part.\n\nRules:\n- Create one DMI field for every numbered question (1, 2, 3...) AND for every sub-part within it: (a), (b), (c), (i), (ii), etc.\n- Do NOT skip a question just because it has no obvious blank line or underline. If it is an answerable item, create a field.\n- Preserve the exact printed question reference in the label, e.g. "Question 1(a)", "Question 1(b)(i)", "Question 2".\n- If a single question part contains multiple blanks or answer spaces, create one field for that part (not one per blank) unless the blanks are clearly separate answerable sub-parts.\n- Do NOT create fields for worked examples, instruction text, or headings that are not questions.\n- Count the total number of numbered items first, then emit them all. Do not stop early.`
         : ''
 
     // Web search: try to find a readily accessible answer key / mark scheme for
@@ -619,10 +619,13 @@ export async function POST(request: NextRequest) {
         })),
       ]
 
+      // Scanned worksheets often contain many more small fields than a typical
+      // digital paper, so give the vision model a larger output budget.
+      const maxTokens = isImageOnlyPdf ? 8192 : 4096
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 4096,
+        maxTokens,
         timeoutMs: 60000,
       })
     } else {
@@ -647,8 +650,63 @@ export async function POST(request: NextRequest) {
     // Prefer the strict-JSON output; fall back to the legacy line parser if the
     // model didn't return usable JSON.
     const parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
-    const { documentKind: modelKind, questions } = parsedResult
+    const { documentKind: modelKind, questions: initialQuestions } = parsedResult
+    let questions = initialQuestions
     console.log('[generate-dmi] parsed questions:', questions.length, { modelKind })
+
+    // Second-pass extraction for image-only worksheets where the first pass was
+    // clearly incomplete. Vision models sometimes stop early on scanned pages;
+    // asking them explicitly for the missed parts usually recovers the rest.
+    if (
+      isImageOnlyPdf &&
+      pdfPages &&
+      pdfPages.length > 0 &&
+      questions.length > 0 &&
+      questions.length < 5 &&
+      modelKind !== 'study_material'
+    ) {
+      try {
+        const existingLabels = questions
+          .map(q => q.questionLabel || q.questionText)
+          .filter(Boolean)
+          .join(', ')
+        const retryItems: Array<
+          { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
+        > = [
+          {
+            type: 'text',
+            text: `You are reviewing a photographed or scanned worksheet. The first extraction only found ${questions.length} question part(s): ${existingLabels || '(none)'}.\n\nRe-examine the page images carefully and return EVERY remaining numbered question and sub-part that was missed. Use the same JSON format with a "fields" array. Preserve exact printed references like "Question 1(a)" or "Question 2(b)(i)". Do not repeat any part already listed above.`,
+          },
+          ...pdfPages.map(page => ({
+            type: 'image_url' as const,
+            image_url: { url: page },
+          })),
+        ]
+        const retryResponse = await generateWithKimiVision(retryItems, {
+          systemPrompt: SYSTEM_PROMPT,
+          temperature: GUARDRAILED_TEMPERATURE,
+          maxTokens: 8192,
+          timeoutMs: 60000,
+        })
+        const retryParsed =
+          parseDmiJson(retryResponse) ?? parseDmiResponse(stripCodeFences(retryResponse))
+        if (retryParsed && retryParsed.questions.length > 0) {
+          const seen = new Set(questions.map(q => q.questionLabel || q.questionText))
+          const merged = [...questions]
+          for (const q of retryParsed.questions) {
+            const key = q.questionLabel || q.questionText
+            if (key && !seen.has(key)) {
+              seen.add(key)
+              merged.push(q)
+            }
+          }
+          questions = merged
+          console.log('[generate-dmi] retry merged total:', questions.length)
+        }
+      } catch (err) {
+        console.warn('[generate-dmi] second-pass extraction failed:', err)
+      }
+    }
 
     // Tag AI-generated answers so the builder can distinguish them from tutor-edited
     // or uploaded-marking-scheme answers.

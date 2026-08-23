@@ -357,8 +357,8 @@ export function TestTaskChat({
     }
   }
 
-  const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-violet-600'
-  const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-violet-700'
+  const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-[#8B5CF6]'
+  const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-[#7C3AED]'
 
   return (
     <div
@@ -489,7 +489,7 @@ export function TestTaskChat({
               className={cn(
                 'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
                 accent === 'violet'
-                  ? 'border-violet-300 focus:ring-violet-300'
+                  ? 'border-[#8B5CF6] focus:ring-[#8B5CF6]'
                   : 'border-[#F4A9A0] focus:ring-[#F4A9A0]'
               )}
             />
@@ -519,14 +519,14 @@ export function TestTaskChat({
               disabled={busy}
               rows={1}
               placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
-              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-[#8B5CF6] px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]"
             />
             <button
               type="button"
               onClick={onSend}
               disabled={busy || !draft.trim()}
               title={completed ? 'Send' : 'Add answer'}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition-colors hover:opacity-90 disabled:opacity-40"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#8B5CF6] text-white transition-colors hover:opacity-90 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>

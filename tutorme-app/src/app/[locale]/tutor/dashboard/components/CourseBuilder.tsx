@@ -5362,7 +5362,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               // Scanned / photographed worksheet: render more pages at higher
               // resolution so small text, sub-parts, and answer blanks are legible.
               pdfPages = await renderPdfToImages(sourceDoc.fileUrl, 12, sourceDoc.fileKey, {
-                scale: 1.5,
+                scale: 2.0,
                 quality: 0.9,
               })
             } catch (fetchErr) {
@@ -13064,7 +13064,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         'flex h-9 shrink-0 items-center justify-center rounded-t-[20px] px-4 text-sm font-semibold text-white',
                         mainTab === 'live'
                           ? 'bg-gradient-to-br from-[#F4A9A0] to-[#E19990]'
-                          : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                          : 'bg-[#8B5CF6]'
                       )}
                     >
                       <div className="flex items-center gap-2">
@@ -13124,7 +13124,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                           'relative flex w-full items-center justify-center truncate rounded-xl border border-[#E5E7EB] bg-white px-2 py-2.5 text-[11px] font-medium text-[#667085] transition-all data-[state=inactive]:hover:bg-slate-50 sm:text-xs',
                                           mainTab === 'live'
                                             ? 'data-[state=active]:border-[#F4A9A0] data-[state=active]:bg-[#FFF5F4] data-[state=active]:text-[#F4A9A0]'
-                                            : 'data-[state=active]:border-violet-200 data-[state=active]:bg-violet-50 data-[state=active]:text-violet-600'
+                                            : 'data-[state=active]:border-[#8B5CF6] data-[state=active]:bg-[#F5F3FF] data-[state=active]:text-[#8B5CF6]'
                                         )}
                                         onDoubleClick={() => setEditingTabId(tab.id)}
                                       >
@@ -13561,9 +13561,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                     <div
                                       className={cn(
                                         'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border bg-white p-0',
-                                        mainTab === 'live'
-                                          ? 'border-[#F4A9A0]'
-                                          : 'border-violet-300'
+                                        mainTab === 'live' ? 'border-[#F4A9A0]' : 'border-[#8B5CF6]'
                                       )}
                                     >
                                       <PanelErrorBoundary
@@ -14566,7 +14564,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                     rows={2}
                                                                     placeholder="Type a test answer to grade against this question…"
                                                                     aria-label={`Test answer for question ${item.questionLabel ?? item.questionNumber}`}
-                                                                    className="w-full resize-none rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                                                                    className="w-full resize-none rounded-md border border-[#8B5CF6] px-2 py-1.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]"
                                                                   />
                                                                   <div className="mt-1 flex flex-wrap items-center gap-2">
                                                                     <button
@@ -14658,7 +14656,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                     !llmResult.loading &&
                                                                     typeof llmResult.score ===
                                                                       'number' && (
-                                                                      <span className="mt-1 block text-xs font-semibold text-violet-700">
+                                                                      <span className="mt-1 block text-xs font-semibold text-[#8B5CF6]">
                                                                         Debug LLM score:{' '}
                                                                         {llmResult.score}%
                                                                       </span>
@@ -14666,7 +14664,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                   {llmResult &&
                                                                     !llmResult.loading &&
                                                                     llmResult.feedback && (
-                                                                      <p className="mt-1 whitespace-pre-wrap rounded bg-violet-50 px-2 py-1 text-xs text-violet-900">
+                                                                      <p className="mt-1 whitespace-pre-wrap rounded bg-[#F5F3FF] px-2 py-1 text-xs text-[#5B21B6]">
                                                                         {llmResult.feedback}
                                                                       </p>
                                                                     )}
@@ -14744,19 +14742,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 testPciActiveTab === 'student1' ? (
                                   <></>
                                 ) : (
-                                  <div className="mt-1 rounded-2xl border border-violet-200 bg-violet-50/40 px-4 py-3 text-xs text-slate-600">
+                                  <div className="mt-1 rounded-2xl border border-[#8B5CF6]/30 bg-[#F5F3FF]/40 px-4 py-3 text-xs text-slate-600">
                                     To test grading, type a sample answer under any question above
                                     and click{' '}
-                                    <span className="font-medium text-violet-700">Grade</span> —
-                                    each answer is marked against that question&rsquo;s rubric,
-                                    model answer, and the assessment PCI.
+                                    <span className="font-medium text-[#8B5CF6]">Grade</span> — each
+                                    answer is marked against that question&rsquo;s rubric, model
+                                    answer, and the assessment PCI.
                                   </div>
                                 )
                               ) : (
                                 <div
                                   className={cn(
                                     'mt-1 w-full rounded-2xl border bg-white transition-all duration-300',
-                                    mainTab === 'live' ? 'border-[#F4A9A0]' : 'border-violet-300'
+                                    mainTab === 'live' ? 'border-[#F4A9A0]' : 'border-[#8B5CF6]'
                                   )}
                                 >
                                   <div className="relative flex w-full flex-col p-px">
