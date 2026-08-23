@@ -513,7 +513,7 @@ function TutorControlsPanel({
                         'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
                         mode === 'edit' && 'bg-[#3B82F6]',
                         mode === 'test' && 'bg-[#7C3AED]',
-                        mode === 'classroom' && 'bg-[#F59E0B]'
+                        mode === 'classroom' && 'bg-[#F4A9A0]'
                       )}
                       style={{
                         left: modePill.left,
@@ -604,7 +604,9 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    {leavingSession ? 'Leaving…' : 'Leave classroom'}
+                    <span className="leading-none">
+                      {leavingSession ? 'Leaving…' : 'Leave classroom'}
+                    </span>
                   </button>
                 ) : hasSession && onEndSession ? (
                   <button
@@ -621,7 +623,9 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                    <span className="leading-none">
+                      {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                    </span>
                   </button>
                 ) : createTemplateButtonLabel ? (
                   <TooltipProvider>
@@ -637,7 +641,7 @@ function TutorControlsPanel({
                           )}
                         >
                           <Calendar className="h-4 w-4" />
-                          {createTemplateButtonLabel}
+                          <span className="leading-none">{createTemplateButtonLabel}</span>
                         </button>
                       </TooltipTrigger>
                     </Tooltip>
@@ -656,7 +660,7 @@ function TutorControlsPanel({
                           )}
                         >
                           <Calendar className="h-4 w-4" />
-                          Schedule & Publish
+                          <span className="leading-none">Schedule & Publish</span>
                         </button>
                       </TooltipTrigger>
                     </Tooltip>
@@ -1189,7 +1193,12 @@ function CourseBuilderInsightsRouteInner({
         <div className="flex w-full flex-col gap-4">
           <div className="flex min-h-[72px] w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" asChild className="text-[#344054]">
+              <Button
+                variant="ghost"
+                size="icon"
+                asChild
+                className="text-[#344054] hover:bg-slate-100 hover:text-slate-900"
+              >
                 <Link href="/tutor/dashboard" aria-label="Go back">
                   <ArrowLeft className="h-5 w-5" />
                 </Link>

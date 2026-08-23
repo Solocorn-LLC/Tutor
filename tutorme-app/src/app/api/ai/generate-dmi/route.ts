@@ -51,7 +51,13 @@ const GenerateDmiRequestSchema = z.object({
   // Up to ~80k chars (~20k tokens) so a full multi-section paper's questions fit
   // after front matter is trimmed client-side; still well under the model limit.
   content: z.string().max(80000).optional(),
-  pdfPages: z.array(z.string().max(5_000_000)).max(8).optional(),
+  pdfPages: z.array(z.string().max(5_000_000)).max(12).optional(),
+  /**
+   * True when the PDF is an image-only scan/photograph with little or no
+   * extractable text. Informs the model that it must read the page images directly
+   * and that the document is likely an informal worksheet.
+   */
+  isImageOnlyPdf: z.boolean().optional(),
   /**
    * For study material: the question types + counts the tutor wants generated.
    * Ignored for a question paper (its questions are mirrored as-is).
@@ -516,6 +522,7 @@ export async function POST(request: NextRequest) {
       documentKindOverride,
       examBody,
       subject,
+      isImageOnlyPdf,
     } = parsed.data
 
     if (!content?.trim() && (!pdfPages || pdfPages.length === 0)) {
@@ -562,6 +569,13 @@ export async function POST(request: NextRequest) {
       ? `\n\nThe tutor indicates this ${type} is ${examBody}. Use this only as a board label; do NOT apply generic ${examBody} rubrics, conventions, or assumptions. Every answer, mark, and rubric must be grounded in the document's own content.`
       : ''
 
+    // Extra guidance for scanned/photographed worksheets where the PDF has no
+    // extractable text and the vision model must read the page images directly.
+    const worksheetInstruction =
+      isImageOnlyPdf && pdfPages && pdfPages.length > 0
+        ? `\n\nCRITICAL: This is a photographed or scanned worksheet / test paper with little or no selectable text. Read every page image carefully and extract EVERY numbered question and EVERY sub-part.\n\nRules:\n- Create one DMI field for every numbered question (1, 2, 3...) AND for every sub-part within it: (a), (b), (c), (i), (ii), etc.\n- Do NOT skip a question just because it has no obvious blank line or underline. If it is an answerable item, create a field.\n- Preserve the exact printed question reference in the label, e.g. "Question 1(a)", "Question 1(b)(i)", "Question 2".\n- If a single question part contains multiple blanks or answer spaces, create one field for that part (not one per blank) unless the blanks are clearly separate answerable sub-parts.\n- Do NOT create fields for worked examples, instruction text, or headings that are not questions.\n- Count the total number of numbered items first, then emit them all. Do not stop early.`
+        : ''
+
     // Web search: try to find a readily accessible answer key / mark scheme for
     // assessments before asking the model to prepopulate answers. Search is best-
     // effort and fully optional; missing key or empty results just fall back to the
@@ -589,7 +603,7 @@ export async function POST(request: NextRequest) {
       > = [
         {
           type: 'text',
-          text: `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}`,
+          text: `${researchBlock ? `${researchBlock}\n\n` : ''}Build a DMI (answer input fields) for the following ${type}${title ? ` titled "${title}"` : ''}.${specInstruction}${overrideInstruction}${examContextInstruction}${worksheetInstruction}`,
         },
         ...(hasSourceText
           ? [
@@ -605,10 +619,13 @@ export async function POST(request: NextRequest) {
         })),
       ]
 
+      // Scanned worksheets often contain many more small fields than a typical
+      // digital paper, so give the vision model a larger output budget.
+      const maxTokens = isImageOnlyPdf ? 8192 : 4096
       aiResponse = await generateWithKimiVision(promptItems, {
         systemPrompt: SYSTEM_PROMPT,
         temperature: GUARDRAILED_TEMPERATURE,
-        maxTokens: 4096,
+        maxTokens,
         timeoutMs: 60000,
       })
     } else {
@@ -633,8 +650,63 @@ export async function POST(request: NextRequest) {
     // Prefer the strict-JSON output; fall back to the legacy line parser if the
     // model didn't return usable JSON.
     const parsedResult = parseDmiJson(aiResponse) ?? parseDmiResponse(stripCodeFences(aiResponse))
-    const { documentKind: modelKind, questions } = parsedResult
+    const { documentKind: modelKind, questions: initialQuestions } = parsedResult
+    let questions = initialQuestions
     console.log('[generate-dmi] parsed questions:', questions.length, { modelKind })
+
+    // Second-pass extraction for image-only worksheets where the first pass was
+    // clearly incomplete. Vision models sometimes stop early on scanned pages;
+    // asking them explicitly for the missed parts usually recovers the rest.
+    if (
+      isImageOnlyPdf &&
+      pdfPages &&
+      pdfPages.length > 0 &&
+      questions.length > 0 &&
+      questions.length < 5 &&
+      modelKind !== 'study_material'
+    ) {
+      try {
+        const existingLabels = questions
+          .map(q => q.questionLabel || q.questionText)
+          .filter(Boolean)
+          .join(', ')
+        const retryItems: Array<
+          { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
+        > = [
+          {
+            type: 'text',
+            text: `You are reviewing a photographed or scanned worksheet. The first extraction only found ${questions.length} question part(s): ${existingLabels || '(none)'}.\n\nRe-examine the page images carefully and return EVERY remaining numbered question and sub-part that was missed. Use the same JSON format with a "fields" array. Preserve exact printed references like "Question 1(a)" or "Question 2(b)(i)". Do not repeat any part already listed above.`,
+          },
+          ...pdfPages.map(page => ({
+            type: 'image_url' as const,
+            image_url: { url: page },
+          })),
+        ]
+        const retryResponse = await generateWithKimiVision(retryItems, {
+          systemPrompt: SYSTEM_PROMPT,
+          temperature: GUARDRAILED_TEMPERATURE,
+          maxTokens: 8192,
+          timeoutMs: 60000,
+        })
+        const retryParsed =
+          parseDmiJson(retryResponse) ?? parseDmiResponse(stripCodeFences(retryResponse))
+        if (retryParsed && retryParsed.questions.length > 0) {
+          const seen = new Set(questions.map(q => q.questionLabel || q.questionText))
+          const merged = [...questions]
+          for (const q of retryParsed.questions) {
+            const key = q.questionLabel || q.questionText
+            if (key && !seen.has(key)) {
+              seen.add(key)
+              merged.push(q)
+            }
+          }
+          questions = merged
+          console.log('[generate-dmi] retry merged total:', questions.length)
+        }
+      } catch (err) {
+        console.warn('[generate-dmi] second-pass extraction failed:', err)
+      }
+    }
 
     // Tag AI-generated answers so the builder can distinguish them from tutor-edited
     // or uploaded-marking-scheme answers.
@@ -710,6 +782,9 @@ export async function POST(request: NextRequest) {
       // The code-level paper-signal strength, for an optional "we think this is …"
       // note on the confirm prompt.
       documentSignal: signals?.paperSignal ?? null,
+      // True when the request was image-only (scanned/photographed PDF). The UI can
+      // use this to tailor the confirmation prompt.
+      isImageOnlyPdf: !!isImageOnlyPdf,
       // True when the source is study material and the tutor hasn't yet chosen
       // the question types/counts — the builder should prompt before deploying.
       needsQuestionSpec: documentKind === 'study_material' && !questionSpec,
