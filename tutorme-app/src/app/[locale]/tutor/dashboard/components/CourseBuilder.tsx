@@ -1293,6 +1293,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     // Task content is always preserved. Extensions have their own content.
     // The PCI (marking policy) is shared: it always lives on the base task and is
     // inherited by every extension. Only content changes when an extension is active.
+
+    const initialTaskBuilderState = {
+      title: '',
+      taskContent: '', // Base task content (never overwritten by extensions)
+      taskPci: '', // Base task PCI (never overwritten by extensions)
+      details: '',
+      // Extensions have their own content stored separately
+      extensions: [],
+      activeExtensionId: null, // null = viewing task, string = viewing extension
+      linkPreviews: [],
+      audioTrack: null,
+    } as const
+
     const [taskBuilder, setTaskBuilder] = useState<{
       title: string
       taskContent: string
@@ -1332,17 +1345,19 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       linkPreviews: LinkPreviewItem[]
       /** Optional audio track played alongside the task slide. */
       audioTrack?: AudioTrack | null
-    }>({
+    }>(initialTaskBuilderState as any)
+
+    const initialAssessmentBuilderState = {
       title: '',
-      taskContent: '', // Base task content (never overwritten by extensions)
-      taskPci: '', // Base task PCI (never overwritten by extensions)
+      taskContent: '',
+      taskPci: '',
       details: '',
-      // Extensions have their own content stored separately
       extensions: [],
-      activeExtensionId: null, // null = viewing task, string = viewing extension
+      activeExtensionId: null,
+      pages: [''],
+      activePageIndex: 0,
       linkPreviews: [],
-      audioTrack: null,
-    })
+    } as const
 
     const [assessmentBuilder, setAssessmentBuilder] = useState<{
       title: string
@@ -1385,17 +1400,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       /** Subject detected from the assessment source (no DMI versioning). */
       dmiSubject?: string
       linkPreviews: LinkPreviewItem[]
-    }>({
-      title: '',
-      taskContent: '',
-      taskPci: '',
-      details: '',
-      extensions: [],
-      activeExtensionId: null,
-      pages: [''],
-      activePageIndex: 0,
-      linkPreviews: [],
-    })
+    }>(initialAssessmentBuilderState as any)
 
     // Keep the legacy `taskContent` field in sync with the multi-page slide array
     // so existing consumers (save, preview, DMI generation, AI assist) continue to
@@ -3402,23 +3407,46 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     )
 
     // When a tutor enters the live classroom without a task loaded, auto-load the
-    // most recently deployed live task (if any) or the first task/assessment in the
-    // curriculum so the Classroom tab mirrors the post-deploy view on initial load.
+    // most recently deployed live task (if any). Tasks/assessments are scoped to a
+    // session, so when the session changes we clear any stale loaded item and
+    // never fall back to loading curriculum items that have not been deployed.
     const didAutoLoadLiveItemRef = useRef(false)
+    const liveSessionIdRef = useRef<string | null>(null)
     useEffect(() => {
       if (mainTab !== 'live') {
         didAutoLoadLiveItemRef.current = false
         return
       }
-      if (didAutoLoadLiveItemRef.current) return
-      if (loadedTaskId || loadedAssessmentId) {
-        didAutoLoadLiveItemRef.current = true
+
+      const currentSessionId = insightsProps?.sessionId ?? null
+      const sessionChanged = currentSessionId !== liveSessionIdRef.current
+      if (sessionChanged) {
+        liveSessionIdRef.current = currentSessionId
+        setLoadedTaskId(null)
+        setLoadedAssessmentId(null)
+        setTaskBuilder(initialTaskBuilderState as any)
+        setAssessmentBuilder(initialAssessmentBuilderState as any)
+        didAutoLoadLiveItemRef.current = false
         return
       }
-      if (!insightsProps?.sessionId || nodes.length === 0) return
+
+      if (!currentSessionId || nodes.length === 0) return
+      if (didAutoLoadLiveItemRef.current) return
+
+      const liveTasks = insightsProps?.liveTasks ?? []
+      const deployedIds = new Set(liveTasks.map(t => t.id))
+
+      // If a loaded item is not deployed in this session, clear it.
+      if (loadedTaskId && !deployedIds.has(loadedTaskId)) {
+        setLoadedTaskId(null)
+        setTaskBuilder(initialTaskBuilderState as any)
+      }
+      if (loadedAssessmentId && !deployedIds.has(loadedAssessmentId)) {
+        setLoadedAssessmentId(null)
+        setAssessmentBuilder(initialAssessmentBuilderState as any)
+      }
 
       // Prefer the most recently deployed live task from the active session.
-      const liveTasks = insightsProps?.liveTasks ?? []
       const lastDeployed = liveTasks[liveTasks.length - 1]
       if (lastDeployed) {
         for (const mod of nodes) {
@@ -3441,31 +3469,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           }
         }
       }
-
-      // Fallback to the first task or assessment in the curriculum.
-      for (const mod of nodes) {
-        for (const lesson of mod.lessons) {
-          const firstTask = lesson.tasks?.[0]
-          if (firstTask) {
-            didAutoLoadLiveItemRef.current = true
-            loadTaskIntoBuilder(firstTask)
-            return
-          }
-          const firstAssessment = lesson.homework?.[0]
-          if (firstAssessment) {
-            didAutoLoadLiveItemRef.current = true
-            loadAssessmentIntoBuilder(firstAssessment)
-            return
-          }
-        }
-      }
     }, [
       mainTab,
-      loadedTaskId,
-      loadedAssessmentId,
       insightsProps?.sessionId,
       insightsProps?.liveTasks,
       nodes,
+      loadedTaskId,
+      loadedAssessmentId,
       loadTaskIntoBuilder,
       loadAssessmentIntoBuilder,
     ])
@@ -13739,13 +13749,24 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             )
                                           }
 
+                                          // In live mode only show items that have actually been
+                                          // deployed to the current session.
+                                          const deployedTaskIds = new Set(
+                                            (insightsProps?.liveTasks ?? []).map(t => t.id)
+                                          )
                                           const liveTask =
-                                            mainTab === 'live' && testPciSource === 'task'
-                                              ? findTaskById(loadedTaskId || '')
+                                            mainTab === 'live' &&
+                                            testPciSource === 'task' &&
+                                            loadedTaskId &&
+                                            deployedTaskIds.has(loadedTaskId)
+                                              ? findTaskById(loadedTaskId)
                                               : null
                                           const liveAssessment =
-                                            mainTab === 'live' && testPciSource === 'assessment'
-                                              ? findAssessmentById(loadedAssessmentId || '')
+                                            mainTab === 'live' &&
+                                            testPciSource === 'assessment' &&
+                                            loadedAssessmentId &&
+                                            deployedTaskIds.has(loadedAssessmentId)
+                                              ? findAssessmentById(loadedAssessmentId)
                                               : null
 
                                           // In the Classroom, honor the selected extension just
@@ -14127,46 +14148,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             // document + DMI view below.
                                           }
 
-                                          // Live classroom chat task: use the same TestTaskChat
-                                          // component as Test mode so the tutor sees identical
-                                          // document popup / avatars / SAI summary behavior.
+                                          // Live classroom chat task: only show tasks that have
+                                          // actually been deployed to this session. Never fall back
+                                          // to a locally selected curriculum item.
                                           const activeLiveChatTask =
                                             insightsProps?.liveTasks?.find(
                                               t => t.id === loadedTaskId
                                             ) ?? null
-                                          const localLiveChatTask =
-                                            mainTab === 'live' &&
-                                            testPciSource === 'task' &&
-                                            tab.id === 'classroom' &&
-                                            !activeLiveChatTask
-                                              ? findTaskById(loadedTaskId || '')
-                                              : null
                                           const liveChatTask = activeLiveChatTask
-                                            ? activeLiveChatTask
-                                            : localLiveChatTask
-                                              ? {
-                                                  id: localLiveChatTask.id,
-                                                  source: 'task' as const,
-                                                  dmiItems: localLiveChatTask.dmiItems,
-                                                  title: localLiveChatTask.title,
-                                                  content:
-                                                    localLiveChatTask.description ||
-                                                    localLiveChatTask.title,
-                                                  htmlContent: localLiveChatTask.description,
-                                                  linkPreviews: localLiveChatTask.linkPreviews,
-                                                  generatedFromText:
-                                                    localLiveChatTask.sourceDocument
-                                                      ?.generatedFromText,
-                                                  pci:
-                                                    typeof localLiveChatTask.instructions ===
-                                                    'string'
-                                                      ? localLiveChatTask.instructions
-                                                      : undefined,
-                                                  pciSpec: localLiveChatTask.pciSpec,
-                                                  sourceDocument: localLiveChatTask.sourceDocument,
-                                                  audioTrack: localLiveChatTask.audioTrack,
-                                                }
-                                              : null
                                           if (
                                             mainTab === 'live' &&
                                             testPciSource === 'task' &&
