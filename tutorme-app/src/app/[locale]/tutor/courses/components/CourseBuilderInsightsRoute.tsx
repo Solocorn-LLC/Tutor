@@ -142,7 +142,7 @@ function WifiSignal({
 }
 
 const modeButtonBase =
-  'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors'
+  'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors focus-visible:ring-0 focus-visible:ring-offset-0'
 
 type Props = UseCourseBuilderContentArgs & {
   insightsProps: CourseBuilderInsightsProps
@@ -512,7 +512,7 @@ function TutorControlsPanel({
                       className={cn(
                         'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
                         mode === 'edit' && 'bg-[#3B82F6]',
-                        mode === 'test' && 'bg-[#7C3AED]',
+                        mode === 'test' && 'bg-[#8B5CF6]',
                         mode === 'classroom' && 'bg-[#F4A9A0]'
                       )}
                       style={{
