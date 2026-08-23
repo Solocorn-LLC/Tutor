@@ -50,6 +50,7 @@ export function UpcomingSessionCard({
   onOpenSchedule,
 }: UpcomingSessionCardProps) {
   const isLive = ['active', 'live'].includes(session.status.toLowerCase())
+  const isCurrentlyInSession = isLive && !session.tutorLeftAt
 
   const description = session.description?.trim() || 'No description'
 
@@ -119,10 +120,17 @@ export function UpcomingSessionCard({
           variant="outline"
           size="sm"
           onClick={() => onOpenClassroom(course, session.id)}
+          title={
+            isCurrentlyInSession
+              ? 'You are currently in this session'
+              : isLive
+                ? 'You left this session; it is still running for students'
+                : 'Open classroom'
+          }
           className="border border-emerald-500 bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
         >
           <MonitorPlay className="mr-1 h-3 w-3" />
-          {isLive ? 'Rejoin live' : 'Classroom'}
+          {isCurrentlyInSession ? 'Join now' : isLive ? 'Rejoin' : 'Classroom'}
         </Button>
       </div>
     </div>

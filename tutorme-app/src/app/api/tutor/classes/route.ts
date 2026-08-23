@@ -67,6 +67,7 @@ export const GET = withAuth(
       status: s.status,
       sessionType: s.sessionType,
       description: s.description,
+      tutorLeftAt: s.tutorLeftAt?.toISOString() ?? null,
     }))
 
     return NextResponse.json({ classes })

@@ -113,6 +113,7 @@ export const GET = withAuth(
         scheduleId: s.scheduleId ?? null,
         scheduleName: s.scheduleId ? (scheduleNameById.get(s.scheduleId) ?? null) : null,
         durationMinutes: s.durationMinutes ?? 120,
+        tutorLeftAt: s.tutorLeftAt ? new Date(s.tutorLeftAt).toISOString() : null,
       }))
 
       // The tutor's timezone so the dashboard can render session dates in the
