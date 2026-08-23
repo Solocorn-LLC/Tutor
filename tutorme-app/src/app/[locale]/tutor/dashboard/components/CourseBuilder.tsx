@@ -15055,7 +15055,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         forceMount
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
-                                        <div className="mb-2 flex items-center justify-between">
+                                        <div className="mb-2 flex items-center gap-2">
                                           <TaskSlideTextToolbar
                                             editorRef={taskSlideEditorRef}
                                             fontFamily={slideFontFamily}
@@ -15065,98 +15065,91 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             onFontSizeChange={setSlideFontSize}
                                             onColorChange={setSlideTextColor}
                                           />
-                                          <div className="flex items-center gap-2">
-                                            {(() => {
-                                              const activeAudioTrack = taskBuilder.activeExtensionId
-                                                ? taskBuilder.extensions.find(
-                                                    e => e.id === taskBuilder.activeExtensionId
-                                                  )?.audioTrack
-                                                : taskBuilder.audioTrack
-                                              const documentLoaded = hasUploadedTaskDocument
-                                              return (
-                                                <>
-                                                  <input
-                                                    ref={taskAudioInputRef}
-                                                    type="file"
-                                                    accept="audio/*"
-                                                    className="hidden"
-                                                    onChange={e => {
-                                                      handleTaskAudioUpload(e.target.files)
-                                                      if (taskAudioInputRef.current) {
-                                                        taskAudioInputRef.current.value = ''
-                                                      }
-                                                    }}
-                                                  />
-                                                  {activeAudioTrack ? (
-                                                    <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white/90 px-3 shadow-lg backdrop-blur-md">
-                                                      <Headphones className="h-4 w-4 shrink-0 text-slate-500" />
-                                                      <span className="max-w-[140px] truncate text-xs font-medium text-slate-700">
-                                                        {activeAudioTrack.fileName}
-                                                      </span>
-                                                      {canEdit && (
-                                                        <button
-                                                          type="button"
-                                                          disabled={!canEdit}
-                                                          onClick={handleRemoveTaskAudio}
-                                                          className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-600 disabled:opacity-50"
-                                                          aria-label="Remove audio track"
-                                                        >
-                                                          <X className="h-3 w-3" />
-                                                        </button>
-                                                      )}
-                                                    </div>
-                                                  ) : (
-                                                    <button
-                                                      type="button"
-                                                      disabled={!canEdit || documentLoaded}
-                                                      title={
-                                                        documentLoaded
-                                                          ? 'Audio cannot be added to slides with a loaded document'
-                                                          : 'Upload an audio track for this slide'
-                                                      }
-                                                      onClick={() =>
-                                                        taskAudioInputRef.current?.click()
-                                                      }
-                                                      className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white/90 px-3 text-xs font-medium text-slate-700 shadow-lg backdrop-blur-md hover:bg-white disabled:opacity-50"
-                                                    >
-                                                      <Headphones className="h-4 w-4" />
-                                                      Upload audio
-                                                    </button>
-                                                  )}
-                                                </>
-                                              )
-                                            })()}
-                                            <div className="flex items-end gap-2">
-                                              <span className="text-xs font-medium text-slate-500">
-                                                Task Timer
-                                              </span>
-                                              <TimerInput
-                                                value={taskBuilder.timeLimit}
-                                                onChange={value =>
-                                                  setTaskBuilder(prev => ({
-                                                    ...prev,
-                                                    timeLimit: value,
-                                                  }))
-                                                }
-                                                disabled={!canEdit}
-                                              />
-                                              {taskBuilder.pciSpec?.timeLimit && (
-                                                <button
-                                                  type="button"
-                                                  disabled={!canEdit}
-                                                  onClick={() =>
-                                                    setTaskBuilder(prev => ({
-                                                      ...prev,
-                                                      timeLimit: prev.pciSpec?.timeLimit || '',
-                                                    }))
-                                                  }
-                                                  className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
-                                                >
-                                                  Use PCI value
-                                                </button>
-                                              )}
-                                            </div>
-                                          </div>
+                                          {(() => {
+                                            const activeAudioTrack = taskBuilder.activeExtensionId
+                                              ? taskBuilder.extensions.find(
+                                                  e => e.id === taskBuilder.activeExtensionId
+                                                )?.audioTrack
+                                              : taskBuilder.audioTrack
+                                            const documentLoaded = hasUploadedTaskDocument
+                                            return (
+                                              <>
+                                                <input
+                                                  ref={taskAudioInputRef}
+                                                  type="file"
+                                                  accept="audio/*"
+                                                  className="hidden"
+                                                  onChange={e => {
+                                                    handleTaskAudioUpload(e.target.files)
+                                                    if (taskAudioInputRef.current) {
+                                                      taskAudioInputRef.current.value = ''
+                                                    }
+                                                  }}
+                                                />
+                                                {activeAudioTrack ? (
+                                                  <div className="inline-flex h-10 items-center gap-2 rounded-xl border border-slate-200/60 bg-white/90 px-3 shadow-lg backdrop-blur-md">
+                                                    <Headphones className="h-4 w-4 shrink-0 text-slate-500" />
+                                                    <span className="max-w-[140px] truncate text-xs font-medium text-slate-700">
+                                                      {activeAudioTrack.fileName}
+                                                    </span>
+                                                    {canEdit && (
+                                                      <button
+                                                        type="button"
+                                                        disabled={!canEdit}
+                                                        onClick={handleRemoveTaskAudio}
+                                                        className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-red-600 disabled:opacity-50"
+                                                        aria-label="Remove audio track"
+                                                      >
+                                                        <X className="h-3 w-3" />
+                                                      </button>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <button
+                                                    type="button"
+                                                    disabled={!canEdit || documentLoaded}
+                                                    title={
+                                                      documentLoaded
+                                                        ? 'Audio cannot be added to slides with a loaded document'
+                                                        : 'Upload an audio track for this slide'
+                                                    }
+                                                    onClick={() =>
+                                                      taskAudioInputRef.current?.click()
+                                                    }
+                                                    className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200/60 bg-white/90 px-3 text-xs font-medium text-slate-700 shadow-lg backdrop-blur-md hover:bg-white disabled:opacity-50"
+                                                  >
+                                                    <Headphones className="h-4 w-4" />
+                                                    Upload audio
+                                                  </button>
+                                                )}
+                                              </>
+                                            )
+                                          })()}
+                                          <TimerInput
+                                            value={taskBuilder.timeLimit}
+                                            onChange={value =>
+                                              setTaskBuilder(prev => ({
+                                                ...prev,
+                                                timeLimit: value,
+                                              }))
+                                            }
+                                            disabled={!canEdit}
+                                          />
+                                          {taskBuilder.pciSpec?.timeLimit && (
+                                            <button
+                                              type="button"
+                                              disabled={!canEdit}
+                                              onClick={() =>
+                                                setTaskBuilder(prev => ({
+                                                  ...prev,
+                                                  timeLimit: prev.pciSpec?.timeLimit || '',
+                                                }))
+                                              }
+                                              className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                                            >
+                                              Use PCI value
+                                            </button>
+                                          )}
                                         </div>
                                         <div
                                           className="relative flex min-h-0 flex-1 overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm"
@@ -15722,7 +15715,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                         forceMount
                                         className="mt-3 flex h-full min-h-0 flex-1 flex-col overflow-hidden data-[state=inactive]:pointer-events-none data-[state=inactive]:absolute data-[state=active]:relative data-[state=inactive]:inset-0 data-[state=active]:z-10 data-[state=inactive]:z-0 data-[state=active]:opacity-100 data-[state=inactive]:opacity-0"
                                       >
-                                        <div className="mb-2 flex items-center justify-between">
+                                        <div className="mb-2 flex items-center justify-end gap-2">
                                           <TaskSlideTextToolbar
                                             editorRef={assessmentSlideEditorRef}
                                             fontFamily={slideFontFamily}
@@ -15732,36 +15725,31 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                             onFontSizeChange={setSlideFontSize}
                                             onColorChange={setSlideTextColor}
                                           />
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-xs font-medium text-slate-500">
-                                              Task Timer
-                                            </span>
-                                            <TimerInput
-                                              value={assessmentBuilder.timeLimit}
-                                              onChange={value =>
+                                          <TimerInput
+                                            value={assessmentBuilder.timeLimit}
+                                            onChange={value =>
+                                              setAssessmentBuilder(prev => ({
+                                                ...prev,
+                                                timeLimit: value,
+                                              }))
+                                            }
+                                            disabled={!canEdit}
+                                          />
+                                          {assessmentBuilder.pciSpec?.timeLimit && (
+                                            <button
+                                              type="button"
+                                              disabled={!canEdit}
+                                              onClick={() =>
                                                 setAssessmentBuilder(prev => ({
                                                   ...prev,
-                                                  timeLimit: value,
+                                                  timeLimit: prev.pciSpec?.timeLimit || '',
                                                 }))
                                               }
-                                              disabled={!canEdit}
-                                            />
-                                            {assessmentBuilder.pciSpec?.timeLimit && (
-                                              <button
-                                                type="button"
-                                                disabled={!canEdit}
-                                                onClick={() =>
-                                                  setAssessmentBuilder(prev => ({
-                                                    ...prev,
-                                                    timeLimit: prev.pciSpec?.timeLimit || '',
-                                                  }))
-                                                }
-                                                className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
-                                              >
-                                                Use PCI value
-                                              </button>
-                                            )}
-                                          </div>
+                                              className="text-[11px] font-medium text-blue-600 hover:text-blue-700 disabled:opacity-50"
+                                            >
+                                              Use PCI value
+                                            </button>
+                                          )}
                                         </div>
                                         <div
                                           className="relative flex min-h-0 flex-1 flex-row overflow-hidden rounded-2xl border border-pink-200 bg-white shadow-sm"
