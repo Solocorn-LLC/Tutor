@@ -33,6 +33,10 @@ export interface DmiAnswerFieldItem {
   matchPrompts?: string[]
   /** Right-side bank for matching / drag_drop. */
   matchBank?: string[]
+  /** Row labels for a `table` item (leftmost column). */
+  rows?: string[]
+  /** Column labels for a `table` item (top headers). */
+  columns?: string[]
   section?: string
   /** Maximum word count for textual responses; omitted for non-text types. */
   wordLimit?: number | null
@@ -661,6 +665,78 @@ export function DmiAnswerField({
     )
   }
 
+  if (type === 'table' && item.rows && item.columns) {
+    const rows = item.rows
+    const columns = item.columns
+    const rowCount = rows.length
+    const colCount = columns.length
+    let matrix: string[][] = Array.from({ length: rowCount }, () => Array(colCount).fill(''))
+    try {
+      const parsed = value ? JSON.parse(value) : null
+      if (
+        Array.isArray(parsed) &&
+        parsed.length === rowCount &&
+        parsed.every(
+          (r: unknown) =>
+            Array.isArray(r) &&
+            r.length === colCount &&
+            r.every((c: unknown) => typeof c === 'string')
+        )
+      ) {
+        matrix = parsed as string[][]
+      }
+    } catch {
+      // fall back to blank matrix
+    }
+    const updateCell = (r: number, c: number, text: string) => {
+      onInteract()
+      const next = matrix.map((row, ri) =>
+        ri === r ? row.map((cell, ci) => (ci === c ? text : cell)) : row
+      )
+      onValueChange(JSON.stringify(next))
+    }
+    return (
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr>
+              <th className="border border-gray-200 bg-gray-50 p-2"></th>
+              {columns.map((col, ci) => (
+                <th
+                  key={ci}
+                  className="min-w-[80px] border border-gray-200 bg-gray-50 p-2 text-center font-medium text-gray-700"
+                >
+                  {col}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => (
+              <tr key={ri}>
+                <th className="border border-gray-200 bg-gray-50 p-2 text-left font-medium text-gray-700">
+                  {row}
+                </th>
+                {columns.map((_, ci) => (
+                  <td key={ci} className="border border-gray-200 p-1">
+                    <input
+                      type="text"
+                      value={matrix[ri][ci]}
+                      onChange={e => updateCell(ri, ci, e.target.value)}
+                      onFocus={onInteract}
+                      className="w-full min-w-[80px] rounded border-0 bg-white p-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-[#F17623]"
+                      placeholder=""
+                    />
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
   return (
     <WrittenAnswer
       value={value}
@@ -700,6 +776,8 @@ export function builderDmiToAnswerFieldItem(item: DMIQuestion): DmiAnswerFieldIt
     hotspotImageUrl: item.hotspotImageUrl,
     matchPrompts,
     matchBank,
+    rows: item.rows,
+    columns: item.columns,
     section: item.section,
     wordLimit: item.wordLimit,
   }

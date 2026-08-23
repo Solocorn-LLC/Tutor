@@ -120,6 +120,14 @@ export interface DMIQuestion {
   hotspotImageUrl?: string
   /** Correct clickable regions for `hotspot` (answer key, not shown to student). */
   regions?: import('@/lib/assessment/question-types').DmiHotspotRegion[]
+  /** Row labels for a `table` item (leftmost column). */
+  rows?: string[]
+  /** Column labels for a `table` item (top headers). */
+  columns?: string[]
+  /** Correct answers for a `table` item, as a 2-D array aligned to rows/columns.
+   *  Stored alongside `answer` (a JSON string of the same matrix) for backward
+   *  compatibility with grading and the answer key. Tutor-only evaluation layer. */
+  answers?: string[][]
   /** The paper section this question belongs to (e.g. "Section A"), when the
    *  paper is divided into sections (ASMT-4). Drives section grouping. */
   section?: string

@@ -120,7 +120,7 @@ Rules:
   sub-parts typically yields 15-30 fields.
 - For study_material: AUTHOR 5-10 questions that TEST the material — never bare numbers, section titles, or headings. Here "label" is the FULL question wording (a complete, answerable question), and each item carries a model "answer" and a "rubric". Choose a sensible mix of types for the content.
 - "type" is exactly one of: short, long, mcq, true_false, multiple_response, fill_blank, matching,
-  ordering, hotspot, drag_drop. Choose by how EACH part is answered: a multiple-choice item (lettered
+  ordering, hotspot, drag_drop, table. Choose by how EACH part is answered: a multiple-choice item (lettered
   options on the paper) -> "mcq"; a numeric / one-line response -> "short"; an extended written
   response (free-response, essay, "explain"/"justify"/"describe") -> "long"; true/false -> "true_false".
   A paper may MIX types — e.g. a multiple-choice section followed by free-response questions — so type
@@ -131,6 +131,12 @@ Rules:
     clickable letters — do NOT reproduce the option text (the student reads it from the paper).
   - For a study_material MCQ you author: provide EXACTLY 5 plausible, distinct options (a–e).
 - "pairs" (array of {"left","right"}) ONLY for matching / drag_drop.
+- "rows" (array of strings), "columns" (array of strings), and "answers" (2-D array of strings,
+  aligned to rows × columns) ONLY for "table". Use "table" when the question is a grid the
+  student must fill in — factor-pair tables, GCF/LCM charts, blank columns/rows, etc. The
+  "rows" label the leftmost entries; "columns" label the top headers; "answers" holds the
+  correct value for each cell in row-major order. The "answer" field should also be set to
+  the JSON string of the same "answers" matrix so grading can read it.
 - "marks": an integer number of points for the part. For a question_paper, use the marks PRINTED
   on the paper when visible (e.g. "[5]" -> 5); if none is shown, use 1. For study_material, assign
   sensible marks (1 for an objective item like mcq/true_false/fill_blank; 2-10 for short/long
@@ -168,7 +174,7 @@ Rules:
     document's own instructions or mark allocations. Empty string when none can be inferred.
 - "wordLimit": a recommended MAXIMUM word count for the student's response. ONLY include it for textual
   response types: "short", "long", and "fill_blank". OMIT it entirely for mcq, true_false, multiple_response,
-  matching, ordering, hotspot, and drag_drop.
+  matching, ordering, hotspot, drag_drop, and table.
   - If the paper explicitly states a word count ("in no more than N words", "write about N words"), use that.
   - If there is no explicit instruction but the response is textual, infer an optimal limit from the marks
     and expected depth: ~20 words for 1-mark short answers, ~50–80 words for 2–3-mark short answers,
@@ -184,6 +190,11 @@ EXAMPLE — Question 1 has parts (a),(b)(i),(b)(ii),(c); Question 2 has (a),(b).
 {"label":"Question 1(c)","type":"long","answer":"Explain using Newton's first law and net force.","rubric":"1 mark for identifying the law; 1 mark for applying it to the scenario; 1 mark for conclusion.","marks":3},
 {"label":"Question 2(a)","type":"short","answer":"photosynthesis","rubric":"Accept either word; no credit for definitions.","marks":1},
 {"label":"Question 2(b)","type":"long","answer":"Compare cell structure and function in plant and animal cells.","rubric":"1 mark per valid comparison up to 3 marks.","marks":3}
+]}
+
+EXAMPLE — a fillable table question. The document asks the student to complete a grid with row labels and column headers; each cell has one expected answer. Correct JSON:
+{"documentKind":"question_paper","fields":[
+{"label":"Question 7","type":"table","rows":["a) 6","b) 8","c) 9"],"columns":["1st","2nd"],"answers":[["1","6"],["1","8"],["1","9"]],"marks":3,"rubric":"1 mark per fully correct row."}
 ]}
 
 EXAMPLE — a MIXED paper with sections: "Section A" is multiple-choice (Q1-Q2, five options each),
@@ -210,6 +221,12 @@ interface ParsedDmiQuestion {
   questionType: DmiQuestionType
   options?: string[]
   pairs?: { left: string; right: string }[]
+  /** Row labels for a `table` item. */
+  rows?: string[]
+  /** Column labels for a `table` item. */
+  columns?: string[]
+  /** Correct answers for a `table` item, as a 2-D string array aligned to rows × columns. */
+  answers?: string[][]
   /** Section heading this part falls under (ASMT-4), when the paper has sections. */
   section?: string
   /** Expected answer format, distinct from the input `questionType` (ASMT-4). */
@@ -261,6 +278,9 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         type?: unknown
         options?: unknown
         pairs?: unknown
+        rows?: unknown
+        columns?: unknown
+        answers?: unknown
         answer?: unknown
         marks?: unknown
         section?: unknown
@@ -293,6 +313,19 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
               }))
               .filter(p => p.left && p.right)
           : undefined
+        const rows = Array.isArray(f.rows)
+          ? f.rows.map(r => String(r ?? '').trim()).filter(Boolean)
+          : undefined
+        const columns = Array.isArray(f.columns)
+          ? f.columns.map(c => String(c ?? '').trim()).filter(Boolean)
+          : undefined
+        const answersMatrix = Array.isArray(f.answers)
+          ? f.answers
+              .map((row: unknown) =>
+                Array.isArray(row) ? row.map((cell: unknown) => String(cell ?? '').trim()) : []
+              )
+              .filter(r => r.length > 0)
+          : undefined
         const marksNum = Number(f.marks)
         const section = typeof f.section === 'string' ? f.section.trim() : ''
         const responseType = typeof f.responseType === 'string' ? f.responseType.trim() : ''
@@ -304,6 +337,15 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
         // For mcq the student submits an option LETTER (A–E), so store the key as
         // a clean letter even if the model returned "C) Paris" or the option text.
         const answerStr = qType === 'mcq' ? normalizeMcqAnswer(rawAnswer, options) : rawAnswer
+        // For table items, prefer the structured answers matrix and keep it in
+        // sync with the stringified answer used by the answer key / grader.
+        const tableAnswers =
+          qType === 'table' && answersMatrix && answersMatrix.length > 0 ? answersMatrix : undefined
+        const tableAnswerStr = tableAnswers
+          ? JSON.stringify(tableAnswers)
+          : qType === 'table'
+            ? '[]'
+            : answerStr
         const rubricStr = String(f.rubric ?? '').trim()
         const rawWordLimit = f.wordLimit === null ? null : Number(f.wordLimit)
         const wordLimit =
@@ -316,13 +358,16 @@ function parseDmiJson(raw: string): ParsedDmiResponse | null {
           questionNumber: i + 1,
           questionLabel: extractQuestionRef(label),
           questionText: label,
-          answer: answerStr,
+          answer: tableAnswerStr ?? answerStr,
           marks: Number.isFinite(marksNum) && marksNum > 0 ? Math.round(marksNum) : undefined,
           rubric: rubricStr || undefined,
           wordLimit,
           questionType: qType,
           options: options && options.length > 0 ? options : undefined,
           pairs: pairs && pairs.length > 0 ? pairs : undefined,
+          rows: rows && rows.length > 0 ? rows : undefined,
+          columns: columns && columns.length > 0 ? columns : undefined,
+          answers: tableAnswers,
           section: section || undefined,
           responseType: responseType || undefined,
           sourceDependencies:

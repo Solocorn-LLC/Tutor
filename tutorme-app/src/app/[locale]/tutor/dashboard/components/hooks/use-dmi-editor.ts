@@ -121,6 +121,9 @@ export function useDmiEditor(deps: DmiEditorDeps) {
       acceptableVariants: partial.acceptableVariants,
       options: partial.options,
       pairs: partial.pairs,
+      rows: partial.rows,
+      columns: partial.columns,
+      answers: partial.answers,
       answerProvenance: 'tutor_edited',
     }
     const addItem = (arr: DMIQuestion[]) => [...arr, newItem]

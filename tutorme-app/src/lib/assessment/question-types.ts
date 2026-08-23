@@ -22,6 +22,7 @@ export const DMI_QUESTION_TYPES = [
   'ordering', // order / rank items
   'hotspot', // click a region on an image
   'drag_drop', // drag items into targets
+  'table', // editable rows × columns grid
 ] as const
 
 export type DmiQuestionType = (typeof DMI_QUESTION_TYPES)[number]
@@ -65,6 +66,7 @@ export const DMI_QUESTION_TYPE_LABELS: Record<DmiQuestionType, string> = {
   ordering: 'Ordering / Ranking',
   hotspot: 'Hotspot',
   drag_drop: 'Drag and drop',
+  table: 'Fillable table',
 }
 
 /** Choice types carry an `options` list the student picks from. */

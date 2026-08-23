@@ -28,6 +28,13 @@ export interface DeployableDmiItem {
   hotspotImageUrl?: string
   /** Correct clickable regions for hotspot — answer key. */
   regions?: DmiHotspotRegion[]
+  /** Row labels for a `table` item (leftmost column). */
+  rows?: string[]
+  /** Column labels for a `table` item (top headers). */
+  columns?: string[]
+  /** Correct answers for a `table` item, as a 2-D string array. Tutor-only
+   *  evaluation layer — never broadcast to students. */
+  answers?: string[][]
   /** Paper section heading (delivery-layer — safe to show students). */
   section?: string
 }
@@ -51,6 +58,10 @@ export interface StudentDmiItem {
    * about the correct pairing. Never includes the correspondence itself.
    */
   matchBank?: string[]
+  /** Row labels for a `table` item (leftmost column). */
+  rows?: string[]
+  /** Column labels for a `table` item (top headers). */
+  columns?: string[]
   /** Paper section heading (delivery-layer — the student sees the structure). */
   section?: string
 }
@@ -83,6 +94,10 @@ export function toStudentDmiItem(item: DeployableDmiItem): StudentDmiItem {
     // Unique rights, sorted: the bank a student picks from, with the correct
     // correspondence (and any left-order correlation) destroyed.
     safe.matchBank = [...new Set(item.pairs.map(p => p.right))].sort((a, b) => a.localeCompare(b))
+  }
+  if (item.questionType === 'table') {
+    safe.rows = item.rows
+    safe.columns = item.columns
   }
   return safe
 }
