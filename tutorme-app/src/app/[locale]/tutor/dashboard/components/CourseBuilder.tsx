@@ -9131,11 +9131,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     </div>
                   ))
                 )}
-                {courseAssets.length > 2 && (
-                  <p className="text-center text-[10px] text-gray-600">
-                    +{courseAssets.length - 2} more — click View to see all
-                  </p>
-                )}
               </div>
             </motion.div>
           )}
