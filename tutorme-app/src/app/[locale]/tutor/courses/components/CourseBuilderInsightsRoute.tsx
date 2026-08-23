@@ -513,7 +513,7 @@ function TutorControlsPanel({
                         'absolute bottom-1 top-1 rounded-lg shadow-sm transition-all duration-300 ease-out',
                         mode === 'edit' && 'bg-[#3B82F6]',
                         mode === 'test' && 'bg-[#7C3AED]',
-                        mode === 'classroom' && 'bg-[#F59E0B]'
+                        mode === 'classroom' && 'bg-[#F4A9A0]'
                       )}
                       style={{
                         left: modePill.left,
