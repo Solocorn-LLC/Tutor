@@ -35,7 +35,7 @@ export function AnimatedControlButton({
       <span className="flex items-center justify-center gap-2">
         {icon}
         <motion.span
-          className="overflow-hidden whitespace-nowrap"
+          className="overflow-hidden whitespace-nowrap leading-none"
           initial={{ opacity: 0, width: 0 }}
           animate={{
             opacity: hovered && !buttonDisabled ? 1 : 0,
