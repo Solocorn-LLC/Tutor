@@ -604,7 +604,9 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    {leavingSession ? 'Leaving…' : 'Leave classroom'}
+                    <span className="leading-none">
+                      {leavingSession ? 'Leaving…' : 'Leave classroom'}
+                    </span>
                   </button>
                 ) : hasSession && onEndSession ? (
                   <button
@@ -621,7 +623,9 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                    <span className="leading-none">
+                      {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
+                    </span>
                   </button>
                 ) : createTemplateButtonLabel ? (
                   <TooltipProvider>
@@ -637,7 +641,7 @@ function TutorControlsPanel({
                           )}
                         >
                           <Calendar className="h-4 w-4" />
-                          {createTemplateButtonLabel}
+                          <span className="leading-none">{createTemplateButtonLabel}</span>
                         </button>
                       </TooltipTrigger>
                     </Tooltip>
@@ -656,7 +660,7 @@ function TutorControlsPanel({
                           )}
                         >
                           <Calendar className="h-4 w-4" />
-                          Schedule & Publish
+                          <span className="leading-none">Schedule & Publish</span>
                         </button>
                       </TooltipTrigger>
                     </Tooltip>
