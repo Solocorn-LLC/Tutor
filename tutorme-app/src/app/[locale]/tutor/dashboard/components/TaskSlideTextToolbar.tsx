@@ -34,35 +34,67 @@ const FONT_FAMILIES = [
   },
   {
     value: '"Noto Sans SC", "PingFang SC", "Microsoft YaHei", "SimHei", sans-serif',
-    label: 'Chinese',
+    label: '中文 (Sans)',
+  },
+  {
+    value: '"Noto Serif SC", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "SimHei", serif',
+    label: '中文 (Serif)',
   },
   {
     value: '"Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif',
-    label: 'Korean',
+    label: '한국어 (Sans)',
+  },
+  {
+    value: '"Noto Serif KR", "Noto Sans KR", "Malgun Gothic", "Apple SD Gothic Neo", serif',
+    label: '한국어 (Serif)',
   },
   {
     value: '"Noto Sans JP", "Hiragino Kaku Gothic Pro", "Meiryo", sans-serif',
-    label: 'Japanese',
+    label: '日本語 (Sans)',
+  },
+  {
+    value: '"Noto Serif JP", "Noto Sans JP", "Hiragino Mincho Pro", "Meiryo", serif',
+    label: '日本語 (Serif)',
   },
   {
     value: '"Noto Sans Arabic", "Scheherazade New", "Arial", sans-serif',
-    label: 'Arabic',
+    label: 'العربية (Sans)',
+  },
+  {
+    value: '"Noto Naskh Arabic", "Noto Sans Arabic", "Scheherazade New", "Arial", serif',
+    label: 'العربية (Naskh)',
   },
   {
     value: '"Noto Sans Devanagari", "Mangal", "Kokila", "Arial", sans-serif',
-    label: 'Hindi',
+    label: 'हिन्दी (Sans)',
+  },
+  {
+    value: '"Noto Serif Devanagari", "Noto Sans Devanagari", "Mangal", "Kokila", serif',
+    label: 'हिन्दी (Serif)',
   },
   {
     value: '"Noto Sans Tamil", "Latha", "Vijaya", "Arial", sans-serif',
-    label: 'Tamil',
+    label: 'தமிழ் (Sans)',
+  },
+  {
+    value: '"Noto Serif Tamil", "Noto Sans Tamil", "Latha", "Vijaya", serif',
+    label: 'தமிழ் (Serif)',
   },
   {
     value: '"Noto Sans Thai", "Tahoma", "Leelawadee", "Arial", sans-serif',
-    label: 'Thai',
+    label: 'ไทย (Sans)',
+  },
+  {
+    value: '"Noto Serif Thai", "Noto Sans Thai", "Tahoma", "Leelawadee", serif',
+    label: 'ไทย (Serif)',
   },
   {
     value: '"Noto Sans Hebrew", "Arial Hebrew", "Tahoma", sans-serif',
-    label: 'Hebrew',
+    label: 'עברית (Sans)',
+  },
+  {
+    value: '"Noto Serif Hebrew", "Noto Sans Hebrew", "Arial Hebrew", "Tahoma", serif',
+    label: 'עברית (Serif)',
   },
   {
     value: '"Noto Sans Greek", "Arial", "Helvetica", sans-serif',
@@ -178,7 +210,12 @@ export function TaskSlideTextToolbar({
         </SelectTrigger>
         <SelectContent>
           {FONT_FAMILIES.map(f => (
-            <SelectItem key={f.label} value={f.value} className="text-xs">
+            <SelectItem
+              key={f.label}
+              value={f.value}
+              className="text-xs"
+              style={{ fontFamily: f.value }}
+            >
               {f.label}
             </SelectItem>
           ))}
