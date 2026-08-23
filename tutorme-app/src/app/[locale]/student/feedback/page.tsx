@@ -2488,112 +2488,106 @@ function StudentFeedbackContent() {
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-gray-50">
       <div className="flex h-full w-full min-w-0 flex-1 flex-col bg-gray-50/50">
         <div className="w-full px-4 pt-2">
-          <div className="flex w-full flex-col gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center">
+          <div className="flex w-full flex-row items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
             <div className="flex flex-1 items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => router.push('/student/dashboard')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="flex min-w-0 flex-1 flex-col">
-                {sessionContext && (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <h1 className="truncate text-sm font-semibold text-[#1F2933]">
-                      {sessionContext.courseName
-                        ? `${sessionContext.courseName}${sessionContext.variantName ? ` — ${sessionContext.variantName}` : ''}`
-                        : sessionContext.courseCategory || 'Live Class'}
-                    </h1>
-                    <span
-                      className={cn(
-                        'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                        sessionContext.status === 'active'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : sessionContext.status === 'scheduled'
-                            ? 'bg-amber-100 text-amber-700'
-                            : sessionContext.status === 'ended'
-                              ? 'bg-slate-100 text-slate-600'
-                              : 'bg-gray-100 text-gray-600'
-                      )}
-                    >
-                      {sessionContext.status === 'active'
-                        ? '● Live'
+              {sessionContext && (
+                <div className="flex min-w-0 items-center gap-2">
+                  <h1 className="truncate text-sm font-semibold text-[#1F2933]">
+                    {sessionContext.courseName
+                      ? `${sessionContext.courseName}${sessionContext.variantName ? ` — ${sessionContext.variantName}` : ''}`
+                      : sessionContext.courseCategory || 'Live Class'}
+                  </h1>
+                  <span
+                    className={cn(
+                      'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
+                      sessionContext.status === 'active'
+                        ? 'bg-emerald-100 text-emerald-700'
                         : sessionContext.status === 'scheduled'
-                          ? '⏳ Scheduled'
+                          ? 'bg-amber-100 text-amber-700'
                           : sessionContext.status === 'ended'
-                            ? '■ Ended'
-                            : sessionContext.status || 'Unknown'}
-                    </span>
-                    {sessionTimer && (
-                      <span className="shrink-0 font-mono text-xs text-slate-500">
-                        {sessionTimer}
-                      </span>
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-gray-100 text-gray-600'
                     )}
-                  </div>
-                )}
-                {sessions.length > 0 && (
-                  <div className="mt-1.5 min-w-0 max-w-[360px]">
-                    <Select
-                      value={selectedSessionId ?? ''}
-                      onValueChange={value => {
-                        if (!value || value === selectedSessionId) return
-                        const params = new URLSearchParams(searchParams.toString())
-                        params.set('sessionId', value)
-                        router.replace(`${pathname}?${params.toString()}`)
-                      }}
-                      disabled={sessionsLoading}
-                    >
-                      <SelectTrigger className="h-7 border-slate-200 bg-white text-xs text-slate-900">
-                        <SelectValue placeholder="Choose a session" />
-                      </SelectTrigger>
-                      <SelectContent
-                        position="popper"
-                        sideOffset={0}
-                        className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
-                      >
-                        {sessions.map(s => (
-                          <SelectItem
-                            key={s.id}
-                            value={s.id}
-                            className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
-                          >
-                            <div className="flex min-w-0 max-w-[320px] items-center gap-2">
-                              <span className="truncate font-medium">{s.title}</span>
-                              <span className="shrink-0 text-slate-500">
-                                ·{' '}
-                                {s.scheduledAt
-                                  ? new Date(s.scheduledAt).toLocaleString('en-US', {
-                                      weekday: 'short',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: 'numeric',
-                                      minute: '2-digit',
-                                    })
-                                  : 'TBD'}
-                              </span>
-                              {s.status === 'active' || s.status === 'live' ? (
-                                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                              ) : s.status === 'ended' ? (
-                                <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
-                              ) : null}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {sessionContext && (
-                  <p className="truncate text-xs text-slate-500">
-                    {[sessionContext.scheduleName, `with ${sessionContext.tutorUsername}`]
-                      .filter(Boolean)
-                      .join(' • ')}
-                  </p>
-                )}
-              </div>
+                  >
+                    {sessionContext.status === 'active'
+                      ? '● Live'
+                      : sessionContext.status === 'scheduled'
+                        ? '⏳ Scheduled'
+                        : sessionContext.status === 'ended'
+                          ? '■ Ended'
+                          : sessionContext.status || 'Unknown'}
+                  </span>
+                  {sessionTimer && (
+                    <span className="shrink-0 font-mono text-xs text-slate-500">
+                      {sessionTimer}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex flex-1 items-center justify-end gap-3">
               <WifiSignal connected={isConnected} error={!!error} />
             </div>
           </div>
+
+          {sessions.length > 0 && (
+            <div className="mt-2 flex w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
+              <div className="min-w-0 max-w-[360px]">
+                <Select
+                  value={selectedSessionId ?? ''}
+                  onValueChange={value => {
+                    if (!value || value === selectedSessionId) return
+                    const params = new URLSearchParams(searchParams.toString())
+                    params.set('sessionId', value)
+                    router.replace(`${pathname}?${params.toString()}`)
+                  }}
+                  disabled={sessionsLoading}
+                >
+                  <SelectTrigger className="h-7 border-slate-200 bg-white text-xs text-slate-900">
+                    <SelectValue placeholder="Choose a session" />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    sideOffset={0}
+                    className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
+                  >
+                    {sessions.map(s => (
+                      <SelectItem
+                        key={s.id}
+                        value={s.id}
+                        className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
+                      >
+                        <div className="flex min-w-0 max-w-[320px] items-center gap-2">
+                          <span className="truncate font-medium">{s.title}</span>
+                          <span className="shrink-0 text-slate-500">
+                            ·{' '}
+                            {s.scheduledAt
+                              ? new Date(s.scheduledAt).toLocaleString('en-US', {
+                                  weekday: 'short',
+                                  month: 'short',
+                                  day: 'numeric',
+                                  hour: 'numeric',
+                                  minute: '2-digit',
+                                })
+                              : 'TBD'}
+                          </span>
+                          {s.status === 'active' || s.status === 'live' ? (
+                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          ) : s.status === 'ended' ? (
+                            <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
+                          ) : null}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {sessionContext && (sessionContext.topic || sessionContext.objectives) && (
             <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2 text-sm text-blue-900">
