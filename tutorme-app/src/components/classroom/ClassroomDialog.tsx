@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
 import { categorizeLobbySessions } from '@/lib/classroom/lobby-sessions'
+import { toast } from 'sonner'
 
 export interface ClassroomDialogSession {
   id: string
@@ -50,6 +51,7 @@ export interface ClassroomDialogSession {
   scheduleId?: string | null
   scheduleName?: string | null
   description?: string | null
+  tutorLeftAt?: string | null
 }
 
 export interface ClassroomDialogProps {
@@ -103,6 +105,7 @@ export function ClassroomDialog({
   const [sessions, setSessions] = useState<ClassroomDialogSession[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [startingSessionId, setStartingSessionId] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
 
   // 1-second clock for countdown
@@ -180,6 +183,8 @@ export function ClassroomDialog({
 
   const startAsTutor = useCallback(
     async (sessionId: string) => {
+      if (startingSessionId) return
+      setStartingSessionId(sessionId)
       try {
         const csrfRes = await fetch('/api/csrf', { credentials: 'include' })
         const csrf = (await csrfRes.json().catch(() => ({})))?.token ?? null
@@ -195,15 +200,19 @@ export function ClassroomDialog({
           const e = await res.json().catch(() => ({}))
           // eslint-disable-next-line no-console
           console.error('Failed to start session:', e)
+          toast.error(e?.error || 'Failed to start session')
           return
         }
         goToSession(sessionId)
       } catch {
         // eslint-disable-next-line no-console
         console.error('Failed to start session')
+        toast.error('Failed to start session')
+      } finally {
+        setStartingSessionId(null)
       }
     },
-    [goToSession]
+    [goToSession, startingSessionId]
   )
 
   const titleDisplay =
@@ -316,6 +325,7 @@ export function ClassroomDialog({
                             startAsTutor(featuredSession.id)
                           }
                         }}
+                        disabled={startingSessionId === featuredSession.id}
                         className={cn(
                           'transition-all duration-200',
                           featuredSession.status === 'ended'
@@ -325,7 +335,11 @@ export function ClassroomDialog({
                               : 'border border-emerald-500 bg-emerald-500 text-white hover:bg-white hover:text-emerald-500'
                         )}
                       >
-                        <Video className="mr-1.5 h-4 w-4" />
+                        {startingSessionId === featuredSession.id ? (
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Video className="mr-1.5 h-4 w-4" />
+                        )}
                         {featuredSession.status === 'ended'
                           ? 'Enter'
                           : isFeaturedLive
