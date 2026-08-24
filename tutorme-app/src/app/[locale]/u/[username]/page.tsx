@@ -182,10 +182,12 @@ function StarRating({
 }) {
   if (rating === null) return null
   return (
-    <div className={cn('flex items-center gap-1', className)}>
-      <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-      <span className="font-medium text-inherit">{rating.toFixed(1)}</span>
-      {count !== undefined && count > 0 && <span className="text-sm opacity-70">({count})</span>}
+    <div className={cn('flex items-center gap-1 leading-none', className)}>
+      <Star className="h-4 w-4 -translate-y-px fill-amber-400 text-amber-400" />
+      <span className="font-medium leading-none text-inherit">{rating.toFixed(1)}</span>
+      {count !== undefined && count > 0 && (
+        <span className="text-sm leading-none opacity-70">({count})</span>
+      )}
     </div>
   )
 }
@@ -888,7 +890,7 @@ export default function PublicTutorPage() {
                               isCompact && 'mt-1.5'
                             )}
                           >
-                            <span className="flex items-center gap-1 truncate whitespace-nowrap">
+                            <span className="flex items-center gap-1 truncate whitespace-nowrap leading-none">
                               {course.variantCategory || course.categories[0] || 'general'}
                               {course.country && course.country !== 'Global' && (
                                 <>
@@ -896,7 +898,7 @@ export default function PublicTutorPage() {
                                   <CountryFlag
                                     countryName={course.country}
                                     size="xs"
-                                    className="shrink-0"
+                                    className="shrink-0 -translate-y-px"
                                   />
                                   <span className="truncate">{course.country}</span>
                                 </>
@@ -926,20 +928,21 @@ export default function PublicTutorPage() {
                       {isList && (
                         <div className="flex min-w-[200px] shrink-0 flex-col gap-2.5 border-l border-[rgba(255,255,255,0.10)] py-1 pl-6">
                           <div className="flex items-center gap-2 text-sm text-slate-200">
-                            <BookOpen className="h-4 w-4 text-slate-400" />
-                            <span>{course.sessionCount} sessions</span>
+                            <BookOpen className="h-4 w-4 -translate-y-px text-slate-400" />
+                            <span className="leading-none">{course.sessionCount} sessions</span>
                           </div>
                           <div className="flex items-center gap-2 text-sm text-slate-200">
-                            <CalendarDays className="h-4 w-4 text-slate-400" />
+                            <CalendarDays className="h-4 w-4 -translate-y-px text-slate-400" />
                             <button
                               type="button"
                               onClick={e => {
                                 e.preventDefault()
                                 setScheduleCourse(course)
                               }}
-                              className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                              className="inline-flex items-center gap-1 font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 hover:underline"
                             >
-                              View schedules <ExternalLink className="h-3 w-3" />
+                              <span className="leading-none">View schedules</span>
+                              <ExternalLink className="h-3 w-3 -translate-y-px" />
                             </button>
                           </div>
                           <div className="pt-0.5">
@@ -995,8 +998,8 @@ export default function PublicTutorPage() {
                     >
                       {!isList && (
                         <div className="flex w-full items-center gap-3 text-[11px] text-slate-300">
-                          <div className="flex items-center gap-1 font-medium text-slate-200">
-                            <BookOpen className="h-3.5 w-3.5 text-slate-400" />
+                          <div className="flex items-center gap-1 font-medium leading-none text-slate-200">
+                            <BookOpen className="h-3.5 w-3.5 -translate-y-px text-slate-400" />
                             <span>{course.sessionCount} sessions</span>
                           </div>
                           <div className="h-3.5 w-px bg-[rgba(255,255,255,0.12)]" />
@@ -1006,11 +1009,11 @@ export default function PublicTutorPage() {
                               e.preventDefault()
                               setScheduleCourse(course)
                             }}
-                            className="inline-flex items-center gap-1 font-medium text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                            className="inline-flex items-center gap-1 font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 hover:underline"
                           >
-                            <CalendarDays className="h-3.5 w-3.5" />
+                            <CalendarDays className="h-3.5 w-3.5 -translate-y-px" />
                             <span>View schedules</span>
-                            <ExternalLink className="h-3.5 w-3.5" />
+                            <ExternalLink className="h-3.5 w-3.5 -translate-y-px" />
                           </button>
                         </div>
                       )}
@@ -1079,12 +1082,12 @@ export default function PublicTutorPage() {
                         <button
                           type="button"
                           className={cn(
-                            'inline-flex items-center text-[13px] font-medium text-slate-300 transition-colors hover:text-white disabled:opacity-50',
+                            'inline-flex items-center text-[13px] font-medium leading-none text-slate-300 transition-colors hover:text-white disabled:opacity-50',
                             isCompact && 'text-xs'
                           )}
                           onClick={() => setDetailsCourse(course)}
                         >
-                          <FileText className="mr-1.5 h-3 w-3" />
+                          <FileText className="mr-1.5 h-3 w-3 -translate-y-px" />
                           Details
                         </button>
 
@@ -1092,13 +1095,13 @@ export default function PublicTutorPage() {
                           <button
                             type="button"
                             className={cn(
-                              'inline-flex items-center text-[13px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                              'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
                               isCompact && 'text-xs'
                             )}
                             onClick={() => handleEnterClassroom(course)}
                             disabled={launchingCourseId === course.id}
                           >
-                            <BookOpen className="mr-1.5 h-3 w-3" />
+                            <BookOpen className="mr-1.5 h-3 w-3 -translate-y-px" />
                             {launchingCourseId === course.id ? 'Launching…' : 'Classroom'}
                           </button>
                         ) : (
@@ -1110,19 +1113,19 @@ export default function PublicTutorPage() {
                                     <button
                                       type="button"
                                       className={cn(
-                                        'inline-flex items-center text-[13px] font-medium text-emerald-400 disabled:opacity-50',
+                                        'inline-flex items-center text-[13px] font-medium leading-none text-emerald-400 disabled:opacity-50',
                                         isCompact && 'text-xs'
                                       )}
                                       disabled
                                     >
-                                      <CheckCircle className="mr-1.5 h-3 w-3" />
+                                      <CheckCircle className="mr-1.5 h-3 w-3 -translate-y-px" />
                                       Enrolled
                                     </button>
                                   ) : (
                                     <button
                                       type="button"
                                       className={cn(
-                                        'inline-flex items-center text-[13px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                                        'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
                                         isCompact && 'text-xs'
                                       )}
                                       onClick={() => handleEnrollClick(course)}
@@ -1131,7 +1134,7 @@ export default function PublicTutorPage() {
                                       {enrollingCourseId === course.id ? (
                                         <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
                                       ) : (
-                                        <UserPlus className="mr-1.5 h-3 w-3" />
+                                        <UserPlus className="mr-1.5 h-3 w-3 -translate-y-px" />
                                       )}
                                       {enrollingCourseId === course.id ? 'Enrolling…' : 'Enroll'}
                                     </button>
@@ -1141,13 +1144,13 @@ export default function PublicTutorPage() {
                             <button
                               type="button"
                               className={cn(
-                                'inline-flex items-center text-[13px] font-medium text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                                'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
                                 isCompact && 'text-xs'
                               )}
                               onClick={() => void handleStudentEnterClassroom(course)}
                               disabled={studentJoiningCourseId === course.id}
                             >
-                              <BookOpen className="mr-1.5 h-3 w-3" />
+                              <BookOpen className="mr-1.5 h-3 w-3 -translate-y-px" />
                               {studentJoiningCourseId === course.id ? 'Enrolling…' : 'Classroom'}
                             </button>
                           </>

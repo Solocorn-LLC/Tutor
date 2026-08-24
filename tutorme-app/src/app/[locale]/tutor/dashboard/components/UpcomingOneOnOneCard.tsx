@@ -101,22 +101,22 @@ export function UpcomingOneOnOneCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-          <span className="flex items-center gap-1">
-            <Calendar className="h-3 w-3" />
+          <span className="flex items-center gap-1 leading-none">
+            <Calendar className="h-3 w-3 -translate-y-px" />
             {format(scheduledAt, 'EEEE, MMM d, h:mm a')}
           </span>
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
+          <span className="flex items-center gap-1 leading-none">
+            <Clock className="h-3 w-3 -translate-y-px" />
             {request.startTime}–{request.endTime}
           </span>
           {durationLabel(request) && (
-            <span className="flex items-center gap-1">
-              <Timer className="h-3 w-3" />
+            <span className="flex items-center gap-1 leading-none">
+              <Timer className="h-3 w-3 -translate-y-px" />
               {durationLabel(request)}
             </span>
           )}
-          <span className="flex items-center gap-1">
-            <User className="h-3 w-3" />
+          <span className="flex items-center gap-1 leading-none">
+            <User className="h-3 w-3 -translate-y-px" />
             {request.currency ?? 'USD'} {request.costPerSession}
           </span>
         </div>
@@ -138,7 +138,7 @@ export function UpcomingOneOnOneCard({
             onClick={() => onJoinOneOnOne(request.requestId)}
             className="bg-blue-500 text-white transition-all duration-200 hover:bg-blue-500"
           >
-            <Video className="mr-1 h-3 w-3" />
+            <Video className="mr-1 h-3 w-3 -translate-y-px" />
             {isJoining ? 'Opening…' : 'Join session'}
           </Button>
         ) : (
