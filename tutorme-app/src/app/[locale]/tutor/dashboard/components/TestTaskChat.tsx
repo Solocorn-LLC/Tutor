@@ -15,8 +15,8 @@
  * students (which remounts this component) doesn't lose the conversation.
  */
 
-import { useEffect, useRef, useState } from 'react'
-import { Send, Loader2, CheckCircle2, X } from 'lucide-react'
+import { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react'
+import { Send, Loader2, X } from 'lucide-react'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { ChatMessageBubble } from '@/components/classroom/chat-message-bubble'
@@ -49,32 +49,7 @@ export interface TaskDocumentSource {
   mimeType?: string | null
 }
 
-export function TestTaskChat({
-  pci,
-  pciSpec,
-  questionText,
-  sourceDocument,
-  htmlContent,
-  linkPreviews,
-  generatedFromText,
-  audioTrack,
-  initialState,
-  onPersist,
-  onBroadcast,
-  onReset,
-  incomingMessages,
-  mode = 'test-student',
-  tutorAvatarUrl,
-  studentAvatarUrl,
-  onTutorNote,
-  onAddAnswer,
-  onAsk,
-  onComplete,
-  onGrade,
-  taskId,
-  accent = 'orange',
-  documentTitle,
-}: {
+export interface TestTaskChatProps {
   pci?: string
   pciSpec?: unknown
   questionText?: string
@@ -118,7 +93,42 @@ export function TestTaskChat({
   onGrade?: (body: Record<string, unknown>) => Promise<Response>
   /** Task id used by the default preview endpoint. Required when onGrade is not provided. */
   taskId?: string
-}) {
+}
+
+export interface TestTaskChatRef {
+  /** Trigger the same submission flow as the internal "Task complete" button. */
+  submit: () => void
+}
+
+export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(function TestTaskChat(
+  {
+    pci,
+    pciSpec,
+    questionText,
+    sourceDocument,
+    htmlContent,
+    linkPreviews,
+    generatedFromText,
+    audioTrack,
+    initialState,
+    onPersist,
+    onBroadcast,
+    onReset,
+    incomingMessages,
+    mode = 'test-student',
+    tutorAvatarUrl,
+    studentAvatarUrl,
+    onTutorNote,
+    onAddAnswer,
+    onAsk,
+    onComplete,
+    onGrade,
+    taskId,
+    accent = 'orange',
+    documentTitle,
+  }: TestTaskChatProps,
+  ref
+) {
   const [messages, setMessages] = useState<ChatMsg[]>(initialState?.messages ?? [])
   const [draft, setDraft] = useState(initialState?.draft ?? '')
   const [completed, setCompleted] = useState(initialState?.completed ?? false)
@@ -127,6 +137,10 @@ export function TestTaskChat({
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastIncomingLen = useRef(0)
   const isClassroom = mode === 'classroom'
+
+  // Allow the parent to trigger the internal completion flow from an external
+  // "Task Complete" button (used in the student classroom viewport).
+  useImperativeHandle(ref, () => ({ submit: complete }))
 
   // Re-initialize the chat whenever the parent provides a new initialState. This
   // prevents a previous task's answers/AI feedback from surviving when the
@@ -357,9 +371,6 @@ export function TestTaskChat({
     }
   }
 
-  const taskCompleteBg = isClassroom ? 'bg-[#F17623]' : 'bg-[#8B5CF6]'
-  const taskCompleteHover = isClassroom ? 'hover:bg-[#d9631a]' : 'hover:bg-[#7C3AED]'
-
   return (
     <div
       className={`relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl bg-white`}
@@ -470,10 +481,11 @@ export function TestTaskChat({
         )}
       </div>
 
-      {/* Input area — chat composer for both classroom and student tabs. */}
+      {/* Input area — chat composer for both classroom and student tabs.
+          The send button sits inside the right end of the rounded textarea/pill. */}
       {isClassroom ? (
         <div className="border-t border-gray-100 p-2">
-          <div className="flex items-end gap-2">
+          <div className="relative">
             <textarea
               value={draft}
               onChange={e => setDraft(e.target.value)}
@@ -487,7 +499,7 @@ export function TestTaskChat({
               rows={1}
               placeholder="Send a message to students…"
               className={cn(
-                'max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
+                'max-h-28 min-h-[44px] w-full resize-none rounded-xl border bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
                 accent === 'violet'
                   ? 'border-[#8B5CF6] focus:ring-[#8B5CF6]'
                   : 'border-[#F4A9A0] focus:ring-[#F4A9A0]'
@@ -498,7 +510,7 @@ export function TestTaskChat({
               onClick={sendTutorMessage}
               disabled={busy || !draft.trim()}
               title="Send"
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
+              className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>
@@ -506,7 +518,7 @@ export function TestTaskChat({
         </div>
       ) : (
         <div className="border-t border-gray-100 p-2">
-          <div className="flex items-end gap-2">
+          <div className="relative">
             <textarea
               value={draft}
               onChange={e => setDraft(e.target.value)}
@@ -519,34 +531,20 @@ export function TestTaskChat({
               disabled={busy}
               rows={1}
               placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
-              className="max-h-28 min-h-[44px] flex-1 resize-none rounded-xl border border-[#8B5CF6] px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]"
+              className="max-h-28 min-h-[44px] w-full resize-none rounded-xl border border-[#8B5CF6] bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]"
             />
             <button
               type="button"
               onClick={onSend}
               disabled={busy || !draft.trim()}
               title={completed ? 'Send' : 'Add answer'}
-              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#8B5CF6] text-white transition-colors hover:opacity-90 disabled:opacity-40"
+              className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-full bg-[#8B5CF6] text-white transition-colors hover:opacity-90 disabled:opacity-40"
             >
               <Send className="h-4 w-4" />
             </button>
           </div>
-          {/* Task Complete button — only shown in test-student mode, not classroom */}
-          <button
-            type="button"
-            onClick={complete}
-            disabled={completed || busy || (studentAnswers.length === 0 && !draft.trim())}
-            className={`mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg ${taskCompleteBg} px-3 py-2 text-sm font-semibold text-white transition-colors ${taskCompleteHover} disabled:opacity-50`}
-          >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4" />
-            )}
-            Task complete
-          </button>
         </div>
       )}
     </div>
   )
-}
+})

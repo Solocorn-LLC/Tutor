@@ -28,7 +28,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { AutoTextarea } from '@/components/ui/auto-textarea'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { FloatingZoomPill } from '@/components/pdf/FloatingZoomPill'
 import { useSocket } from '@/hooks/use-socket'
 import { toast } from 'sonner'
 import { cn, resolvePublicUrl } from '@/lib/utils'
@@ -41,7 +40,6 @@ import {
 import { handleRichPaste, uploadPastedImage } from '@/lib/paste/rich-paste'
 import {
   MessageSquare,
-  Send,
   Bell,
   Loader2,
   NotebookPen,
@@ -99,9 +97,11 @@ import {
   TestTaskChat,
   type TestTaskChatState,
   type TestTaskChatMsg,
+  type TestTaskChatRef,
 } from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
-import { TaskDocumentCard } from '@/components/task/TaskDocumentCard'
 import { DemoVideoPrompt, DemoVideoPlayer } from '@/components/demo-video/DemoVideoPlayer'
+import { getCategoryBoard } from '@/lib/data/category-board'
+import { TAB_COLORS } from '@/app/[locale]/tutor/courses/components/CourseCategoryPicker'
 
 /** Group deployed task directory items into base tasks and their extensions. */
 interface GroupableTask {
@@ -1172,29 +1172,10 @@ function StudentFeedbackContent() {
   // Base-task completion state for sequential unlocking in the Lessons panel.
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set())
   const [questionDrafts, setQuestionDrafts] = useState<Record<string, string>>({})
-  const [chatInput, setChatInput] = useState('')
-  const chatInputRef = useRef<HTMLTextAreaElement>(null)
-  const MIN_CHAT_HEIGHT = 80
-  const MAX_CHAT_HEIGHT = 200
+  // Ref to the active task's chat card so the external "Task Complete" button can
+  // trigger submission for chat-style tasks.
+  const testTaskChatRef = useRef<TestTaskChatRef>(null)
 
-  const adjustChatHeight = useCallback(() => {
-    const el = chatInputRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${Math.min(MAX_CHAT_HEIGHT, Math.max(MIN_CHAT_HEIGHT, el.scrollHeight))}px`
-  }, [])
-
-  useEffect(() => {
-    adjustChatHeight()
-  }, [chatInput, adjustChatHeight])
-
-  const [viewerZoom, setViewerZoom] = useState(1)
-  const [documentPopupDoc, setDocumentPopupDoc] = useState<{
-    fileName?: string | null
-    fileUrl?: string | null
-    fileKey?: string | null
-    mimeType?: string | null
-  } | null>(null)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   // Restored state + tutor messages for the live chat-task flow (mirrors Test mode).
   const [taskChatInitial, setTaskChatInitial] = useState<TestTaskChatState | undefined>(undefined)
@@ -2551,30 +2532,45 @@ function StudentFeedbackContent() {
               {sessionContext && (
                 <>
                   <h1 className="truncate text-sm font-semibold text-[#1F2933]">
-                    {sessionContext.courseName
-                      ? `${sessionContext.courseName}${sessionContext.variantName ? ` — ${sessionContext.variantName}` : ''}`
-                      : sessionContext.courseCategory || 'Live Class'}
+                    {sessionContext.courseName || sessionContext.courseCategory || 'Live Class'}
                   </h1>
-                  <span
-                    className={cn(
-                      'inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium',
-                      sessionContext.status === 'active'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : sessionContext.status === 'scheduled'
-                          ? 'bg-amber-100 text-amber-700'
-                          : sessionContext.status === 'ended'
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-gray-100 text-gray-600'
-                    )}
-                  >
-                    {sessionContext.status === 'active'
-                      ? '● Live'
-                      : sessionContext.status === 'scheduled'
-                        ? '⏳ Scheduled'
-                        : sessionContext.status === 'ended'
-                          ? '■ Ended'
-                          : sessionContext.status || 'Unknown'}
-                  </span>
+                  {(sessionContext.courseCategory || sessionContext.variantName) && (
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 items-center rounded-full px-3 py-1 text-xs font-medium',
+                        (() => {
+                          const board = sessionContext.courseCategory
+                            ? getCategoryBoard(sessionContext.courseCategory)
+                            : null
+                          const tabKey = board
+                            ? (
+                                {
+                                  Global: 'global',
+                                  AP: 'ap',
+                                  'A Level': 'alevel',
+                                  IB: 'ib',
+                                  IGCSE: 'igcse',
+                                  Languages: 'languages',
+                                  Professional: 'professional',
+                                  Universities: 'universities',
+                                } as Record<string, string>
+                              )[board] || 'diy'
+                            : 'diy'
+                          const colors = TAB_COLORS[tabKey] || TAB_COLORS.diy
+                          return `${colors.bg} ${colors.text}`
+                        })()
+                      )}
+                    >
+                      {(() => {
+                        const board = sessionContext.courseCategory
+                          ? getCategoryBoard(sessionContext.courseCategory)
+                          : null
+                        return [board, sessionContext.courseCategory, sessionContext.variantName]
+                          .filter(Boolean)
+                          .join(' · ')
+                      })()}
+                    </span>
+                  )}
                   {sessionTimer && (
                     <span className="shrink-0 font-mono text-xs text-slate-500">
                       {sessionTimer}
@@ -2727,74 +2723,14 @@ function StudentFeedbackContent() {
                     </div>
                   )}
 
-                  <div className="flex-1 overflow-hidden p-4 pt-6">
+                  <div className="no-scrollbar flex-1 overflow-hidden overflow-y-auto p-4 pt-6">
                     {activeTask ? (
-                      isChatTask && activeTaskId ? (
-                        <div className="h-full w-full">
-                          <TestTaskChat
-                            key={activeTaskId}
-                            mode="test-student"
-                            questionText={`${activeTask.title}\n\n${activeTask.content}`}
-                            sourceDocument={activeTask.sourceDocument}
-                            htmlContent={activeTask.htmlContent}
-                            linkPreviews={activeTask.linkPreviews}
-                            generatedFromText={activeTask.generatedFromText}
-                            audioTrack={activeTask.audioTrack}
-                            initialState={taskChatInitial}
-                            incomingMessages={taskChatIncoming}
-                            studentAvatarUrl={session?.user?.image}
-                            onGrade={body =>
-                              fetchWithCsrf(`/api/student/assignments/${activeTaskId}/task-chat`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(body),
-                              })
-                            }
-                            onBroadcast={msg => {
-                              if (!socket || !selectedSessionId) return
-                              socket.emit('task:chat_message', {
-                                roomId: selectedSessionId,
-                                taskId: activeTaskId,
-                                role: 'student',
-                                content: msg.content,
-                                name: session?.user?.name || 'Student',
-                                timestamp: Date.now(),
-                              })
-                            }}
-                            onComplete={answers => {
-                              if (!socket || !selectedSessionId || !activeTaskId) return
-                              const record: Record<string, string> = {}
-                              answers.forEach((a, i) => {
-                                record[String(i + 1)] = a
-                              })
-                              socket.emit('task:complete', {
-                                roomId: selectedSessionId,
-                                taskId: activeTaskId,
-                                answers: record,
-                                aiHandled: true,
-                              })
-                            }}
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          className="h-full w-full overflow-y-auto"
-                          style={{ zoom: viewerZoom } as React.CSSProperties}
-                        >
-                          <h3 className="mb-3 text-base font-semibold text-gray-900">
-                            {activeTask.title}
-                          </h3>
-
-                          {activeTask.content && (
-                            <div className="mb-4 whitespace-pre-wrap text-sm text-gray-700">
-                              {activeTask.content}
-                            </div>
-                          )}
-
+                      activeTaskId ? (
+                        <div className="flex h-full flex-col gap-3 overflow-hidden">
                           {/* Auto-grade result surfaced in the Classroom tab as a
                               tutor/AI message after the student submits. */}
                           {assessmentGradedMessage?.taskId === activeTaskId && (
-                            <div className="mb-4">
+                            <div className="shrink-0">
                               <ChatMessageBubble
                                 sender="ai"
                                 name="AI Tutor"
@@ -2804,91 +2740,60 @@ function StudentFeedbackContent() {
                               />
                             </div>
                           )}
-
-                          {/* For a chat task the document lives inside the chat panel
-                              (it collapses into a pinned card after the first message),
-                              so only render the standalone viewer for non-chat tasks.
-                              For assessments and non-chat tasks, show the document as a
-                              chat-style document card that can be clicked to open the
-                              full PDF viewer. */}
-                          {!isChatTask && activeTask.sourceDocument && (
-                            <>
-                              <div className="mb-4 flex justify-start">
-                                <ChatMessageBubble
-                                  sender="tutor"
-                                  name="Tutor"
-                                  content=""
-                                  avatarUrl={sessionContext?.tutorId ? undefined : undefined}
-                                  isDocument
-                                  document={activeTask.sourceDocument}
-                                  documentTitle={activeTask.title}
-                                  onDocumentClick={() =>
-                                    setDocumentPopupDoc(activeTask.sourceDocument || null)
+                          <div className="min-h-0 flex-1">
+                            <TestTaskChat
+                              ref={testTaskChatRef}
+                              key={activeTaskId}
+                              mode="test-student"
+                              questionText={`${activeTask.title}\n\n${activeTask.content}`}
+                              sourceDocument={activeTask.sourceDocument}
+                              htmlContent={activeTask.htmlContent}
+                              linkPreviews={activeTask.linkPreviews}
+                              generatedFromText={activeTask.generatedFromText}
+                              audioTrack={activeTask.audioTrack}
+                              initialState={taskChatInitial}
+                              incomingMessages={taskChatIncoming}
+                              studentAvatarUrl={session?.user?.image}
+                              onGrade={body =>
+                                fetchWithCsrf(
+                                  `/api/student/assignments/${activeTaskId}/task-chat`,
+                                  {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(body),
                                   }
-                                  studentOnRight
-                                />
-                              </div>
-                              {documentPopupDoc && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                                  <div className="flex h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-                                    <div className="flex items-center justify-between border-b px-4 py-3">
-                                      <span className="truncate text-sm font-semibold text-gray-800">
-                                        {documentPopupDoc.fileName || 'Document'}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        onClick={() => setDocumentPopupDoc(null)}
-                                        className="grid h-8 w-8 place-items-center rounded-lg text-gray-600 hover:bg-gray-100"
-                                        aria-label="Close document"
-                                      >
-                                        <X className="h-5 w-5" />
-                                      </button>
-                                    </div>
-                                    <div className="min-h-0 flex-1 p-4">
-                                      <TaskDocumentCard
-                                        sourceDocument={documentPopupDoc}
-                                        htmlContent={activeTask?.htmlContent}
-                                        linkPreviews={activeTask?.linkPreviews}
-                                        generatedFromText={activeTask?.generatedFromText}
-                                        audioTrack={activeTask?.audioTrack}
-                                        alwaysOpen
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* The questions + answer inputs live in the right-hand
-                              Assessment tab (single source of truth). Here we just
-                              point the student to it so a question-only task isn't
-                              blank. */}
-                          {Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setRightPanelTab('dmi')}
-                              className="flex w-full items-center justify-between gap-2 rounded-lg border border-[rgba(241,118,35,0.4)] bg-[rgba(241,118,35,0.06)] px-3 py-2.5 text-left text-sm font-medium text-[#9a4a12] transition-colors hover:bg-[rgba(241,118,35,0.12)]"
-                            >
-                              <span>
-                                {activeTask.dmiItems.length} question
-                                {activeTask.dmiItems.length === 1 ? '' : 's'} to answer — open the
-                                Assessment tab
-                              </span>
-                              <ChevronRight className="h-4 w-4 shrink-0" />
-                            </button>
-                          )}
-
-                          {!isChatTask &&
-                            !activeTask.content &&
-                            !activeTask.sourceDocument &&
-                            !(
-                              Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
-                            ) && (
-                              <p className="text-sm text-gray-500">
-                                This task has no content to display.
-                              </p>
-                            )}
+                                )
+                              }
+                              onBroadcast={msg => {
+                                if (!socket || !selectedSessionId) return
+                                socket.emit('task:chat_message', {
+                                  roomId: selectedSessionId,
+                                  taskId: activeTaskId,
+                                  role: 'student',
+                                  content: msg.content,
+                                  name: session?.user?.name || 'Student',
+                                  timestamp: Date.now(),
+                                })
+                              }}
+                              onComplete={answers => {
+                                if (!socket || !selectedSessionId || !activeTaskId) return
+                                const record: Record<string, string> = {}
+                                answers.forEach((a, i) => {
+                                  record[String(i + 1)] = a
+                                })
+                                socket.emit('task:complete', {
+                                  roomId: selectedSessionId,
+                                  taskId: activeTaskId,
+                                  answers: record,
+                                  aiHandled: true,
+                                })
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-sm text-gray-400">
+                          Select a task from the Lessons tab to open it.
                         </div>
                       )
                     ) : (
@@ -2897,57 +2802,24 @@ function StudentFeedbackContent() {
                       </div>
                     )}
                   </div>
-
-                  {/* Floating zoom slider — hidden when a task is deployed. */}
-                  {!activeTaskId && (
-                    <FloatingZoomPill
-                      scale={viewerZoom}
-                      onScaleChange={setViewerZoom}
-                      minScale={0.5}
-                      maxScale={2.0}
-                      defaultScale={1.0}
-                      fixed
-                      className="bottom-2 right-2"
-                    />
-                  )}
                 </div>
 
-                {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
-                    chat tasks, which use the in-viewer TestTaskChat instead. */}
-                {!isChatTask && (
-                  <div className="mt-2 flex flex-col gap-2">
-                    <div className="relative flex min-h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2 pr-12">
-                      <textarea
-                        ref={chatInputRef}
-                        value={chatInput}
-                        onChange={e => setChatInput(e.target.value)}
-                        className="w-full resize-none border-0 bg-transparent px-0 py-2 text-sm text-[#1F2933] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                        style={{ height: MIN_CHAT_HEIGHT }}
-                      />
-                      <Button
-                        size="icon"
-                        className="absolute bottom-2 right-3 h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
-                        onClick={() => {
-                          if (chatInput.trim() && socket) {
-                            socket.emit('chat_message', { text: chatInput.trim() })
-                            setChatInput('')
-                          }
-                        }}
-                      >
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Button
-                      className="h-10 w-full shrink-0 rounded-lg bg-[#3B82F6] px-4 text-sm font-semibold text-white hover:bg-[#2563EB] disabled:bg-slate-300 disabled:text-slate-500"
-                      disabled={!activeTaskId || !socket || !selectedSessionId}
-                      onClick={() => {
-                        if (!activeTaskId || !socket || !selectedSessionId) {
-                          toast.error('Cannot submit: no active task or session.')
-                          return
-                        }
-                        // Include any typed answers so the tutor's Insights can see
-                        // each student's responses, not just a completion tick.
-                        const answers = (activeTask?.dmiItems ?? []).reduce(
+                {/* Task Complete button — always below the viewport. Chat tasks are
+                    submitted through the chat card's ref; DMI tasks use the structured
+                    answers collected in the right-hand Assessment tab. */}
+                {activeTaskId && (
+                  <Button
+                    className="mt-2 h-10 w-full shrink-0 rounded-lg bg-[#3B82F6] px-4 text-sm font-semibold text-white hover:bg-[#2563EB] disabled:bg-slate-300 disabled:text-slate-500"
+                    disabled={!activeTaskId || !socket || !selectedSessionId}
+                    onClick={() => {
+                      if (!activeTaskId || !socket || !selectedSessionId || !activeTask) {
+                        toast.error('Cannot submit: no active task or session.')
+                        return
+                      }
+                      const hasDmi =
+                        Array.isArray(activeTask.dmiItems) && activeTask.dmiItems.length > 0
+                      if (hasDmi) {
+                        const answers = (activeTask.dmiItems ?? []).reduce(
                           (acc, item) => {
                             const a = taskAnswers[item.id]
                             if (a && a.trim()) acc[item.id] = a.trim()
@@ -2955,10 +2827,6 @@ function StudentFeedbackContent() {
                           },
                           {} as Record<string, string>
                         )
-                        // Wait for the server's acknowledgement so we report a
-                        // TRUE result. If the payload is dropped (e.g. too large
-                        // with drawings) the ack never arrives → show a real error
-                        // instead of a false "submitted".
                         socket
                           .timeout(20000)
                           .emit(
@@ -2973,17 +2841,16 @@ function StudentFeedbackContent() {
                                 return
                               }
                               toast.success('Task submitted')
-                              // Unlock the next task immediately even if the server
-                              // ack'd an already-completed task without re-broadcasting
-                              // task:completed.
                               setCompletedTaskIds(prev => new Set([...prev, activeTaskId]))
                             }
                           )
-                      }}
-                    >
-                      Task Complete
-                    </Button>
-                  </div>
+                      } else {
+                        testTaskChatRef.current?.submit()
+                      }
+                    }}
+                  >
+                    Task Complete
+                  </Button>
                 )}
               </TabsContent>
 
@@ -3131,7 +2998,7 @@ function StudentFeedbackContent() {
                   // must scroll.
                   rightPanelTab === 'my-board'
                     ? 'overflow-hidden rounded-xl border border-gray-100 bg-gray-50'
-                    : 'overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-4'
+                    : 'no-scrollbar overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-4'
                 )}
               >
                 {rightPanelTab === 'lessons' ? (
