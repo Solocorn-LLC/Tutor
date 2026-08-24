@@ -1124,6 +1124,10 @@ function TutorInsightsPageInner() {
       setLiveTasks(prev => prev.map(item => (item.id === payload.task.id ? payload.task : item)))
     }
 
+    const handleTaskUndeployed = (data: { taskId: string }) => {
+      setLiveTasks(prev => prev.filter(item => item.id !== data.taskId))
+    }
+
     const handleTaskCompleted = (data: {
       taskId: string
       studentId: string
@@ -1339,6 +1343,7 @@ function TutorInsightsPageInner() {
 
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
+    socket.on('task:undeployed', handleTaskUndeployed)
     socket.on('task:completed', handleTaskCompleted)
     socket.on('session:ending-soon', handleSessionEndingSoon)
     socket.on('session:ended', handleSessionEnded)
@@ -1352,6 +1357,7 @@ function TutorInsightsPageInner() {
     return () => {
       socket.off('task:deployed', handleTaskDeployed)
       socket.off('task:updated', handleTaskUpdated)
+      socket.off('task:undeployed', handleTaskUndeployed)
       socket.off('task:completed', handleTaskCompleted)
       socket.off('session:ending-soon', handleSessionEndingSoon)
       socket.off('session:ended', handleSessionEnded)

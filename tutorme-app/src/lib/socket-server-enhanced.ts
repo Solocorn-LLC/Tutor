@@ -1963,6 +1963,62 @@ export async function initEnhancedSocketServer(server: NetServer) {
       }
     )
 
+    socket.on(
+      'task:undeploy',
+      async (data: { roomId: string; taskId: string; courseId?: string }) => {
+        if (socket.data.role !== 'tutor') {
+          socket.emit('task:undeploy:error', { error: 'Only tutors can undeploy tasks' })
+          return
+        }
+        const { roomId, taskId, courseId: payloadCourseId } = data
+        if (!roomId || !taskId) {
+          socket.emit('task:undeploy:error', { error: 'Invalid undeploy data' })
+          return
+        }
+
+        // Only allow undeploy for sessions that have not started yet.
+        try {
+          const [sessionRec] = await drizzleDb
+            .select({ status: liveSession.status, courseId: liveSession.courseId })
+            .from(liveSession)
+            .where(eq(liveSession.sessionId, roomId))
+            .limit(1)
+
+          if (!sessionRec) {
+            socket.emit('task:undeploy:error', { error: 'Session not found' })
+            return
+          }
+
+          if (sessionRec.status !== 'scheduled' && sessionRec.status !== 'preparing') {
+            socket.emit('task:undeploy:error', {
+              error: 'Tasks can only be removed before the session starts',
+            })
+            return
+          }
+
+          // Remove from in-memory room state.
+          const room = activeRooms.get(roomId)
+          if (room) {
+            room.tasks = room.tasks.filter(t => t.id !== taskId)
+            room.lastActivity = Date.now()
+            void persistRoomToRedis(roomId, room)
+          }
+
+          // Remove from persistent deployed-material table.
+          await drizzleDb
+            .delete(deployedMaterial)
+            .where(and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, taskId)))
+
+          // Notify all clients in the room.
+          io.to(roomId).emit('task:undeployed', { taskId, roomId })
+          socket.emit('task:undeploy:ok', { taskId, roomId })
+        } catch (err) {
+          console.error('[task:undeploy] failed:', err)
+          socket.emit('task:undeploy:error', { error: 'Failed to undeploy task' })
+        }
+      }
+    )
+
     // Tutor requests an explicit flush before closing the tab.
     socket.on('room:flush', async (data: { roomId: string }) => {
       const { roomId } = data

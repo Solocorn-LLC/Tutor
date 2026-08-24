@@ -489,6 +489,9 @@ export interface CourseBuilderInsightsProps {
   tutorId?: string
   tutorName?: string
   studentBoards?: Record<string, { pages: unknown[]; pageIndex: number; updatedAt?: number }>
+  /** True when the tutor entered through a session card (/tutor/classroom). In this
+   *  mode the session selector in the Lessons panel is read-only. */
+  isSessionLocked?: boolean
 }
 
 export interface CourseBuilderProps {

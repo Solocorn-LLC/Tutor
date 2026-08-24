@@ -615,7 +615,7 @@ interface PreviewCardProps {
 // ============================================
 
 import { MonitoringPanel } from './MonitoringPanel'
-import { SubmissionsPanel } from './SubmissionsPanel'
+import { LessonsPanel } from './LessonsPanel'
 
 // Cache of rendered PDF page images keyed by document URL, so PCI vision messages
 // don't re-render the same document on every chat turn.
@@ -1573,8 +1573,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setLiveRightPanelTab('analytics')
       }
     }, [mainTab, liveRightPanelTab])
-    // New (unseen) submission count, surfaced by SubmissionsPanel to badge the tab.
-    const [newSubmissionCount, setNewSubmissionCount] = useState(0)
 
     const [testPciSource, setTestPciSource] = useState<'task' | 'assessment'>('task')
     // Persists each Test-tab task-chat preview (keyed by task/extension + student
@@ -2857,9 +2855,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const [insightsTabMap, setInsightsTabMap] = useState<
       Record<string, 'analytics' | 'poll' | 'question'>
     >({})
-    // Right Desk panel inner-tabs state: Submissions / Poll / Question
+    // Right Desk panel inner-tabs state: Lessons / Poll / Question
     const [deskInsightsTabMap, setDeskInsightsTabMap] = useState<
-      Record<string, 'submissions' | 'poll' | 'question'>
+      Record<string, 'lessons' | 'poll' | 'question'>
     >({})
     const [pollPromptMap, setPollPromptMap] = useState<Record<string, string>>({})
     // Poll option set per task: 'letters' (A–E), 'tf' (True/False), 'yn' (Yes/No)
@@ -2888,9 +2886,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         : activeInsightsTaskId || 'default'
     const insightsTab = insightsTabMap[currentInsightsId] ?? 'analytics'
 
-    // Right Desk panel inner-tabs state: Submissions / Poll / Question
-    const deskInsightsTab = deskInsightsTabMap[currentInsightsId] ?? 'submissions'
-    const setDeskInsightsTab = (val: 'submissions' | 'poll' | 'question') =>
+    // Right Desk panel inner-tabs state: Lessons / Poll / Question
+    const deskInsightsTab = deskInsightsTabMap[currentInsightsId] ?? 'lessons'
+    const setDeskInsightsTab = (val: 'lessons' | 'poll' | 'question') =>
       setDeskInsightsTabMap(prev => ({ ...prev, [currentInsightsId]: val }))
 
     // Real poll/question results for the active task, derived from the live
@@ -11073,7 +11071,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                       >
-                        <div className="flex flex-col gap-2">
+                        <div
+                          className={cn(
+                            'flex flex-col gap-2',
+                            (mainTab === 'live' || mainTab === 'test-pci') &&
+                              'overflow-hidden rounded-[20px] border border-[#E5E7EB] bg-[#FAFBFC] pb-4'
+                          )}
+                        >
                           {/* Lessons (formerly nodes) - with drag sorting */}
                           <SortableContext
                             items={filteredCourseBuilderNodes.map(node => node.id)}
@@ -16350,7 +16354,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                 <Tabs
                                   value={deskInsightsTab}
                                   onValueChange={value =>
-                                    setDeskInsightsTab(value as 'submissions' | 'poll' | 'question')
+                                    setDeskInsightsTab(value as 'lessons' | 'poll' | 'question')
                                   }
                                   className="flex h-full min-h-0 flex-col"
                                 >
@@ -16358,11 +16362,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                     value={deskInsightsTab}
                                     variant="white"
                                     tabs={[
-                                      {
-                                        value: 'submissions',
-                                        label: 'Submissions',
-                                        badge: newSubmissionCount,
-                                      },
+                                      { value: 'lessons', label: 'Lessons' },
                                       { value: 'poll', label: 'Poll' },
                                       { value: 'question', label: 'Question' },
                                     ]}
@@ -16370,15 +16370,27 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                     triggerClassName="h-7 rounded-md px-2 text-[11px]"
                                   />
                                   <TabsContent
-                                    value="submissions"
+                                    value="lessons"
                                     className="flex h-full flex-1 flex-col overflow-hidden data-[state=active]:flex data-[state=inactive]:hidden"
                                   >
-                                    <SubmissionsPanel
-                                      hideHeader
+                                    <LessonsPanel
                                       courseId={courseId || ''}
-                                      onToggleHidden={setRightPanelHidden}
-                                      liveSubmissions={insightsProps?.liveSubmissions}
-                                      onNewSubmissionCount={setNewSubmissionCount}
+                                      sessionId={insightsProps?.sessionId ?? null}
+                                      sessions={insightsProps?.sessions || []}
+                                      liveTasks={insightsProps?.liveTasks || []}
+                                      activeTaskId={activeInsightsTaskId}
+                                      onSelectTask={(taskId, source) => {
+                                        if (source === 'assessment') {
+                                          setLoadedAssessmentId(taskId)
+                                          setLoadedTaskId(null)
+                                        } else {
+                                          setLoadedTaskId(taskId)
+                                          setLoadedAssessmentId(null)
+                                        }
+                                      }}
+                                      onSessionChange={insightsProps?.onSessionChange}
+                                      isSessionLocked={insightsProps?.isSessionLocked}
+                                      socket={insightsProps?.socket}
                                     />
                                   </TabsContent>
                                   <TabsContent
