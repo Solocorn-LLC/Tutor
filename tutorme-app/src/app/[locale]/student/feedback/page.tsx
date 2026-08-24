@@ -1189,6 +1189,8 @@ function StudentFeedbackContent() {
     setTaskChatInitial(undefined)
   }, [activeTaskId])
   const [taskChatIncoming, setTaskChatIncoming] = useState<TestTaskChatMsg[]>([])
+  const [taskChatBusy, setTaskChatBusy] = useState(false)
+  const [taskChatCompleted, setTaskChatCompleted] = useState(false)
   // Graded result message for DMI-bearing assessments, shown as a tutor/AI input
   // in the Classroom tab after the student clicks "Assessment Complete".
   const [assessmentGradedMessage, setAssessmentGradedMessage] = useState<{
@@ -2224,18 +2226,21 @@ function StudentFeedbackContent() {
     }
   }, [activeTaskId, isChatTask])
 
-  // Listen for tutor task-chat messages and inject them into the student's chat.
+  // Listen for task-chat messages from peers/tutor and inject them into the
+  // student's chat. Skip the student's own broadcast echo — the chat card
+  // already adds the message locally when the student sends it.
   useEffect(() => {
     if (!socket || !activeTaskId) return
     const handleTaskChatMessage = (msg: TestTaskChatMsg & { taskId?: string }) => {
       if (msg.taskId && msg.taskId !== activeTaskId) return
+      if (msg.userId && msg.userId === session?.user?.id) return
       setTaskChatIncoming(prev => [...prev, msg])
     }
     socket.on('task:chat_message', handleTaskChatMessage)
     return () => {
       socket.off('task:chat_message', handleTaskChatMessage)
     }
-  }, [socket, activeTaskId])
+  }, [socket, activeTaskId, session?.user?.id])
 
   // Listen for auto-grade results after the student submits an assessment, so
   // the result can be displayed in the Classroom tab as a tutor/AI input.
@@ -2278,6 +2283,8 @@ function StudentFeedbackContent() {
   // Clear cross-task message relay when the active chat task changes.
   useEffect(() => {
     setTaskChatIncoming([])
+    setTaskChatBusy(false)
+    setTaskChatCompleted(false)
     setAssessmentGradedMessage(null)
   }, [activeTaskId])
 
@@ -2760,10 +2767,12 @@ function StudentFeedbackContent() {
                                   {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify(body),
+                                    body: JSON.stringify({ ...body, sessionId: selectedSessionId }),
                                   }
                                 )
                               }
+                              onBusyChange={setTaskChatBusy}
+                              onCompletedChange={setTaskChatCompleted}
                               onBroadcast={msg => {
                                 if (!socket || !selectedSessionId) return
                                 socket.emit('task:chat_message', {
@@ -2810,7 +2819,13 @@ function StudentFeedbackContent() {
                 {activeTaskId && (
                   <Button
                     className="mt-2 h-10 w-full shrink-0 rounded-lg bg-[#3B82F6] px-4 text-sm font-semibold text-white hover:bg-[#2563EB] disabled:bg-slate-300 disabled:text-slate-500"
-                    disabled={!activeTaskId || !socket || !selectedSessionId}
+                    disabled={
+                      !activeTaskId ||
+                      !socket ||
+                      !selectedSessionId ||
+                      taskChatBusy ||
+                      taskChatCompleted
+                    }
                     onClick={() => {
                       if (!activeTaskId || !socket || !selectedSessionId || !activeTask) {
                         toast.error('Cannot submit: no active task or session.')
@@ -2849,7 +2864,11 @@ function StudentFeedbackContent() {
                       }
                     }}
                   >
-                    Task Complete
+                    {taskChatBusy
+                      ? 'Submitting…'
+                      : taskChatCompleted
+                        ? 'Completed'
+                        : 'Task Complete'}
                   </Button>
                 )}
               </TabsContent>
