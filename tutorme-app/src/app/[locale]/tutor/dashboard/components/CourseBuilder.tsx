@@ -65,6 +65,21 @@ function sanitizeBlobUrls(obj: unknown, path = ''): { sanitized: unknown; remove
   return { sanitized: obj, removedPaths }
 }
 
+/**
+ * Remove duplicate items by `id`, preserving the first occurrence. Used to keep
+ * the curriculum panel from rendering the same task/assessment twice when a
+ * course has accidentally accumulated duplicate rows (e.g. from repeated PDF
+ * splits or copy/paste).
+ */
+function deduplicateById<T extends { id: string }>(items: T[] | undefined): T[] {
+  const seen = new Set<string>()
+  return (items || []).filter(item => {
+    if (seen.has(item.id)) return false
+    seen.add(item.id)
+    return true
+  })
+}
+
 // Editable Likert scale item component
 function EditableLikertItem({
   index,
@@ -3410,17 +3425,15 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       [loadedAssessmentId]
     )
 
-    // When a tutor enters the live classroom without a task loaded, auto-load the
-    // most recently deployed live task (if any). Tasks/assessments are scoped to a
-    // session, so when the session changes we clear any stale loaded item and
-    // never fall back to loading curriculum items that have not been deployed.
-    const didAutoLoadLiveItemRef = useRef(false)
+    // When a tutor enters the live classroom, clear any previously-loaded item
+    // that is no longer deployed in the active session. We intentionally do NOT
+    // auto-load the most recently deployed task on entry — the tutor should pick
+    // from the Lessons panel or deploy a new task. Previously the entry auto-load
+    // caused the same "last deployed" task (e.g. Task 2.28) to keep appearing
+    // every time the classroom was opened.
     const liveSessionIdRef = useRef<string | null>(null)
     useEffect(() => {
-      if (mainTab !== 'live') {
-        didAutoLoadLiveItemRef.current = false
-        return
-      }
+      if (mainTab !== 'live') return
 
       const currentSessionId = insightsProps?.sessionId ?? null
       const sessionChanged = currentSessionId !== liveSessionIdRef.current
@@ -3430,12 +3443,10 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setLoadedAssessmentId(null)
         setTaskBuilder(initialTaskBuilderState as any)
         setAssessmentBuilder(initialAssessmentBuilderState as any)
-        didAutoLoadLiveItemRef.current = false
         return
       }
 
       if (!currentSessionId || nodes.length === 0) return
-      if (didAutoLoadLiveItemRef.current) return
 
       const liveTasks = insightsProps?.liveTasks ?? []
       const deployedIds = new Set(liveTasks.map(t => t.id))
@@ -3449,30 +3460,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setLoadedAssessmentId(null)
         setAssessmentBuilder(initialAssessmentBuilderState as any)
       }
-
-      // Prefer the most recently deployed live task from the active session.
-      const lastDeployed = liveTasks[liveTasks.length - 1]
-      if (lastDeployed) {
-        for (const mod of nodes) {
-          for (const lesson of mod.lessons) {
-            if (lastDeployed.source === 'assessment') {
-              const assessment = lesson.homework?.find(h => h.id === lastDeployed.id)
-              if (assessment) {
-                didAutoLoadLiveItemRef.current = true
-                loadAssessmentIntoBuilder(assessment)
-                return
-              }
-            } else {
-              const task = lesson.tasks?.find(t => t.id === lastDeployed.id)
-              if (task) {
-                didAutoLoadLiveItemRef.current = true
-                loadTaskIntoBuilder(task)
-                return
-              }
-            }
-          }
-        }
-      }
     }, [
       mainTab,
       insightsProps?.sessionId,
@@ -3484,9 +3471,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       loadAssessmentIntoBuilder,
     ])
 
-    // Keep the live classroom viewport synced to the most recently deployed item:
-    // whenever a new task/assessment is deployed, load it and reveal it in the
-    // Curriculum panel so the tutor always sees what students just received.
+    // Keep the live classroom viewport synced to NEW deployments: when a tutor
+    // explicitly deploys a task/assessment, load it and reveal it so the tutor sees
+    // what students just received. On the initial mount we only record the current
+    // last-deployed key and do NOT load, so opening the classroom stays on the
+    // tutor's chosen task instead of jumping to the end of the deployed list.
     const lastDeployedRef = useRef<string | null>(null)
     useEffect(() => {
       if (mainTab !== 'live') {
@@ -3497,6 +3486,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       const lastDeployed = liveTasks[liveTasks.length - 1]
       if (!lastDeployed) return
       const lastKey = `${lastDeployed.source}:${lastDeployed.id}`
+
+      // First time we see this liveTasks list: remember the last deployed key but
+      // don't auto-load it. This prevents the "always opens Task 2.28" behavior.
+      if (lastDeployedRef.current === null) {
+        lastDeployedRef.current = lastKey
+        return
+      }
+
       if (lastDeployedRef.current === lastKey) return
       lastDeployedRef.current = lastKey
 
@@ -10890,10 +10887,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     ])
 
     const filteredCourseBuilderNodes = useMemo(() => {
-      if (!searchQuery.trim()) return nodes
+      // Always deduplicate task/assessment IDs so the curriculum panel never renders
+      // the same item twice. Duplicates can enter the data from repeated PDF splits,
+      // copy/paste, or legacy imports; rendering them breaks SortableContext IDs and
+      // makes the "last deployed" logic pick the same task repeatedly.
+      const dedupedNodes = nodes.map(node => ({
+        ...node,
+        lessons: node.lessons.map(lesson => ({
+          ...lesson,
+          tasks: deduplicateById(lesson.tasks),
+          homework: deduplicateById(lesson.homework),
+        })),
+      }))
+
+      if (!searchQuery.trim()) return dedupedNodes
       const lowerQuery = searchQuery.toLowerCase()
 
-      return nodes
+      return dedupedNodes
         .map(node => {
           const nodeMatch = node.title.toLowerCase().includes(lowerQuery)
 
@@ -16378,7 +16388,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       sessionId={insightsProps?.sessionId ?? null}
                                       sessions={insightsProps?.sessions || []}
                                       liveTasks={insightsProps?.liveTasks || []}
-                                      activeTaskId={activeInsightsTaskId}
+                                      activeTaskId={loadedTaskId || loadedAssessmentId || null}
                                       onSelectTask={(taskId, source) => {
                                         if (source === 'assessment') {
                                           setLoadedAssessmentId(taskId)
