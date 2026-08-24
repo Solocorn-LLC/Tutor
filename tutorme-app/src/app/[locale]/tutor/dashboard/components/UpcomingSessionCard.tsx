@@ -71,22 +71,22 @@ export function UpcomingSessionCard({
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 leading-none">
             <Calendar className="h-3 w-3" />
             {session.scheduledAt
               ? format(new Date(session.scheduledAt), 'EEEE, MMM d, h:mm a')
               : 'TBD'}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 leading-none">
             <Clock className="h-3 w-3" />
             {session.duration ? `${session.duration} min` : '—'}
           </span>
-          <span className="flex items-center gap-1">
+          <span className="flex items-center gap-1 leading-none">
             <Users className="h-3 w-3" />
             {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
           </span>
           {formatSchedulePattern(course.schedule) ? (
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 leading-none">
               <CalendarClock className="h-3 w-3" />
               {formatSchedulePattern(course.schedule)}
             </span>
