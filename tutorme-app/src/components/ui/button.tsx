@@ -13,7 +13,7 @@ const buttonVariants = cva(
   // Base styles - Premium feel with smooth transitions
   [
     'inline-flex items-center justify-center gap-2',
-    'whitespace-nowrap text-sm font-medium',
+    'whitespace-nowrap text-sm font-medium leading-none',
     'rounded-lg', // Soft rounded corners
     'ease-premium transition-all duration-200',
     'focus-visible:ring-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
