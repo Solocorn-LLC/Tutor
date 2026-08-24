@@ -12,6 +12,7 @@ import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import {
   CourseBuilderService,
   LESSON_DEPLOYED_ERROR,
+  TASK_DEPLOYED_ERROR,
   EMPTY_SAVE_ERROR,
 } from '@/lib/services/course-builder.service'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -153,6 +154,12 @@ export const PUT = withCsrf(
         if (error.message.includes(LESSON_DEPLOYED_ERROR)) {
           return NextResponse.json(
             { error: error.message.replace(`${LESSON_DEPLOYED_ERROR}: `, '') },
+            { status: 409 }
+          )
+        }
+        if (error.message.includes(TASK_DEPLOYED_ERROR)) {
+          return NextResponse.json(
+            { error: error.message.replace(`${TASK_DEPLOYED_ERROR}: `, '') },
             { status: 409 }
           )
         }

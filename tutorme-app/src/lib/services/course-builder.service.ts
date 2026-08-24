@@ -5,10 +5,14 @@ import crypto from 'crypto'
 import { removeFile } from '@/lib/storage/service'
 import { refreshDocumentUrls } from '@/lib/storage/gcs'
 import { getLessonUsage } from '@/lib/courses/lesson-usage'
+import { getTaskUsage } from '@/lib/courses/task-usage'
 import { collectReferencedKeys } from '@/lib/storage/referenced-keys'
 
 /** Thrown when a save would hard-delete a lesson that has deployed material. */
 export const LESSON_DEPLOYED_ERROR = 'LESSON_HAS_DEPLOYMENTS'
+
+/** Thrown when a save would edit or remove a task/assessment deployed in a published course. */
+export const TASK_DEPLOYED_ERROR = 'TASK_HAS_DEPLOYMENTS'
 
 /**
  * Thrown when a save would delete EVERY lesson on a course that currently has
@@ -143,6 +147,113 @@ function toLessonBuilderData(les: BuilderLessonInput) {
     quizzes: les.quizzes ?? [],
     worksheets: les.worksheets ?? [],
   }
+}
+
+const ITEM_ARRAY_KEYS: Array<keyof BuilderLessonInput> = [
+  'tasks',
+  'assessments',
+  'homework',
+  'quizzes',
+  'worksheets',
+]
+
+interface BuilderItem {
+  id?: string
+  [key: string]: unknown
+}
+
+/**
+ * Collect every builder item id from all item arrays across every lesson.
+ * Items without an id are ignored (they are new and cannot be locked).
+ */
+function collectItemIds(lessons: BuilderLessonInput[]): string[] {
+  const ids = new Set<string>()
+  for (const lesson of lessons) {
+    for (const key of ITEM_ARRAY_KEYS) {
+      const arr = lesson[key]
+      if (!Array.isArray(arr)) continue
+      for (const item of arr) {
+        if (item && typeof item === 'object' && typeof (item as BuilderItem).id === 'string') {
+          ids.add((item as BuilderItem).id as string)
+        }
+      }
+    }
+  }
+  return Array.from(ids)
+}
+
+/**
+ * Build a lookup of existing builder items by id from the currently stored
+ * builderData JSON. Used to detect mutations of locked items.
+ */
+function buildExistingItemMap(
+  existingLessons: Array<{ lessonId: string; builderData: unknown }>
+): Map<string, unknown> {
+  const map = new Map<string, unknown>()
+  for (const lesson of existingLessons) {
+    const data = lesson.builderData as Record<string, unknown> | null
+    if (!data || typeof data !== 'object') continue
+    for (const key of ITEM_ARRAY_KEYS) {
+      const arr = data[key]
+      if (!Array.isArray(arr)) continue
+      for (const item of arr) {
+        if (item && typeof item === 'object' && typeof (item as BuilderItem).id === 'string') {
+          map.set((item as BuilderItem).id as string, item)
+        }
+      }
+    }
+  }
+  return map
+}
+
+/**
+ * Determine which locked item ids are being mutated or removed in the incoming
+ * payload. Returns an array of human-readable descriptions for diagnostics.
+ */
+function findLockedItemMutations(
+  lockedIds: Set<string>,
+  incomingLessons: BuilderLessonInput[],
+  existingItemMap: Map<string, unknown>
+): string[] {
+  const violations: string[] = []
+  const seenIds = new Set<string>()
+
+  for (const lesson of incomingLessons) {
+    for (const key of ITEM_ARRAY_KEYS) {
+      const arr = lesson[key]
+      if (!Array.isArray(arr)) continue
+      for (const item of arr) {
+        if (!item || typeof item !== 'object') continue
+        const id = (item as BuilderItem).id
+        if (typeof id !== 'string') continue
+        seenIds.add(id)
+        if (!lockedIds.has(id)) continue
+        const existing = existingItemMap.get(id)
+        if (!existing) continue
+        if (JSON.stringify(existing) !== JSON.stringify(item)) {
+          const label =
+            typeof (item as BuilderItem).title === 'string' ? (item as BuilderItem).title : id
+          violations.push(`changed ${key.slice(0, -1)} "${label}"`)
+        }
+      }
+    }
+  }
+
+  // Any locked id that no longer appears anywhere in the payload has been removed.
+  for (const id of lockedIds) {
+    if (!seenIds.has(id)) {
+      const existing = existingItemMap.get(id)
+      const label =
+        existing &&
+        typeof existing === 'object' &&
+        typeof (existing as BuilderItem).title === 'string'
+          ? (existing as BuilderItem).title
+          : id
+      violations.push(`removed ${existing ? 'item' : 'unknown item'} "${label}"`)
+    }
+  }
+
+  return violations
 }
 
 export class CourseBuilderService {
@@ -339,6 +450,34 @@ export class CourseBuilderService {
       )
     }
 
+    const incomingLessons = lessons as BuilderLessonInput[]
+
+    // Absolute guard: items deployed in published courses cannot be edited or removed.
+    // We must check BOTH incoming and existing item ids so that removing a locked
+    // item from the tree is still detected.
+    const incomingItemIds = collectItemIds(incomingLessons)
+    const existingItemMap = buildExistingItemMap(existingLessons)
+    const existingItemIds = Array.from(existingItemMap.keys())
+    const idsToCheck = Array.from(new Set([...incomingItemIds, ...existingItemIds]))
+
+    const lockedItemIds = new Set(
+      idsToCheck.length > 0
+        ? Object.entries(await getTaskUsage(idsToCheck))
+            .filter(([, usage]) => usage.hasDeployments)
+            .map(([id]) => id)
+        : []
+    )
+
+    if (lockedItemIds.size > 0) {
+      const violations = findLockedItemMutations(lockedItemIds, incomingLessons, existingItemMap)
+      if (violations.length > 0) {
+        throw new Error(
+          `${TASK_DEPLOYED_ERROR}: Cannot edit or remove a task/assessment that has already been ` +
+            `deployed in a published course. ${violations.join('; ')}`
+        )
+      }
+    }
+
     await drizzleDb.transaction(async tx => {
       // Only consider LIVE lessons for the diff; already soft-deleted rows are
       // gone from the tree (re-adding the same id resurrects it via the upsert's
@@ -349,7 +488,6 @@ export class CourseBuilderService {
         .where(and(eq(courseLesson.courseId, courseId), isNull(courseLesson.deletedAt)))
 
       const existingLessonIds = new Set(existingDbLessons.map(l => l.id))
-      const incomingLessons = lessons as BuilderLessonInput[]
       const incomingLessonIds = new Set(incomingLessons.map(l => l.id).filter(Boolean))
 
       const idsToDelete = [...existingLessonIds].filter(id => !incomingLessonIds.has(id))

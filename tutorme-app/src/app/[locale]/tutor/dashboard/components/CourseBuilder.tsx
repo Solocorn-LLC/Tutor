@@ -3260,8 +3260,23 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
       taskBuilder.extensions,
     ])
 
+    // Absolute rule: items deployed in published courses cannot be edited.
+    const [lockedItemIds, setLockedItemIds] = useState<Set<string>>(new Set())
+
     const loadTaskIntoBuilder = useCallback(
-      (task: Task, activeExtensionId: string | null = null) => {
+      (
+        task: Task,
+        activeExtensionId: string | null = null,
+        options?: { allowLocked?: boolean }
+      ) => {
+        // Absolute rule: locked (deployed-in-published-course) items cannot be edited.
+        if (!options?.allowLocked && task.id && lockedItemIds.has(task.id)) {
+          toast.error(
+            'This task has been deployed in a published course and cannot be edited. Create a copy or unpublish the course first.'
+          )
+          return
+        }
+
         // Avoid reloading the same task/extension: repeated sidebar clicks (and
         // tab switches that land back on the same item) would otherwise reset the
         // document/PDF viewer state and trigger a fresh load of the source doc.
@@ -3333,12 +3348,20 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setTaskSourceDocument(task.sourceDocument)
         setTaskBuilderActiveTab('content')
       },
-      [loadedTaskId, taskBuilder.activeExtensionId]
+      [loadedTaskId, taskBuilder.activeExtensionId, lockedItemIds]
     )
 
     // Load assessment data into assessmentBuilder
     const loadAssessmentIntoBuilder = useCallback(
-      (assessment: Assessment) => {
+      (assessment: Assessment, options?: { allowLocked?: boolean }) => {
+        // Absolute rule: locked (deployed-in-published-course) items cannot be edited.
+        if (!options?.allowLocked && assessment.id && lockedItemIds.has(assessment.id)) {
+          toast.error(
+            'This assessment has been deployed in a published course and cannot be edited. Create a copy or unpublish the course first.'
+          )
+          return
+        }
+
         // Avoid reloading the same assessment: repeated sidebar clicks (and tab
         // switches that land back on the same item) would otherwise reset the
         // document/PDF viewer state and trigger a fresh load of the source doc.
@@ -3409,7 +3432,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
         setAssessmentSourceReferenceOnly(false)
         setAssessmentBuilderActiveTab('content')
       },
-      [loadedAssessmentId]
+      [loadedAssessmentId, lockedItemIds]
     )
 
     // When a tutor enters the live classroom without a task loaded, auto-load the
@@ -3461,14 +3484,14 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
               const assessment = lesson.homework?.find(h => h.id === lastDeployed.id)
               if (assessment) {
                 didAutoLoadLiveItemRef.current = true
-                loadAssessmentIntoBuilder(assessment)
+                loadAssessmentIntoBuilder(assessment, { allowLocked: true })
                 return
               }
             } else {
               const task = lesson.tasks?.find(t => t.id === lastDeployed.id)
               if (task) {
                 didAutoLoadLiveItemRef.current = true
-                loadTaskIntoBuilder(task)
+                loadTaskIntoBuilder(task, null, { allowLocked: true })
                 return
               }
             }
@@ -3507,13 +3530,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
           if (lastDeployed.source === 'assessment') {
             const assessment = lesson.homework?.find(h => h.id === lastDeployed.id)
             if (assessment) {
-              loadAssessmentIntoBuilder(assessment)
+              loadAssessmentIntoBuilder(assessment, { allowLocked: true })
               return
             }
           } else {
             const task = lesson.tasks?.find(t => t.id === lastDeployed.id)
             if (task) {
-              loadTaskIntoBuilder(task)
+              loadTaskIntoBuilder(task, null, { allowLocked: true })
               return
             }
           }
@@ -4130,6 +4153,62 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     // Editing is allowed in all modes (tutors can edit even during live sessions)
     const canEdit = true
+
+    // Load the set of item ids that are locked because they have been deployed in
+    // a published course. This mirrors the server-side guard so the UI can disable
+    // edit actions before the tutor tries to save.
+    useEffect(() => {
+      if (!courseId || nodes.length === 0) {
+        setLockedItemIds(new Set())
+        return
+      }
+
+      const ids = new Set<string>()
+      for (const node of nodes) {
+        for (const lesson of node.lessons || []) {
+          const lessonAny = lesson as any
+          for (const arr of [
+            lessonAny.tasks,
+            lessonAny.assessments,
+            lessonAny.homework,
+            lessonAny.quizzes,
+            lessonAny.worksheets,
+          ]) {
+            if (!Array.isArray(arr)) continue
+            for (const item of arr) {
+              if (item?.id) ids.add(item.id)
+            }
+          }
+        }
+      }
+
+      if (ids.size === 0) {
+        setLockedItemIds(new Set())
+        return
+      }
+
+      let cancelled = false
+      fetch('/api/tutor/tasks/usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ itemIds: Array.from(ids) }),
+      })
+        .then(r => (r.ok ? r.json() : null))
+        .then(data => {
+          if (cancelled) return
+          const locked = Array.isArray(data?.locked) ? (data.locked as string[]) : []
+          setLockedItemIds(new Set(locked))
+        })
+        .catch(() => {
+          // Never block the UI on a failed usage lookup.
+          if (!cancelled) setLockedItemIds(new Set())
+        })
+
+      return () => {
+        cancelled = true
+      }
+    }, [courseId, nodes])
 
     // Sync external course description into modal state when course changes
     useEffect(() => {

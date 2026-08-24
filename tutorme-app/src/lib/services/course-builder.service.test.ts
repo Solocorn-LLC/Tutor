@@ -28,9 +28,11 @@ interface CourseRow {
 const store = vi.hoisted(() => ({
   courses: [] as CourseRow[],
   lessons: [] as LessonRow[],
+  deployedItemIds: [] as string[],
   reset() {
     this.courses = []
     this.lessons = []
+    this.deployedItemIds = []
   },
   getLiveLessons(courseId: string) {
     return this.lessons.filter(l => l.courseId === courseId && l.deletedAt === null)
@@ -58,6 +60,25 @@ vi.mock('@/lib/courses/lesson-usage', () => ({
     > = {}
     for (const id of lessonIds) {
       record[id] = { lessonId: id, deployedCount: 0, hasDeployments: false }
+    }
+    return record
+  }),
+}))
+
+vi.mock('@/lib/courses/task-usage', () => ({
+  getTaskUsage: vi.fn().mockImplementation(async (itemIds: string[]) => {
+    const record: Record<
+      string,
+      { itemId: string; deployedCount: number; hasDeployments: boolean; lockedCourseIds: string[] }
+    > = {}
+    for (const id of itemIds) {
+      const locked = store.deployedItemIds.includes(id)
+      record[id] = {
+        itemId: id,
+        deployedCount: locked ? 1 : 0,
+        hasDeployments: locked,
+        lockedCourseIds: locked ? ['published-course'] : [],
+      }
     }
     return record
   }),
@@ -290,6 +311,99 @@ describe('CourseBuilderService.updateCourseBuilderData', () => {
 
     const live = store.getLiveLessons(courseId)
     expect(live).toHaveLength(0)
+  })
+
+  it('allows editing a task that is not deployed in a published course', async () => {
+    const tutorId = 'tutor-1'
+    const courseId = 'course-1'
+    seedCourse(courseId, tutorId, [
+      {
+        lessonId: 'lesson-a',
+        title: 'Existing',
+        builderData: { tasks: [{ id: 'task-1', title: 'Task 1' }] },
+      },
+    ])
+
+    await CourseBuilderService.updateCourseBuilderData(courseId, tutorId, [
+      {
+        id: 'lesson-a',
+        title: 'Existing',
+        tasks: [{ id: 'task-1', title: 'Task 1 edited' }],
+      },
+    ])
+
+    const live = store.getLiveLessons(courseId)
+    expect((live[0].builderData as any).tasks[0].title).toBe('Task 1 edited')
+  })
+
+  it('rejects editing a task deployed in a published course', async () => {
+    const tutorId = 'tutor-1'
+    const courseId = 'course-1'
+    seedCourse(courseId, tutorId, [
+      {
+        lessonId: 'lesson-a',
+        title: 'Existing',
+        builderData: { tasks: [{ id: 'task-1', title: 'Task 1' }] },
+      },
+    ])
+    store.deployedItemIds = ['task-1']
+
+    await expect(
+      CourseBuilderService.updateCourseBuilderData(courseId, tutorId, [
+        {
+          id: 'lesson-a',
+          title: 'Existing',
+          tasks: [{ id: 'task-1', title: 'Task 1 edited' }],
+        },
+      ])
+    ).rejects.toThrow('TASK_HAS_DEPLOYMENTS')
+  })
+
+  it('rejects removing a task deployed in a published course', async () => {
+    const tutorId = 'tutor-1'
+    const courseId = 'course-1'
+    seedCourse(courseId, tutorId, [
+      {
+        lessonId: 'lesson-a',
+        title: 'Existing',
+        builderData: { tasks: [{ id: 'task-1', title: 'Task 1' }] },
+      },
+    ])
+    store.deployedItemIds = ['task-1']
+
+    await expect(
+      CourseBuilderService.updateCourseBuilderData(courseId, tutorId, [
+        {
+          id: 'lesson-a',
+          title: 'Existing',
+          tasks: [],
+        },
+      ])
+    ).rejects.toThrow('TASK_HAS_DEPLOYMENTS')
+  })
+
+  it('allows a save that leaves a deployed task unchanged', async () => {
+    const tutorId = 'tutor-1'
+    const courseId = 'course-1'
+    seedCourse(courseId, tutorId, [
+      {
+        lessonId: 'lesson-a',
+        title: 'Existing',
+        builderData: { tasks: [{ id: 'task-1', title: 'Task 1' }] },
+      },
+    ])
+    store.deployedItemIds = ['task-1']
+
+    await CourseBuilderService.updateCourseBuilderData(courseId, tutorId, [
+      {
+        id: 'lesson-a',
+        title: 'Existing',
+        tasks: [{ id: 'task-1', title: 'Task 1' }],
+      },
+    ])
+
+    const live = store.getLiveLessons(courseId)
+    expect((live[0].builderData as any).tasks[0].title).toBe('Task 1')
   })
 })
 
