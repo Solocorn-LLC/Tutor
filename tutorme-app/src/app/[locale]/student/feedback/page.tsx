@@ -2488,13 +2488,68 @@ function StudentFeedbackContent() {
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-gray-50">
       <div className="flex h-full w-full min-w-0 flex-1 flex-col bg-gray-50/50">
         <div className="w-full px-4 pt-2">
-          <div className="flex w-full flex-row items-center gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
+          <div className="flex min-h-[72px] w-full flex-col gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => router.push('/student/dashboard')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
+              {sessions.length > 0 && (
+                <div className="min-w-0 max-w-[360px]">
+                  <Select
+                    value={selectedSessionId ?? ''}
+                    onValueChange={value => {
+                      if (!value || value === selectedSessionId) return
+                      const params = new URLSearchParams(searchParams.toString())
+                      params.set('sessionId', value)
+                      router.replace(`${pathname}?${params.toString()}`)
+                    }}
+                    disabled={sessionsLoading}
+                  >
+                    <SelectTrigger className="h-8 border-slate-200 bg-white text-xs text-slate-900">
+                      <SelectValue placeholder="Choose a session" />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      sideOffset={0}
+                      className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
+                    >
+                      {sessions.map(s => (
+                        <SelectItem
+                          key={s.id}
+                          value={s.id}
+                          className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
+                        >
+                          <div className="flex min-w-0 max-w-[320px] items-center gap-2">
+                            <span className="truncate font-medium">{s.title}</span>
+                            <span className="shrink-0 text-slate-500">
+                              ·{' '}
+                              {s.scheduledAt
+                                ? new Date(s.scheduledAt).toLocaleString('en-US', {
+                                    weekday: 'short',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: 'numeric',
+                                    minute: '2-digit',
+                                  })
+                                : 'TBD'}
+                            </span>
+                            {s.status === 'active' || s.status === 'live' ? (
+                              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            ) : s.status === 'ended' ? (
+                              <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
+                            ) : null}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-1 items-center justify-center gap-2">
               {sessionContext && (
-                <div className="flex min-w-0 items-center gap-2">
+                <>
                   <h1 className="truncate text-sm font-semibold text-[#1F2933]">
                     {sessionContext.courseName
                       ? `${sessionContext.courseName}${sessionContext.variantName ? ` — ${sessionContext.variantName}` : ''}`
@@ -2525,7 +2580,7 @@ function StudentFeedbackContent() {
                       {sessionTimer}
                     </span>
                   )}
-                </div>
+                </>
               )}
             </div>
 
@@ -2533,61 +2588,6 @@ function StudentFeedbackContent() {
               <WifiSignal connected={isConnected} error={!!error} />
             </div>
           </div>
-
-          {sessions.length > 0 && (
-            <div className="mt-2 flex w-full rounded-2xl border border-[#E5E7EB] bg-white px-4 py-2 shadow-[0_8px_20px_rgba(0,0,0,0.08)]">
-              <div className="min-w-0 max-w-[360px]">
-                <Select
-                  value={selectedSessionId ?? ''}
-                  onValueChange={value => {
-                    if (!value || value === selectedSessionId) return
-                    const params = new URLSearchParams(searchParams.toString())
-                    params.set('sessionId', value)
-                    router.replace(`${pathname}?${params.toString()}`)
-                  }}
-                  disabled={sessionsLoading}
-                >
-                  <SelectTrigger className="h-7 border-slate-200 bg-white text-xs text-slate-900">
-                    <SelectValue placeholder="Choose a session" />
-                  </SelectTrigger>
-                  <SelectContent
-                    position="popper"
-                    sideOffset={0}
-                    className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
-                  >
-                    {sessions.map(s => (
-                      <SelectItem
-                        key={s.id}
-                        value={s.id}
-                        className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
-                      >
-                        <div className="flex min-w-0 max-w-[320px] items-center gap-2">
-                          <span className="truncate font-medium">{s.title}</span>
-                          <span className="shrink-0 text-slate-500">
-                            ·{' '}
-                            {s.scheduledAt
-                              ? new Date(s.scheduledAt).toLocaleString('en-US', {
-                                  weekday: 'short',
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: 'numeric',
-                                  minute: '2-digit',
-                                })
-                              : 'TBD'}
-                          </span>
-                          {s.status === 'active' || s.status === 'live' ? (
-                            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          ) : s.status === 'ended' ? (
-                            <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
-                          ) : null}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
 
           {sessionContext && (sessionContext.topic || sessionContext.objectives) && (
             <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-2 text-sm text-blue-900">
@@ -2898,34 +2898,35 @@ function StudentFeedbackContent() {
                     )}
                   </div>
 
-                  {/* Floating zoom slider */}
-                  <FloatingZoomPill
-                    scale={viewerZoom}
-                    onScaleChange={setViewerZoom}
-                    minScale={0.5}
-                    maxScale={2.0}
-                    defaultScale={1.0}
-                    fixed
-                    className="bottom-2 right-2"
-                  />
+                  {/* Floating zoom slider — hidden when a task is deployed. */}
+                  {!activeTaskId && (
+                    <FloatingZoomPill
+                      scale={viewerZoom}
+                      onScaleChange={setViewerZoom}
+                      minScale={0.5}
+                      maxScale={2.0}
+                      defaultScale={1.0}
+                      fixed
+                      className="bottom-2 right-2"
+                    />
+                  )}
                 </div>
 
                 {/* Input row — the tutor-chat + socket "Task Complete". Hidden for
                     chat tasks, which use the in-viewer TestTaskChat instead. */}
                 {!isChatTask && (
-                  <div className="mt-2 flex items-center gap-3">
-                    <div className="relative flex min-h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2">
+                  <div className="mt-2 flex flex-col gap-2">
+                    <div className="relative flex min-h-20 flex-1 items-end gap-2 rounded-xl border-2 border-[rgba(241,118,35,0.5)] bg-white px-3 pb-2 pr-12">
                       <textarea
                         ref={chatInputRef}
                         value={chatInput}
                         onChange={e => setChatInput(e.target.value)}
-                        placeholder="Type a message..."
-                        className="w-full resize-none border-0 bg-transparent px-0 py-2 text-sm text-[#1F2933] placeholder:text-[#1F2933]/50 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="w-full resize-none border-0 bg-transparent px-0 py-2 text-sm text-[#1F2933] focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                         style={{ height: MIN_CHAT_HEIGHT }}
                       />
                       <Button
                         size="icon"
-                        className="h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+                        className="absolute bottom-2 right-3 h-8 w-8 shrink-0 rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
                         onClick={() => {
                           if (chatInput.trim() && socket) {
                             socket.emit('chat_message', { text: chatInput.trim() })
@@ -2935,50 +2936,53 @@ function StudentFeedbackContent() {
                       >
                         <Send className="h-4 w-4" />
                       </Button>
-                      <Button
-                        className="h-8 shrink-0 rounded-lg bg-[#F17623] px-4 text-sm font-semibold text-white hover:bg-[#d9651a]"
-                        disabled={!activeTaskId || !socket}
-                        onClick={() => {
-                          if (!activeTaskId || !socket || !selectedSessionId) return
-                          // Include any typed answers so the tutor's Insights can see
-                          // each student's responses, not just a completion tick.
-                          const answers = (activeTask?.dmiItems ?? []).reduce(
-                            (acc, item) => {
-                              const a = taskAnswers[item.id]
-                              if (a && a.trim()) acc[item.id] = a.trim()
-                              return acc
-                            },
-                            {} as Record<string, string>
-                          )
-                          // Wait for the server's acknowledgement so we report a
-                          // TRUE result. If the payload is dropped (e.g. too large
-                          // with drawings) the ack never arrives → show a real error
-                          // instead of a false "submitted".
-                          socket
-                            .timeout(20000)
-                            .emit(
-                              'task:complete',
-                              { roomId: selectedSessionId, taskId: activeTaskId, answers },
-                              (err: unknown, resp?: { ok?: boolean; error?: string }) => {
-                                if (err || !resp?.ok) {
-                                  toast.error(
-                                    resp?.error ||
-                                      'Submission did not go through. If you added drawings, try clearing some and resubmit.'
-                                  )
-                                  return
-                                }
-                                toast.success('Task submitted')
-                                // Unlock the next task immediately even if the server
-                                // ack'd an already-completed task without re-broadcasting
-                                // task:completed.
-                                setCompletedTaskIds(prev => new Set([...prev, activeTaskId]))
-                              }
-                            )
-                        }}
-                      >
-                        Task Complete
-                      </Button>
                     </div>
+                    <Button
+                      className="h-10 w-full shrink-0 rounded-lg bg-[#3B82F6] px-4 text-sm font-semibold text-white hover:bg-[#2563EB] disabled:bg-slate-300 disabled:text-slate-500"
+                      disabled={!activeTaskId || !socket || !selectedSessionId}
+                      onClick={() => {
+                        if (!activeTaskId || !socket || !selectedSessionId) {
+                          toast.error('Cannot submit: no active task or session.')
+                          return
+                        }
+                        // Include any typed answers so the tutor's Insights can see
+                        // each student's responses, not just a completion tick.
+                        const answers = (activeTask?.dmiItems ?? []).reduce(
+                          (acc, item) => {
+                            const a = taskAnswers[item.id]
+                            if (a && a.trim()) acc[item.id] = a.trim()
+                            return acc
+                          },
+                          {} as Record<string, string>
+                        )
+                        // Wait for the server's acknowledgement so we report a
+                        // TRUE result. If the payload is dropped (e.g. too large
+                        // with drawings) the ack never arrives → show a real error
+                        // instead of a false "submitted".
+                        socket
+                          .timeout(20000)
+                          .emit(
+                            'task:complete',
+                            { roomId: selectedSessionId, taskId: activeTaskId, answers },
+                            (err: unknown, resp?: { ok?: boolean; error?: string }) => {
+                              if (err || !resp?.ok) {
+                                toast.error(
+                                  resp?.error ||
+                                    'Submission did not go through. If you added drawings, try clearing some and resubmit.'
+                                )
+                                return
+                              }
+                              toast.success('Task submitted')
+                              // Unlock the next task immediately even if the server
+                              // ack'd an already-completed task without re-broadcasting
+                              // task:completed.
+                              setCompletedTaskIds(prev => new Set([...prev, activeTaskId]))
+                            }
+                          )
+                      }}
+                    >
+                      Task Complete
+                    </Button>
                   </div>
                 )}
               </TabsContent>
