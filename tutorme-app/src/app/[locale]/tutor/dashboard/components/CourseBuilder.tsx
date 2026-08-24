@@ -11071,7 +11071,13 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                       >
-                        <div className="flex flex-col gap-2">
+                        <div
+                          className={cn(
+                            'flex flex-col gap-2',
+                            (mainTab === 'live' || mainTab === 'test-pci') &&
+                              'overflow-hidden rounded-[20px] border border-[#E5E7EB] bg-[#FAFBFC] pb-4'
+                          )}
+                        >
                           {/* Lessons (formerly nodes) - with drag sorting */}
                           <SortableContext
                             items={filteredCourseBuilderNodes.map(node => node.id)}
