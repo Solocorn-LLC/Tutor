@@ -32,6 +32,8 @@ export interface TestTaskChatMsg {
   timestamp?: number
   /** Display name for this message sender (e.g. "Test Student 1" in classroom view). */
   name?: string
+  /** User id of the sender, when known (used to filter out self-echoed socket messages). */
+  userId?: string
 }
 
 export interface TestTaskChatState {
@@ -89,6 +91,10 @@ export interface TestTaskChatProps {
   onAsk?: (question: string) => void
   /** Called when the student clicks "Task complete" (Test mode only). */
   onComplete?: (answers: string[]) => void
+  /** Optional callback fired whenever the internal grading busy state changes. */
+  onBusyChange?: (busy: boolean) => void
+  /** Optional callback fired whenever the internal completed state changes. */
+  onCompletedChange?: (completed: boolean) => void
   /** Optional grading request handler. When provided, complete/ask POST through this instead of /api/tutor/task-chat-preview. */
   onGrade?: (body: Record<string, unknown>) => Promise<Response>
   /** Task id used by the default preview endpoint. Required when onGrade is not provided. */
@@ -122,6 +128,8 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
     onAddAnswer,
     onAsk,
     onComplete,
+    onBusyChange,
+    onCompletedChange,
     onGrade,
     taskId,
     accent = 'orange',
@@ -133,6 +141,14 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
   const [draft, setDraft] = useState(initialState?.draft ?? '')
   const [completed, setCompleted] = useState(initialState?.completed ?? false)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
+
+  useEffect(() => {
+    onCompletedChange?.(completed)
+  }, [completed, onCompletedChange])
   const [pdfPopupOpen, setPdfPopupOpen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastIncomingLen = useRef(0)
@@ -518,7 +534,7 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
         </div>
       ) : (
         <div className="border-t border-gray-100 p-2">
-          <div className="relative">
+          <div className="flex flex-col gap-2">
             <textarea
               value={draft}
               onChange={e => setDraft(e.target.value)}
@@ -529,19 +545,20 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
                 }
               }}
               disabled={busy}
-              rows={1}
-              placeholder={completed ? 'Ask about this task…' : 'Type a sample answer…'}
-              className="max-h-28 min-h-[44px] w-full resize-none rounded-xl border border-[#8B5CF6] bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#8B5CF6]"
+              rows={2}
+              className="max-h-32 min-h-[72px] w-full resize-none rounded-xl border border-[#F4A9A0] bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#F4A9A0]"
             />
-            <button
-              type="button"
-              onClick={onSend}
-              disabled={busy || !draft.trim()}
-              title={completed ? 'Send' : 'Add answer'}
-              className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-full bg-[#8B5CF6] text-white transition-colors hover:opacity-90 disabled:opacity-40"
-            >
-              <Send className="h-4 w-4" />
-            </button>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={busy || !draft.trim()}
+                title={completed ? 'Send' : 'Add answer'}
+                className="grid h-8 w-8 place-items-center rounded-full bg-[#F4A9A0] text-white transition-colors hover:opacity-90 disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
