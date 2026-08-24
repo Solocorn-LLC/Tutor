@@ -1250,11 +1250,6 @@ function CourseBuilderInsightsRouteInner({
 
                   {activeMainTab === 'builder' && (
                     <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
-                      <WifiSignal
-                        connected={!!insightsProps.isConnected}
-                        error={!!insightsProps.sessionId && !insightsProps.isConnected}
-                        size="md"
-                      />
                       {currentCourse?.name && (
                         <span className="text-xl font-normal text-slate-500">
                           {currentCourse.name}
