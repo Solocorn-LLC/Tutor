@@ -142,7 +142,7 @@ function WifiSignal({
 }
 
 const modeButtonBase =
-  'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors focus-visible:ring-0 focus-visible:ring-offset-0'
+  'flex h-7 w-full items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-semibold leading-none transition-colors focus-visible:ring-0 focus-visible:ring-offset-0'
 
 type Props = UseCourseBuilderContentArgs & {
   insightsProps: CourseBuilderInsightsProps
