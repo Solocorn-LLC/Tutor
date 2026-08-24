@@ -1407,6 +1407,7 @@ function CourseBuilderInsightsRouteInner({
                 onEndSession: insightsProps.sessionId ? handleEndSession : undefined,
                 onStartSession: handleStartSessionClick,
                 endingSession,
+                isSessionLocked: isClassroomMode,
               }}
               onMainTabChange={handleMainTabChange}
               initialMainTab={isClassroomMode ? 'live' : (tabFromUrl ?? 'builder')}
