@@ -29,7 +29,7 @@ export function SessionCountdown({ scheduledAt }: { scheduledAt: string }) {
   if (!countdown) return null
 
   return (
-    <span className="flex items-center gap-1 text-xs font-medium text-emerald-300">
+    <span className="flex items-center gap-1 text-xs font-medium leading-none text-emerald-300">
       <Clock className="h-3 w-3" />
       <span className="tabular-nums">{countdown}</span>
     </span>
