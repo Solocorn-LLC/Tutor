@@ -72,22 +72,22 @@ export function UpcomingSessionCard({
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/80">
           <span className="flex items-center gap-1 leading-none">
-            <Calendar className="h-3 w-3" />
+            <Calendar className="h-3 w-3 -translate-y-px" />
             {session.scheduledAt
               ? format(new Date(session.scheduledAt), 'EEEE, MMM d, h:mm a')
               : 'TBD'}
           </span>
           <span className="flex items-center gap-1 leading-none">
-            <Clock className="h-3 w-3" />
+            <Clock className="h-3 w-3 -translate-y-px" />
             {session.duration ? `${session.duration} min` : '—'}
           </span>
           <span className="flex items-center gap-1 leading-none">
-            <Users className="h-3 w-3" />
+            <Users className="h-3 w-3 -translate-y-px" />
             {session.enrolledStudents ?? 0} / {session.maxStudents ?? 50}
           </span>
           {formatSchedulePattern(course.schedule) ? (
             <span className="flex items-center gap-1 leading-none">
-              <CalendarClock className="h-3 w-3" />
+              <CalendarClock className="h-3 w-3 -translate-y-px" />
               {formatSchedulePattern(course.schedule)}
             </span>
           ) : null}
@@ -112,7 +112,7 @@ export function UpcomingSessionCard({
             onClick={() => onOpenSchedule(course)}
             className="border-slate-300 bg-white text-slate-700 transition-all duration-200 hover:border-white hover:bg-slate-800 hover:text-white"
           >
-            <CalendarClock className="mr-1 h-3 w-3" />
+            <CalendarClock className="mr-1 h-3 w-3 -translate-y-px" />
             Schedule
           </Button>
         )}
@@ -129,7 +129,7 @@ export function UpcomingSessionCard({
           }
           className="border border-emerald-500 bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
         >
-          <MonitorPlay className="mr-1 h-3 w-3" />
+          <MonitorPlay className="mr-1 h-3 w-3 -translate-y-px" />
           {isCurrentlyInSession ? 'Join now' : isLive ? 'Rejoin' : 'Classroom'}
         </Button>
       </div>
