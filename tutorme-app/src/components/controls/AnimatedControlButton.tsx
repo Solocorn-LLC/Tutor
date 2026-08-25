@@ -13,6 +13,8 @@ interface AnimatedControlButtonProps {
   className?: string
   onClick?: () => void
   disabled?: boolean
+  /** Compact mode: fixed auto width, label always visible, no hover expansion. */
+  compact?: boolean
 }
 
 export function AnimatedControlButton({
@@ -21,8 +23,29 @@ export function AnimatedControlButton({
   className,
   onClick,
   disabled: buttonDisabled,
+  compact,
 }: AnimatedControlButtonProps) {
   const [hovered, setHovered] = useState(false)
+  if (compact) {
+    return (
+      <motion.button
+        type="button"
+        disabled={buttonDisabled}
+        onClick={onClick}
+        onHoverStart={() => setHovered(true)}
+        onHoverEnd={() => setHovered(false)}
+        whileTap={{ scale: 0.96 }}
+        className={cn(
+          actionButtonBase,
+          'relative h-8 w-auto shrink-0 gap-1.5 px-2.5 text-[10px]',
+          className
+        )}
+      >
+        {icon}
+        <span className="whitespace-nowrap leading-none">{label}</span>
+      </motion.button>
+    )
+  }
   return (
     <motion.button
       type="button"

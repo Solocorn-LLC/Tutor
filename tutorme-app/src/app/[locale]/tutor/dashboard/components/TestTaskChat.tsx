@@ -518,7 +518,7 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
               }
             }}
             disabled={busy}
-            rows={1}
+            rows={2}
             placeholder={
               isClassroom
                 ? 'Send a message to students…'
@@ -527,7 +527,7 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
                   : 'Type a sample answer…'
             }
             className={cn(
-              'max-h-28 min-h-[44px] w-full resize-none rounded-xl border bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
+              'max-h-28 min-h-[72px] w-full resize-none rounded-xl border bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
               accent === 'violet'
                 ? 'border-[#8B5CF6] focus:ring-[#8B5CF6]'
                 : 'border-[#F4A9A0] focus:ring-[#F4A9A0]'
@@ -538,7 +538,7 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
             onClick={isClassroom ? sendTutorMessage : onSend}
             disabled={busy || !draft.trim()}
             title={isClassroom ? 'Send' : completed ? 'Send' : 'Add answer'}
-            className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
+            className="absolute bottom-2.5 right-2.5 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>
