@@ -48,6 +48,7 @@ interface InsightsSessionOption {
   status: string
   durationMinutes: number
   sessionType?: string
+  scheduleId?: string | null
 }
 
 // Stroke points may be compressed (flat number array) from socket delta sync.
@@ -77,6 +78,7 @@ function TutorInsightsPageInner() {
   const [detachedCourseName, setDetachedCourseName] = useState('Course')
   const [loading, setLoading] = useState(true)
   const [sessions, setSessions] = useState<InsightsSessionOption[]>([])
+  const [courseSchedules, setCourseSchedules] = useState<{ scheduleId: string; name: string }[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [linkedCourseId, setLinkedCourseId] = useState<string | null>(null)
   // Whether we've finished resolving the session's linked course — so a
@@ -881,6 +883,7 @@ function TutorInsightsPageInner() {
         ).map(s => ({
           ...s,
           courseId: (s as any).courseId ?? null,
+          scheduleId: (s as any).scheduleId ?? null,
           durationMinutes: s.duration ?? 60,
           sessionType: (s as any).sessionType,
         }))
@@ -907,6 +910,7 @@ function TutorInsightsPageInner() {
                     scheduledAt: directSession.scheduledAt,
                     status: directSession.status,
                     courseId: directSession.courseId ?? null,
+                    scheduleId: directSession.scheduleId ?? null,
                     durationMinutes: 60,
                     sessionType: directSession.sessionType,
                   },
@@ -977,6 +981,39 @@ function TutorInsightsPageInner() {
     if (!sessionId || !linkedCourseResolved || linkedCourseId) return
     setCourseId(prev => prev ?? 'insights-draft')
   }, [sessionId, linkedCourseResolved, linkedCourseId])
+
+  // Load the published course's schedules so the Desk panel can group sessions by schedule.
+  useEffect(() => {
+    if (!courseId || courseId === 'insights-draft' || !session?.user?.id) {
+      setCourseSchedules([])
+      return
+    }
+    let cancelled = false
+    const loadSchedules = async () => {
+      try {
+        const res = await fetch(`/api/tutor/courses/${encodeURIComponent(courseId)}/schedules`, {
+          credentials: 'include',
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled) return
+        const rows = Array.isArray(data.schedules) ? data.schedules : []
+        setCourseSchedules(
+          rows.map((s: any) => ({
+            scheduleId: s.scheduleId as string,
+            name: (s.name as string) || `Schedule ${(s.scheduleIndex as number) ?? 1}`,
+          }))
+        )
+      } catch (err) {
+        console.error('[loadSchedules] failed:', err)
+        if (!cancelled) setCourseSchedules([])
+      }
+    }
+    loadSchedules()
+    return () => {
+      cancelled = true
+    }
+  }, [courseId, session?.user?.id])
 
   useEffect(() => {
     if (!linkedCourseId) return
@@ -1576,6 +1613,7 @@ function TutorInsightsPageInner() {
             },
             sessionId,
             sessions,
+            schedules: courseSchedules,
             onSessionChange: setSessionId,
             liveTasks,
             liveSubmissions,

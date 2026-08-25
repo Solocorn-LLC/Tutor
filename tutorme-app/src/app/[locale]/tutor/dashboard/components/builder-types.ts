@@ -439,6 +439,7 @@ export interface InsightsSessionOption {
   durationMinutes?: number
   sessionType?: string
   courseId?: string | null
+  scheduleId?: string | null
 }
 
 export interface CourseBuilderInsightsProps {
@@ -459,6 +460,7 @@ export interface CourseBuilderInsightsProps {
   onCourseChange?: (courseId: string) => void
   sessionId: string | null
   sessions: InsightsSessionOption[]
+  schedules?: { scheduleId: string; name: string }[]
   onSessionChange: (sessionId: string) => void
   onStartSession?: () => void
   liveTasks: LiveTask[]

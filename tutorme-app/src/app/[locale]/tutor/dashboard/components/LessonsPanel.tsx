@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -37,6 +37,7 @@ export interface LessonsPanelProps {
   courseId: string
   sessionId: string | null
   sessions: InsightsSessionOption[]
+  schedules?: { scheduleId: string; name: string }[]
   liveTasks: LiveTask[]
   activeTaskId?: string | null
   onSelectTask?: (taskId: string, source: 'task' | 'assessment' | 'homework') => void
@@ -55,6 +56,7 @@ export function LessonsPanel({
   courseId,
   sessionId,
   sessions,
+  schedules = [],
   liveTasks,
   activeTaskId,
   onSelectTask,
@@ -66,10 +68,34 @@ export function LessonsPanel({
     homework: true,
   })
   const [undeployingIds, setUndeployingIds] = useState<Set<string>>(new Set())
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('all')
+
+  // Only show sessions that belong to the current course. Always keep the
+  // active session in the list even if its courseId hasn't arrived yet.
+  const courseSessions = useMemo(
+    () => sessions.filter(s => s.courseId === courseId || s.id === sessionId),
+    [sessions, courseId, sessionId]
+  )
+
+  const filteredSessions = useMemo(() => {
+    if (selectedScheduleId === 'all') return courseSessions
+    if (selectedScheduleId === 'unscheduled') return courseSessions.filter(s => !s.scheduleId)
+    return courseSessions.filter(s => s.scheduleId === selectedScheduleId)
+  }, [courseSessions, selectedScheduleId])
+
+  // Default the schedule selector to the active session's schedule.
+  useEffect(() => {
+    const active = courseSessions.find(s => s.id === sessionId)
+    if (active?.scheduleId) {
+      setSelectedScheduleId(active.scheduleId)
+    } else {
+      setSelectedScheduleId('all')
+    }
+  }, [sessionId, courseSessions])
 
   const currentSession = useMemo(
-    () => sessions.find(s => s.id === sessionId),
-    [sessions, sessionId]
+    () => filteredSessions.find(s => s.id === sessionId),
+    [filteredSessions, sessionId]
   )
 
   const canManageTasks = useMemo(() => {
@@ -115,8 +141,38 @@ export function LessonsPanel({
     }
   }
 
+  const hasSchedules = schedules.length > 0 || courseSessions.some(s => s.scheduleId)
+  const showScheduleSelector = !isSessionLocked && hasSchedules
+
+  const renderScheduleSelector = () => {
+    if (!showScheduleSelector) return null
+    return (
+      <Select
+        value={selectedScheduleId}
+        onValueChange={value => {
+          if (value) setSelectedScheduleId(value)
+        }}
+      >
+        <SelectTrigger className="w-full rounded-lg border-blue-100 bg-white text-sm focus:ring-0 focus:ring-offset-0">
+          <SelectValue placeholder="Select a schedule" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All schedules</SelectItem>
+          {courseSessions.some(s => !s.scheduleId) && (
+            <SelectItem value="unscheduled">Unscheduled / Ad-hoc</SelectItem>
+          )}
+          {schedules.map(sch => (
+            <SelectItem key={sch.scheduleId} value={sch.scheduleId}>
+              {sch.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    )
+  }
+
   const renderSessionHeader = () => {
-    if (isSessionLocked || sessions.length <= 1) {
+    if (isSessionLocked || filteredSessions.length <= 1) {
       return (
         <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm">
           <span className="truncate font-medium text-gray-900">
@@ -144,7 +200,7 @@ export function LessonsPanel({
           <SelectValue placeholder="Select a session" />
         </SelectTrigger>
         <SelectContent>
-          {sessions.map(s => (
+          {filteredSessions.map(s => (
             <SelectItem key={s.id} value={s.id}>
               <span className="block truncate">{s.title}</span>
               {s.scheduledAt && (
@@ -162,6 +218,7 @@ export function LessonsPanel({
   return (
     <TooltipProvider>
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+        {renderScheduleSelector()}
         {renderSessionHeader()}
         <ScrollArea className="min-h-0 flex-1">
           <div className="space-y-3 pr-2">
