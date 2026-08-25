@@ -16387,6 +16387,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                       courseId={courseId || ''}
                                       sessionId={insightsProps?.sessionId ?? null}
                                       sessions={insightsProps?.sessions || []}
+                                      schedules={insightsProps?.schedules}
                                       liveTasks={insightsProps?.liveTasks || []}
                                       activeTaskId={loadedTaskId || loadedAssessmentId || null}
                                       onSelectTask={(taskId, source) => {
