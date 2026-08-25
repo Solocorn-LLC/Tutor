@@ -250,10 +250,6 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
     if (busy) return
     const pending = draft.trim()
     const answers = pending ? [...studentAnswers, pending] : studentAnswers
-    if (answers.length === 0) {
-      toast.info('Type at least one answer first.')
-      return
-    }
     let nextMessages = messages
     if (pending) {
       const pendingMsg: ChatMsg = {
@@ -499,69 +495,48 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
 
       {/* Input area — chat composer for both classroom and student tabs.
           The send button sits inside the right end of the rounded textarea/pill. */}
-      {isClassroom ? (
-        <div className="border-t border-gray-100 p-2">
-          <div className="relative">
-            <textarea
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
+      <div className="border-t border-gray-100 p-2">
+        <div className="relative">
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                if (isClassroom) {
                   sendTutorMessage()
-                }
-              }}
-              disabled={busy}
-              rows={1}
-              placeholder="Send a message to students…"
-              className={cn(
-                'max-h-28 min-h-[44px] w-full resize-none rounded-xl border bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
-                accent === 'violet'
-                  ? 'border-[#8B5CF6] focus:ring-[#8B5CF6]'
-                  : 'border-[#F4A9A0] focus:ring-[#F4A9A0]'
-              )}
-            />
-            <button
-              type="button"
-              onClick={sendTutorMessage}
-              disabled={busy || !draft.trim()}
-              title="Send"
-              className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="border-t border-gray-100 p-2">
-          <div className="flex flex-col gap-2">
-            <textarea
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
+                } else {
                   onSend()
                 }
-              }}
-              disabled={busy}
-              rows={2}
-              className="max-h-32 min-h-[72px] w-full resize-none rounded-xl border border-[#F4A9A0] bg-white px-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-[#F4A9A0]"
-            />
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={onSend}
-                disabled={busy || !draft.trim()}
-                title={completed ? 'Send' : 'Add answer'}
-                className="grid h-8 w-8 place-items-center rounded-full bg-[#F4A9A0] text-white transition-colors hover:opacity-90 disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
+              }
+            }}
+            disabled={busy}
+            rows={1}
+            placeholder={
+              isClassroom
+                ? 'Send a message to students…'
+                : completed
+                  ? 'Ask a follow-up…'
+                  : 'Type a sample answer…'
+            }
+            className={cn(
+              'max-h-28 min-h-[44px] w-full resize-none rounded-xl border bg-white py-2.5 pl-3 pr-11 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-1',
+              accent === 'violet'
+                ? 'border-[#8B5CF6] focus:ring-[#8B5CF6]'
+                : 'border-[#F4A9A0] focus:ring-[#F4A9A0]'
+            )}
+          />
+          <button
+            type="button"
+            onClick={isClassroom ? sendTutorMessage : onSend}
+            disabled={busy || !draft.trim()}
+            title={isClassroom ? 'Send' : completed ? 'Send' : 'Add answer'}
+            className="absolute bottom-1.5 right-1.5 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
+          >
+            <Send className="h-4 w-4" />
+          </button>
         </div>
-      )}
+      </div>
     </div>
   )
 })
