@@ -572,6 +572,34 @@ async function selfHealRoomTasks(room: ClassRoom) {
   }
 }
 
+/**
+ * Persist a task's live polls/questions into the DeployedMaterial snapshot so
+ * they survive Redis eviction, server restarts, and rejoins. Only polls and
+ * questions arrays are touched; the rest of the content snapshot is preserved.
+ */
+async function persistTaskInsightsToDb(roomId: string, task: LiveTask) {
+  try {
+    await drizzleDb
+      .update(deployedMaterial)
+      .set({
+        content: sql`
+          jsonb_set(
+            jsonb_set(
+              COALESCE(${deployedMaterial.content}, '{}'::jsonb),
+              '{polls}',
+              ${JSON.stringify(task.polls || [])}::jsonb
+            ),
+            '{questions}',
+            ${JSON.stringify(task.questions || [])}::jsonb
+          )
+        `,
+      })
+      .where(and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, task.id)))
+  } catch (err) {
+    console.error(`[persistTaskInsightsToDb] failed for task ${task.id}:`, err)
+  }
+}
+
 // A live session can legitimately have no courseId — it is nullable, and is
 // even nulled out (onDelete: 'set null') when the course is deleted. But
 // BuilderTask.courseId and DeployedMaterial.courseId are NOT NULL, so without a
@@ -3034,6 +3062,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           task.polls.push(poll)
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
+          void persistTaskInsightsToDb(roomId, task)
           io.to(roomId).emit('insight:sent', { taskId, type: 'poll', item: poll })
           io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
           return
@@ -3050,6 +3079,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         task.questions.push(question)
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
+        void persistTaskInsightsToDb(roomId, task)
         io.to(roomId).emit('insight:sent', { taskId, type: 'question', item: question })
         io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
@@ -3089,6 +3119,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           poll.responses.push(response)
           room.lastActivity = Date.now()
           void persistRoomToRedis(roomId, room)
+          void persistTaskInsightsToDb(roomId, task)
           io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
           io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
           return
@@ -3109,6 +3140,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
         question.responses.push(response)
         room.lastActivity = Date.now()
         void persistRoomToRedis(roomId, room)
+        void persistTaskInsightsToDb(roomId, task)
         io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
         io.to(roomId).emit('task:updated', { task: toPublicTask(task) })
       }
@@ -3130,11 +3162,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
           const poll = task.polls.find(item => item.id === insightId)
           if (!poll) return
           poll.status = 'closed'
+          void persistTaskInsightsToDb(roomId, task)
           io.to(roomId).emit('insight:response', { taskId, type: 'poll', item: poll })
         } else {
           const question = task.questions.find(item => item.id === insightId)
           if (!question) return
           question.status = 'closed'
+          void persistTaskInsightsToDb(roomId, task)
           io.to(roomId).emit('insight:response', { taskId, type: 'question', item: question })
         }
         room.lastActivity = Date.now()
