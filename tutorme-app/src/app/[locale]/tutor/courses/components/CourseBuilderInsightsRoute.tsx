@@ -37,7 +37,6 @@ import {
   Presentation,
   ArrowLeft,
 } from 'lucide-react'
-import Link from 'next/link'
 import {
   AnimatedControlButton,
   actionButtonBase,
@@ -1192,19 +1191,57 @@ function CourseBuilderInsightsRouteInner({
       <div className="sticky top-0 z-10 w-full bg-[#fafafc] px-3 pb-4 pt-4 sm:px-4">
         <div className="flex w-full flex-col gap-4">
           <div className="flex min-h-[72px] w-full flex-col gap-4 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4">
+            <div className="flex flex-1 items-center gap-4">
               <Button
                 variant="ghost"
                 size="icon"
-                asChild
-                className="relative z-10 text-[#344054] hover:bg-slate-100 hover:text-slate-900"
+                aria-label="Go back"
+                className="text-[#344054] hover:bg-slate-100 hover:text-slate-900"
+                onClick={() => model.router.push('/tutor/dashboard')}
               >
-                <Link href="/tutor/dashboard" aria-label="Go back">
-                  <ArrowLeft className="h-5 w-5" />
-                </Link>
+                <ArrowLeft className="h-5 w-5" />
               </Button>
 
-              <div className="flex flex-col justify-center">
+              {/* Course selector — locked to read-only when a session is active */}
+              {activeMainTab !== 'live' &&
+                activeMainTab !== 'test-pci' &&
+                insightsProps.onCourseChange && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCourseSelectorOpen(true)}
+                      disabled={hasNoCourses}
+                      className={cn(
+                        'h-9 min-w-[300px] max-w-[540px] justify-center border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-500 focus-visible:ring-0 focus-visible:ring-offset-0',
+                        hasNoCourses && 'cursor-not-allowed opacity-60'
+                      )}
+                    >
+                      {(() => {
+                        const c = currentCourse
+                        if (!c) return hasNoCourses ? 'Create your first course.' : 'Select course'
+                        return c.nationality && c.nationality !== 'Global' ? (
+                          <span className="inline-flex items-center gap-1">
+                            {c.name} — {c.variantCategory || ''} —{' '}
+                            <CountryFlag countryName={c.nationality} size="xs" showLabel />
+                          </span>
+                        ) : (
+                          c.name
+                        )
+                      })()}
+                    </Button>
+                    <CourseSelectorDialog
+                      open={courseSelectorOpen}
+                      onOpenChange={setCourseSelectorOpen}
+                      courses={courses ?? []}
+                      draftCourses={draftCourses ?? []}
+                      currentCourseId={courseId}
+                      onSelectCourse={id => insightsProps.onCourseChange?.(id)}
+                      onSelectDemoClass={id => model.router.push(`/tutor/insights?sessionId=${id}`)}
+                    />
+                  </>
+                )}
+
+              <div className="flex flex-1 flex-col justify-center">
                 <div className="flex items-center gap-2">
                   {activeMainTab === 'builder' && (
                     <h1 className="pointer-events-none absolute left-0 right-0 mx-auto flex items-center justify-center gap-2 text-2xl font-bold tracking-tight text-[#1F2933]">
@@ -1265,45 +1302,6 @@ function CourseBuilderInsightsRouteInner({
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Course selector — locked to read-only when a session is active */}
-              {activeMainTab !== 'live' &&
-                activeMainTab !== 'test-pci' &&
-                insightsProps.onCourseChange && (
-                  <>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCourseSelectorOpen(true)}
-                      disabled={hasNoCourses}
-                      className={cn(
-                        'h-9 min-w-[300px] max-w-[540px] justify-center border border-slate-300 bg-transparent px-3 text-sm font-semibold text-[#1F2933] shadow-none transition-colors hover:border-blue-500 hover:bg-blue-50/50 hover:text-blue-500 focus-visible:ring-0 focus-visible:ring-offset-0',
-                        hasNoCourses && 'cursor-not-allowed opacity-60'
-                      )}
-                    >
-                      {(() => {
-                        const c = currentCourse
-                        if (!c) return hasNoCourses ? 'Create your first course.' : 'Select course'
-                        return c.nationality && c.nationality !== 'Global' ? (
-                          <span className="inline-flex items-center gap-1">
-                            {c.name} — {c.variantCategory || ''} —{' '}
-                            <CountryFlag countryName={c.nationality} size="xs" showLabel />
-                          </span>
-                        ) : (
-                          c.name
-                        )
-                      })()}
-                    </Button>
-                    <CourseSelectorDialog
-                      open={courseSelectorOpen}
-                      onOpenChange={setCourseSelectorOpen}
-                      courses={courses ?? []}
-                      draftCourses={draftCourses ?? []}
-                      currentCourseId={courseId}
-                      onSelectCourse={id => insightsProps.onCourseChange?.(id)}
-                      onSelectDemoClass={id => model.router.push(`/tutor/insights?sessionId=${id}`)}
-                    />
-                  </>
-                )}
-
               {/* Course state indicator (read-only). Bright, vibrant pill that reflects
                   the derived state of the selected course or demo class. */}
               {activeMainTab !== 'test-pci' && courseId && (
