@@ -267,6 +267,13 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
       onBroadcast?.(pendingMsg)
     }
     onComplete?.(answers)
+    // Visual slides may have no answers. In that case just mark the task
+    // complete locally without calling a grading endpoint that requires answers.
+    if (answers.length === 0) {
+      setCompleted(true)
+      onPersist?.({ messages: nextMessages, draft: '', completed: true })
+      return
+    }
     setBusy(true)
     try {
       const res = await post({ answers })

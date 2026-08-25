@@ -711,15 +711,7 @@ export default function PublicTutorPage() {
           'shrink-0 transition-all duration-300',
           'h-[clamp(176px,14.4vw,224px)] w-[clamp(44px,3.6vw,56px)]',
           'self-center',
-          !disabled
-            ? cn(
-                'cursor-pointer',
-                'hover:brightness-110',
-                'hover:-translate-y-[2px]',
-                direction === 'left' && 'hover:-translate-x-1',
-                direction === 'right' && 'hover:translate-x-1'
-              )
-            : 'cursor-not-allowed opacity-30 grayscale',
+          !disabled ? cn('cursor-pointer') : 'cursor-not-allowed opacity-30 grayscale',
           className
         )}
         style={{
@@ -783,12 +775,9 @@ export default function PublicTutorPage() {
                   <div
                     key={course.id}
                     className={cn(
-                      'group relative flex h-full min-h-0 flex-col rounded-[18px] text-left transition-all duration-300',
+                      'group relative flex h-full min-h-0 flex-col rounded-[18px] text-left',
                       'border border-[rgba(255,255,255,0.08)]',
                       'bg-[rgba(30,40,50,0.65)] backdrop-blur-[12px]',
-                      'shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)]',
-                      'hover:-translate-y-[2px] hover:brightness-105',
-                      'hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)]',
                       isList &&
                         'aspect-auto min-h-0 flex-row items-stretch sm:min-h-[148px] [&>*]:first:shrink-0',
                       isCompact && 'text-xs'
@@ -824,7 +813,7 @@ export default function PublicTutorPage() {
                             <Badge
                               variant="secondary"
                               title={course.variantCategory || course.categories[0] || 'general'}
-                              className="mt-2 w-fit max-w-full border-0 bg-blue-500 text-[10px] font-semibold text-white transition-all hover:bg-blue-600 hover:brightness-105 sm:text-xs"
+                              className="mt-2 w-fit max-w-full border-0 bg-blue-500 text-[10px] font-semibold text-white sm:text-xs"
                             >
                               <span className="truncate whitespace-nowrap">
                                 {course.variantCategory || course.categories[0] || 'general'}
@@ -832,7 +821,7 @@ export default function PublicTutorPage() {
                             </Badge>
                           </div>
 
-                          <div className="min-w-0 flex-1 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-[18px] py-[14px] shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
+                          <div className="min-w-0 flex-1 rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-[18px] py-[14px]">
                             <p className="line-clamp-3 text-sm leading-[1.45] text-slate-800">
                               {description || 'No description'}
                             </p>
@@ -862,7 +851,7 @@ export default function PublicTutorPage() {
 
                             <div
                               className={cn(
-                                'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]',
+                                'shrink-0 overflow-hidden rounded-[16px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)]',
                                 isCompact
                                   ? 'h-20 w-20'
                                   : 'h-[78px] w-[78px] sm:h-[86px] sm:w-[86px]'
@@ -886,7 +875,7 @@ export default function PublicTutorPage() {
                             variant="secondary"
                             title={`${course.variantCategory || course.categories[0] || 'general'}${course.country && course.country !== 'Global' ? ` • ${course.country}` : ''}`}
                             className={cn(
-                              'mt-2 w-fit max-w-full border-0 bg-blue-500 text-[10px] font-semibold text-white transition-all hover:bg-blue-600 hover:brightness-105 sm:text-xs',
+                              'mt-2 w-fit max-w-full border-0 bg-blue-500 text-[10px] font-semibold text-white sm:text-xs',
                               isCompact && 'mt-1.5'
                             )}
                           >
@@ -908,7 +897,7 @@ export default function PublicTutorPage() {
 
                           <div
                             className={cn(
-                              'mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]',
+                              'mt-2 h-[72px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2',
                               isCompact && 'mt-2 h-[64px] rounded-[12px] px-3 py-2'
                             )}
                           >
@@ -939,7 +928,7 @@ export default function PublicTutorPage() {
                                 e.preventDefault()
                                 setScheduleCourse(course)
                               }}
-                              className="inline-flex items-center gap-1 font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                              className="inline-flex items-center gap-1 font-medium leading-none text-blue-400"
                             >
                               <span className="leading-none">View schedules</span>
                               <ExternalLink className="h-3 w-3 -translate-y-px" />
@@ -949,11 +938,11 @@ export default function PublicTutorPage() {
                             <Badge
                               variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
                               className={cn(
-                                'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
+                                'text-[10px] font-semibold sm:text-xs',
                                 enrollmentStatus === 'ongoing' &&
-                                  'border-transparent bg-emerald-600 text-white hover:bg-emerald-600',
+                                  'border-transparent bg-emerald-600 text-white',
                                 enrollmentStatus === 'active' &&
-                                  'border-transparent bg-blue-500 text-white hover:bg-blue-500',
+                                  'border-transparent bg-blue-500 text-white',
                                 enrollmentStatus === 'ended' &&
                                   'border-[rgba(255,255,255,0.2)] text-slate-300'
                               )}
@@ -970,7 +959,7 @@ export default function PublicTutorPage() {
 
                       {isList && (
                         <div className="flex w-[148px] shrink-0 items-center justify-center border-l border-[rgba(255,255,255,0.10)] py-1 pl-6">
-                          <div className="h-24 w-[120px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)]">
+                          <div className="h-24 w-[120px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.03)]">
                             {tutor.avatarUrl ? (
                               <img
                                 src={tutor.avatarUrl}
@@ -1009,7 +998,7 @@ export default function PublicTutorPage() {
                               e.preventDefault()
                               setScheduleCourse(course)
                             }}
-                            className="inline-flex items-center gap-1 font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 hover:underline"
+                            className="inline-flex items-center gap-1 font-medium leading-none text-blue-400"
                           >
                             <CalendarDays className="h-3.5 w-3.5 -translate-y-px" />
                             <span>View schedules</span>
@@ -1023,11 +1012,11 @@ export default function PublicTutorPage() {
                           <Badge
                             variant={enrollmentStatus === 'ended' ? 'outline' : 'default'}
                             className={cn(
-                              'text-[10px] font-semibold transition-all hover:brightness-105 sm:text-xs',
+                              'text-[10px] font-semibold sm:text-xs',
                               enrollmentStatus === 'ongoing' &&
-                                'border-transparent bg-emerald-600 text-white hover:bg-emerald-600',
+                                'border-transparent bg-emerald-600 text-white',
                               enrollmentStatus === 'active' &&
-                                'border-transparent bg-blue-500 text-white hover:bg-blue-500',
+                                'border-transparent bg-blue-500 text-white',
                               enrollmentStatus === 'ended' &&
                                 'border-[rgba(255,255,255,0.2)] text-slate-300'
                             )}
@@ -1082,7 +1071,7 @@ export default function PublicTutorPage() {
                         <button
                           type="button"
                           className={cn(
-                            'inline-flex items-center text-[13px] font-medium leading-none text-slate-300 transition-colors hover:text-white disabled:opacity-50',
+                            'inline-flex items-center text-[13px] font-medium leading-none text-slate-300 disabled:opacity-50',
                             isCompact && 'text-xs'
                           )}
                           onClick={() => setDetailsCourse(course)}
@@ -1095,7 +1084,7 @@ export default function PublicTutorPage() {
                           <button
                             type="button"
                             className={cn(
-                              'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                              'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 disabled:opacity-50',
                               isCompact && 'text-xs'
                             )}
                             onClick={() => handleEnterClassroom(course)}
@@ -1125,7 +1114,7 @@ export default function PublicTutorPage() {
                                     <button
                                       type="button"
                                       className={cn(
-                                        'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                                        'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 disabled:opacity-50',
                                         isCompact && 'text-xs'
                                       )}
                                       onClick={() => handleEnrollClick(course)}
@@ -1144,7 +1133,7 @@ export default function PublicTutorPage() {
                             <button
                               type="button"
                               className={cn(
-                                'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 transition-colors hover:text-blue-300 disabled:opacity-50',
+                                'inline-flex items-center text-[13px] font-medium leading-none text-blue-400 disabled:opacity-50',
                                 isCompact && 'text-xs'
                               )}
                               onClick={() => void handleStudentEnterClassroom(course)}
@@ -1219,15 +1208,14 @@ export default function PublicTutorPage() {
                 <Link
                   key={demo.id}
                   href={`/${locale}/call/${encodeURIComponent(demo.id)}`}
-                  className="group block shrink-0"
+                  className="block shrink-0"
                   style={{ width: CARD_WIDTH, height: CARD_WIDTH, flexShrink: 0 }}
                 >
                   <div
-                    className="h-full w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_25px_rgba(0,0,0,0.30)] transition-all duration-300 hover:-translate-y-[2px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_14px_30px_rgba(0,0,0,0.40)] hover:brightness-105"
+                    className="h-full w-full overflow-hidden rounded-[18px] border border-[rgba(255,255,255,0.08)] bg-[rgba(30,40,50,0.65)]"
                     style={{
                       backgroundImage:
                         'linear-gradient(120deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.00) 65%), linear-gradient(145deg, rgba(16, 185, 129, 0.65), rgba(5, 80, 60, 0.95))',
-                      transform: 'translateZ(0)',
                     }}
                   >
                     <div className="flex h-full flex-col p-3.5">
@@ -1254,7 +1242,7 @@ export default function PublicTutorPage() {
                             </span>
                           </div>
                         </div>
-                        <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] shadow-[0_8px_20px_rgba(0,0,0,0.28)] sm:h-[86px] sm:w-[86px]">
+                        <div className="h-[78px] w-[78px] shrink-0 overflow-hidden rounded-[12px] border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.03)] sm:h-[86px] sm:w-[86px]">
                           {tutor.avatarUrl ? (
                             <img
                               src={tutor.avatarUrl}
@@ -1270,7 +1258,7 @@ export default function PublicTutorPage() {
                       </div>
 
                       <div className="flex flex-1 flex-col justify-center">
-                        <div className="h-[120px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),0_1px_2px_rgba(15,23,42,0.06)]">
+                        <div className="h-[120px] rounded-[12px] border border-[rgba(15,23,42,0.10)] bg-white px-3 py-2">
                           <p className="line-clamp-6 text-[12px] leading-[1.3] text-slate-800">
                             {demo.description?.trim() || 'No description'}
                           </p>
@@ -1976,7 +1964,7 @@ export default function PublicTutorPage() {
                       setDetailsCourse(null)
                       setScheduleCourse(detailsCourse)
                     }}
-                    className="text-sm font-semibold text-blue-500 hover:underline"
+                    className="text-sm font-semibold text-blue-500"
                   >
                     View schedules
                   </button>

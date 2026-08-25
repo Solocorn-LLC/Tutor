@@ -1253,6 +1253,7 @@ function StudentFeedbackContent() {
   const [studentDirectory, setStudentDirectory] = useState<Record<string, Record<string, any>>>({})
 
   const [directoryLoading, setDirectoryLoading] = useState(true)
+  const [directoryLoaded, setDirectoryLoaded] = useState(false)
   const [directoryError, setDirectoryError] = useState<string | null>(null)
   const [directoryWarnings, setDirectoryWarnings] = useState<string[]>([])
   const [foldersOpen, setFoldersOpen] = useState<Record<string, boolean>>({
@@ -1267,6 +1268,7 @@ function StudentFeedbackContent() {
   useEffect(() => {
     const loadDirectory = async () => {
       setDirectoryLoading(true)
+      setDirectoryLoaded(false)
       setDirectoryError(null)
       setDirectoryWarnings([])
       try {
@@ -1348,6 +1350,7 @@ function StudentFeedbackContent() {
         setDirectoryError(err?.message || 'Network error')
       } finally {
         setDirectoryLoading(false)
+        setDirectoryLoaded(true)
       }
     }
     loadDirectory()
@@ -2102,11 +2105,13 @@ function StudentFeedbackContent() {
     }
   }, [socket, followTutor, selectedSessionId])
 
+  // Only auto-select the first task once the directory has finished loading,
+  // so a stale task from an early socket room_state flash doesn't become active.
   useEffect(() => {
-    if (!activeTaskId && tasks.length > 0) {
+    if (!activeTaskId && directoryLoaded && tasks.length > 0) {
       setActiveTaskId(tasks[0].id)
     }
-  }, [activeTaskId, tasks])
+  }, [activeTaskId, directoryLoaded, tasks])
 
   const activeTask =
     tasks.find(task => task.id === activeTaskId) ||
