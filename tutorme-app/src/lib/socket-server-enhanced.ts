@@ -537,6 +537,41 @@ async function getRoomFromRedis(roomId: string): Promise<ClassRoom | null> {
   }
 }
 
+/**
+ * Self-heal a room's task list so it only contains tasks that are actually
+ * deployed to that session in the database. This removes stale tasks that can
+ * linger in Redis after a session is reused, a schedule is edited, or an old
+ * "deploy all" bug left materials behind. Without this, students/tutors opening a
+ * session see a flash of tasks from a previous session before the directory API
+ * corrects the list.
+ */
+async function selfHealRoomTasks(room: ClassRoom) {
+  if (room.tasks.length === 0) return
+  try {
+    const { drizzleDb } = await import('./db/drizzle')
+    const { deployedMaterial } = await import('./db/schema')
+    const { eq } = await import('drizzle-orm')
+
+    const rows = await drizzleDb
+      .select({ itemId: deployedMaterial.itemId })
+      .from(deployedMaterial)
+      .where(eq(deployedMaterial.sessionId, room.id))
+
+    const validIds = new Set(rows.map(r => r.itemId))
+    const before = room.tasks.length
+    room.tasks = room.tasks.filter(t => validIds.has(t.id))
+    const removed = before - room.tasks.length
+    if (removed > 0) {
+      console.log(`[selfHealRoomTasks] Removed ${removed} stale task(s) from room ${room.id}`)
+      if (redisClient) {
+        void persistRoomToRedis(room.id, room)
+      }
+    }
+  } catch (err) {
+    console.error(`[selfHealRoomTasks] Failed for room ${room.id}:`, err)
+  }
+}
+
 // A live session can legitimately have no courseId — it is nullable, and is
 // even nulled out (onDelete: 'set null') when the course is deleted. But
 // BuilderTask.courseId and DeployedMaterial.courseId are NOT NULL, so without a
@@ -1242,6 +1277,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
       if (!room && redisClient) {
         const redisRoom = await getRoomFromRedis(roomId)
         if (redisRoom) {
+          await selfHealRoomTasks(redisRoom)
           room = redisRoom
           activeRooms.set(roomId, room)
         }
