@@ -2155,7 +2155,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
               : undefined
             const liveTask: LiveTask = {
               id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
-              title: (raw.title as string) || 'Untitled',
+              title:
+                (raw.title as string) || (refreshedSourceDoc?.fileName as string) || 'Untitled',
               content: (raw.description as string) || (raw.taskContent as string) || '',
               source: tasks.includes(item)
                 ? 'task'
