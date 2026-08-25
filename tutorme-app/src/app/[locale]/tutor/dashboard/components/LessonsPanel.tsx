@@ -160,213 +160,215 @@ export function LessonsPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
-      <TooltipProvider>{renderSessionHeader()}</TooltipProvider>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-3 pr-2">
-          {baseTasks.length === 0 && liveHomework.length === 0 && (
-            <p className="text-sm text-gray-500">No tasks deployed yet.</p>
-          )}
+    <TooltipProvider>
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+        {renderSessionHeader()}
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="space-y-3 pr-2">
+            {baseTasks.length === 0 && liveHomework.length === 0 && (
+              <p className="text-sm text-gray-500">No tasks deployed yet.</p>
+            )}
 
-          {baseTasks.length > 0 && (
-            <div className="space-y-2">
-              {baseTasks.map((task, idx) => {
-                const isActive = activeTaskId === task.id
-                const extensions = extMap.get(task.id) ?? []
-                return (
-                  <div key={task.id} className="space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => onSelectTask?.(task.id, task.source || 'task')}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
-                        isActive
-                          ? 'border-blue-200 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
-                      )}
-                    >
-                      <span
+            {baseTasks.length > 0 && (
+              <div className="space-y-2">
+                {baseTasks.map((task, idx) => {
+                  const isActive = activeTaskId === task.id
+                  const extensions = extMap.get(task.id) ?? []
+                  return (
+                    <div key={task.id} className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => onSelectTask?.(task.id, task.source || 'task')}
                         className={cn(
-                          'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                          'bg-blue-100 text-blue-700'
+                          'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
+                          isActive
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
                         )}
                       >
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium">{task.title}</span>
-                          <div className="flex items-center gap-1">
-                            {!canManageTasks ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Lock className="h-4 w-4 shrink-0 text-gray-400" />
-                                </TooltipTrigger>
-                                <TooltipContent side="left">
-                                  <p className="max-w-[200px] text-xs">
-                                    Deployed items cannot be edited. This session is active or
-                                    completed.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={e => {
-                                  e.stopPropagation()
-                                  void handleUndeploy(task)
-                                }}
-                                disabled={undeployingIds.has(task.id)}
-                                className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500"
-                                aria-label={`Remove ${task.title}`}
-                              >
-                                {undeployingIds.has(task.id) ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                )}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                        <span
+                          className={cn(
+                            'flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                            'bg-blue-100 text-blue-700'
+                          )}
+                        >
+                          {idx + 1}
                         </span>
-                      </div>
-                    </button>
-
-                    {extensions.length > 0 && (
-                      <div className="relative ml-6 space-y-1 border-l-2 border-blue-100 pl-3">
-                        {extensions.map(ext => {
-                          const extActive = activeTaskId === ext.id
-                          return (
-                            <button
-                              key={ext.id}
-                              type="button"
-                              onClick={() => onSelectTask?.(ext.id, ext.source || 'task')}
-                              className={cn(
-                                'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
-                                extActive
-                                  ? 'border-blue-200 bg-blue-50'
-                                  : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-medium">{task.title}</span>
+                            <div className="flex items-center gap-1">
+                              {!canManageTasks ? (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Lock className="h-4 w-4 shrink-0 text-gray-400" />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="left">
+                                    <p className="max-w-[200px] text-xs">
+                                      Deployed items cannot be edited. This session is active or
+                                      completed.
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    void handleUndeploy(task)
+                                  }}
+                                  disabled={undeployingIds.has(task.id)}
+                                  className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                  aria-label={`Remove ${task.title}`}
+                                >
+                                  {undeployingIds.has(task.id) ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  )}
+                                </button>
                               )}
-                            >
-                              <span className="min-w-0 flex-1 text-sm font-medium">
-                                {ext.title}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                {!canManageTasks ? (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Lock className="ml-auto h-4 w-4 shrink-0 text-gray-400" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="left">
-                                      <p className="max-w-[200px] text-xs">
-                                        Deployed items cannot be edited. This session is active or
-                                        completed.
-                                      </p>
-                                    </TooltipContent>
-                                  </Tooltip>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      void handleUndeploy(ext as LiveTask)
-                                    }}
-                                    disabled={undeployingIds.has(ext.id)}
-                                    className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500"
-                                    aria-label={`Remove ${ext.title}`}
-                                  >
-                                    {undeployingIds.has(ext.id) ? (
-                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    )}
-                                  </button>
-                                )}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                            </div>
+                          </div>
+                          <span className="text-xs text-gray-500">
+                            Deployed {new Date(task.deployedAt).toLocaleTimeString()}
+                          </span>
+                        </div>
+                      </button>
 
-          {liveHomework.length > 0 && (
-            <div className="space-y-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setFoldersOpen(prev => ({ ...prev, homework: !prev.homework }))}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-gray-700 hover:bg-slate-100"
-              >
-                {foldersOpen.homework ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
-                )}
-                <Folder className="h-4 w-4 shrink-0 text-blue-400" fill="currentColor" />
-                Homework
-              </button>
-              {foldersOpen.homework && (
-                <div className="space-y-1">
-                  {liveHomework.map(hw => (
-                    <button
-                      key={hw.id}
-                      type="button"
-                      onClick={() => onSelectTask?.(hw.id, 'homework')}
-                      className={cn(
-                        'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
-                        activeTaskId === hw.id
-                          ? 'border-blue-200 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                      {extensions.length > 0 && (
+                        <div className="relative ml-6 space-y-1 border-l-2 border-blue-100 pl-3">
+                          {extensions.map(ext => {
+                            const extActive = activeTaskId === ext.id
+                            return (
+                              <button
+                                key={ext.id}
+                                type="button"
+                                onClick={() => onSelectTask?.(ext.id, ext.source || 'task')}
+                                className={cn(
+                                  'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                                  extActive
+                                    ? 'border-blue-200 bg-blue-50'
+                                    : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                )}
+                              >
+                                <span className="min-w-0 flex-1 text-sm font-medium">
+                                  {ext.title}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {!canManageTasks ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Lock className="ml-auto h-4 w-4 shrink-0 text-gray-400" />
+                                      </TooltipTrigger>
+                                      <TooltipContent side="left">
+                                        <p className="max-w-[200px] text-xs">
+                                          Deployed items cannot be edited. This session is active or
+                                          completed.
+                                        </p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        void handleUndeploy(ext as LiveTask)
+                                      }}
+                                      disabled={undeployingIds.has(ext.id)}
+                                      className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500"
+                                      aria-label={`Remove ${ext.title}`}
+                                    >
+                                      {undeployingIds.has(ext.id) ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                  )}
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
                       )}
-                    >
-                      <span className="text-sm font-medium text-gray-900">{hw.title}</span>
-                      <div className="flex items-center gap-1">
-                        {!canManageTasks ? (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Lock className="h-4 w-4 shrink-0 text-gray-400" />
-                            </TooltipTrigger>
-                            <TooltipContent side="left">
-                              <p className="max-w-[200px] text-xs">
-                                Deployed items cannot be edited. This session is active or
-                                completed.
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={e => {
-                              e.stopPropagation()
-                              void handleUndeploy(hw)
-                            }}
-                            disabled={undeployingIds.has(hw.id)}
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500"
-                            aria-label={`Remove ${hw.title}`}
-                          >
-                            {undeployingIds.has(hw.id) ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
-                            )}
-                          </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {liveHomework.length > 0 && (
+              <div className="space-y-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setFoldersOpen(prev => ({ ...prev, homework: !prev.homework }))}
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-semibold text-gray-700 hover:bg-slate-100"
+                >
+                  {foldersOpen.homework ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" />
+                  )}
+                  <Folder className="h-4 w-4 shrink-0 text-blue-400" fill="currentColor" />
+                  Homework
+                </button>
+                {foldersOpen.homework && (
+                  <div className="space-y-1">
+                    {liveHomework.map(hw => (
+                      <button
+                        key={hw.id}
+                        type="button"
+                        onClick={() => onSelectTask?.(hw.id, 'homework')}
+                        className={cn(
+                          'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+                          activeTaskId === hw.id
+                            ? 'border-blue-200 bg-blue-50'
+                            : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
                         )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
-    </div>
+                      >
+                        <span className="text-sm font-medium text-gray-900">{hw.title}</span>
+                        <div className="flex items-center gap-1">
+                          {!canManageTasks ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Lock className="h-4 w-4 shrink-0 text-gray-400" />
+                              </TooltipTrigger>
+                              <TooltipContent side="left">
+                                <p className="max-w-[200px] text-xs">
+                                  Deployed items cannot be edited. This session is active or
+                                  completed.
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                e.stopPropagation()
+                                void handleUndeploy(hw)
+                              }}
+                              disabled={undeployingIds.has(hw.id)}
+                              className="flex h-6 w-6 items-center justify-center rounded-md text-gray-400 hover:bg-red-50 hover:text-red-500"
+                              aria-label={`Remove ${hw.title}`}
+                            >
+                              {undeployingIds.has(hw.id) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+    </TooltipProvider>
   )
 }

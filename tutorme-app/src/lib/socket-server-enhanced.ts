@@ -2155,7 +2155,8 @@ export async function initEnhancedSocketServer(server: NetServer) {
               : undefined
             const liveTask: LiveTask = {
               id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
-              title: (raw.title as string) || 'Untitled',
+              title:
+                (raw.title as string) || (refreshedSourceDoc?.fileName as string) || 'Untitled',
               content: (raw.description as string) || (raw.taskContent as string) || '',
               source: tasks.includes(item)
                 ? 'task'
@@ -2205,8 +2206,19 @@ export async function initEnhancedSocketServer(server: NetServer) {
               // to students here — deployment is explicit via the Deploy button
               // (task:deploy). Otherwise editing the builder (e.g. adding a new
               // task) would mass-deploy every task on the next course:sync.
-              room.tasks[existingIndex] = { ...room.tasks[existingIndex], ...liveTask }
-              syncedTasks.push(liveTask)
+              const existing = room.tasks[existingIndex]
+              room.tasks[existingIndex] = {
+                ...existing,
+                ...liveTask,
+                // Preserve live insights, completion state, and original deploy
+                // time; a sync is a content refresh, not a redeployment.
+                polls: existing.polls,
+                questions: existing.questions,
+                completedBy: existing.completedBy,
+                responses: existing.responses,
+                deployedAt: existing.deployedAt,
+              }
+              syncedTasks.push(room.tasks[existingIndex])
             }
             // else: not deployed yet — skip; the tutor deploys it explicitly.
           }
