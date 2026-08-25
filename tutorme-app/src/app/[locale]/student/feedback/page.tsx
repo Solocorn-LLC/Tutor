@@ -1484,9 +1484,16 @@ function StudentFeedbackContent() {
 
   useEffect(() => {
     setTasks([])
+    setLiveHomework([])
+    setCompletedTaskIds(new Set())
     setActiveTaskId(null)
     setUnseenTaskIds([])
+    setUnseenHomeworkIds([])
     setQuestionDrafts({})
+    setTaskAnswers({})
+    setTaskTimer(null)
+    setAssessmentGradedMessage(null)
+    setTaskChatCompleted(false)
     setMyBoardPages(createDefaultWhiteboardPages())
     setMyBoardPageIndex(0)
     setTutorBoardPages(createDefaultWhiteboardPages())
