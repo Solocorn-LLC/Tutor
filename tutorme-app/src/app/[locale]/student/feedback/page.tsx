@@ -1215,6 +1215,7 @@ function StudentFeedbackContent() {
     startedAt: string | null
     scheduledAt: string | null
     endedAt: string | null
+    durationMinutes: number | null
   } | null>(null)
   const [sessionTimer, setSessionTimer] = useState<string>('')
   const [demoVideo, setDemoVideo] = useState<{
@@ -1393,7 +1394,7 @@ function StudentFeedbackContent() {
     }
   }, [sessionIdFromQuery])
 
-  // Session timer
+  // Session timer — shows the remaining session clock once the session is active.
   useEffect(() => {
     if (!sessionContext) {
       setSessionTimer('')
@@ -1404,31 +1405,13 @@ function StudentFeedbackContent() {
       if (sessionContext.status === 'active' && sessionContext.startedAt) {
         const started = new Date(sessionContext.startedAt).getTime()
         const elapsed = Math.max(0, now - started)
-        const mins = Math.floor(elapsed / 60000)
-        const secs = Math.floor((elapsed % 60000) / 1000)
+        const durationMs = (sessionContext.durationMinutes ?? 60) * 60 * 1000
+        const remaining = Math.max(0, durationMs - elapsed)
+        const mins = Math.floor(remaining / 60000)
+        const secs = Math.floor((remaining % 60000) / 1000)
         setSessionTimer(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`)
-      } else if (sessionContext.status === 'scheduled' && sessionContext.scheduledAt) {
-        const scheduled = new Date(sessionContext.scheduledAt).getTime()
-        const diff = scheduled - now
-        if (diff > 0) {
-          const mins = Math.floor(diff / 60000)
-          const secs = Math.floor((diff % 60000) / 1000)
-          setSessionTimer(
-            `Starts in ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-          )
-        } else {
-          setSessionTimer('Starting soon')
-        }
-      } else if (sessionContext.status === 'ended' && sessionContext.endedAt) {
-        const ended = new Date(sessionContext.endedAt).getTime()
-        const elapsed = Math.max(0, now - ended)
-        const mins = Math.floor(elapsed / 60000)
-        const secs = Math.floor((elapsed % 60000) / 1000)
-        setSessionTimer(
-          `Ended ${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')} ago`
-        )
       } else {
-        setSessionTimer(sessionContext.status || '')
+        setSessionTimer('')
       }
     }
     updateTimer()
@@ -1589,6 +1572,7 @@ function StudentFeedbackContent() {
           startedAt: data?.session?.startedAt ?? null,
           scheduledAt: data?.session?.scheduledAt ?? null,
           endedAt: data?.session?.endedAt ?? null,
+          durationMinutes: data?.session?.durationMinutes ?? null,
         })
         // The server issues a room URL even when it couldn't mint a video token
         // (private rooms need one). Surface that reason up front instead of the
@@ -2683,7 +2667,7 @@ function StudentFeedbackContent() {
                 >
                   <TabsTrigger
                     value="task"
-                    className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#F17623] data-[state=active]:to-[#D9651A] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
+                    className="flex items-center justify-center gap-2 rounded-full border-0 px-4 py-2.5 text-sm font-semibold shadow-[0_10px_24px_rgba(0,0,0,0.16)] transition-all data-[state=inactive]:bg-white data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#F4A9A0] data-[state=active]:to-[#E08B80] data-[state=active]:text-white data-[state=inactive]:text-[#1F2933] data-[state=active]:shadow-[0_12px_26px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.14),inset_0_-1px_0_rgba(0,0,0,0.25)]"
                   >
                     <Presentation className="h-4 w-4" />
                     Classroom
@@ -2707,9 +2691,9 @@ function StudentFeedbackContent() {
                 className="flex h-full min-h-0 flex-1 flex-col outline-none"
               >
                 {/* Classroom viewer */}
-                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(241,118,35,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
+                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border-2 border-[rgba(244,169,160,0.5)] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)] transition-all duration-200 hover:shadow-[0_12px_32px_rgba(31,41,51,0.14)]">
                   <div className="absolute left-0 right-0 top-0 z-10 flex items-center justify-center">
-                    <span className="rounded-b-md bg-[rgba(241,118,35,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
+                    <span className="rounded-b-md bg-[rgba(244,169,160,0.5)] px-3 py-0.5 text-[11px] font-medium text-white">
                       Classroom
                     </span>
                   </div>
@@ -2931,7 +2915,7 @@ function StudentFeedbackContent() {
               <div className="h-8 w-0.5 rounded-full bg-slate-300" />
             </div>
 
-            <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-2xl bg-gradient-to-br from-[#F17623] to-[#D9651A] px-4 text-sm font-semibold text-white">
+            <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-2xl bg-gradient-to-br from-[#F4A9A0] to-[#E08B80] px-4 text-sm font-semibold text-white">
               Desk
             </div>
             <div className="flex items-center justify-between border-b border-gray-200 px-4 pb-3 pt-4">
@@ -3008,7 +2992,7 @@ function StudentFeedbackContent() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-hidden p-3 pb-0">
+            <div className="flex-1 overflow-hidden p-3 pb-4">
               <div
                 className={cn(
                   'h-full w-full',
