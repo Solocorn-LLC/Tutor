@@ -92,7 +92,6 @@ import type {
 } from '@/lib/socket'
 import { normalizeDmiQuestionType, DMI_QUESTION_TYPE_LABELS } from '@/lib/assessment/question-types'
 import { type AutoGradeQuestionResult } from '@/lib/grading/auto-grade'
-import { TaskAiHelper } from './TaskAiHelper'
 import {
   TestTaskChat,
   type TestTaskChatState,
@@ -253,8 +252,11 @@ function ClassroomControlsPanel({
   twoWay,
   openVideoOverlay,
   setShowDirectoryPanel,
-}: ClassroomControlsPanelProps) {
+  variant = 'floating',
+}: ClassroomControlsPanelProps & { variant?: 'floating' | 'docked' }) {
   const router = useRouter()
+
+  // All hooks must run before any conditional return.
   const [open, setOpen] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
   const dragControls = useDragControls()
@@ -294,6 +296,77 @@ function ClassroomControlsPanel({
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [positionPanel])
+
+  const isDocked = variant === 'docked'
+  const controls = (
+    <>
+      <AnimatedControlButton
+        compact={isDocked}
+        icon={
+          <div
+            className={cn(
+              'h-2 w-2 rounded-full',
+              followTutor ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
+            )}
+          />
+        }
+        label={followTutor ? 'Following Tutor' : 'Follow Tutor'}
+        onClick={() => setFollowTutor(!followTutor)}
+        className={cn('bg-white', followTutor ? 'text-emerald-600' : 'text-slate-700')}
+      />
+      <AnimatedControlButton
+        compact={isDocked}
+        icon={<LogOut className="h-4 w-4" />}
+        label="Leave session"
+        onClick={() => router.push('/student/dashboard')}
+        className="bg-white text-slate-700"
+      />
+      <div
+        className={cn(
+          actionButtonBase,
+          isDocked && 'h-8 w-auto shrink-0 gap-1.5 px-2.5 text-[10px]',
+          'bg-white',
+          isConnected ? 'text-emerald-600' : error ? 'text-red-600' : 'text-amber-600'
+        )}
+      >
+        <div
+          className={cn(
+            'h-2 w-2 rounded-full',
+            isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
+          )}
+        />
+        {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
+      </div>
+      <AnimatedControlButton
+        compact={isDocked}
+        icon={<Flag className="h-4 w-4" />}
+        label="Flag"
+        className="bg-white text-red-600"
+      />
+      <AnimatedControlButton
+        compact={isDocked}
+        icon={<Video className="h-4 w-4" />}
+        label="Video"
+        disabled={!roomUrl}
+        onClick={() => {
+          if (!roomUrl) return
+          openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
+        }}
+        className="bg-white text-slate-700"
+      />
+      <AnimatedControlButton
+        compact={isDocked}
+        icon={<Folder className="h-4 w-4" />}
+        label="Directory"
+        onClick={() => setShowDirectoryPanel(true)}
+        className="bg-white text-slate-700"
+      />
+    </>
+  )
+
+  if (isDocked) {
+    return <div className="flex flex-wrap items-center justify-end gap-1.5">{controls}</div>
+  }
 
   return (
     <div ref={containerRef} className="pointer-events-none fixed inset-4 z-50">
@@ -347,63 +420,7 @@ function ClassroomControlsPanel({
             style={{ x: panelX, y: bodyY }}
             className="pointer-events-auto absolute left-0 top-0 w-96 origin-top overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
           >
-            <div className="grid grid-cols-2 gap-2 p-3">
-              <AnimatedControlButton
-                icon={
-                  <div
-                    className={cn(
-                      'h-2 w-2 rounded-full',
-                      followTutor ? 'animate-pulse bg-emerald-500' : 'bg-slate-400'
-                    )}
-                  />
-                }
-                label={followTutor ? 'Following Tutor' : 'Follow Tutor'}
-                onClick={() => setFollowTutor(!followTutor)}
-                className={cn('bg-white', followTutor ? 'text-emerald-600' : 'text-slate-700')}
-              />
-              <AnimatedControlButton
-                icon={<LogOut className="h-4 w-4" />}
-                label="Leave session"
-                onClick={() => router.push('/student/dashboard')}
-                className="bg-white text-slate-700"
-              />
-              <div
-                className={cn(
-                  actionButtonBase,
-                  'bg-white',
-                  isConnected ? 'text-emerald-600' : error ? 'text-red-600' : 'text-amber-600'
-                )}
-              >
-                <div
-                  className={cn(
-                    'h-2 w-2 rounded-full',
-                    isConnected ? 'bg-emerald-500' : error ? 'bg-red-500' : 'bg-amber-400'
-                  )}
-                />
-                {isConnected ? 'Connected' : error ? 'Disconnected' : 'Connecting'}
-              </div>
-              <AnimatedControlButton
-                icon={<Flag className="h-4 w-4" />}
-                label="Flag"
-                className="bg-white text-red-600"
-              />
-              <AnimatedControlButton
-                icon={<Video className="h-4 w-4" />}
-                label="Video"
-                disabled={!roomUrl}
-                onClick={() => {
-                  if (!roomUrl) return
-                  openVideoOverlay({ roomUrl, token, autoRecord: false, twoWay })
-                }}
-                className="bg-white text-slate-700"
-              />
-              <AnimatedControlButton
-                icon={<Folder className="h-4 w-4" />}
-                label="Directory"
-                onClick={() => setShowDirectoryPanel(true)}
-                className="bg-white text-slate-700"
-              />
-            </div>
+            <div className="grid grid-cols-2 gap-2 p-3">{controls}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1397,25 +1414,33 @@ function StudentFeedbackContent() {
     }
   }, [sessionIdFromQuery])
 
-  // Session timer — shows the remaining session clock once the session is active.
+  // Session timer — shows the remaining session clock while the session is live.
+  // Displays the full duration (default 60:00) before the tutor starts the session,
+  // then counts down once startedAt is set.
   useEffect(() => {
     if (!sessionContext) {
       setSessionTimer('')
       return
     }
+    const durationMs = (sessionContext.durationMinutes ?? 60) * 60 * 1000
     const updateTimer = () => {
       const now = Date.now()
-      if (sessionContext.status === 'active' && sessionContext.startedAt) {
+      const isLive = ['active', 'live', 'scheduled', 'preparing', 'paused'].includes(
+        sessionContext.status ?? ''
+      )
+      if (!isLive) {
+        setSessionTimer('')
+        return
+      }
+      let remaining = durationMs
+      if (sessionContext.startedAt) {
         const started = new Date(sessionContext.startedAt).getTime()
         const elapsed = Math.max(0, now - started)
-        const durationMs = (sessionContext.durationMinutes ?? 60) * 60 * 1000
-        const remaining = Math.max(0, durationMs - elapsed)
-        const mins = Math.floor(remaining / 60000)
-        const secs = Math.floor((remaining % 60000) / 1000)
-        setSessionTimer(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`)
-      } else {
-        setSessionTimer('')
+        remaining = Math.max(0, durationMs - elapsed)
       }
+      const mins = Math.floor(remaining / 60000)
+      const secs = Math.floor((remaining % 60000) / 1000)
+      setSessionTimer(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`)
     }
     updateTimer()
     const interval = setInterval(updateTimer, 1000)
@@ -2576,8 +2601,19 @@ function StudentFeedbackContent() {
               )}
             </div>
 
-            <div className="flex flex-1 items-center justify-end gap-3">
-              <WifiSignal connected={isConnected} error={!!error} />
+            <div className="flex flex-1 items-center justify-end">
+              <ClassroomControlsPanel
+                variant="docked"
+                followTutor={followTutor}
+                setFollowTutor={setFollowTutor}
+                isConnected={isConnected}
+                error={error}
+                roomUrl={sessionContext?.roomUrl}
+                token={sessionContext?.token}
+                twoWay={sessionContext?.twoWay}
+                openVideoOverlay={openVideoOverlay}
+                setShowDirectoryPanel={setShowDirectoryPanel}
+              />
             </div>
           </div>
 
@@ -2603,18 +2639,6 @@ function StudentFeedbackContent() {
             </div>
           )}
         </div>
-
-        <ClassroomControlsPanel
-          followTutor={followTutor}
-          setFollowTutor={setFollowTutor}
-          isConnected={isConnected}
-          error={error}
-          roomUrl={sessionContext?.roomUrl}
-          token={sessionContext?.token}
-          twoWay={sessionContext?.twoWay}
-          openVideoOverlay={openVideoOverlay}
-          setShowDirectoryPanel={setShowDirectoryPanel}
-        />
 
         {showDemoVideoPrompt && demoVideo && (
           <DemoVideoPrompt
@@ -2650,7 +2674,7 @@ function StudentFeedbackContent() {
         )}
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-2">
+        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-0">
           <div
             className={cn(
               'mt-2 flex min-h-0 flex-1 flex-col overflow-hidden',
@@ -3265,15 +3289,6 @@ function StudentFeedbackContent() {
                         {activeTask ? 'This task has no questions to answer.' : ''}
                       </p>
                     )}
-                    {/* Ask the AI tutor about this task — applies the task's PCI
-                      (TASK-6). Integrity is enforced server-side (ASMT-15). */}
-                    {activeTask && (
-                      <TaskAiHelper
-                        taskId={activeTaskId}
-                        subject={sessionContext?.courseCategory || 'General'}
-                      />
-                    )}
-
                     {activeTask &&
                       Array.isArray(activeTask.dmiItems) &&
                       activeTask.dmiItems.length > 0 && (
