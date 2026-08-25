@@ -11047,7 +11047,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                   <div className="sticky top-0 z-10 flex h-9 items-center justify-center rounded-t-[20px] bg-gradient-to-br from-[#3B82F6] to-[#3B82F6] px-4 text-sm font-semibold text-white">
                     Curriculum
                   </div>
-                  <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-0 pt-5">
+                  <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 pb-4 pt-5">
                     {mainTab !== 'live' && mainTab !== 'test-pci' && canEdit && (
                       <Button
                         size="sm"
@@ -11085,7 +11085,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                           className={cn(
                             'flex flex-col gap-2',
                             (mainTab === 'live' || mainTab === 'test-pci') &&
-                              'overflow-hidden rounded-[20px] border border-[#E5E7EB] bg-[#FAFBFC] pb-4'
+                              'overflow-hidden rounded-[20px] border border-[#E5E7EB] bg-[#FAFBFC] pb-0'
                           )}
                         >
                           {/* Lessons (formerly nodes) - with drag sorting */}
@@ -11339,7 +11339,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                             (loadedTaskId === task.id &&
                                                               deployedTaskIds.has(task.id))
                                                             ? 'border-[#4A90FF] bg-[#F2F7FF] ring-1 ring-[#4A90FF]'
-                                                            : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
+                                                            : deployedTaskIds.has(task.id)
+                                                              ? 'border-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/15'
+                                                              : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                           mainTab === 'test-pci' &&
                                                             !(
                                                               testPciSource === 'task' &&
@@ -12183,7 +12185,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                           (loadedAssessmentId === hw.id &&
                                                             deployedTaskIds.has(hw.id))
                                                           ? 'border-[#F472B6] bg-[#FDF2F8] ring-1 ring-[#F472B6]'
-                                                          : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
+                                                          : deployedTaskIds.has(hw.id)
+                                                            ? 'border-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/15'
+                                                            : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                         mainTab === 'test-pci' &&
                                                           !(
                                                             testPciSource === 'assessment' &&
@@ -12650,7 +12654,9 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                 (loadedAssessmentId === hw.id &&
                                                                   deployedTaskIds.has(hw.id))
                                                                 ? 'border-[#2FC98F] bg-[#ECFBF4] ring-1 ring-[#2FC98F]'
-                                                                : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
+                                                                : deployedTaskIds.has(hw.id)
+                                                                  ? 'border-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/15'
+                                                                  : 'border-[#E7ECF3] bg-white hover:bg-[#F8FAFC]',
                                                               mainTab === 'test-pci' &&
                                                                 !(
                                                                   testPciSource === 'assessment' &&
