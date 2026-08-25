@@ -44,6 +44,9 @@ interface CourseSchedule {
   enrolledCount: number
   spotsLeft: number | null
   isFull: boolean
+  actualSessionCount?: number
+  startDate?: string | null
+  endDate?: string | null
 }
 
 interface ScheduleViewModalProps {
@@ -263,16 +266,29 @@ export function ScheduleViewModal({
                       {(() => {
                         const { line, perWeek } = summarizeSlots(s.slots)
                         const weeks = s.weeksToSchedule || 0
+                        const count = s.actualSessionCount ?? perWeek * weeks
+                        const start = s.startDate
+                          ? new Date(s.startDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : null
+                        const end = s.endDate
+                          ? new Date(s.endDate).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : null
                         return (
                           <div className="space-y-1">
                             <p className="text-sm text-gray-700">{line}</p>
-                            {perWeek > 0 && (
-                              <p className="text-xs text-gray-400">
-                                {weeks > 0
-                                  ? `${perWeek * weeks} sessions over ${weeks} weeks`
-                                  : `${perWeek} session${perWeek === 1 ? '' : 's'}/week`}
-                              </p>
-                            )}
+                            <p className="text-xs text-gray-500">
+                              {count} session{count === 1 ? '' : 's'}
+                              {start && end ? ` · ${start} – ${end}` : null}
+                              {!start && weeks > 0 ? ` over ${weeks} weeks` : null}
+                            </p>
                           </div>
                         )
                       })()}

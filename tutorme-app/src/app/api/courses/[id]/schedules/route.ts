@@ -7,11 +7,11 @@
  */
 
 import { NextResponse } from 'next/server'
-import { eq } from 'drizzle-orm'
+import { eq, inArray, asc, desc } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { course, courseSchedule } from '@/lib/db/schema'
+import { course, courseSchedule, liveSession } from '@/lib/db/schema'
 
 export const GET = withAuth(async (req, _session, context) => {
   const courseId = await getParamAsync(context.params, 'id')
@@ -43,9 +43,44 @@ export const GET = withAuth(async (req, _session, context) => {
     .where(eq(courseSchedule.courseId, courseId))
     .orderBy(courseSchedule.scheduleIndex)
 
+  const scheduleIds = rows.map(r => r.scheduleId)
+  const liveSessions =
+    scheduleIds.length > 0
+      ? await drizzleDb
+          .select({
+            scheduleId: liveSession.scheduleId,
+            scheduledAt: liveSession.scheduledAt,
+          })
+          .from(liveSession)
+          .where(inArray(liveSession.scheduleId, scheduleIds))
+          .orderBy(asc(liveSession.scheduledAt))
+      : []
+
+  const sessionsBySchedule = liveSessions.reduce(
+    (acc, s) => {
+      if (!s.scheduleId) return acc
+      if (!acc[s.scheduleId]) acc[s.scheduleId] = []
+      acc[s.scheduleId].push(s)
+      return acc
+    },
+    {} as Record<string, typeof liveSessions>
+  )
+
+  const formatDate = (d: Date | null): string | null => {
+    if (!d) return null
+    try {
+      return d.toISOString()
+    } catch {
+      return null
+    }
+  }
+
   const schedules = rows.map(r => {
     const spotsLeft =
       typeof r.maxStudents === 'number' ? Math.max(0, r.maxStudents - (r.enrolledCount ?? 0)) : null
+    const sessions = sessionsBySchedule[r.scheduleId] || []
+    const firstScheduledAt = sessions[0]?.scheduledAt ?? null
+    const lastScheduledAt = sessions[sessions.length - 1]?.scheduledAt ?? null
     return {
       scheduleId: r.scheduleId,
       scheduleIndex: r.scheduleIndex,
@@ -56,6 +91,9 @@ export const GET = withAuth(async (req, _session, context) => {
       enrolledCount: r.enrolledCount ?? 0,
       spotsLeft,
       isFull: spotsLeft === 0,
+      actualSessionCount: sessions.length,
+      startDate: formatDate(firstScheduledAt),
+      endDate: formatDate(lastScheduledAt),
     }
   })
 
