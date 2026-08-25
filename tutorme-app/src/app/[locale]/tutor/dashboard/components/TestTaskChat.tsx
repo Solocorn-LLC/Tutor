@@ -501,8 +501,8 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
       </div>
 
       {/* Input area — chat composer for both classroom and student tabs.
-          The send button sits inside the right end of the rounded textarea/pill. */}
-      <div className="border-t border-gray-100 p-2">
+          The send button sits inside the bottom-right corner of the rounded textarea/pill. */}
+      <div className="border-t border-gray-100 px-2 pb-1 pt-2">
         <div className="relative">
           <textarea
             value={draft}
@@ -538,7 +538,7 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
             onClick={isClassroom ? sendTutorMessage : onSend}
             disabled={busy || !draft.trim()}
             title={isClassroom ? 'Send' : completed ? 'Send' : 'Add answer'}
-            className="absolute bottom-2.5 right-2.5 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
+            className="absolute bottom-3 right-3 grid h-8 w-8 place-items-center rounded-lg bg-blue-500 text-white transition-colors hover:bg-blue-600 disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>
