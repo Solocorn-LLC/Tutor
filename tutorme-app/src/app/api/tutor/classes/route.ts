@@ -55,6 +55,7 @@ export const GET = withAuth(
     const classes = sessions.map(s => ({
       id: s.sessionId,
       courseId: s.courseId,
+      scheduleId: s.scheduleId ?? null,
       title: s.title,
       subject: s.category,
       scheduledAt: s.scheduledAt?.toISOString() ?? null,
