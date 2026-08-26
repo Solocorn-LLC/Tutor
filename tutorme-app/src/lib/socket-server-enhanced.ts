@@ -575,7 +575,9 @@ async function selfHealRoomTasks(room: ClassRoom) {
 /** Rehydrate a room's deployed tasks/assessments from Postgres.
  *  Called during join_class so late joiners and reconnecting tutors see
  *  everything that was deployed, even if the in-memory room was evicted
- *  or Redis is unavailable. Idempotent: skips tasks already present in memory. */
+ *  or Redis is unavailable. Idempotent: skips tasks already present in memory.
+ *  Also self-heals corrupted snapshots (e.g. "Untitled" / empty content) by
+ *  re-fetching the authoritative source from BuilderTask / CourseLesson.builderData. */
 async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<void> {
   // Private whiteboard sub-rooms have no LiveSession/DeployedMaterial rows.
   if (roomId.includes(':board:')) return
@@ -585,7 +587,13 @@ async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<
     const { eq, inArray, and } = await import('drizzle-orm')
 
     const rows = await drizzleDb
-      .select({ content: deployedMaterial.content })
+      .select({
+        itemId: deployedMaterial.itemId,
+        courseId: deployedMaterial.courseId,
+        title: deployedMaterial.title,
+        type: deployedMaterial.type,
+        content: deployedMaterial.content,
+      })
       .from(deployedMaterial)
       .where(
         and(
@@ -597,10 +605,54 @@ async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<
 
     const existingIds = new Set(room.tasks.map(t => t.id))
     for (const row of rows) {
-      const snapshot = row.content as Partial<LiveTask> | undefined
-      if (!snapshot?.id || existingIds.has(snapshot.id)) continue
+      let snapshot = (row.content ?? {}) as Partial<LiveTask>
+      if (!snapshot.id) snapshot = { ...snapshot, id: row.itemId }
+      if (existingIds.has(snapshot.id!)) continue
+
+      // Self-heal: if the stored snapshot was corrupted to "Untitled"/empty,
+      // recover the real title/content from BuilderTask / builderData.
+      let recovered = false
+      if (!snapshot.title || snapshot.title === 'Untitled' || !snapshot.content) {
+        try {
+          const { fetchTaskSourceFromBuilder, recoverSnapshot } =
+            await import('./classroom/task-recovery')
+          const source = await fetchTaskSourceFromBuilder(row.itemId, row.courseId)
+          if (source) {
+            snapshot = recoverSnapshot(snapshot, source.fields) as Partial<LiveTask>
+            recovered = true
+            console.log(
+              `[hydrateRoomTasksFromDb] recovered ${row.itemId}: "${snapshot.title}" from ${source.location?.kind}`
+            )
+          }
+        } catch (recoverErr) {
+          console.error(`[hydrateRoomTasksFromDb] recovery failed for ${row.itemId}:`, recoverErr)
+        }
+      }
+
+      // Persist the recovered snapshot back to the DB so every subsequent reader
+      // (student directory, rejoins, deployments) sees the fixed content without
+      // requiring a manual recovery script.
+      if (recovered) {
+        try {
+          await drizzleDb
+            .update(deployedMaterial)
+            .set({
+              title: snapshot.title || 'Task',
+              content: snapshot as unknown as Record<string, unknown>,
+            })
+            .where(
+              and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, row.itemId))
+            )
+        } catch (writeBackErr) {
+          console.error(
+            `[hydrateRoomTasksFromDb] write-back failed for ${row.itemId}:`,
+            writeBackErr
+          )
+        }
+      }
+
       const hydrated: LiveTask = {
-        id: snapshot.id,
+        id: snapshot.id!,
         title: snapshot.title || 'Task',
         content: snapshot.content || '',
         description: snapshot.description,
@@ -1796,6 +1848,41 @@ export async function initEnhancedSocketServer(server: NetServer) {
           return
         }
 
+        // Resolve the effective course as early as possible so a corrupted deploy
+        // payload can be self-healed from BuilderTask / builderData before it is
+        // broadcast or persisted.
+        let effectiveCourseId: string | undefined
+        try {
+          const { liveSession } = await import('./db/schema')
+          const { eq } = await import('drizzle-orm')
+          const sessionRec = await drizzleDb.query.liveSession.findFirst({
+            where: eq(liveSession.sessionId, roomId),
+            columns: { courseId: true, sessionId: true },
+          })
+          effectiveCourseId =
+            sessionRec?.courseId || payloadCourseId || (await ensureAdhocAnchorCourseId())
+        } catch (courseLookupErr) {
+          console.warn('[task:deploy] course lookup failed:', courseLookupErr)
+        }
+
+        // Self-heal corrupted task metadata before it reaches students or the DB.
+        // This fixes payloads that lost their title/content after a course:sync or
+        // an in-memory room reset.
+        if (effectiveCourseId && (!task.title || task.title === 'Untitled' || !task.content)) {
+          try {
+            const { fetchTaskSourceFromBuilder, recoverSnapshot } =
+              await import('./classroom/task-recovery')
+            const source = await fetchTaskSourceFromBuilder(task.id, effectiveCourseId)
+            if (source) {
+              const recovered = recoverSnapshot(task as Partial<LiveTask>, source.fields)
+              Object.assign(task, recovered)
+              console.log(`[task:deploy] recovered ${task.id}: "${task.title}"`)
+            }
+          } catch (recoverErr) {
+            console.error(`[task:deploy] recovery failed for ${task.id}:`, recoverErr)
+          }
+        }
+
         // Refresh any GCS document URLs (re-sign from fileKey) before deploying so
         // students get a live URL rather than a possibly-expired one, and render a
         // raw Office document to PDF so students get an inline viewer rather than a
@@ -1875,14 +1962,23 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
         // Persist to Database for Student Directory and Replays
         try {
-          const { drizzleDb } = await import('./db/drizzle')
           const { liveSession, deployedMaterial } = await import('./db/schema')
           const { eq } = await import('drizzle-orm')
 
-          const sessionRec = await drizzleDb.query.liveSession.findFirst({
-            where: eq(liveSession.sessionId, roomId),
-            columns: { courseId: true, sessionId: true },
-          })
+          // Reuse the course resolved earlier; fall back to a fresh lookup only if
+          // that lookup failed.
+          let sessionRec: { courseId: string | null; sessionId: string } | undefined
+          if (!effectiveCourseId) {
+            sessionRec = await drizzleDb.query.liveSession.findFirst({
+              where: eq(liveSession.sessionId, roomId),
+              columns: { courseId: true, sessionId: true },
+            })
+          }
+          const deployCourseId =
+            effectiveCourseId ||
+            sessionRec?.courseId ||
+            payloadCourseId ||
+            (await ensureAdhocAnchorCourseId())
 
           // Prefer the session's own course, then the course the deploy panel was
           // scoped to (carried on the payload) — so a course-scoped session whose
@@ -1890,9 +1986,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
           // instead of the hidden ad-hoc anchor, which the deployables tree filters
           // out (making the task vanish from the tree after deploy). Course-less
           // sessions still fall back to the ad-hoc anchor so deploys stay gradable.
-          const effectiveCourseId =
-            sessionRec?.courseId || payloadCourseId || (await ensureAdhocAnchorCourseId())
-          if (effectiveCourseId) {
+          if (deployCourseId) {
             // Sequence orders a deploy within its course's sessions; an ad-hoc
             // session has no course to order within, so it is always 1.
             let sessionSequence = 1
@@ -1909,7 +2003,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
               .insert(deployedMaterial)
               .values({
                 sessionId: roomId,
-                courseId: effectiveCourseId,
+                courseId: deployCourseId,
                 type: normalizedTask.source,
                 itemId: normalizedTask.id,
                 title: normalizedTask.title,
@@ -1960,7 +2054,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                     .where(
                       and(
                         eq(courseLesson.lessonId, task.lessonId),
-                        eq(courseLesson.courseId, effectiveCourseId)
+                        eq(courseLesson.courseId, deployCourseId)
                       )
                     )
                     .limit(1)
@@ -1970,7 +2064,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   const [first] = await drizzleDb
                     .select({ lessonId: courseLesson.lessonId })
                     .from(courseLesson)
-                    .where(eq(courseLesson.courseId, effectiveCourseId))
+                    .where(eq(courseLesson.courseId, deployCourseId))
                     .orderBy(courseLesson.order)
                     .limit(1)
                   lesson = first
@@ -1986,7 +2080,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   const newLessonId = crypto.randomUUID()
                   await drizzleDb.insert(courseLesson).values({
                     lessonId: newLessonId,
-                    courseId: effectiveCourseId,
+                    courseId: deployCourseId,
                     title: 'Live Session',
                     order: 0,
                     createdAt: now,
@@ -2004,7 +2098,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                   .insert(builderTask)
                   .values({
                     taskId: normalizedTask.id,
-                    courseId: effectiveCourseId,
+                    courseId: deployCourseId,
                     lessonId: lesson.lessonId,
                     tutorId,
                     title: normalizedTask.title || 'Untitled',
@@ -2474,6 +2568,24 @@ export async function initEnhancedSocketServer(server: NetServer) {
               lesson = { lessonId: newLessonId }
             }
 
+            // Self-heal: if the in-memory task was corrupted (e.g. by a course:sync
+            // from empty builderData), recover the real title/content from the
+            // authoritative BuilderTask / builderData source before persisting it.
+            if (!task.title || task.title === 'Untitled' || !task.content) {
+              try {
+                const { fetchTaskSourceFromBuilder, recoverSnapshot } =
+                  await import('./classroom/task-recovery')
+                const source = await fetchTaskSourceFromBuilder(taskId, courseId)
+                if (source) {
+                  const recovered = recoverSnapshot(task as Partial<LiveTask>, source.fields)
+                  Object.assign(task, recovered)
+                  console.log(`[task:complete] recovered ${taskId}: "${task.title}"`)
+                }
+              } catch (recoverErr) {
+                console.error(`[task:complete] recovery failed for ${taskId}:`, recoverErr)
+              }
+            }
+
             // 2) builderTask — FK target for taskSubmission; read by the Grading page.
             //    Carry the tutor's PCI + structured spec (deploy-only; never
             //    broadcast). Refreshed on conflict without clobbering title/content.
@@ -2504,6 +2616,28 @@ export async function initEnhancedSocketServer(server: NetServer) {
             // 3) deployedMaterial — without it, the in-session SubmissionsPanel
             //    (/submissions-tree) and live panel filter the submission out.
             //    Idempotent on (sessionId, itemId) so re-submitting never duplicates.
+            //    Persist a full content snapshot so the student directory and tutor
+            //    rehydration never see empty placeholder rows.
+            const deploySnapshot: Record<string, unknown> = {
+              id: taskId,
+              title: task.title || 'Untitled',
+              content: task.content || '',
+              source: task.source || 'task',
+              dmiItems: task.dmiItems,
+              deployedAt: task.deployedAt || Date.now(),
+              polls: Array.isArray(task.polls) ? task.polls : [],
+              questions: Array.isArray(task.questions) ? task.questions : [],
+              sourceDocument: task.sourceDocument,
+              htmlContent: task.htmlContent,
+              linkPreviews: task.linkPreviews,
+              generatedFromText: task.generatedFromText,
+              parentId: task.parentId,
+              isExtension: task.isExtension ?? false,
+              lessonId: task.lessonId,
+              completedBy: Array.isArray(task.completedBy) ? task.completedBy : [],
+              timeLimit: task.timeLimit,
+              audioTrack: task.audioTrack,
+            }
             await drizzleDb
               .insert(deployedMaterial)
               .values({
@@ -2512,6 +2646,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 type: task.source,
                 itemId: taskId,
                 title: task.title || 'Untitled',
+                content: deploySnapshot,
                 sessionSequence: 1,
                 lessonId: lesson.lessonId,
                 deployedAt: now,
