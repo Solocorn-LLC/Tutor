@@ -611,6 +611,7 @@ async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<
 
       // Self-heal: if the stored snapshot was corrupted to "Untitled"/empty,
       // recover the real title/content from BuilderTask / builderData.
+      let recovered = false
       if (!snapshot.title || snapshot.title === 'Untitled' || !snapshot.content) {
         try {
           const { fetchTaskSourceFromBuilder, recoverSnapshot } =
@@ -618,12 +619,35 @@ async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<
           const source = await fetchTaskSourceFromBuilder(row.itemId, row.courseId)
           if (source) {
             snapshot = recoverSnapshot(snapshot, source.fields) as Partial<LiveTask>
+            recovered = true
             console.log(
               `[hydrateRoomTasksFromDb] recovered ${row.itemId}: "${snapshot.title}" from ${source.location?.kind}`
             )
           }
         } catch (recoverErr) {
           console.error(`[hydrateRoomTasksFromDb] recovery failed for ${row.itemId}:`, recoverErr)
+        }
+      }
+
+      // Persist the recovered snapshot back to the DB so every subsequent reader
+      // (student directory, rejoins, deployments) sees the fixed content without
+      // requiring a manual recovery script.
+      if (recovered) {
+        try {
+          await drizzleDb
+            .update(deployedMaterial)
+            .set({
+              title: snapshot.title || 'Task',
+              content: snapshot as unknown as Record<string, unknown>,
+            })
+            .where(
+              and(eq(deployedMaterial.sessionId, roomId), eq(deployedMaterial.itemId, row.itemId))
+            )
+        } catch (writeBackErr) {
+          console.error(
+            `[hydrateRoomTasksFromDb] write-back failed for ${row.itemId}:`,
+            writeBackErr
+          )
         }
       }
 
