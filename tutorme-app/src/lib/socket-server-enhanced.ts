@@ -572,6 +572,63 @@ async function selfHealRoomTasks(room: ClassRoom) {
   }
 }
 
+/** Rehydrate a room's deployed tasks/assessments from Postgres.
+ *  Called during join_class so late joiners and reconnecting tutors see
+ *  everything that was deployed, even if the in-memory room was evicted
+ *  or Redis is unavailable. Idempotent: skips tasks already present in memory. */
+async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<void> {
+  // Private whiteboard sub-rooms have no LiveSession/DeployedMaterial rows.
+  if (roomId.includes(':board:')) return
+
+  try {
+    const { deployedMaterial } = await import('./db/schema')
+    const { eq, inArray, and } = await import('drizzle-orm')
+
+    const rows = await drizzleDb
+      .select({ content: deployedMaterial.content })
+      .from(deployedMaterial)
+      .where(
+        and(
+          eq(deployedMaterial.sessionId, roomId),
+          inArray(deployedMaterial.type, ['task', 'assessment', 'homework'])
+        )
+      )
+      .orderBy(deployedMaterial.sessionSequence, deployedMaterial.deployedAt)
+
+    const existingIds = new Set(room.tasks.map(t => t.id))
+    for (const row of rows) {
+      const snapshot = row.content as Partial<LiveTask> | undefined
+      if (!snapshot?.id || existingIds.has(snapshot.id)) continue
+      const hydrated: LiveTask = {
+        id: snapshot.id,
+        title: snapshot.title || 'Task',
+        content: snapshot.content || '',
+        description: snapshot.description,
+        instructions: snapshot.instructions,
+        source: snapshot.source || 'task',
+        dmiItems: Array.isArray(snapshot.dmiItems) ? snapshot.dmiItems : undefined,
+        deployedAt: typeof snapshot.deployedAt === 'number' ? snapshot.deployedAt : Date.now(),
+        polls: Array.isArray(snapshot.polls) ? snapshot.polls : [],
+        questions: Array.isArray(snapshot.questions) ? snapshot.questions : [],
+        sourceDocument: snapshot.sourceDocument,
+        htmlContent: snapshot.htmlContent,
+        linkPreviews: snapshot.linkPreviews,
+        generatedFromText: snapshot.generatedFromText,
+        parentId: snapshot.parentId,
+        isExtension: snapshot.isExtension ?? false,
+        lessonId: snapshot.lessonId,
+        completedBy: Array.isArray(snapshot.completedBy) ? snapshot.completedBy : [],
+        timeLimit: snapshot.timeLimit,
+        audioTrack: snapshot.audioTrack,
+      }
+      room.tasks.push(hydrated)
+      existingIds.add(hydrated.id)
+    }
+  } catch (err) {
+    console.error('[hydrateRoomTasksFromDb] failed:', err)
+  }
+}
+
 /**
  * Persist a task's live polls/questions into the DeployedMaterial snapshot so
  * they survive Redis eviction, server restarts, and rejoins. Only polls and
@@ -1406,11 +1463,20 @@ export async function initEnhancedSocketServer(server: NetServer) {
           students: new Map(),
           chatHistory: [],
           tasks: [],
+          polls: [],
+          whiteboardData: undefined,
+          codeEditorContent: '',
+          codeLanguage: 'javascript',
           createdAt: new Date(),
           lastActivity: Date.now(),
         }
         activeRooms.set(roomId, room)
       }
+
+      // Rehydrate deployed tasks/assessments from Postgres so late joiners and
+      // reconnecting tutors always see the current deploy list, even after a
+      // server restart or Redis eviction.
+      await hydrateRoomTasksFromDb(roomId, room)
 
       // Hydrate active polls from DB for late joiners
       try {
@@ -2210,6 +2276,12 @@ export async function initEnhancedSocketServer(server: NetServer) {
               room.tasks[existingIndex] = {
                 ...existing,
                 ...liveTask,
+                // When builderData lacks a real title/content/document, don't let a
+                // sync wipe the deployed snapshot and turn the task into "Untitled".
+                title:
+                  liveTask.title && liveTask.title !== 'Untitled' ? liveTask.title : existing.title,
+                content: liveTask.content || existing.content,
+                sourceDocument: refreshedSourceDoc ? refreshedSourceDoc : existing.sourceDocument,
                 // Preserve live insights, completion state, and original deploy
                 // time; a sync is a content refresh, not a redeployment.
                 polls: existing.polls,
