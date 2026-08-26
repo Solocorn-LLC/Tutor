@@ -127,7 +127,7 @@ export function UpcomingSessionCard({
                 ? 'You left this session; it is still running for students'
                 : 'Open classroom'
           }
-          className="border border-emerald-500 bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
+          className="min-w-[110px] justify-center whitespace-nowrap border border-emerald-500 bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
         >
           <MonitorPlay className="mr-1 h-3 w-3 -translate-y-px" />
           {isCurrentlyInSession ? 'Join now' : isLive ? 'Rejoin' : 'Classroom'}
