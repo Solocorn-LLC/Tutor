@@ -2150,6 +2150,8 @@ function StudentFeedbackContent() {
     (selectedDirectoryItem?.id === activeTaskId ? selectedDirectoryItem : null) ||
     null
 
+  const isTaskComplete = !!activeTaskId && (taskChatCompleted || completedTaskIds.has(activeTaskId))
+
   // Persistent countdown timer for the active task/assessment. Starts once when a
   // timed task is first loaded and keeps ticking across task switches and reloads.
   useEffect(() => {
@@ -2843,7 +2845,7 @@ function StudentFeedbackContent() {
                       !socket ||
                       !selectedSessionId ||
                       taskChatBusy ||
-                      taskChatCompleted
+                      isTaskComplete
                     }
                     onClick={() => {
                       if (!activeTaskId || !socket || !selectedSessionId || !activeTask) {
@@ -2883,11 +2885,7 @@ function StudentFeedbackContent() {
                       }
                     }}
                   >
-                    {taskChatBusy
-                      ? 'Submitting…'
-                      : taskChatCompleted
-                        ? 'Completed'
-                        : 'Task Complete'}
+                    {taskChatBusy ? 'Submitting…' : isTaskComplete ? 'Completed' : 'Task Complete'}
                   </Button>
                 )}
               </TabsContent>
