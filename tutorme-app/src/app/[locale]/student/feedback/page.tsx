@@ -2608,20 +2608,7 @@ function StudentFeedbackContent() {
               )}
             </div>
 
-            <div className="flex flex-1 items-center justify-end">
-              <ClassroomControlsPanel
-                variant="docked"
-                followTutor={followTutor}
-                setFollowTutor={setFollowTutor}
-                isConnected={isConnected}
-                error={error}
-                roomUrl={sessionContext?.roomUrl}
-                token={sessionContext?.token}
-                twoWay={sessionContext?.twoWay}
-                openVideoOverlay={openVideoOverlay}
-                setShowDirectoryPanel={setShowDirectoryPanel}
-              />
-            </div>
+            <div className="flex flex-1 items-center justify-end" />
           </div>
 
           {sessionContext && (sessionContext.topic || sessionContext.objectives) && (
@@ -2680,11 +2667,23 @@ function StudentFeedbackContent() {
           />
         )}
 
+        <ClassroomControlsPanel
+          followTutor={followTutor}
+          setFollowTutor={setFollowTutor}
+          isConnected={isConnected}
+          error={error}
+          roomUrl={sessionContext?.roomUrl}
+          token={sessionContext?.token}
+          twoWay={sessionContext?.twoWay}
+          openVideoOverlay={openVideoOverlay}
+          setShowDirectoryPanel={setShowDirectoryPanel}
+        />
+
         {/* Content Wrapper */}
         <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-0">
           <div
             className={cn(
-              'mt-2 flex min-h-0 flex-1 flex-col overflow-hidden',
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
           >
@@ -2750,7 +2749,7 @@ function StudentFeedbackContent() {
                     </div>
                   )}
 
-                  <div className="no-scrollbar flex-1 overflow-hidden overflow-y-auto p-4 pt-6">
+                  <div className="no-scrollbar flex-1 overflow-hidden overflow-y-auto p-4 pb-2 pt-6">
                     {activeTask ? (
                       activeTaskId ? (
                         <div className="flex h-full flex-col gap-3 overflow-hidden">
@@ -2925,7 +2924,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative mt-2 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative flex shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{

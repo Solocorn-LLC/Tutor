@@ -502,7 +502,7 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
 
       {/* Input area — chat composer for both classroom and student tabs.
           The send button sits inside the bottom-right corner of the rounded textarea/pill. */}
-      <div className="border-t border-gray-100 px-2 pb-1 pt-2">
+      <div className="border-t border-gray-100 px-2 pb-0 pt-2">
         <div className="relative">
           <textarea
             value={draft}
