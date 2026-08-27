@@ -2684,7 +2684,7 @@ function StudentFeedbackContent() {
         />
 
         {/* Content Wrapper */}
-        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-0">
+        <div className="relative flex w-full flex-1 items-stretch gap-4 overflow-hidden px-4 pb-4 pt-1">
           <div
             className={cn(
               'flex min-h-0 flex-1 flex-col overflow-hidden',
@@ -2696,7 +2696,7 @@ function StudentFeedbackContent() {
               onValueChange={v => setActiveTab(v as 'task' | 'tutor-board')}
               className="flex h-full min-h-0 flex-1 flex-col"
             >
-              <div className="flex shrink-0 items-start pt-1">
+              <div className="flex shrink-0 items-start pt-0">
                 <TabsList
                   className={cn(
                     'grid h-[52px] w-full grid-cols-2 gap-2 border-0 bg-transparent p-0 shadow-none transition-opacity',
@@ -2925,7 +2925,7 @@ function StudentFeedbackContent() {
           {/* Persistent Right Panel */}
           <div
             className={cn(
-              'relative mt-1 flex shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
+              'relative flex shrink-0 flex-col overflow-hidden rounded-2xl border border-[#E5E7EB] bg-white shadow-[0_8px_20px_rgba(0,0,0,0.08)]',
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
