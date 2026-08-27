@@ -1035,6 +1035,37 @@ function TutorInsightsPageInner() {
     setStudentBoards({})
   }, [sessionId])
 
+  // Seed liveTasks from the canonical DB source before/as a fallback to socket state.
+  // This prevents the "No tasks deployed yet" state when the socket room is empty or
+  // was evicted, and ensures the tutor panel matches the persistent DeployedMaterial truth.
+  useEffect(() => {
+    if (!sessionId) return
+    let cancelled = false
+    const seedFromDb = async () => {
+      try {
+        const res = await fetchWithCsrf(`/api/tutor/live-sessions/${sessionId}/deployed-tasks`, {
+          method: 'GET',
+          credentials: 'include',
+        })
+        if (!res.ok) return
+        const data = await res.json()
+        if (cancelled || !data?.tasks || !Array.isArray(data.tasks)) return
+        setLiveTasks(prev => {
+          // Socket room_state may have already arrived with more live fields; merge it in.
+          const socketIds = new Set(prev.map(t => t.id))
+          const dbOnly = data.tasks.filter((t: LiveTask) => !socketIds.has(t.id))
+          return [...prev, ...dbOnly]
+        })
+      } catch (err) {
+        console.error('[Insights] seed deployed tasks failed:', err)
+      }
+    }
+    void seedFromDb()
+    return () => {
+      cancelled = true
+    }
+  }, [sessionId])
+
   const socketOptions = useMemo(() => {
     if (!sessionId || !session?.user?.id) return undefined
     return {

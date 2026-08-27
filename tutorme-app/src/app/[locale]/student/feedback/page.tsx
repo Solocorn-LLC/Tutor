@@ -1941,6 +1941,15 @@ function StudentFeedbackContent() {
       )
     }
 
+    const handleTaskUndeployed = (data: { taskId: string; roomId?: string }) => {
+      if (data.roomId && data.roomId !== selectedSessionId) return
+      setTasks(prev => prev.filter(item => item.id !== data.taskId))
+      setLiveHomework(prev => prev.filter(item => item.id !== data.taskId))
+      if (activeTaskId === data.taskId) {
+        setActiveTaskId(null)
+      }
+    }
+
     // Polls and questions are attached to a deployed task. The server emits both
     // `task:updated` and `insight:sent`; we listen to both so a missed `task:updated`
     // (or a task that arrived without the latest insight) still surfaces the new poll
@@ -2113,6 +2122,7 @@ function StudentFeedbackContent() {
     socket.on('task:deployed', handleTaskDeployed)
     socket.on('task:updated', handleTaskUpdated)
     socket.on('task:deployed:sequence', handleTaskSequence)
+    socket.on('task:undeployed', handleTaskUndeployed)
     socket.on('insight:sent', handleInsightSent)
     socket.on('insight:response', handleInsightResponse)
     socket.on('insight:receive', handleInsightReceived)
@@ -2127,6 +2137,7 @@ function StudentFeedbackContent() {
       socket.off('task:deployed', handleTaskDeployed)
       socket.off('task:updated', handleTaskUpdated)
       socket.off('task:deployed:sequence', handleTaskSequence)
+      socket.off('task:undeployed', handleTaskUndeployed)
       socket.off('insight:sent', handleInsightSent)
       socket.off('insight:response', handleInsightResponse)
       socket.off('insight:receive', handleInsightReceived)
