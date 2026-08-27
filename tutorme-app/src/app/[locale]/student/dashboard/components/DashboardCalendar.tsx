@@ -196,12 +196,10 @@ export function DashboardCalendar({
     let cancelled = false
     const now = new Date()
     const start = now.toISOString()
-    const end = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000).toISOString()
     setUpcomingLoading(true)
-    fetch(
-      `/api/student/calendar/events?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
-      { credentials: 'include' }
-    )
+    fetch(`/api/student/calendar/events?start=${encodeURIComponent(start)}`, {
+      credentials: 'include',
+    })
       .then(r => r.json())
       .then(data => {
         if (cancelled) return

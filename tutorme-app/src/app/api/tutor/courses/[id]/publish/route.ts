@@ -967,7 +967,30 @@ export const POST = withCsrf(
                   }
 
                   if (conflictingLs) {
-                    if (conflictingLs.courseId === publishedCourseId) {
+                    if (
+                      conflictingLs.courseId === publishedCourseId ||
+                      conflictingLs.courseId === templateCourseId
+                    ) {
+                      // Sessions materialized from a schedule on the unpublished template
+                      // belong to the same logical course. Migrate them to the published variant.
+                      if (conflictingLs.courseId === templateCourseId) {
+                        await tx
+                          .update(liveSession)
+                          .set({ courseId: publishedCourseId })
+                          .where(eq(liveSession.sessionId, conflictingLs.sessionId))
+
+                        // Keep the linked CalendarEvent in sync with the published course.
+                        await tx
+                          .update(calendarEvent)
+                          .set({ courseId: publishedCourseId })
+                          .where(
+                            and(
+                              eq(calendarEvent.externalId, conflictingLs.sessionId),
+                              isNull(calendarEvent.deletedAt)
+                            )
+                          )
+                      }
+
                       // Same-course existing session: ensure it has a CalendarEvent
                       const [existingCe] = await tx
                         .select({ eventId: calendarEvent.eventId })
