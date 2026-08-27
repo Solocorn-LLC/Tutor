@@ -603,7 +603,20 @@ async function hydrateRoomTasksFromDb(roomId: string, room: ClassRoom): Promise<
       )
       .orderBy(deployedMaterial.sessionSequence, deployedMaterial.deployedAt)
 
+    const dbIds = new Set(rows.map(r => r.itemId))
     const existingIds = new Set(room.tasks.map(t => t.id))
+
+    // Remove tasks that no longer exist in the DB source of truth. This prevents
+    // stale in-memory/Redis room state from reappearing after an undeploy or DB cleanup.
+    const beforeCount = room.tasks.length
+    room.tasks = room.tasks.filter(t => dbIds.has(t.id))
+    const removedCount = beforeCount - room.tasks.length
+    if (removedCount > 0) {
+      console.log(
+        `[hydrateRoomTasksFromDb] removed ${removedCount} stale task(s) from room ${roomId}`
+      )
+    }
+
     for (const row of rows) {
       let snapshot = (row.content ?? {}) as Partial<LiveTask>
       if (!snapshot.id) snapshot = { ...snapshot, id: row.itemId }
