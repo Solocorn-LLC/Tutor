@@ -25,7 +25,7 @@ import {
   oneOnOneBookingRequest,
   calendarEvent,
 } from '@/lib/db/schema'
-import { eq, and, sql, inArray, ne } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
 
@@ -92,18 +92,6 @@ export const POST = withCsrf(
       if (isTutor && row.status === 'scheduled') {
         effectiveStartedAt = new Date()
         effectiveStatus = 'active'
-        // Enforce the single-live-session rule: end any other active sessions for
-        // this tutor before starting the new one, mirroring the socket join guard.
-        await tx
-          .update(liveSession)
-          .set({ status: 'ended', endedAt: new Date() })
-          .where(
-            and(
-              eq(liveSession.tutorId, userId),
-              inArray(liveSession.status, ['active', 'live', 'preparing', 'paused']),
-              ne(liveSession.sessionId, id)
-            )
-          )
         await tx
           .update(liveSession)
           .set({ status: 'active', startedAt: effectiveStartedAt })
