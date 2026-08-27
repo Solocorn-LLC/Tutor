@@ -1614,7 +1614,12 @@ function TutorInsightsPageInner() {
             sessionId,
             sessions,
             schedules: courseSchedules,
-            onSessionChange: setSessionId,
+            onSessionChange: value => {
+              setSessionId(value)
+              const params = new URLSearchParams(searchParams.toString())
+              params.set('sessionId', value)
+              router.replace(`/tutor/insights?${params.toString()}`)
+            },
             liveTasks,
             liveSubmissions,
             // Only expose deploy inside a live session — the deploy buttons gate
