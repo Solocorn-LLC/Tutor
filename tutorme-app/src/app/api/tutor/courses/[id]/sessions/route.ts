@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/schema'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
 export const GET = withAuth(
   async (req, session, context) => {
@@ -74,9 +75,10 @@ export const GET = withAuth(
       )
       const variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
 
+      const familyIds = await expandToCourseFamily([courseId])
       const conditions = [
         eq(liveSessionTable.tutorId, tutorId),
-        eq(liveSessionTable.courseId, courseId),
+        inArray(liveSessionTable.courseId, familyIds),
       ]
 
       if (allowedStatuses.length > 0) {

@@ -73,7 +73,9 @@ export function UpcomingSessionsPanel({
         status === 'preparing'
       if (!isActionable || scheduledAt < now - sessionGrace) continue
 
-      const course = courses.find(c => c.id === session.courseId)
+      const course = courses.find(
+        c => c.id === session.courseId || c.templateCourseId === session.courseId
+      )
       if (!course) continue
 
       list.push({
