@@ -30,31 +30,6 @@ WHERE "courseId" IS NULL
 `)
 
 /**
- * Repair duplicate active sessions: a tutor should only run one live session at a
- * time. If multiple rows are active for the same tutor, keep the most recently
- * started one and end the rest. Idempotent: rows already ended are not touched.
- */
-const DEDUPLICATE_ACTIVE_SESSIONS_SQL = sql.raw(`
-UPDATE "LiveSession" target
-SET status = 'ended',
-    "endedAt" = NOW()
-WHERE target."id" IN (
-  SELECT ls."id"
-  FROM "LiveSession" ls
-  JOIN (
-    SELECT "tutorId", MAX("startedAt") AS "maxStartedAt"
-    FROM "LiveSession"
-    WHERE status IN ('active', 'live', 'preparing', 'paused')
-      AND "startedAt" IS NOT NULL
-    GROUP BY "tutorId"
-    HAVING COUNT(*) > 1
-  ) keep ON ls."tutorId" = keep."tutorId"
-  WHERE ls.status IN ('active', 'live', 'preparing', 'paused')
-    AND ls."startedAt" < keep."maxStartedAt"
-);
-`)
-
-/**
  * Backfill published-course categories that were mutated after publish.
  * PR #1440 locks the UI/API going forward; this repair already-changed rows.
  * Source of truth is the CourseVariant row created at publish time. Idempotent:
@@ -101,19 +76,6 @@ export async function applyStartupDataCleanup(): Promise<void> {
     // Never block boot on a cleanup — log and move on.
     console.error(
       '⚠️ [Server] Orphaned-session cleanup skipped:',
-      err instanceof Error ? err.message : err
-    )
-  }
-
-  try {
-    const result = await drizzleDb.execute(DEDUPLICATE_ACTIVE_SESSIONS_SQL)
-    const count = (result as { rowCount?: number })?.rowCount ?? 0
-    if (count > 0) {
-      console.log(`[Server] Data cleanup: ended ${count} duplicate active live session(s).`)
-    }
-  } catch (err) {
-    console.error(
-      '⚠️ [Server] Duplicate active-session cleanup skipped:',
       err instanceof Error ? err.message : err
     )
   }
