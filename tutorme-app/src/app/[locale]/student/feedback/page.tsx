@@ -1223,6 +1223,7 @@ function StudentFeedbackContent() {
     twoWay: boolean
     tutorId: string | null
     tutorUsername: string
+    tutorAvatarUrl: string | null
     courseCategory: string
     courseId: string | null
     courseName: string | null
@@ -1598,6 +1599,7 @@ function StudentFeedbackContent() {
           twoWay: !!data?.twoWay || (data?.session?.maxStudents ?? 0) <= 2,
           tutorId: data?.session?.tutorId ?? null,
           tutorUsername: data?.session?.tutor?.profile?.name || 'Tutor',
+          tutorAvatarUrl: data?.session?.tutor?.profile?.avatarUrl ?? null,
           courseCategory: data?.session?.category || 'General',
           courseId: data?.session?.courseId ?? null,
           courseName: data?.session?.course?.name ?? null,
@@ -2781,6 +2783,7 @@ function StudentFeedbackContent() {
                               audioTrack={activeTask.audioTrack}
                               initialState={taskChatInitial}
                               incomingMessages={taskChatIncoming}
+                              tutorAvatarUrl={sessionContext?.tutorAvatarUrl}
                               studentAvatarUrl={session?.user?.image}
                               onGrade={body =>
                                 fetchWithCsrf(
