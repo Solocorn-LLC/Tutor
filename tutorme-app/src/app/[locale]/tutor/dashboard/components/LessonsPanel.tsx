@@ -68,7 +68,7 @@ export function LessonsPanel({
     homework: true,
   })
   const [undeployingIds, setUndeployingIds] = useState<Set<string>>(new Set())
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('all')
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('')
 
   // Only show sessions that belong to the current course. Always keep the
   // active session in the list even if its courseId hasn't arrived yet.
@@ -78,20 +78,25 @@ export function LessonsPanel({
   )
 
   const filteredSessions = useMemo(() => {
-    if (selectedScheduleId === 'all') return courseSessions
-    if (selectedScheduleId === 'unscheduled') return courseSessions.filter(s => !s.scheduleId)
+    if (!selectedScheduleId) return courseSessions
     return courseSessions.filter(s => s.scheduleId === selectedScheduleId)
   }, [courseSessions, selectedScheduleId])
 
-  // Default the schedule selector to the active session's schedule.
+  // Default the schedule selector to the active session's schedule, or to the
+  // only available schedule. Otherwise leave it empty so the placeholder shows.
   useEffect(() => {
-    const active = courseSessions.find(s => s.id === sessionId)
-    if (active?.scheduleId) {
-      setSelectedScheduleId(active.scheduleId)
-    } else {
-      setSelectedScheduleId('all')
+    if (schedules.length === 1) {
+      setSelectedScheduleId(schedules[0].scheduleId)
+      return
     }
-  }, [sessionId, courseSessions])
+    const active = courseSessions.find(s => s.id === sessionId)
+    const activeScheduleId = active?.scheduleId
+    if (activeScheduleId && schedules.some(sch => sch.scheduleId === activeScheduleId)) {
+      setSelectedScheduleId(activeScheduleId)
+    } else {
+      setSelectedScheduleId('')
+    }
+  }, [sessionId, courseSessions, schedules])
 
   const currentSession = useMemo(
     () => filteredSessions.find(s => s.id === sessionId),
@@ -141,11 +146,21 @@ export function LessonsPanel({
     }
   }
 
-  const hasSchedules = schedules.length > 0 || courseSessions.some(s => s.scheduleId)
-  const showScheduleSelector = !isSessionLocked && hasSchedules
+  const hasSchedules = schedules.length > 0
+  const showScheduleSelector = hasSchedules
 
   const renderScheduleSelector = () => {
     if (!showScheduleSelector) return null
+
+    // Single schedule: display its name as read-only text.
+    if (schedules.length === 1) {
+      return (
+        <div className="flex w-full items-center rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm">
+          <span className="truncate font-medium text-gray-900">{schedules[0].name}</span>
+        </div>
+      )
+    }
+
     return (
       <Select
         value={selectedScheduleId}
@@ -154,13 +169,9 @@ export function LessonsPanel({
         }}
       >
         <SelectTrigger className="w-full rounded-lg border-blue-100 bg-white text-sm focus:ring-0 focus:ring-offset-0">
-          <SelectValue placeholder="Select a schedule" />
+          <SelectValue placeholder="Select Schedule" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All schedules</SelectItem>
-          {courseSessions.some(s => !s.scheduleId) && (
-            <SelectItem value="unscheduled">Unscheduled / Ad-hoc</SelectItem>
-          )}
           {schedules.map(sch => (
             <SelectItem key={sch.scheduleId} value={sch.scheduleId}>
               {sch.name}
@@ -172,17 +183,10 @@ export function LessonsPanel({
   }
 
   const renderSessionHeader = () => {
-    if (isSessionLocked || filteredSessions.length <= 1) {
+    if (filteredSessions.length === 0) {
       return (
-        <div className="flex items-center justify-between rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm">
-          <span className="truncate font-medium text-gray-900">
-            {currentSession?.title || 'No session selected'}
-          </span>
-          {currentSession?.scheduledAt && (
-            <span className="ml-2 shrink-0 text-xs text-gray-500">
-              {new Date(currentSession.scheduledAt).toLocaleString()}
-            </span>
-          )}
+        <div className="flex items-center rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-gray-500">
+          No sessions available
         </div>
       )
     }
