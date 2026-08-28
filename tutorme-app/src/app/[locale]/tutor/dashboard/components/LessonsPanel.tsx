@@ -191,6 +191,17 @@ export function LessonsPanel({
       )
     }
 
+    // Stable session number = position in this course's sessions ordered by schedule.
+    const sessionsByDate = [...courseSessions].sort((a, b) => {
+      const aTime = a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0
+      const bTime = b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0
+      return aTime - bTime
+    })
+    const sessionNumber =
+      sessionId && sessionsByDate.length > 0
+        ? sessionsByDate.findIndex(s => s.id === sessionId) + 1
+        : 0
+
     return (
       <Select
         value={sessionId ?? ''}
@@ -204,16 +215,18 @@ export function LessonsPanel({
           <SelectValue placeholder="Select a session" />
         </SelectTrigger>
         <SelectContent>
-          {filteredSessions.map(s => (
-            <SelectItem key={s.id} value={s.id}>
-              <span className="block truncate">{s.title}</span>
-              {s.scheduledAt && (
-                <span className="ml-2 text-xs text-gray-500">
-                  {new Date(s.scheduledAt).toLocaleString()}
+          {filteredSessions.map(s => {
+            const idx = sessionsByDate.findIndex(item => item.id === s.id)
+            const number = idx >= 0 ? idx + 1 : 0
+            return (
+              <SelectItem key={s.id} value={s.id}>
+                <span className="block truncate">
+                  {number > 0 ? `Session ${number} — ` : ''}
+                  {s.title}
                 </span>
-              )}
-            </SelectItem>
-          ))}
+              </SelectItem>
+            )
+          })}
         </SelectContent>
       </Select>
     )

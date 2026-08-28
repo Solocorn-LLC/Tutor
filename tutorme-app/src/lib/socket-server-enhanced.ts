@@ -1880,8 +1880,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
         // Self-heal corrupted task metadata before it reaches students or the DB.
         // This fixes payloads that lost their title/content after a course:sync or
-        // an in-memory room reset.
-        if (effectiveCourseId && (!task.title || task.title === 'Untitled' || !task.content)) {
+        // an in-memory room reset, and also restores a missing sourceDocument so
+        // PDFs and document cards render instead of appearing blank/untitled.
+        const hasSourceDocument = !!task.sourceDocument?.fileUrl || !!task.sourceDocument?.fileKey
+        if (
+          effectiveCourseId &&
+          (!task.title || task.title === 'Untitled' || !task.content || !hasSourceDocument)
+        ) {
           try {
             const { fetchTaskSourceFromBuilder, recoverSnapshot } =
               await import('./classroom/task-recovery')
