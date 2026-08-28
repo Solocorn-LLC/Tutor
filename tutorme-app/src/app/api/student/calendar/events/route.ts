@@ -19,7 +19,7 @@ import {
   groupSession,
   groupSessionParticipant,
 } from '@/lib/db/schema'
-import { eq, and, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
+import { eq, or, and, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
@@ -91,9 +91,13 @@ export const GET = withAuth(
       : []
 
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
+    // Future scheduled sessions must show even if they were incorrectly marked 'ended'.
     const lsFilters = [
       inArray(liveSession.courseId, courseIds),
-      inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
+      or(
+        inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
+        and(eq(liveSession.status, 'ended'), gte(liveSession.scheduledAt, new Date()))
+      ),
     ]
 
     if (startParam) {

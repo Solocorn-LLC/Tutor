@@ -26,14 +26,11 @@ export const GET = withAuth(
       where: includeEnded
         ? eq(liveSessionTable.tutorId, tutorId)
         : (() => {
-            // Upcoming = future or in-progress, but never an ended/cancelled session
-            // (an ended session with a future scheduledAt must not show as "upcoming").
-            // Demo classes are schedule-less and live only in the dedicated demos tab
-            // unless explicitly requested (e.g. by the live insights/deploy page).
-            const filters = [
-              eq(liveSessionTable.tutorId, tutorId),
-              ne(liveSessionTable.status, 'ended'),
-            ]
+            // Upcoming = future or in-progress. Future sessions must always show,
+            // even if their status was incorrectly set to 'ended', so we no longer
+            // filter by status. Demo classes are schedule-less and live only in the
+            // dedicated demos tab unless explicitly requested.
+            const filters = [eq(liveSessionTable.tutorId, tutorId)]
             if (!includeDemoClasses) {
               filters.push(ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO'))
             }

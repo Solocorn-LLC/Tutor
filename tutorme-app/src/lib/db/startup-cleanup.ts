@@ -7,9 +7,13 @@
  * but left them 'scheduled', so they lingered on the calendar and blocked
  * scheduler slots forever).
  *
+ * Only past sessions are removed, so a future scheduled session that temporarily
+ * lacks a courseId (e.g. during publish) is never deleted on boot.
+ *
  * Precise + safe: an orphan is identified as courseId IS NULL + an open status +
- * NO CalendarEvent referencing it. Genuine course-less sessions (ad-hoc) always
- * have a CalendarEvent, so they are never touched. Re-running deletes nothing.
+ * scheduledAt in the past + NO CalendarEvent referencing it. Genuine course-less
+ * sessions (ad-hoc) always have a CalendarEvent, so they are never touched.
+ * Re-running deletes nothing.
  */
 
 import { drizzleDb } from './drizzle'
@@ -24,6 +28,7 @@ DELETE FROM "LiveSession"
 WHERE "courseId" IS NULL
   AND "status" IN ('scheduled', 'active', 'preparing', 'live', 'paused')
   AND "sessionType" <> 'GO_LIVE_DEMO'
+  AND "scheduledAt" < NOW()
   AND NOT EXISTS (
     SELECT 1 FROM "CalendarEvent" ce WHERE ce."externalId" = "LiveSession"."id"
   );
