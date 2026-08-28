@@ -21,14 +21,14 @@ import {
   calendarEvent,
   deployedMaterial,
 } from '@/lib/db/schema'
-import { eq, and, asc, desc, sql } from 'drizzle-orm'
+import { eq, and, inArray, ne, asc, desc, sql } from 'drizzle-orm'
 import { randomUUID } from 'crypto'
 import { generateSessionSummary } from '@/lib/chat/summary'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { getIO } from '@/lib/socket-server-enhanced'
-import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
+import { ensureSingleActiveSession, endOtherActiveSessions } from '@/lib/sessions/concurrency'
 
 function buildTranscript(
   messages: Array<{
@@ -82,6 +82,29 @@ export const GET = withAuth(
     // 'active' however the tutor opened the room. Schedule-less demo classes are
     // always treated as live and never transitioned here.
     if (liveSessionRow.status === 'scheduled' && liveSessionRow.sessionType !== 'GO_LIVE_DEMO') {
+      // Only one session can be active per tutor at a time. End any other active
+      // sessions first so deployments and student joins always target the room
+      // the tutor just entered. This is system-level enforcement, not a tutor
+      // clicking an end button.
+      const otherActive = await drizzleDb
+        .select({ sessionId: liveSession.sessionId })
+        .from(liveSession)
+        .where(
+          and(
+            eq(liveSession.tutorId, tutorId),
+            inArray(liveSession.status, ['active', 'live', 'preparing', 'paused'] as any),
+            ne(liveSession.sessionId, classId)
+          )
+        )
+
+      if (otherActive.length > 0) {
+        await endOtherActiveSessions(tutorId, classId)
+        const io = getIO()
+        for (const { sessionId } of otherActive) {
+          io?.to(sessionId).emit('session:ended', { sessionId, reason: 'session-switched' })
+        }
+      }
+
       const startedAt = liveSessionRow.startedAt || new Date()
       await drizzleDb
         .update(liveSession)

@@ -929,11 +929,13 @@ function TutorInsightsPageInner() {
         if (querySessionId && classSessions.some(s => s.id === querySessionId)) {
           // Already set, but confirming it exists in the list
           setSessionId(querySessionId)
-        } else if (
-          !querySessionId &&
-          searchParams.get('tab') !== 'builder' &&
-          searchParams.get('mode') !== 'edit'
-        ) {
+        } else if (querySessionId) {
+          // URL names a session that didn't come back in the filtered list (e.g.
+          // an ended past session). Keep the URL selection so the classroom
+          // stays on the session the user navigated to instead of switching to
+          // whatever active session happens to be in the list.
+          setSessionId(querySessionId)
+        } else if (searchParams.get('tab') !== 'builder' && searchParams.get('mode') !== 'edit') {
           if (activeSession) {
             setSessionId(prev => prev ?? activeSession.id)
           } else if (classSessions.length > 0) {

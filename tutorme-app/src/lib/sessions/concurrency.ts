@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull, ne } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession } from '@/lib/db/schema'
 
@@ -66,4 +66,31 @@ export async function ensureSingleActiveSession(
   }
 
   return remaining
+}
+
+/**
+ * Ends every active LiveSession for a tutor except the one identified by
+ * `excludeSessionId`. This is used when the tutor enters a different scheduled
+ * session (test-condition early entry) so that only one session is ever active
+ * at a time; deployments and student joins therefore target the correct room.
+ *
+ * @param tutorId - tutor whose other active sessions should be ended
+ * @param excludeSessionId - session that must remain active
+ * @returns the number of sessions that were ended
+ */
+export async function endOtherActiveSessions(
+  tutorId: string,
+  excludeSessionId: string
+): Promise<number> {
+  const result = await drizzleDb
+    .update(liveSession)
+    .set({ status: 'ended', endedAt: new Date() })
+    .where(
+      and(
+        eq(liveSession.tutorId, tutorId),
+        inArray(liveSession.status, ACTIVE_STATUSES as any),
+        ne(liveSession.sessionId, excludeSessionId)
+      )
+    )
+  return result.rowCount ?? 0
 }
