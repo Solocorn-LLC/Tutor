@@ -4236,9 +4236,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     useEffect(() => {
       if (mainTab === 'live' && prevMainTabRef.current !== 'live') {
         handleSyncToLive()
+        // Entering the live classroom should always land on the Lessons Desk tab.
+        setDeskInsightsTabMap(prev => ({ ...prev, [currentInsightsId]: 'lessons' }))
       }
       prevMainTabRef.current = mainTab
-    }, [mainTab, handleSyncToLive])
+    }, [mainTab, handleSyncToLive, currentInsightsId, setDeskInsightsTabMap])
 
     // Trigger full sync: save → sync to live → emit to session.
     // isAuto suppresses the save/sync toasts so background auto-sync is silent.

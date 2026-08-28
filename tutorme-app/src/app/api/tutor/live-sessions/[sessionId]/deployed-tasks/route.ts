@@ -67,9 +67,15 @@ export const GET = withAuth(async (req, session, context) => {
     if (!snapshot.id) snapshot.id = row.itemId
 
     // Self-heal corrupted snapshots from the authoritative BuilderTask / builderData source.
-    if (isCorruptedSnapshot({ ...snapshot, title: row.title || snapshot.title })) {
+    // Also recover a missing sourceDocument, because tasks whose title/content survive but
+    // whose document reference was lost will render as blank PDFs / unavailable documents.
+    const snapshotTitle = row.title || snapshot.title
+    const needsSourceRecovery =
+      isCorruptedSnapshot({ ...snapshot, title: snapshotTitle }) ||
+      (!snapshot.sourceDocument?.fileUrl && !snapshot.sourceDocument?.fileKey)
+    if (needsSourceRecovery && row.courseId) {
       try {
-        const source = await fetchTaskSourceFromBuilder(row.itemId, row.courseId || '')
+        const source = await fetchTaskSourceFromBuilder(row.itemId, row.courseId)
         if (source) {
           const recovered = recoverSnapshot(snapshot, source.fields)
           Object.assign(snapshot, recovered)
