@@ -39,12 +39,18 @@ export const GET = withAuth(
 
       const courseId = liveSessionRow.courseId
 
-      // Verify enrollment.
+      // Verify enrollment. The session may be stored under the template course id
+      // while the student enrolled in the published variant, so check the whole
+      // variant family instead of a raw courseId match.
+      const familyIds = await expandToCourseFamily([courseId])
       const [enrollment] = await drizzleDb
         .select()
         .from(courseEnrollment)
         .where(
-          and(eq(courseEnrollment.courseId, courseId), eq(courseEnrollment.studentId, studentId))
+          and(
+            inArray(courseEnrollment.courseId, familyIds),
+            eq(courseEnrollment.studentId, studentId)
+          )
         )
         .limit(1)
 
@@ -68,9 +74,7 @@ export const GET = withAuth(
       // they have one (a switch then cascades to which sessions they see).
       // One-time/ad-hoc sessions (scheduleId null) are shown to everyone.
       // Lesson titles so each session can show which lesson it covers.
-      // The student enrolls in the published variant, but lessons/sessions may be
-      // stored under the template id — match the whole variant family.
-      const familyIds = await expandToCourseFamily([courseId])
+      // (familyIds was already resolved for the enrollment gate above.)
       const lessonRows = await drizzleDb
         .select({ id: courseLesson.lessonId, title: courseLesson.title, order: courseLesson.order })
         .from(courseLesson)

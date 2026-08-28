@@ -14029,6 +14029,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   mode={
                                                     isClassroomTab ? 'classroom' : 'test-student'
                                                   }
+                                                  accent={isClassroomTab ? 'orange' : 'violet'}
                                                   tutorAvatarUrl={tutorAvatarUrl}
                                                   studentAvatarUrl={
                                                     isClassroomTab

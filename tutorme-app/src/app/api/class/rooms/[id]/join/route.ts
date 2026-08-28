@@ -28,6 +28,7 @@ import {
 import { eq, and, sql } from 'drizzle-orm'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
+import { endOtherActiveSessions } from '@/lib/sessions/concurrency'
 
 const EARLY_ENTRY_MS = 20 * 60 * 1000 // students may enter 20 min before scheduledAt
 
@@ -87,9 +88,11 @@ export const POST = withCsrf(
 
       // The tutor entering a scheduled session starts it — keep status/startedAt
       // consistent with the room instead of relying on a separate "start" call.
+      // End any other active sessions first so only one session is live per tutor.
       let effectiveStatus = row.status
       let effectiveStartedAt: Date | null = row.startedAt as Date | null
       if (isTutor && row.status === 'scheduled') {
+        await endOtherActiveSessions(userId, id)
         effectiveStartedAt = new Date()
         effectiveStatus = 'active'
         await tx
