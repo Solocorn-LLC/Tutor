@@ -65,13 +65,10 @@ export function UpcomingSessionsPanel({
       const scheduledAt = session.scheduledAt ? new Date(session.scheduledAt).getTime() : null
       if (scheduledAt == null) continue
       const status = session.status.toLowerCase()
-      const isActionable =
-        status === 'scheduled' ||
-        status === 'active' ||
-        status === 'live' ||
-        status === 'paused' ||
-        status === 'preparing'
-      if (!isActionable || scheduledAt < now - sessionGrace) continue
+      // Show all future sessions regardless of status, plus any currently active session.
+      // Sessions scheduled in the future must remain visible even if they were
+      // incorrectly marked as ended.
+      if (scheduledAt < now - sessionGrace && status !== 'active') continue
 
       const course = courses.find(
         c => c.id === session.courseId || c.templateCourseId === session.courseId
