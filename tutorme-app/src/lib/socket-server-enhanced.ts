@@ -1835,24 +1835,19 @@ export async function initEnhancedSocketServer(server: NetServer) {
           socket.emit('task:deploy:error', { error: 'Invalid deploy data' })
           return
         }
-        let room = activeRooms.get(roomId)
+
+        // The tutor must be actually joined to the room they are deploying into.
+        // This prevents a stale/wrong sessionId in the tutor client from persisting
+        // a task under the wrong session, which makes tasks appear in other sessions.
+        if (!socket.rooms.has(roomId)) {
+          socket.emit('task:deploy:error', { error: 'Rejoin the session before deploying' })
+          return
+        }
+
+        const room = activeRooms.get(roomId)
         if (!room) {
-          // Room may have been cleaned up — recreate it on demand
-          room = {
-            id: roomId,
-            tutorId: socket.data.userId || '',
-            students: new Map(),
-            chatHistory: [],
-            tasks: [],
-            polls: [],
-            whiteboardData: undefined,
-            codeEditorContent: '',
-            codeLanguage: 'javascript',
-            createdAt: new Date(),
-            lastActivity: Date.now(),
-          }
-          activeRooms.set(roomId, room)
-          console.log(`[task:deploy] Recreated room ${roomId} on demand`)
+          socket.emit('task:deploy:error', { error: 'Room not available — rejoin the session' })
+          return
         }
 
         const deployCheck = await canDeployToSession(roomId, task.source, socket.data.userId)
@@ -2284,23 +2279,21 @@ export async function initEnhancedSocketServer(server: NetServer) {
         return
       }
 
-      let room = activeRooms.get(roomId)
-      if (!room) {
-        room = {
-          id: roomId,
-          tutorId: socket.data.userId || '',
-          students: new Map(),
-          chatHistory: [],
-          tasks: [],
-          polls: [],
-          whiteboardData: undefined,
-          codeEditorContent: '',
-          codeLanguage: 'javascript',
-          createdAt: new Date(),
-          lastActivity: Date.now(),
-        }
-        activeRooms.set(roomId, room)
+      if (!socket.rooms.has(roomId)) {
+        socket.emit('course:sync:error', { error: 'Rejoin the session before syncing' })
+        return
       }
+
+      const room = activeRooms.get(roomId)
+      if (!room) {
+        socket.emit('course:sync:error', { error: 'Room not available — rejoin the session' })
+        return
+      }
+
+      // Strip any stale tasks that were not actually deployed to this session
+      // before syncing. This prevents a sync from mass-updating tasks that leaked
+      // into memory from a different session.
+      await selfHealRoomTasks(room)
 
       try {
         const lessons = await drizzleDb
