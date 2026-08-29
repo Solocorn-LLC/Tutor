@@ -90,15 +90,15 @@ export const GET = withAuth(
       : []
 
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
-    // Any non-ended LiveSession row that belongs to an enrolled course must surface
-    // on the dashboard, even if its CalendarEvent projection is missing, cancelled,
-    // or mis-linked. The frontend filters out past sessions, so we can safely
-    // return all open rows here.
-    const lsFilters = [inArray(liveSession.courseId, courseIds), ne(liveSession.status, 'ended')]
+    // Every future LiveSession row for an enrolled course must surface, even if it
+    // was incorrectly marked 'ended'. The frontend filters out past/completed
+    // sessions and re-labels future ended rows as scheduled, so we query by date
+    // rather than status here.
+    const lsFilters = [
+      inArray(liveSession.courseId, courseIds),
+      gte(liveSession.scheduledAt, startDate),
+    ]
 
-    if (startParam) {
-      lsFilters.push(gte(liveSession.scheduledAt, startDate))
-    }
     if (endParam) {
       lsFilters.push(lte(liveSession.scheduledAt, endDate))
     }
@@ -120,22 +120,6 @@ export const GET = withAuth(
           .where(and(...lsFilters))
           .orderBy(liveSession.scheduledAt)
       : []
-
-    console.log('[student/calendar/events] debug', {
-      studentId,
-      startParam,
-      enrolledIds,
-      courseIds,
-      calendarEventCount: calEvents.length,
-      calendarEventExternalIds: calEvents.map(e => e.externalId),
-      liveSessionCount: liveSessions.length,
-      liveSessionIds: liveSessions.map(s => ({
-        id: s.sessionId,
-        courseId: s.courseId,
-        status: s.status,
-        scheduledAt: s.scheduledAt?.toISOString(),
-      })),
-    })
 
     // --- 1-on-1 sessions the student has PAID for (no courseId; keyed by
     // studentId). Surfaced once payment clears (PAID) and kept after the session
