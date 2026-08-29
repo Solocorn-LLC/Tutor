@@ -92,7 +92,7 @@ export const GET = withAuth(
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
     // Any non-ended LiveSession row that belongs to an enrolled course must surface
     // on the dashboard, even if its CalendarEvent projection is missing, cancelled,
-    // or mis-linked. The frontend filters out past sessions, so we can safely
+    // or mis-linked. The frontend filters out past/ended sessions, so we can safely
     // return all open rows here.
     const lsFilters = [inArray(liveSession.courseId, courseIds), ne(liveSession.status, 'ended')]
 
@@ -120,22 +120,6 @@ export const GET = withAuth(
           .where(and(...lsFilters))
           .orderBy(liveSession.scheduledAt)
       : []
-
-    console.log('[student/calendar/events] debug', {
-      studentId,
-      startParam,
-      enrolledIds,
-      courseIds,
-      calendarEventCount: calEvents.length,
-      calendarEventExternalIds: calEvents.map(e => e.externalId),
-      liveSessionCount: liveSessions.length,
-      liveSessionIds: liveSessions.map(s => ({
-        id: s.sessionId,
-        courseId: s.courseId,
-        status: s.status,
-        scheduledAt: s.scheduledAt?.toISOString(),
-      })),
-    })
 
     // --- 1-on-1 sessions the student has PAID for (no courseId; keyed by
     // studentId). Surfaced once payment clears (PAID) and kept after the session
