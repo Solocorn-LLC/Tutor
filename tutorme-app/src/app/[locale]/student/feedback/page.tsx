@@ -279,9 +279,10 @@ function ClassroomControlsPanel({
     if (!panel || !container) return
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
-    // Park the panel at the top-right of the header area, flush with the top edge.
+    // Park the panel at the top-right of the viewport, below the page header/tabs
+    // so it does not overlap the student-classroom hero row on load.
     const x = containerRect.width - panelRect.width
-    const y = 0
+    const y = 96
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
@@ -403,7 +404,9 @@ function ClassroomControlsPanel({
         >
           <span className="w-4 shrink-0" aria-hidden="true" />
           <span className="mx-auto text-xs font-semibold text-white">Controls</span>
-          <WifiSignal connected={isConnected} error={!!error} />
+          <span className="mr-1.5 rounded-md bg-white p-1.5">
+            <WifiSignal connected={isConnected} error={!!error} />
+          </span>
         </button>
       </motion.div>
 
