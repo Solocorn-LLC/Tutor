@@ -49,6 +49,7 @@ interface InsightsSessionOption {
   durationMinutes: number
   sessionType?: string
   scheduleId?: string | null
+  courseId?: string | null
 }
 
 // Stroke points may be compressed (flat number array) from socket delta sync.
@@ -873,20 +874,45 @@ function TutorInsightsPageInner() {
           setSessionId(querySessionId)
         }
 
-        const res = await fetch('/api/tutor/classes?includeDemoClasses=1', {
-          credentials: 'include',
-        })
-        if (!res.ok) throw new Error('Failed to load sessions')
-        const data = await res.json()
-        let classSessions = (
-          (data.classes || []) as Array<InsightsSessionOption & { duration?: number }>
-        ).map(s => ({
-          ...s,
-          courseId: (s as any).courseId ?? null,
-          scheduleId: (s as any).scheduleId ?? null,
-          durationMinutes: s.duration ?? 60,
-          sessionType: (s as any).sessionType,
-        }))
+        let classSessions: InsightsSessionOption[] = []
+
+        if (courseId && courseId !== 'insights-draft') {
+          // For a published/template course, load every session of that course
+          // (including past and future scheduled sessions) so the tutor can deploy
+          // lessons to any session before its scheduled date.
+          const courseRes = await fetch(
+            `/api/tutor/courses/${encodeURIComponent(courseId)}/sessions`,
+            { credentials: 'include' }
+          )
+          if (!courseRes.ok) throw new Error('Failed to load course sessions')
+          const courseData = await courseRes.json()
+          classSessions = ((courseData.sessions || []) as any[]).map(s => ({
+            id: s.id,
+            courseId: s.courseId ?? courseId,
+            scheduleId: s.scheduleId ?? null,
+            title: s.title,
+            subject: s.category || s.subject || '',
+            scheduledAt: s.scheduledAt,
+            status: s.status,
+            durationMinutes: s.durationMinutes ?? 120,
+            sessionType: s.sessionType || 'COURSE',
+          }))
+        } else {
+          const res = await fetch('/api/tutor/classes?includeDemoClasses=1', {
+            credentials: 'include',
+          })
+          if (!res.ok) throw new Error('Failed to load sessions')
+          const data = await res.json()
+          classSessions = (
+            (data.classes || []) as Array<InsightsSessionOption & { duration?: number }>
+          ).map(s => ({
+            ...s,
+            courseId: (s as any).courseId ?? null,
+            scheduleId: (s as any).scheduleId ?? null,
+            durationMinutes: s.duration ?? 60,
+            sessionType: (s as any).sessionType,
+          }))
+        }
 
         // Robust fallback: if the URL names a session that the filtered list does
         // not include (e.g. an ended demo class, or any session filtered by role
@@ -948,7 +974,7 @@ function TutorInsightsPageInner() {
     }
 
     loadSessions()
-  }, [searchParams])
+  }, [searchParams, courseId])
 
   useEffect(() => {
     if (!sessionId) return
