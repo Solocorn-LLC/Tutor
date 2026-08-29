@@ -254,10 +254,8 @@ export function LessonsPanel({
                         type="button"
                         onClick={() => onSelectTask?.(task.id, task.source || 'task')}
                         className={cn(
-                          'flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition-colors',
-                          isActive
-                            ? 'border-blue-200 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                          'flex w-full items-center gap-3 rounded-lg border border-blue-500 bg-white px-3 py-2 text-left transition-colors',
+                          isActive && 'ring-2 ring-blue-500 ring-offset-1'
                         )}
                       >
                         <span
@@ -270,7 +268,7 @@ export function LessonsPanel({
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium">{task.title}</span>
+                            <span className="text-sm font-medium text-blue-600">{task.title}</span>
                             <div className="flex items-center gap-1">
                               {!canManageTasks ? (
                                 <Tooltip>
@@ -320,13 +318,11 @@ export function LessonsPanel({
                                 type="button"
                                 onClick={() => onSelectTask?.(ext.id, ext.source || 'task')}
                                 className={cn(
-                                  'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
-                                  extActive
-                                    ? 'border-blue-200 bg-blue-50'
-                                    : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                                  'flex w-full items-center gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-left transition-colors',
+                                  extActive && 'ring-2 ring-blue-500 ring-offset-1'
                                 )}
                               >
-                                <span className="min-w-0 flex-1 text-sm font-medium">
+                                <span className="min-w-0 flex-1 text-sm font-medium text-blue-600">
                                   {ext.title}
                                 </span>
                                 <div className="flex items-center gap-1">
@@ -395,13 +391,11 @@ export function LessonsPanel({
                         type="button"
                         onClick={() => onSelectTask?.(hw.id, 'homework')}
                         className={cn(
-                          'flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
-                          activeTaskId === hw.id
-                            ? 'border-blue-200 bg-blue-50'
-                            : 'border-gray-200 hover:border-blue-100 hover:bg-blue-50/40'
+                          'flex w-full items-center justify-between gap-2 rounded-lg border border-blue-500 bg-white px-3 py-2 text-left transition-colors',
+                          activeTaskId === hw.id && 'ring-2 ring-blue-500 ring-offset-1'
                         )}
                       >
-                        <span className="text-sm font-medium text-gray-900">{hw.title}</span>
+                        <span className="text-sm font-medium text-blue-600">{hw.title}</span>
                         <div className="flex items-center gap-1">
                           {!canManageTasks ? (
                             <Tooltip>
