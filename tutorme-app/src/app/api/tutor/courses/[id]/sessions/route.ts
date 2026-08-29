@@ -99,6 +99,7 @@ export const GET = withAuth(
 
       const formattedReal = sessions.map(s => ({
         id: s.sessionId,
+        courseId: s.courseId,
         title: s.title,
         category: s.category,
         description: s.description,
@@ -108,6 +109,7 @@ export const GET = withAuth(
         maxStudents: s.maxStudents,
         enrolledStudents: s.participants?.length || 0,
         status: s.status,
+        sessionType: s.sessionType,
         roomUrl: s.roomUrl,
         recordingUrl: s.recordingUrl ?? null,
         isVirtual: false,
