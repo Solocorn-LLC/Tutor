@@ -21,7 +21,6 @@ import {
 } from '@/lib/db/schema'
 import { eq, or, and, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
-import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -91,14 +90,11 @@ export const GET = withAuth(
       : []
 
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
-    // Future scheduled sessions must show even if they were incorrectly marked 'ended'.
-    const lsFilters = [
-      inArray(liveSession.courseId, courseIds),
-      or(
-        inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
-        and(eq(liveSession.status, 'ended'), gte(liveSession.scheduledAt, new Date()))
-      ),
-    ]
+    // Any non-ended LiveSession row that belongs to an enrolled course must surface
+    // on the dashboard, even if its CalendarEvent projection is missing, cancelled,
+    // or mis-linked. The frontend filters out past/ended sessions, so we can safely
+    // return all open rows here.
+    const lsFilters = [inArray(liveSession.courseId, courseIds), ne(liveSession.status, 'ended')]
 
     if (startParam) {
       lsFilters.push(gte(liveSession.scheduledAt, startDate))
