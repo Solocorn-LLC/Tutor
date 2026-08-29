@@ -1574,13 +1574,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
     const removeMonitorStudent = useCallback((id: string) => {
       setMonitorSelectedStudents(prev => prev.filter(s => s.id !== id))
     }, [])
-    const [liveRightPanelTab, setLiveRightPanelTab] = useState<'analytics' | 'insights'>(
-      'analytics'
-    )
-    // Reset to Analytics when leaving Live mode so the pill doesn't stick on Insights
+    const [liveRightPanelTab, setLiveRightPanelTab] = useState<'analytics' | 'insights'>('insights')
+    // When entering Live mode, default the Desk to Insights > Lessons.
     useEffect(() => {
-      if (mainTab !== 'live' && liveRightPanelTab === 'insights') {
-        setLiveRightPanelTab('analytics')
+      if (mainTab === 'live' && liveRightPanelTab === 'analytics') {
+        setLiveRightPanelTab('insights')
       }
     }, [mainTab, liveRightPanelTab])
 
@@ -4611,10 +4609,11 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                     homework: [...(les.homework || []), homeworkItem],
                   }
                 }
+                const newAssessments = (les.assessments || []).filter(a => a.id !== item.id)
                 const newHwList = (les.homework || [])
                   .filter(h => h.id !== item.id)
                   .concat([homeworkItem])
-                return { ...les, homework: newHwList }
+                return { ...les, assessments: newAssessments, homework: newHwList }
               }),
             }
           })
@@ -12384,7 +12383,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                     title: hw.title,
                                                                     content:
                                                                       hw.description || hw.title,
-                                                                    source: 'assessment',
+                                                                    source: 'homework',
                                                                     dmiItems:
                                                                       hw.dmiItems ||
                                                                       (hw.dmiVersions || [])[0]
@@ -12436,7 +12435,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                         content:
                                                                           hw.description ||
                                                                           hw.title,
-                                                                        source: 'assessment',
+                                                                        source: 'homework',
                                                                         dmiItems:
                                                                           hw.dmiItems ||
                                                                           (hw.dmiVersions || [])[0]
@@ -12785,7 +12784,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                           content:
                                                                             hw.description ||
                                                                             hw.title,
-                                                                          source: 'assessment',
+                                                                          source: 'homework',
                                                                           dmiItems:
                                                                             hw.dmiItems ||
                                                                             (hw.dmiVersions ||
@@ -12841,7 +12840,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                                               content:
                                                                                 hw.description ||
                                                                                 hw.title,
-                                                                              source: 'assessment',
+                                                                              source: 'homework',
                                                                               dmiItems:
                                                                                 hw.dmiItems ||
                                                                                 (hw.dmiVersions ||
