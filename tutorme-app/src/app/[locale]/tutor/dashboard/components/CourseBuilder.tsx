@@ -9388,13 +9388,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
                           setTaskPdfVisibleMap(prev => ({ ...prev, [firstNew.id]: true }))
                           setTaskTextVisibleMap(prev => ({ ...prev, [firstNew.id]: false }))
-
-                          setTimeout(() => {
-                            handlePciSend(
-                              'task',
-                              `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then ask me to confirm the summary is correct (or tell you what to fix), and do NOT ask any marking-policy questions yet — wait until I confirm the summary is right. Once I confirm, then help me build the marking policy by asking ONE simple question at a time, using clear, simple language and a small example each time.`
-                            )
-                          }, 500)
                         }
 
                         toast.success(
@@ -9620,14 +9613,6 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                         )
                         setLoadAsModalOpen(false)
                         setAssetToLoad(null)
-
-                        // Auto-send first PCI message
-                        setTimeout(() => {
-                          handlePciSend(
-                            'task',
-                            `I just uploaded a document named '${assetToLoad?.name}'. First, give me a brief summary of what the document actually is and what it contains. Only mention diagrams or images if they are genuinely present — do not assume there are any. Then ask me to confirm the summary is correct (or tell you what to fix), and do NOT ask any marking-policy questions yet — wait until I confirm the summary is right. Once I confirm, then help me build the marking policy by asking ONE simple question at a time, using clear, simple language and a small example each time.`
-                          )
-                        }, 500)
                       } catch (err: any) {
                         console.error('Task + Extensions splitting error:', err)
                         toast.error(err.message || 'Failed to process document')
