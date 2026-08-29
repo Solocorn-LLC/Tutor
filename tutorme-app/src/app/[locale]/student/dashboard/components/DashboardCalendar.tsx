@@ -334,10 +334,14 @@ export function DashboardCalendar({
       .filter(ev => ev.type !== 'one-on-one' && ev.type !== 'group')
       .map(ev => {
         const evStatus = (ev as any).status as string | undefined
+        const startMs = new Date(ev.start).getTime()
+        const isPast = startMs < now - graceMs
+        // Treat future sessions marked 'ended'/'completed' as scheduled so a
+        // lifecycle bug does not hide upcoming course sessions from the list.
         const status: ClassItem['status'] =
           evStatus === 'live' || evStatus === 'active'
             ? 'live'
-            : evStatus === 'ended' || evStatus === 'completed'
+            : (evStatus === 'ended' || evStatus === 'completed') && isPast
               ? 'completed'
               : 'scheduled'
         return {
