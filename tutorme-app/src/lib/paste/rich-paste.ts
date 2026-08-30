@@ -20,9 +20,11 @@ export interface RichPasteHandlers {
   /**
    * Optional image uploader used when pasted HTML contains inline images whose
    * src is not already a safe persistent URL (e.g. data: or blob: URIs).
-   * The returned URL replaces the original src before the HTML is inserted.
+   * Returns the uploaded URL and, when available, the durable storage key.
+   * The URL replaces the original src and the key is stored as data-file-key
+   * so the image can be re-streamed after the signed URL expires.
    */
-  onUploadImage?: (src: string) => Promise<string>
+  onUploadImage?: (src: string) => Promise<{ url: string; key?: string }>
 }
 
 export function escapeHtml(str: string): string {
@@ -117,10 +119,12 @@ export function extractImageSrcs(html: string): string[] {
  * Convert inline images in pasted HTML to persistent URLs. Only non-HTTP(S)
  * src values are uploaded; remote images are left untouched. Images that cannot
  * be uploaded are removed so the editor does not end up with broken links.
+ * When the uploader returns a storage key, it is stored as data-file-key so
+ * renderers can resolve a fresh durable URL after the signed URL expires.
  */
 export async function uploadImagesInHtml(
   html: string,
-  upload: (src: string) => Promise<string>
+  upload: (src: string) => Promise<{ url: string; key?: string }>
 ): Promise<string> {
   if (typeof document === 'undefined') return html
   const div = document.createElement('div')
@@ -131,8 +135,9 @@ export async function uploadImagesInHtml(
     const src = img.getAttribute('src')
     if (!src || !isUploadableImageSrc(src)) continue
     try {
-      const uploadedUrl = await upload(src)
-      img.setAttribute('src', uploadedUrl)
+      const { url, key } = await upload(src)
+      img.setAttribute('src', url)
+      if (key) img.setAttribute('data-file-key', key)
     } catch {
       img.remove()
     }
@@ -167,7 +172,7 @@ export async function renderFormula(latex: string): Promise<string> {
   return data.svg
 }
 
-export async function uploadPastedImage(file: File): Promise<string> {
+export async function uploadPastedImage(file: File): Promise<{ url: string; key?: string }> {
   const formData = new FormData()
   formData.append('file', file)
   const res = await fetchWithCsrf('/api/uploads/documents', {
@@ -175,9 +180,9 @@ export async function uploadPastedImage(file: File): Promise<string> {
     body: formData,
   })
   if (!res.ok) throw new Error('Image upload failed')
-  const data = (await res.json()) as { url?: string }
+  const data = (await res.json()) as { url?: string; key?: string }
   if (!data.url) throw new Error('No image URL returned')
-  return data.url
+  return { url: data.url, key: data.key }
 }
 
 export function insertHtmlAtCaret(html: string): void {

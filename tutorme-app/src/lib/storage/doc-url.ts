@@ -121,3 +121,27 @@ export function isDocDisplayable(source: DocSource | null | undefined): boolean 
   const url = source.fileUrl ?? ''
   return url.length > 0 && !url.startsWith('blob:') && !url.startsWith('data:')
 }
+
+/**
+ * Rewrite inline image src attributes in HTML to durable same-origin URLs.
+ * Uses data-file-key when present, otherwise recovers the key from a path-style
+ * GCS signed URL. Non-uploaded (blob:/data:) images are left untouched. Safe to
+ * call server-side — it returns the original HTML when `document` is unavailable.
+ */
+export function resolveImageUrlsInHtml(html: string): string {
+  if (typeof document === 'undefined') return html
+  const div = document.createElement('div')
+  div.innerHTML = html
+  const imgs = Array.from(div.querySelectorAll('img'))
+
+  for (const img of imgs) {
+    const key = img.getAttribute('data-file-key')
+    const src = img.getAttribute('src') || ''
+    const durable = resolveDocDisplayUrl({ fileUrl: src, fileKey: key })
+    if (durable && durable !== src) {
+      img.setAttribute('src', durable)
+    }
+  }
+
+  return div.innerHTML
+}

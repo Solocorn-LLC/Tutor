@@ -163,9 +163,10 @@ export const TaskSlideTextEditor = forwardRef<TaskSlideTextEditorRef, TaskSlideT
         const handled = await handleRichPaste(e, {
           onImage: async file => {
             try {
-              const url = await uploadPastedImage(file)
+              const { url, key } = await uploadPastedImage(file)
+              const keyAttr = key ? ` data-file-key="${escapeHtml(key)}"` : ''
               insertHtmlAtCaret(
-                `<img src="${escapeHtml(url)}" alt="${escapeHtml(file.name)}" style="max-width:100%">`
+                `<img src="${escapeHtml(url)}"${keyAttr} alt="${escapeHtml(file.name)}" style="max-width:100%">`
               )
               emitHtml()
             } catch (err) {
