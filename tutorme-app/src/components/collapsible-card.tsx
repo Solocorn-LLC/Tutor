@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAutoScrollOnExpand } from '@/hooks/use-auto-scroll-on-expand'
 
@@ -76,22 +76,28 @@ export function CollapsibleCard({
               </div>
               {collapsible && (
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white">
-                  {open ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                  <ChevronDown
+                    className={cn(
+                      'h-5 w-5 transition-transform duration-300 ease-in-out',
+                      open && '-rotate-180'
+                    )}
+                  />
                 </div>
               )}
             </div>
           </HeaderTag>
           <div
             className={cn(
-              'overflow-hidden transition-all duration-300 ease-in-out',
+              'grid overflow-hidden transition-[grid-template-rows,opacity] duration-300 ease-in-out',
               collapsible
                 ? open
-                  ? 'flex-1 opacity-100'
-                  : 'h-0 flex-none opacity-0'
-                : 'flex-1 opacity-100'
+                  ? 'grid-rows-[1fr] opacity-100'
+                  : 'grid-rows-[0fr] opacity-0'
+                : 'grid-rows-[1fr] opacity-100',
+              fillHeight && 'min-h-0 flex-1'
             )}
           >
-            <div className={cn('h-full overflow-hidden', contentClassName)}>{children}</div>
+            <div className={cn('min-h-0 overflow-hidden', contentClassName)}>{children}</div>
           </div>
         </div>
       </div>
