@@ -22,7 +22,11 @@ import { FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { AudioPlayer, type AudioPlayerTrack } from '@/components/task/AudioPlayer'
-import { resolveDocDisplayUrl, isDocDisplayable, resolveImageUrlsInHtml } from '@/lib/storage/doc-url'
+import {
+  resolveDocDisplayUrl,
+  isDocDisplayable,
+  resolveImageUrlsInHtml,
+} from '@/lib/storage/doc-url'
 import { sanitizeSlideHtml } from '@/app/[locale]/tutor/dashboard/components/sanitize-slide-html'
 import { cn } from '@/lib/utils'
 import type { LinkPreviewItem } from '@/lib/link-preview/types'

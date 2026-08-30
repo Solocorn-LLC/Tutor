@@ -172,7 +172,10 @@ function WrittenAnswer({
           try {
             const { url, key } = await uploadPastedImage(file)
             setValue(current => ({
-              attachments: [...(current.attachments ?? []), { type: 'image', url, key, alt: file.name }],
+              attachments: [
+                ...(current.attachments ?? []),
+                { type: 'image', url, key, alt: file.name },
+              ],
             }))
             toast.success('Image attached.')
           } catch {
