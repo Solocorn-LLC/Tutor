@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { deployedMaterial, liveSession } from '@/lib/db/schema'
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { builderTask, deployedMaterial, liveSession } from '@/lib/db/schema'
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 import {
   fetchTaskSourceFromBuilder,
   recoverSnapshot,
@@ -53,10 +53,12 @@ export const GET = withAuth(async (req, session, context) => {
       deployedAt: deployedMaterial.deployedAt,
     })
     .from(deployedMaterial)
+    .leftJoin(builderTask, eq(builderTask.taskId, deployedMaterial.itemId))
     .where(
       and(
         eq(deployedMaterial.sessionId, sessionId),
-        inArray(deployedMaterial.type, ['task', 'assessment', 'homework'])
+        inArray(deployedMaterial.type, ['task', 'assessment', 'homework']),
+        isNull(builderTask.deletedAt)
       )
     )
     .orderBy(asc(deployedMaterial.sessionSequence), asc(deployedMaterial.deployedAt))

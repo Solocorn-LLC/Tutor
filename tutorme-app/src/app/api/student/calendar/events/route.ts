@@ -21,7 +21,6 @@ import {
 } from '@/lib/db/schema'
 import { eq, or, and, gte, lte, inArray, isNull, ne, sql } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
-import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 export const GET = withAuth(
   async (req: NextRequest, session) => {
@@ -91,18 +90,15 @@ export const GET = withAuth(
       : []
 
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
-    // Future scheduled sessions must show even if they were incorrectly marked 'ended'.
+    // Every future LiveSession row for an enrolled course must surface, even if it
+    // was incorrectly marked 'ended'. The frontend filters out past/completed
+    // sessions and re-labels future ended rows as scheduled, so we query by date
+    // rather than status here.
     const lsFilters = [
       inArray(liveSession.courseId, courseIds),
-      or(
-        inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
-        and(eq(liveSession.status, 'ended'), gte(liveSession.scheduledAt, new Date()))
-      ),
+      gte(liveSession.scheduledAt, startDate),
     ]
 
-    if (startParam) {
-      lsFilters.push(gte(liveSession.scheduledAt, startDate))
-    }
     if (endParam) {
       lsFilters.push(lte(liveSession.scheduledAt, endDate))
     }
