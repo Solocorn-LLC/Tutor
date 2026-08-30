@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import { DrawingPad } from '@/components/answer/DrawingPad'
 import { MathText } from '@/components/answer/MathText'
 import { cn, resolvePublicUrl } from '@/lib/utils'
+import { resolveDocDisplayUrl } from '@/lib/storage/doc-url'
 import { toast } from 'sonner'
 import { normalizeDmiQuestionType, type DmiQuestionType } from '@/lib/assessment/question-types'
 import { Loader2, NotebookPen, ChevronUp, ChevronDown, X } from 'lucide-react'
@@ -61,7 +62,7 @@ function AttachmentPreview({
       </button>
       {attachment.type === 'image' && attachment.url && (
         <img
-          src={attachment.url}
+          src={resolveDocDisplayUrl({ fileUrl: attachment.url, fileKey: attachment.key })}
           alt={attachment.alt || 'Pasted image'}
           className="max-h-40 max-w-full rounded"
         />
@@ -169,9 +170,12 @@ function WrittenAnswer({
       const handled = await handleRichPaste(e, {
         onImage: async file => {
           try {
-            const url = await uploadPastedImage(file)
+            const { url, key } = await uploadPastedImage(file)
             setValue(current => ({
-              attachments: [...(current.attachments ?? []), { type: 'image', url, alt: file.name }],
+              attachments: [
+                ...(current.attachments ?? []),
+                { type: 'image', url, key, alt: file.name },
+              ],
             }))
             toast.success('Image attached.')
           } catch {

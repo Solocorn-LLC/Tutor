@@ -99,11 +99,20 @@ describe('uploadImagesInHtml', () => {
   it('uploads data URI images and replaces their src', async () => {
     const dataUrl = 'data:image/png;base64,iVBORw0KGgo='
     const html = `<p><img src="${dataUrl}" alt="x"></p>`
-    const upload = vi.fn().mockResolvedValue('/uploaded/x.png')
+    const upload = vi.fn().mockResolvedValue({ url: '/uploaded/x.png' })
     const out = await uploadImagesInHtml(html, upload)
     expect(upload).toHaveBeenCalledTimes(1)
     expect(out).toContain('src="/uploaded/x.png"')
     expect(out).not.toContain('data:image')
+  })
+
+  it('preserves the storage key as data-file-key when the uploader returns one', async () => {
+    const dataUrl = 'data:image/png;base64,iVBORw0KGgo='
+    const html = `<p><img src="${dataUrl}" alt="x"></p>`
+    const upload = vi.fn().mockResolvedValue({ url: '/uploaded/x.png', key: 'documents/u/x.png' })
+    const out = await uploadImagesInHtml(html, upload)
+    expect(out).toContain('src="/uploaded/x.png"')
+    expect(out).toContain('data-file-key="documents/u/x.png"')
   })
 
   it('removes images that fail to upload', async () => {
@@ -134,7 +143,7 @@ describe('handleRichPaste', () => {
     dt.setData('text/html', `<p><img src="${dataUrl}" alt="x"></p>`)
     const event = makePasteEvent(dt)
     const onHtml = vi.fn()
-    const onUploadImage = vi.fn().mockResolvedValue('/uploaded/x.png')
+    const onUploadImage = vi.fn().mockResolvedValue({ url: '/uploaded/x.png' })
     const result = await handleRichPaste(event, { onHtml, onUploadImage })
     expect(result).toBe(true)
     expect(event.preventDefault).toHaveBeenCalled()

@@ -22,7 +22,11 @@ import { FileText, ChevronDown, ChevronRight } from 'lucide-react'
 import { PDFViewer } from '@/components/pdf/PDFViewer'
 import { LinkPreviewCard } from '@/components/link-preview/LinkPreviewCard'
 import { AudioPlayer, type AudioPlayerTrack } from '@/components/task/AudioPlayer'
-import { resolveDocDisplayUrl, isDocDisplayable } from '@/lib/storage/doc-url'
+import {
+  resolveDocDisplayUrl,
+  isDocDisplayable,
+  resolveImageUrlsInHtml,
+} from '@/lib/storage/doc-url'
 import { sanitizeSlideHtml } from '@/app/[locale]/tutor/dashboard/components/sanitize-slide-html'
 import { cn } from '@/lib/utils'
 import type { LinkPreviewItem } from '@/lib/link-preview/types'
@@ -210,8 +214,12 @@ function GeneratedTextViewer({
   }
 
   // Use the same sanitizer that builds the printable PDF so the viewer and the
-  // snapshot stay visually identical.
-  const sanitized = typeof document !== 'undefined' ? sanitizeSlideHtml(htmlContent) : htmlContent
+  // snapshot stay visually identical. Then rewrite any pasted-image src values
+  // to durable same-origin URLs so they survive signed-URL expiry.
+  const sanitized =
+    typeof document !== 'undefined'
+      ? resolveImageUrlsInHtml(sanitizeSlideHtml(htmlContent))
+      : htmlContent
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-white">

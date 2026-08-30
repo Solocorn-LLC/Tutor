@@ -31,6 +31,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { useSocket } from '@/hooks/use-socket'
 import { toast } from 'sonner'
 import { cn, resolvePublicUrl } from '@/lib/utils'
+import { resolveDocDisplayUrl } from '@/lib/storage/doc-url'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import {
   parseWrittenAnswer,
@@ -448,7 +449,7 @@ function AttachmentPreview({
       </button>
       {attachment.type === 'image' && attachment.url && (
         <img
-          src={attachment.url}
+          src={resolveDocDisplayUrl({ fileUrl: attachment.url, fileKey: attachment.key })}
           alt={attachment.alt || 'Pasted image'}
           className="max-h-40 max-w-full rounded"
         />
@@ -551,9 +552,12 @@ function WrittenAnswer({
       const handled = await handleRichPaste(e, {
         onImage: async file => {
           try {
-            const url = await uploadPastedImage(file)
+            const { url, key } = await uploadPastedImage(file)
             setValue(current => ({
-              attachments: [...(current.attachments ?? []), { type: 'image', url, alt: file.name }],
+              attachments: [
+                ...(current.attachments ?? []),
+                { type: 'image', url, key, alt: file.name },
+              ],
             }))
             toast.success('Image attached.')
           } catch {

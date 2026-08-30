@@ -1,6 +1,8 @@
 export interface WrittenAnswerAttachment {
   type: 'image' | 'table' | 'formula'
   url?: string
+  /** Durable storage key for the uploaded image; used to refresh expired signed URLs. */
+  key?: string
   alt?: string
   content?: string
 }
