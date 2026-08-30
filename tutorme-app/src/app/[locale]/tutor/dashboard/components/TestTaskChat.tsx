@@ -401,13 +401,11 @@ export const TestTaskChat = forwardRef<TestTaskChatRef, TestTaskChatProps>(funct
         className="relative flex min-h-0 flex-1 flex-col-reverse gap-4 overflow-y-auto p-4"
       >
         {/* Chat messages — render in reverse so flex-col-reverse shows newest at bottom.
-            In classroom mode, filter out student messages (tutor view only).
             Use the original array index as the React key so keys stay stable when
             new messages are appended. */}
         {[...messages]
           .map((m, originalIdx) => ({ m, originalIdx }))
           .reverse()
-          .filter(({ m }) => !isClassroom || m.role !== 'student')
           .map(({ m, originalIdx }) => {
             const defaultAiName = isClassroom ? 'SAI' : 'AI'
             return (
