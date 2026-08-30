@@ -11,7 +11,6 @@ export const metadata = {
   },
   description:
     'AI-human hybrid tutoring platform with 24/7 Socratic AI tutoring and live group clinics',
-  manifest: '/site.webmanifest',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },
@@ -23,11 +22,6 @@ export const metadata = {
       { url: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
       { url: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
     ],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Solocorn',
   },
   other: {
     'theme-color': '#7C3AED',
