@@ -2289,6 +2289,14 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
           for (const item of [...tasks, ...assessments, ...homework]) {
             const raw = item as Record<string, unknown>
+            const itemId = (raw.id as string) || `sync-${Date.now()}-${Math.random()}`
+
+            // Only sync content UPDATES to tasks the tutor has ALREADY deployed.
+            // A task that isn't deployed yet must NOT be introduced to students
+            // here — deployment is explicit via the Deploy button (task:deploy).
+            const existingIndex = room.tasks.findIndex(t => t.id === itemId)
+            if (existingIndex < 0) continue
+
             const rawSourceDoc = raw.sourceDocument as Record<string, unknown> | undefined
             const refreshedSourceDoc = rawSourceDoc
               ? await ensureViewableSourceDocument({
@@ -2302,7 +2310,7 @@ export async function initEnhancedSocketServer(server: NetServer) {
                 })
               : undefined
             const liveTask: LiveTask = {
-              id: (raw.id as string) || `sync-${Date.now()}-${Math.random()}`,
+              id: itemId,
               title:
                 (raw.title as string) || (refreshedSourceDoc?.fileName as string) || 'Untitled',
               content: (raw.description as string) || (raw.taskContent as string) || '',
@@ -2347,34 +2355,25 @@ export async function initEnhancedSocketServer(server: NetServer) {
               sourceDocument: refreshedSourceDoc,
             }
 
-            const existingIndex = room.tasks.findIndex(t => t.id === liveTask.id)
-            if (existingIndex >= 0) {
-              // Only sync content UPDATES to tasks the tutor has ALREADY
-              // deployed. A task that isn't deployed yet must NOT be introduced
-              // to students here — deployment is explicit via the Deploy button
-              // (task:deploy). Otherwise editing the builder (e.g. adding a new
-              // task) would mass-deploy every task on the next course:sync.
-              const existing = room.tasks[existingIndex]
-              room.tasks[existingIndex] = {
-                ...existing,
-                ...liveTask,
-                // When builderData lacks a real title/content/document, don't let a
-                // sync wipe the deployed snapshot and turn the task into "Untitled".
-                title:
-                  liveTask.title && liveTask.title !== 'Untitled' ? liveTask.title : existing.title,
-                content: liveTask.content || existing.content,
-                sourceDocument: refreshedSourceDoc ? refreshedSourceDoc : existing.sourceDocument,
-                // Preserve live insights, completion state, and original deploy
-                // time; a sync is a content refresh, not a redeployment.
-                polls: existing.polls,
-                questions: existing.questions,
-                completedBy: existing.completedBy,
-                responses: existing.responses,
-                deployedAt: existing.deployedAt,
-              }
-              syncedTasks.push(room.tasks[existingIndex])
+            const existing = room.tasks[existingIndex]
+            room.tasks[existingIndex] = {
+              ...existing,
+              ...liveTask,
+              // When builderData lacks a real title/content/document, don't let a
+              // sync wipe the deployed snapshot and turn the task into "Untitled".
+              title:
+                liveTask.title && liveTask.title !== 'Untitled' ? liveTask.title : existing.title,
+              content: liveTask.content || existing.content,
+              sourceDocument: refreshedSourceDoc ? refreshedSourceDoc : existing.sourceDocument,
+              // Preserve live insights, completion state, and original deploy
+              // time; a sync is a content refresh, not a redeployment.
+              polls: existing.polls,
+              questions: existing.questions,
+              completedBy: existing.completedBy,
+              responses: existing.responses,
+              deployedAt: existing.deployedAt,
             }
-            // else: not deployed yet — skip; the tutor deploys it explicitly.
+            syncedTasks.push(room.tasks[existingIndex])
           }
         }
 

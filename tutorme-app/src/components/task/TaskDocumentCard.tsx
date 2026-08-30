@@ -87,7 +87,8 @@ export function TaskDocumentCard({
   const name = sourceDocument?.fileName || 'Task document'
   const isPdf = hasDocument
     ? sourceDocument.mimeType === 'application/pdf' ||
-      (!sourceDocument.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument.fileName || rawUrl))
+      (!sourceDocument.mimeType && /\.pdf($|\?|#)/i.test(sourceDocument.fileName || rawUrl)) ||
+      /\.pdf($|\?|#)/i.test(sourceDocument.fileKey || '')
     : false
   const isImage = !!sourceDocument?.mimeType?.startsWith('image/')
   const styles = ACCENTS[accent]
