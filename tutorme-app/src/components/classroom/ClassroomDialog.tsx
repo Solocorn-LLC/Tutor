@@ -34,6 +34,7 @@ import {
 import { cn } from '@/lib/utils'
 import { CountryFlag } from '@/components/country-flag'
 import { categorizeLobbySessions } from '@/lib/classroom/lobby-sessions'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import { toast } from 'sonner'
 
 export interface ClassroomDialogSession {
@@ -151,7 +152,7 @@ export function ClassroomDialog({
     }
   }, [open, courseId])
 
-  const { nextSession } = useMemo(() => categorizeLobbySessions(sessions), [sessions])
+  const { nextSession } = useMemo(() => categorizeLobbySessions(sessions, now), [sessions, now])
   const focusedSession = useMemo(
     () => sessions.find(s => s.id === focusSessionId) || null,
     [sessions, focusSessionId]
@@ -163,7 +164,12 @@ export function ClassroomDialog({
     featuredSession?.scheduledAt != null
       ? new Date(featuredSession.scheduledAt).getTime() - now
       : null
-  const isFeaturedLive = featuredSession?.status === 'active' || featuredSession?.status === 'live'
+  const featuredState = useMemo(
+    () => (featuredSession ? getSessionUiState(featuredSession, now) : null),
+    [featuredSession, now]
+  )
+  const isFeaturedLive = featuredState?.isUiLive ?? false
+  const isFeaturedJoinOpen = featuredState?.isJoinOpen ?? false
 
   const focusedRef = useRef<HTMLDivElement | null>(null)
 
@@ -319,7 +325,7 @@ export function ClassroomDialog({
                       )}
                       <Button
                         onClick={() => {
-                          if (isFeaturedLive || featuredSession.status === 'ended') {
+                          if (isFeaturedJoinOpen || featuredSession.status === 'ended') {
                             goToSession(featuredSession.id)
                           } else {
                             startAsTutor(featuredSession.id)
@@ -330,7 +336,7 @@ export function ClassroomDialog({
                           'transition-all duration-200',
                           featuredSession.status === 'ended'
                             ? 'border border-blue-600 bg-blue-600 text-white hover:bg-white hover:text-blue-600'
-                            : isFeaturedLive
+                            : isFeaturedJoinOpen
                               ? ''
                               : 'border border-emerald-500 bg-emerald-500 text-white hover:bg-white hover:text-emerald-500'
                         )}
@@ -342,9 +348,9 @@ export function ClassroomDialog({
                         )}
                         {featuredSession.status === 'ended'
                           ? 'Enter'
-                          : isFeaturedLive
+                          : isFeaturedJoinOpen
                             ? 'Join now'
-                            : 'Start'}
+                            : 'Enter'}
                       </Button>
                     </div>
                   </>
@@ -359,14 +365,13 @@ export function ClassroomDialog({
                 <div className="scrollbar-hide mt-3 max-h-[360px] space-y-3 overflow-y-auto pr-2">
                   {sessions.map(session => {
                     const isVirtual = session.isVirtual === true
-                    const isActive = session.status === 'active'
+                    const uiState = getSessionUiState(session, now)
                     const isEnded = session.status === 'ended'
-                    const isScheduled = session.status === 'scheduled'
                     const isPast =
                       session.scheduledAt &&
                       new Date(session.scheduledAt).getTime() < Date.now() - 5 * 60 * 1000
 
-                    const canClick = !isVirtual && (isActive || isEnded || (isScheduled && !isPast))
+                    const canClick = !isVirtual && (uiState.isJoinOpen || isEnded || !isPast)
                     const isHighlighted = session.id === focusSessionId
 
                     return (
@@ -483,7 +488,7 @@ export function ClassroomDialog({
                             >
                               Enter
                             </Button>
-                          ) : isActive ? (
+                          ) : uiState.isUiLive ? (
                             <Badge
                               variant="outline"
                               className={cn(
@@ -493,7 +498,7 @@ export function ClassroomDialog({
                                   : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                               )}
                             >
-                              Live
+                              {uiState.uiStatusLabel}
                             </Badge>
                           ) : null}
                         </div>

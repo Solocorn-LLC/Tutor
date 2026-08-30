@@ -1,11 +1,15 @@
 /**
- * Session reminder scheduler.
+ * Session reminder and activation scheduler.
  *
  * Periodically finds upcoming live sessions entering a short lead window and
  * sends the tutor AND the course's enrolled students a `reminder` notification
  * via the central notify() service — which writes it to the notification table
  * (so it shows in the bell), pushes it over SSE, and optionally emails /
  * web-pushes.
+ *
+ * Also flips scheduled sessions to `active` once their scheduledAt time has
+ * arrived. This is the only path that should promote a scheduled session to
+ * active; tutor/student entry must not change the backend status.
  *
  * Runs in the long-running custom server (server.ts). It is:
  *  - Idempotent / race-safe: each session is "claimed" with an atomic
@@ -16,7 +20,7 @@
  *    tick as long as it hasn't started yet.
  */
 
-import { and, eq, gte, lte, inArray, isNull } from 'drizzle-orm'
+import { and, eq, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -231,6 +235,37 @@ export async function runSessionReminderScan(): Promise<void> {
   }
 }
 
+/**
+ * Atomically flip scheduled sessions whose start time has arrived to `active`.
+ * Only course sessions (not demo/ad-hoc) follow this lifecycle. Idempotent: the
+ * status filter and compare-and-set on scheduledAt make concurrent ticks safe.
+ */
+export async function runSessionActivationScan(): Promise<number> {
+  const now = new Date()
+  const activated = await drizzleDb
+    .update(liveSession)
+    .set({
+      status: 'active',
+      startedAt: sql`COALESCE(${liveSession.startedAt}, NOW())`,
+    })
+    .where(
+      and(
+        eq(liveSession.status, 'scheduled'),
+        lte(liveSession.scheduledAt, now),
+        inArray(liveSession.sessionType, ['COURSE', 'ONE_ON_ONE', 'CLINIC'])
+      )
+    )
+    .returning({ sessionId: liveSession.sessionId })
+
+  if (activated.length > 0) {
+    console.log(
+      `[session-reminders] activated ${activated.length} session(s) at scheduled time:`,
+      activated.map(s => s.sessionId)
+    )
+  }
+  return activated.length
+}
+
 /** Idempotent — starts the periodic scan once per process. */
 export function startSessionReminderScheduler(): void {
   if (started) return
@@ -238,7 +273,10 @@ export function startSessionReminderScheduler(): void {
 
   const tick = () => {
     void runSessionReminderScan().catch(err =>
-      console.error('[session-reminders] tick error:', err)
+      console.error('[session-reminders] reminder tick error:', err)
+    )
+    void runSessionActivationScan().catch(err =>
+      console.error('[session-reminders] activation tick error:', err)
     )
   }
 

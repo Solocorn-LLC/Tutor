@@ -11,6 +11,10 @@ const ACTIVE_STATUSES: string[] = ['active', 'live', 'preparing', 'paused']
  * the query level and by the lifecycle check, so they do not block entering
  * another session or re-entering the same one.
  *
+ * Demo / ad-hoc demo sessions are excluded from conflict checks — they are not
+ * considered "live" in the scheduled-session sense and may run alongside course
+ * sessions.
+ *
  * @param tutorId - tutor to inspect
  * @param opts.excludeSessionId - optional session that is allowed to remain active
  *                                (used when the tutor is rejoining the same room)
@@ -27,7 +31,8 @@ export async function ensureSingleActiveSession(
       and(
         eq(liveSession.tutorId, tutorId),
         inArray(liveSession.status, ACTIVE_STATUSES as any),
-        isNull(liveSession.tutorLeftAt)
+        isNull(liveSession.tutorLeftAt),
+        ne(liveSession.sessionType, 'GO_LIVE_DEMO')
       )
     )
 

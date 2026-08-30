@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { CountryFlag } from '@/components/country-flag'
 import { ClampedTitle } from '@/components/common/clamped-title'
 import { SessionCountdown } from './SessionCountdown'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import type { UpcomingClass } from './UpcomingClassesCard'
 import type { EnrolledCourse } from '../page'
 
@@ -49,8 +50,10 @@ export function UpcomingSessionCard({
   onOpenClassroom,
   onOpenSchedule,
 }: UpcomingSessionCardProps) {
-  const isLive = ['active', 'live'].includes(session.status.toLowerCase())
-  const isCurrentlyInSession = isLive && !session.tutorLeftAt
+  const uiState = getSessionUiState(session)
+  const isLive = uiState.isUiLive
+  const isJoinOpen = uiState.isJoinOpen
+  const isCurrentlyInSession = isJoinOpen && !session.tutorLeftAt
 
   const description = session.description?.trim() || 'No description'
 
@@ -123,14 +126,14 @@ export function UpcomingSessionCard({
           title={
             isCurrentlyInSession
               ? 'You are currently in this session'
-              : isLive
+              : isJoinOpen
                 ? 'You left this session; it is still running for students'
                 : 'Open classroom'
           }
           className="min-w-[110px] justify-center whitespace-nowrap border border-emerald-500 bg-emerald-500 text-white transition-all duration-200 hover:bg-white hover:text-emerald-500"
         >
           <MonitorPlay className="mr-1 h-3 w-3 -translate-y-px" />
-          {isCurrentlyInSession ? 'Join now' : isLive ? 'Rejoin' : 'Classroom'}
+          {isCurrentlyInSession ? 'Join now' : isJoinOpen ? 'Rejoin' : 'Classroom'}
         </Button>
       </div>
     </div>

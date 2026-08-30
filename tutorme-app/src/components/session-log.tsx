@@ -40,6 +40,7 @@ import {
 import { toast } from 'sonner'
 import { formatClassTime } from '@/lib/format-class-time'
 import { cn } from '@/lib/utils'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import { CountryFlag } from '@/components/country-flag'
 import { CollapsibleCard } from '@/components/collapsible-card'
 
@@ -182,13 +183,15 @@ export default function SessionLog() {
     return classes.reduce(
       (acc, cls) => {
         const scheduled = new Date(cls.scheduledAt)
-        const isLive =
-          cls.status === 'live' ||
-          (scheduled <= now && scheduled.getTime() + cls.duration * 60000 > now.getTime())
+        const ui = getSessionUiState(cls, now.getTime())
+        const isLive = ui.isUiLive
         const isPast =
           scheduled.getTime() + cls.duration * 60000 < now.getTime() || cls.status === 'completed'
         const isUpcoming =
-          scheduled > now && scheduled.getTime() - now.getTime() < 24 * 60 * 60 * 1000 // Within 24 hours
+          !isLive &&
+          !isPast &&
+          scheduled > now &&
+          scheduled.getTime() - now.getTime() < 24 * 60 * 60 * 1000 // Within 24 hours
 
         if (isLive) {
           acc.live.push(cls)

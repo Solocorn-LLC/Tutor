@@ -23,6 +23,7 @@ import { useSocket } from '@/hooks/use-socket'
 import { saveCourse } from '../courses/components/save-course'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import type { LiveTask } from '@/lib/socket'
 import type { LiveStudent, EngagementMetrics } from '@/types/live-session'
 import type { ScheduleItem } from '../courses/[id]/constants'
@@ -924,7 +925,7 @@ function TutorInsightsPageInner() {
 
         setSessions(classSessions)
 
-        const activeSession = classSessions.find(item => item.status === 'active')
+        const activeSession = classSessions.find(item => getSessionUiState(item).isUiLive)
 
         if (querySessionId && classSessions.some(s => s.id === querySessionId)) {
           // Already set, but confirming it exists in the list
@@ -1454,14 +1455,11 @@ function TutorInsightsPageInner() {
     if (source !== 'homework' && currentSession.status === 'ended') {
       return { ok: false, error: 'Session has ended' }
     }
-    // A live session is deployable regardless of its scheduled time — the tutor
-    // may have started early. Only block a still-scheduled session that hasn't
-    // begun; otherwise an active-but-early session would wrongly reject deploys.
-    const isLive =
-      currentSession.status === 'active' ||
-      currentSession.status === 'live' ||
-      currentSession.status === 'preparing'
-    if (!isLive && new Date(currentSession.scheduledAt).getTime() > Date.now()) {
+    // A session is deployable if it is UI-live (active, or within the 10-minute
+    // pre-start window) or has already started. Tutors can deploy test content
+    // to scheduled sessions once the join window opens.
+    const ui = getSessionUiState(currentSession)
+    if (!ui.isUiLive && new Date(currentSession.scheduledAt).getTime() > Date.now()) {
       return { ok: false, error: 'Session has not started yet' }
     }
     return { ok: true }

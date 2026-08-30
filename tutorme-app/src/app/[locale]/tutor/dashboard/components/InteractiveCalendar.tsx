@@ -34,6 +34,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import { toast } from 'sonner'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { CountryFlag } from '@/components/country-flag'
@@ -599,34 +600,36 @@ export function InteractiveCalendar({
         const data = await res.json().catch(() => ({}))
         const apiEvents = Array.isArray(data?.events) ? data.events : []
         setEvents(
-          apiEvents.map((e: any) => ({
-            id: e.id,
-            title: e.title,
-            date: new Date(e.scheduledAt),
-            duration: e.duration || 60,
-            type: 'class',
-            status: e.status === 'live' ? 'live' : e.status === 'ended' ? 'completed' : 'scheduled',
-            subject: e.subject,
-            location: e.location,
-            isOnline: e.isVirtual,
-            description: e.meetingUrl,
-            sessionId: e.sessionId,
-            courseName: e.courseName,
-            nationality: e.nationality,
-            variantCategory: e.variantCategory,
-            studentCount: e.enrolledCount ?? 0,
-            // An accepted-but-unpaid 1-on-1 has a live session row but no student
-            // can enter yet — disables the "Start Session" button (see detail dialog).
-            pendingPayment: e.pendingPayment,
-            // 1-on-1 / group → shared /call room; course classes → builder classroom.
-            isDirectSession: e.isDirectSession,
-            color:
-              e.status === 'live'
+          apiEvents.map((e: any) => {
+            const ui = getSessionUiState(e)
+            return {
+              id: e.id,
+              title: e.title,
+              date: new Date(e.scheduledAt),
+              duration: e.duration || 60,
+              type: 'class',
+              status: ui.isUiLive ? 'live' : e.status === 'ended' ? 'completed' : 'scheduled',
+              subject: e.subject,
+              location: e.location,
+              isOnline: e.isVirtual,
+              description: e.meetingUrl,
+              sessionId: e.sessionId,
+              courseName: e.courseName,
+              nationality: e.nationality,
+              variantCategory: e.variantCategory,
+              studentCount: e.enrolledCount ?? 0,
+              // An accepted-but-unpaid 1-on-1 has a live session row but no student
+              // can enter yet — disables the "Start Session" button (see detail dialog).
+              pendingPayment: e.pendingPayment,
+              // 1-on-1 / group → shared /call room; course classes → builder classroom.
+              isDirectSession: e.isDirectSession,
+              color: ui.isUiLive
                 ? 'bg-emerald-500'
                 : e.status === 'ended'
                   ? 'bg-slate-400'
                   : 'bg-blue-500',
-          }))
+            }
+          })
         )
       } catch {
         // silent fail
@@ -1638,8 +1641,8 @@ export function InteractiveCalendar({
                           : selectedEvent.status === 'live'
                             ? 'Join Session'
                             : isStudent
-                              ? 'View Session'
-                              : 'Start Session'}
+                              ? 'Enter Session'
+                              : 'Enter Session'}
                   </Button>
                 </DialogFooter>
               </>
@@ -2051,30 +2054,31 @@ export function InteractiveCalendar({
                                                 ? data.events
                                                 : []
                                               setEvents(
-                                                apiEvents.map((e: any) => ({
-                                                  id: e.id,
-                                                  title: e.title,
-                                                  date: new Date(e.scheduledAt),
-                                                  duration: e.duration || 60,
-                                                  type: 'class',
-                                                  status:
-                                                    e.status === 'live'
+                                                apiEvents.map((e: any) => {
+                                                  const ui = getSessionUiState(e)
+                                                  return {
+                                                    id: e.id,
+                                                    title: e.title,
+                                                    date: new Date(e.scheduledAt),
+                                                    duration: e.duration || 60,
+                                                    type: 'class',
+                                                    status: ui.isUiLive
                                                       ? 'live'
                                                       : e.status === 'ended'
                                                         ? 'completed'
                                                         : 'scheduled',
-                                                  subject: e.subject,
-                                                  location: e.location,
-                                                  isOnline: e.isVirtual,
-                                                  description: e.meetingUrl,
-                                                  sessionId: e.sessionId,
-                                                  color:
-                                                    e.status === 'live'
+                                                    subject: e.subject,
+                                                    location: e.location,
+                                                    isOnline: e.isVirtual,
+                                                    description: e.meetingUrl,
+                                                    sessionId: e.sessionId,
+                                                    color: ui.isUiLive
                                                       ? 'bg-emerald-500'
                                                       : e.status === 'ended'
                                                         ? 'bg-slate-400'
                                                         : 'bg-blue-500',
-                                                }))
+                                                  }
+                                                })
                                               )
                                               setShowConflictWarning([])
                                               setConflictRecommendations(new Map())

@@ -28,7 +28,7 @@ import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { getIO } from '@/lib/socket-server-enhanced'
-import { ensureSingleActiveSession, endOtherActiveSessions } from '@/lib/sessions/concurrency'
+import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
 
 function buildTranscript(
   messages: Array<{
@@ -76,42 +76,19 @@ export const GET = withAuth(
       )
     }
 
-    // Tutor entering the live classroom starts the session at any time — the
-    // tutor's presence is what takes a class live (students can then join). No
-    // scheduledAt gate for the tutor; unifies the start path so the session is
-    // 'active' however the tutor opened the room. Schedule-less demo classes are
-    // always treated as live and never transitioned here.
+    // Tutor entering a scheduled session no longer flips it to active. A session
+    // only becomes active at its scheduledAt time (via the session reminder
+    // scheduler). Tutors can freely enter early to prepare/deploy content; demo
+    // sessions are already active and are handled below.
     if (liveSessionRow.status === 'scheduled' && liveSessionRow.sessionType !== 'GO_LIVE_DEMO') {
-      // Only one session can be active per tutor at a time. End any other active
-      // sessions first so deployments and student joins always target the room
-      // the tutor just entered. This is system-level enforcement, not a tutor
-      // clicking an end button.
-      const otherActive = await drizzleDb
-        .select({ sessionId: liveSession.sessionId })
-        .from(liveSession)
-        .where(
-          and(
-            eq(liveSession.tutorId, tutorId),
-            inArray(liveSession.status, ['active', 'live', 'preparing', 'paused'] as any),
-            ne(liveSession.sessionId, classId)
-          )
-        )
-
-      if (otherActive.length > 0) {
-        await endOtherActiveSessions(tutorId, classId)
-        const io = getIO()
-        for (const { sessionId } of otherActive) {
-          io?.to(sessionId).emit('session:ended', { sessionId, reason: 'session-switched' })
-        }
+      // Reset tutorLeftAt so a re-entered scheduled session is treated as present.
+      if (liveSessionRow.tutorLeftAt) {
+        await drizzleDb
+          .update(liveSession)
+          .set({ tutorLeftAt: null })
+          .where(eq(liveSession.sessionId, classId))
+        liveSessionRow.tutorLeftAt = null
       }
-
-      const startedAt = liveSessionRow.startedAt || new Date()
-      await drizzleDb
-        .update(liveSession)
-        .set({ status: 'active', startedAt, tutorLeftAt: null })
-        .where(eq(liveSession.sessionId, classId))
-      liveSessionRow.status = 'active'
-      liveSessionRow.startedAt = startedAt
     }
 
     const participants = await drizzleDb
@@ -400,8 +377,39 @@ export const POST = withCsrf(
         return NextResponse.json({ error: 'Cannot start a completed class' }, { status: 400 })
       }
 
-      // Enforce a single active live session per tutor. If another session is
-      // still active, the tutor must leave/end it before starting a new one.
+      // Demo classes are always live and do not use the start/end lifecycle.
+      if (liveSessionRow.sessionType === 'GO_LIVE_DEMO') {
+        return NextResponse.json({
+          session: {
+            id: liveSessionRow.sessionId,
+            status: liveSessionRow.status,
+            startedAt: liveSessionRow.startedAt?.toISOString?.() ?? null,
+            roomId: liveSessionRow.roomId,
+            roomUrl: liveSessionRow.roomUrl,
+          },
+        })
+      }
+
+      // Scheduled course sessions are activated automatically at scheduledAt by
+      // the reminder scheduler. Tutors can freely enter early to prepare, but
+      // this endpoint no longer flips the status.
+      if (liveSessionRow.sessionType === 'COURSE' || liveSessionRow.status === 'scheduled') {
+        await drizzleDb
+          .update(liveSession)
+          .set({ tutorLeftAt: null })
+          .where(eq(liveSession.sessionId, classId))
+        return NextResponse.json({
+          session: {
+            id: liveSessionRow.sessionId,
+            status: liveSessionRow.status,
+            startedAt: liveSessionRow.startedAt?.toISOString?.() ?? null,
+            roomId: liveSessionRow.roomId,
+            roomUrl: liveSessionRow.roomUrl,
+          },
+        })
+      }
+
+      // Enforce a single active live session per tutor for ad-hoc training sessions.
       const conflictingSession = await ensureSingleActiveSession(tutorId, {
         excludeSessionId: liveSessionRow.sessionId,
       })
@@ -414,19 +422,6 @@ export const POST = withCsrf(
           },
           { status: 409 }
         )
-      }
-
-      // Demo classes are always live and do not use the start/end lifecycle.
-      if (liveSessionRow.sessionType === 'GO_LIVE_DEMO') {
-        return NextResponse.json({
-          session: {
-            id: liveSessionRow.sessionId,
-            status: liveSessionRow.status,
-            startedAt: liveSessionRow.startedAt?.toISOString?.() ?? null,
-            roomId: liveSessionRow.roomId,
-            roomUrl: liveSessionRow.roomUrl,
-          },
-        })
       }
 
       const [updated] = await drizzleDb

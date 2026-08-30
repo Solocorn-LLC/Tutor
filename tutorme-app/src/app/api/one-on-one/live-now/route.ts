@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, or, gte, lte, inArray } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
+import { UI_LIVE_LEAD_MS } from '@/lib/sessions/live-session-status'
 import {
   oneOnOneBookingRequest,
   calendarEvent,
@@ -21,8 +22,8 @@ import {
 
 const LOOKAHEAD_MS = 30 * 60 * 1000 // 30 min before start
 const LINGER_AFTER_END_MS = 15 * 60 * 1000 // 15 min after end
-// Must match the join endpoint's early-entry window.
-const EARLY_ENTRY_MS = 20 * 60 * 1000
+// Must match the UI live/join-open window.
+const EARLY_ENTRY_MS = UI_LIVE_LEAD_MS
 
 interface Candidate {
   sessionId: string

@@ -3,6 +3,8 @@
  * "which session is next / which are past" logic can be unit-tested.
  */
 
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
+
 export interface LobbySessionLike {
   id: string
   scheduledAt: string | null
@@ -18,17 +20,18 @@ export interface LobbySessionLike {
  *  - past = ended sessions (or real sessions with an endedAt), newest first
  */
 export function categorizeLobbySessions<T extends LobbySessionLike>(
-  sessions: T[]
+  sessions: T[],
+  nowMs: number = Date.now()
 ): { nextSession: T | null; pastSessions: T[] } {
-  const active = sessions.find(s => s.status === 'active' || s.status === 'live')
+  const liveOrOpening = sessions.find(s => getSessionUiState(s, nowMs).isUiLive)
 
   const upcoming = sessions
-    .filter(s => s.status === 'scheduled' && s.scheduledAt)
+    .filter(s => s.status === 'scheduled' && s.scheduledAt && !getSessionUiState(s, nowMs).isUiLive)
     .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
 
   const past = sessions
     .filter(s => s.status === 'ended' || (s.endedAt != null && !s.isVirtual))
     .sort((a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime())
 
-  return { nextSession: active || upcoming[0] || null, pastSessions: past }
+  return { nextSession: liveOrOpening || upcoming[0] || null, pastSessions: past }
 }

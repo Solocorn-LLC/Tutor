@@ -226,17 +226,17 @@ describe('course session lifecycle guards', () => {
     await drizzleDb.delete(user).where(inArray(user.userId, [tutorId, studentId]))
   })
 
-  it('POST /api/tutor/classes/:id rejects starting a session when tutor already has an active session', async () => {
+  it('POST /api/tutor/classes/:id allows entering a scheduled course session without active-session conflict', async () => {
     const res = await postClass(
       startClassReq(SECOND_COURSE_SESSION) as unknown as NextRequest,
       {
         params: Promise.resolve({ id: SECOND_COURSE_SESSION }),
       } as any
     )
-    expect(res.status).toBe(409)
+    expect(res.status).toBe(200)
     const data = await res.json()
-    expect(data.error).toContain('already have an active live session')
-    expect(data.conflictingSessionId).toBe(COURSE_SESSION)
+    // Scheduled course sessions are no longer promoted to active on entry.
+    expect(data.session.status).toBe('scheduled')
   })
 
   it('POST /api/tutor/classes/:id allows re-starting the same active session', async () => {
@@ -251,7 +251,7 @@ describe('course session lifecycle guards', () => {
     expect(data.session.status).toBe('active')
   })
 
-  it('POST /api/tutor/classes/:id/leave releases the concurrency lock and allows entering another session or re-entering the same one', async () => {
+  it('POST /api/tutor/classes/:id/leave marks a course session as left and allows re-entering without changing status', async () => {
     const leaveSessionId = `cs_ls_leave_${crypto.randomUUID()}`
     const leaveSession2Id = `cs_ls_leave2_${crypto.randomUUID()}`
 
@@ -319,7 +319,8 @@ describe('course session lifecycle guards', () => {
     )
     expect(startOtherRes.status).toBe(200)
     const otherData = await startOtherRes.json()
-    expect(otherData.session.status).toBe('active')
+    // Future scheduled course sessions stay scheduled; only scheduledAt activates them.
+    expect(otherData.session.status).toBe('scheduled')
 
     // Leave the second session too.
     const leaveOtherRes = await postLeaveClass(

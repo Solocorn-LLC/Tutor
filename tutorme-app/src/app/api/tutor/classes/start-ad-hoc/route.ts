@@ -31,24 +31,24 @@ export const POST = withAuth(
         trainingCategory,
       } = await req.json()
 
-      // A tutor may only run one live session at a time. Expired active sessions
-      // are auto-ended; any remaining active session blocks a new one.
-      const conflictingSession = await ensureSingleActiveSession(currentUser.id)
-      if (conflictingSession) {
-        return NextResponse.json(
-          {
-            error:
-              'You already have an active live session. End or leave it before starting another.',
-            conflictingSessionId: conflictingSession.sessionId,
-          },
-          { status: 409 }
-        )
-      }
-
       if (type === 'training') {
         // Verify token
         if (!SPECIAL_TOKENS.includes(trainingToken)) {
           return NextResponse.json({ error: 'Invalid access token' }, { status: 403 })
+        }
+
+        // Training sessions are real live connections; enforce one active session
+        // at a time. Demo sessions skip this check.
+        const conflictingSession = await ensureSingleActiveSession(currentUser.id)
+        if (conflictingSession) {
+          return NextResponse.json(
+            {
+              error:
+                'You already have an active live session. End or leave it before starting another.',
+              conflictingSessionId: conflictingSession.sessionId,
+            },
+            { status: 409 }
+          )
         }
 
         let room
