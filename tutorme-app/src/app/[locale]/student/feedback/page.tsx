@@ -100,6 +100,7 @@ import {
 } from '@/app/[locale]/tutor/dashboard/components/TestTaskChat'
 import { DemoVideoPrompt, DemoVideoPlayer } from '@/components/demo-video/DemoVideoPlayer'
 import { getCategoryBoard } from '@/lib/data/category-board'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import { TAB_COLORS } from '@/app/[locale]/tutor/courses/components/CourseCategoryPicker'
 
 /** Group deployed task directory items into base tasks and their extensions. */
@@ -2537,34 +2538,37 @@ function StudentFeedbackContent() {
                       sideOffset={0}
                       className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
                     >
-                      {sessions.map(s => (
-                        <SelectItem
-                          key={s.id}
-                          value={s.id}
-                          className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
-                        >
-                          <div className="flex min-w-0 max-w-[320px] items-center gap-2">
-                            <span className="truncate font-medium">{s.title}</span>
-                            <span className="shrink-0 text-slate-500">
-                              ·{' '}
-                              {s.scheduledAt
-                                ? new Date(s.scheduledAt).toLocaleString('en-US', {
-                                    weekday: 'short',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: 'numeric',
-                                    minute: '2-digit',
-                                  })
-                                : 'TBD'}
-                            </span>
-                            {s.status === 'active' || s.status === 'live' ? (
-                              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                            ) : s.status === 'ended' ? (
-                              <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
-                            ) : null}
-                          </div>
-                        </SelectItem>
-                      ))}
+                      {sessions.map(s => {
+                        const ui = getSessionUiState(s)
+                        return (
+                          <SelectItem
+                            key={s.id}
+                            value={s.id}
+                            className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
+                          >
+                            <div className="flex min-w-0 max-w-[320px] items-center gap-2">
+                              <span className="truncate font-medium">{s.title}</span>
+                              <span className="shrink-0 text-slate-500">
+                                ·{' '}
+                                {s.scheduledAt
+                                  ? new Date(s.scheduledAt).toLocaleString('en-US', {
+                                      weekday: 'short',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: 'numeric',
+                                      minute: '2-digit',
+                                    })
+                                  : 'TBD'}
+                              </span>
+                              {ui.isUiLive ? (
+                                <span className="inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                              ) : s.status === 'ended' ? (
+                                <span className="shrink-0 text-[11px] text-slate-500">(ended)</span>
+                              ) : null}
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
                     </SelectContent>
                   </Select>
                 </div>

@@ -34,6 +34,7 @@ import {
   type OneOnOneRequestSummary,
 } from '@/components/one-on-one/one-on-one-request-card'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import { cn } from '@/lib/utils'
 
 export interface CalendarEvent {
@@ -368,11 +369,13 @@ export function DashboardCalendar({
         const startMs = new Date(cls.scheduledAt).getTime()
         return startMs >= now - graceMs
       })
-    // Live sessions pinned to the top, then chronological (next session first).
+    // Live / join-open sessions pinned to the top, then chronological.
     mapped.sort((a, b) => {
-      const aLive = a.status === 'live' ? 0 : 1
-      const bLive = b.status === 'live' ? 0 : 1
-      if (aLive !== bLive) return aLive - bLive
+      const aUi = getSessionUiState(a)
+      const bUi = getSessionUiState(b)
+      const aOpen = aUi.isJoinOpen ? 0 : 1
+      const bOpen = bUi.isJoinOpen ? 0 : 1
+      if (aOpen !== bOpen) return aOpen - bOpen
       return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
     })
     return mapped
@@ -381,12 +384,13 @@ export function DashboardCalendar({
   const interactiveEvents = useMemo(() => {
     return events.map(ev => {
       const evStatus = (ev as any).status as string | undefined
-      const status: 'live' | 'completed' | 'scheduled' | 'cancelled' =
-        evStatus === 'live' || evStatus === 'active'
-          ? 'live'
-          : evStatus === 'ended' || evStatus === 'completed'
-            ? 'completed'
-            : 'scheduled'
+      const evScheduledAt = (ev as any).start as string | undefined
+      const ui = getSessionUiState({ status: evStatus, scheduledAt: evScheduledAt }, Date.now())
+      const status: 'live' | 'completed' | 'scheduled' | 'cancelled' = ui.isUiLive
+        ? 'live'
+        : evStatus === 'ended' || evStatus === 'completed'
+          ? 'completed'
+          : 'scheduled'
       const isOneOnOne = (ev as any).type === 'one-on-one'
       const isGroup = (ev as any).type === 'group'
       return {
@@ -516,7 +520,9 @@ export function DashboardCalendar({
                   ) : oneOnOneSessions.length === 0 ? null : (
                     <ul className="space-y-2">
                       {oneOnOneSessions.map(s => {
-                        const isLive = s.status === 'live' || s.status === 'active'
+                        const ui = getSessionUiState(s)
+                        const isLive = ui.isUiLive
+                        const isJoinOpen = ui.isJoinOpen
                         return (
                           <li
                             key={s.id}
@@ -644,13 +650,13 @@ export function DashboardCalendar({
                                     onClick={() => router.push(`/call/${s.sessionId}`)}
                                     className={cn(
                                       'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                      isLive
+                                      isJoinOpen
                                         ? 'bg-emerald-600 hover:bg-emerald-700'
                                         : 'bg-blue-600 hover:bg-blue-700'
                                     )}
                                   >
                                     <Video className="h-3.5 w-3.5" />
-                                    {isLive ? 'Join now' : 'Join'}
+                                    {isJoinOpen ? 'Join now' : 'Enter'}
                                   </button>
                                 ) : s.meetingUrl ? (
                                   <a
@@ -659,13 +665,13 @@ export function DashboardCalendar({
                                     rel="noopener noreferrer"
                                     className={cn(
                                       'inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white',
-                                      isLive
+                                      isJoinOpen
                                         ? 'bg-emerald-600 hover:bg-emerald-700'
                                         : 'bg-blue-600 hover:bg-blue-700'
                                     )}
                                   >
                                     <Video className="h-3.5 w-3.5" />
-                                    {isLive ? 'Join now' : 'Join'}
+                                    {isJoinOpen ? 'Join now' : 'Enter'}
                                   </a>
                                 ) : (
                                   <span className="text-xs text-gray-400">Scheduled</span>

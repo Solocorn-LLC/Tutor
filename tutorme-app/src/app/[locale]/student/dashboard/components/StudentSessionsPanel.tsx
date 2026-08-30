@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ClampedTitle } from '@/components/common/clamped-title'
 import { cn } from '@/lib/utils'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import type { ClassItem } from './DashboardCalendar'
 
 interface StudentSessionsPanelProps {
@@ -79,7 +80,9 @@ export function StudentSessionsPanel({ classes, loading }: StudentSessionsPanelP
                 </h3>
                 <div className="space-y-3">
                   {group.items.map(cls => {
-                    const isLive = cls.status === 'live'
+                    const uiState = getSessionUiState(cls)
+                    const isLive = uiState.isUiLive
+                    const isJoinOpen = uiState.isJoinOpen
                     const description = cls.courseDescription?.trim() || 'No description available.'
                     return (
                       <div
@@ -115,7 +118,7 @@ export function StudentSessionsPanel({ classes, loading }: StudentSessionsPanelP
                               {isLive && (
                                 <span className="inline-block h-1.5 w-1.5 animate-ping rounded-full bg-emerald-500" />
                               )}
-                              {isLive ? 'Live' : 'Scheduled'}
+                              {uiState.uiStatusLabel}
                             </Badge>
                           </div>
                           <p className="text-muted-foreground text-xs">
@@ -159,7 +162,7 @@ export function StudentSessionsPanel({ classes, loading }: StudentSessionsPanelP
                             className="shrink-0 bg-emerald-600 text-white hover:bg-emerald-500"
                             onClick={() => router.push(`/call/${cls.sessionId}`)}
                           >
-                            {isLive ? 'Join' : 'Enter'}
+                            {isJoinOpen ? 'Join' : 'Enter'}
                           </Button>
                         ) : (
                           <Button size="sm" variant="outline" className="shrink-0" asChild>

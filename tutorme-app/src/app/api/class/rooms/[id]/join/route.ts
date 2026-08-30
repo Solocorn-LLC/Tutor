@@ -28,9 +28,9 @@ import {
 import { eq, and, sql } from 'drizzle-orm'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
-import { endOtherActiveSessions } from '@/lib/sessions/concurrency'
 
-const EARLY_ENTRY_MS = 20 * 60 * 1000 // students may enter 20 min before scheduledAt
+// Early-entry gating removed: tutors and students may enter scheduled sessions at
+// any time. The backend status only flips to active at scheduledAt.
 
 // Bound a video-provider call so an unresponsive Daily.co API can't hang the
 // whole join request (which left /call spinning forever). On timeout this
@@ -67,38 +67,11 @@ export const POST = withCsrf(
 
       const isTutor = userId === row.tutorId
 
-      // Status gate: must be active, or scheduled within the early-entry window.
-      if (row.status !== 'active') {
-        if (row.status === 'scheduled') {
-          if (!row.scheduledAt) {
-            throw new ValidationError('Scheduled session has no scheduled time')
-          }
-          const scheduledAtMs = new Date(row.scheduledAt as string | number | Date).getTime()
-          const enterOpensAtMs = scheduledAtMs - EARLY_ENTRY_MS
-          // The tutor may always enter (and thereby start) their session early.
-          if (!isTutor && Date.now() < enterOpensAtMs) {
-            throw new ValidationError(
-              `This session starts at ${new Date(scheduledAtMs).toLocaleString()}. You can enter 20 minutes before. Please come back at ${new Date(enterOpensAtMs).toLocaleString()}.`
-            )
-          }
-        } else {
-          throw new ValidationError('Class session is not active')
-        }
-      }
-
-      // The tutor entering a scheduled session starts it — keep status/startedAt
-      // consistent with the room instead of relying on a separate "start" call.
-      // End any other active sessions first so only one session is live per tutor.
-      let effectiveStatus = row.status
-      let effectiveStartedAt: Date | null = row.startedAt as Date | null
-      if (isTutor && row.status === 'scheduled') {
-        await endOtherActiveSessions(userId, id)
-        effectiveStartedAt = new Date()
-        effectiveStatus = 'active'
-        await tx
-          .update(liveSession)
-          .set({ status: 'active', startedAt: effectiveStartedAt })
-          .where(eq(liveSession.sessionId, id))
+      // Ended sessions cannot be joined. Scheduled sessions are joinable at any time
+      // by both tutors and students; the backend status only flips to active at
+      // the scheduled start time via the reminder scheduler.
+      if (row.status === 'ended') {
+        throw new ValidationError('Class session has ended')
       }
 
       // Students get an atomic, capacity-checked participant row.
@@ -155,7 +128,7 @@ export const POST = withCsrf(
         }
       }
 
-      return { ...row, status: effectiveStatus, startedAt: effectiveStartedAt }
+      return row
     })
 
     let token = null

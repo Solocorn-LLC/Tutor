@@ -1478,32 +1478,9 @@ export async function initEnhancedSocketServer(server: NetServer) {
         }
       }
 
-      // A 1-on-1 session (and anything created via create-session) starts life as
-      // 'scheduled' and nothing ever flips it live — unlike group/ad-hoc sessions,
-      // which set 'active' on their explicit start action. But status-gated
-      // features depend on it: `canDeployToSession` requires an active/live status,
-      // so with the session stuck 'scheduled' every task deploy was rejected server-
-      // side ("Session has not started yet") and never reached students. When the
-      // scheduled tutor actually enters the room, promote the session to 'active'.
-      // Guarded to only promote from 'scheduled' (ended/paused/active are left
-      // alone) and best-effort so a write hiccup never blocks the join. boardIdx<0
-      // skips private-whiteboard sub-rooms (no LiveSession row of their own).
-      if (effectiveRole !== 'student' && boardIdx < 0) {
-        try {
-          await drizzleDb
-            .update(liveSession)
-            // Preserve an existing startedAt (COALESCE) so a re-promotion can never
-            // reset the recorded start time / session-duration metric.
-            .set({
-              status: 'active',
-              startedAt: sql`COALESCE(${liveSession.startedAt}, now())`,
-              tutorLeftAt: null,
-            })
-            .where(and(eq(liveSession.sessionId, roomId), eq(liveSession.status, 'scheduled')))
-        } catch (goLiveErr) {
-          console.warn('[join_class] failed to promote session to active:', goLiveErr)
-        }
-      }
+      // Scheduled sessions stay scheduled until their scheduledAt time; they are
+      // not promoted to active by joining. The reminder scheduler flips the status
+      // at the actual start time.
 
       if (!room) {
         const roomTutorId =

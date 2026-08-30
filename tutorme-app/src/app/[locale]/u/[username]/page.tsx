@@ -27,6 +27,7 @@ import {
   DialogPanel,
 } from '@/components/ui/dialog'
 import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import { DEFAULT_LOCALE } from '@/lib/i18n/config'
 import {
   FileText,
@@ -517,8 +518,10 @@ export default function PublicTutorPage() {
     sessions.sort((a, b) => {
       const aStart = new Date(a.scheduledAt ?? 0).getTime()
       const bStart = new Date(b.scheduledAt ?? 0).getTime()
-      const aOngoing = a.status === 'active' && aStart <= now
-      const bOngoing = b.status === 'active' && bStart <= now
+      const aUi = getSessionUiState(a, now)
+      const bUi = getSessionUiState(b, now)
+      const aOngoing = aUi.isUiLive
+      const bOngoing = bUi.isUiLive
       if (aOngoing !== bOngoing) return aOngoing ? -1 : 1
       const aUpcoming = aStart >= now
       const bUpcoming = bStart >= now
@@ -2042,9 +2045,7 @@ export default function PublicTutorPage() {
             {sortedClassroomPickerSessions.map(s => {
               const id = (s.id || s.sessionId) as string
               const scheduledAtMs = new Date(s.scheduledAt ?? 0).getTime()
-              const enterOpensAtMs = scheduledAtMs - 20 * 60 * 1000
-              const nowMs = Date.now()
-              const canEnter = nowMs >= enterOpensAtMs
+              const ui = getSessionUiState(s)
               return (
                 <DialogPanel
                   key={id}
@@ -2055,35 +2056,22 @@ export default function PublicTutorPage() {
                       <div className="text-sm font-semibold text-gray-900">
                         {new Date(scheduledAtMs).toLocaleString()}
                       </div>
-                      <Badge variant={s.status === 'active' ? 'default' : 'secondary'}>
-                        {s.status === 'active' ? 'Live' : 'Scheduled'}
+                      <Badge variant={ui.isUiLive ? 'default' : 'secondary'}>
+                        {ui.uiStatusLabel}
                       </Badge>
                     </div>
-                    {!canEnter && (
-                      <div className="mt-1 text-xs text-gray-600">
-                        You can enter 20 minutes before start. Please come back at{' '}
-                        {new Date(enterOpensAtMs).toLocaleTimeString()}.
-                      </div>
-                    )}
                   </div>
                   <Button
                     variant="modal-primary-dark"
                     size="sm"
                     className="h-10"
                     onClick={() => {
-                      if (!canEnter) {
-                        toast.info(
-                          `Please wait until ${new Date(enterOpensAtMs).toLocaleTimeString()} to enter.`
-                        )
-                        return
-                      }
                       setClassroomPickerCourse(null)
                       setClassroomPickerSessions([])
                       router.push(`/${locale}/student/feedback?sessionId=${encodeURIComponent(id)}`)
                     }}
-                    disabled={!canEnter}
                   >
-                    Enter
+                    {ui.isJoinOpen ? 'Join' : 'Enter'}
                   </Button>
                 </DialogPanel>
               )

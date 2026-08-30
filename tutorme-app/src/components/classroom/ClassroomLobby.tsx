@@ -24,6 +24,7 @@ import {
 
 import { ensurePushSubscription, isPushSupported } from '@/lib/push/client'
 import { categorizeLobbySessions } from '@/lib/classroom/lobby-sessions'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 
 interface LobbySession {
   id: string
@@ -105,14 +106,21 @@ export function ClassroomLobby({
     })
   }, [])
 
-  const { nextSession, pastSessions } = useMemo(() => categorizeLobbySessions(sessions), [sessions])
+  const { nextSession, pastSessions } = useMemo(
+    () => categorizeLobbySessions(sessions, now),
+    [sessions, now]
+  )
 
   const msUntilStart =
     nextSession?.scheduledAt != null ? new Date(nextSession.scheduledAt).getTime() - now : null
-  const isNextLive = nextSession?.status === 'active' || nextSession?.status === 'live'
+  const nextState = useMemo(
+    () => (nextSession ? getSessionUiState(nextSession, now) : null),
+    [nextSession, now]
+  )
+  const isNextLive = nextState?.isUiLive ?? false
 
   // Default the session selector to the next/upcoming session, and keep it valid
-  // if the list refreshes (e.g. the tutor starts a session and its status changes).
+  // if the list refreshes (e.g. the scheduler activates it and its status changes).
   useEffect(() => {
     const ids = new Set(sessions.map(s => s.id))
     if (selectedSessionId && ids.has(selectedSessionId)) return
@@ -127,7 +135,12 @@ export function ClassroomLobby({
     selectedSession?.scheduledAt != null
       ? new Date(selectedSession.scheduledAt).getTime() - now
       : null
-  const isSelectedLive = selectedSession?.status === 'active' || selectedSession?.status === 'live'
+  const selectedState = useMemo(
+    () => (selectedSession ? getSessionUiState(selectedSession, now) : null),
+    [selectedSession, now]
+  )
+  const isSelectedLive = selectedState?.isUiLive ?? false
+  const isSelectedJoinOpen = selectedState?.isJoinOpen ?? false
   const isSelectedEnded = selectedSession?.status === 'ended'
 
   // --- In-lobby countdown alerts (20/10/5/1 min) ---
@@ -191,27 +204,17 @@ export function ClassroomLobby({
   )
 
   // --- Auto-handoff ---
+  // The backend scheduler activates the session at scheduledAt. Both students
+  // and tutors are sent in once the UI considers it live (including the 10-minute
+  // pre-start window), without calling a manual start endpoint.
   useEffect(() => {
     if (!nextSession || handedOff.current) return
-    if (role === 'student') {
-      // Student: go in as soon as the tutor takes it live.
-      if (isNextLive) {
-        handedOff.current = true
-        toast.success('Your session is live — taking you in…')
-        goToSession(nextSession.id)
-      }
-    } else {
-      // Tutor: presence takes the class live at (or after) its scheduled time.
-      if (isNextLive) {
-        handedOff.current = true
-        goToSession(nextSession.id)
-      } else if (msUntilStart != null && msUntilStart <= 0 && nextSession.status === 'scheduled') {
-        handedOff.current = true
-        toast.success('Starting your session…')
-        startAsTutor(nextSession.id)
-      }
+    if (isNextLive) {
+      handedOff.current = true
+      toast.success('Your session is live — taking you in…')
+      goToSession(nextSession.id)
     }
-  }, [nextSession, isNextLive, msUntilStart, role, goToSession, startAsTutor])
+  }, [nextSession, isNextLive, goToSession])
 
   const countdownLabel = (ms: number) => {
     const total = Math.max(0, Math.floor(ms / 1000))
@@ -287,21 +290,24 @@ export function ClassroomLobby({
                   sideOffset={0}
                   className="w-[var(--radix-select-trigger-width)] min-w-0 border-slate-200 !bg-white bg-none text-slate-900 shadow-lg"
                 >
-                  {sessions.map(s => (
-                    <SelectItem
-                      key={s.id}
-                      value={s.id}
-                      className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
-                    >
-                      <span className="truncate font-medium text-slate-900">{s.title}</span>
-                      <span className="ml-2 shrink-0 text-slate-500">· {fmt(s.scheduledAt)}</span>
-                      {s.status === 'active' || s.status === 'live' ? (
-                        <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      ) : s.status === 'ended' ? (
-                        <span className="ml-2 shrink-0 text-[11px] text-slate-500">(ended)</span>
-                      ) : null}
-                    </SelectItem>
-                  ))}
+                  {sessions.map(s => {
+                    const ui = getSessionUiState(s, now)
+                    return (
+                      <SelectItem
+                        key={s.id}
+                        value={s.id}
+                        className="text-xs text-slate-900 hover:bg-slate-100 focus-visible:bg-slate-100 data-[highlighted]:bg-slate-100"
+                      >
+                        <span className="truncate font-medium text-slate-900">{s.title}</span>
+                        <span className="ml-2 shrink-0 text-slate-500">· {fmt(s.scheduledAt)}</span>
+                        {ui.isUiLive ? (
+                          <span className="ml-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                        ) : s.status === 'ended' ? (
+                          <span className="ml-2 shrink-0 text-[11px] text-slate-500">(ended)</span>
+                        ) : null}
+                      </SelectItem>
+                    )
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -334,7 +340,7 @@ export function ClassroomLobby({
                   {role === 'tutor' ? (
                     <Button
                       onClick={() =>
-                        isSelectedLive || isSelectedEnded
+                        isSelectedJoinOpen || isSelectedEnded
                           ? goToSession(selectedSession.id)
                           : startAsTutor(selectedSession.id)
                       }
@@ -342,22 +348,22 @@ export function ClassroomLobby({
                     >
                       {starting ? (
                         <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                      ) : isSelectedLive ? (
+                      ) : isSelectedJoinOpen ? (
                         <Video className="mr-1.5 h-4 w-4" />
                       ) : isSelectedEnded ? (
                         <PlayCircle className="mr-1.5 h-4 w-4" />
                       ) : (
                         <Video className="mr-1.5 h-4 w-4" />
                       )}
-                      {isSelectedLive
+                      {isSelectedJoinOpen
                         ? 'Join now'
                         : isSelectedEnded
                           ? 'Review session'
-                          : 'Start now'}
+                          : 'Enter'}
                     </Button>
                   ) : (
                     <Button onClick={() => goToSession(selectedSession.id)}>
-                      {isSelectedLive ? (
+                      {isSelectedJoinOpen ? (
                         <>
                           <Video className="mr-1.5 h-4 w-4" /> Join now
                         </>
@@ -367,7 +373,7 @@ export function ClassroomLobby({
                         </>
                       ) : (
                         <>
-                          <Calendar className="mr-1.5 h-4 w-4" /> Load classroom
+                          <Calendar className="mr-1.5 h-4 w-4" /> Enter
                         </>
                       )}
                     </Button>
