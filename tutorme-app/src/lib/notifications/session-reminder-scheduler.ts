@@ -8,8 +8,8 @@
  * web-pushes.
  *
  * Also flips scheduled sessions to `active` once their scheduledAt time has
- * arrived AND the tutor has joined. Tutor entry is the primary launch path; this
- * scan is a safety net for edge cases.
+ * arrived. The schedule itself launches the session; tutorJoinedAt is tracked
+ * separately for payment gating.
  *
  * Runs in the long-running custom server (server.ts). It is:
  *  - Idempotent / race-safe: each session is "claimed" with an atomic
@@ -20,7 +20,7 @@
  *    tick as long as it hasn't started yet.
  */
 
-import { and, eq, gte, lte, inArray, isNull, isNotNull, sql } from 'drizzle-orm'
+import { and, eq, gte, lte, inArray, isNull, sql } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
@@ -236,10 +236,10 @@ export async function runSessionReminderScan(): Promise<void> {
 }
 
 /**
- * Atomically flip scheduled sessions whose start time has arrived to `active`,
- * but only if the tutor has already joined. Course/1-on-1/clinic sessions are now
- * launched by tutor entry; this scan is a safety net for edge cases where
- * tutorJoinedAt was set but status was not updated.
+ * Atomically flip scheduled sessions whose start time has arrived to `active`.
+ * The schedule itself launches the session; tutor login is tracked separately
+ * via tutorJoinedAt for payment gating. This scan is a safety net for sessions
+ * where no route handler has promoted the status yet.
  */
 export async function runSessionActivationScan(): Promise<number> {
   const now = new Date()
@@ -253,8 +253,7 @@ export async function runSessionActivationScan(): Promise<number> {
       and(
         eq(liveSession.status, 'scheduled'),
         lte(liveSession.scheduledAt, now),
-        inArray(liveSession.sessionType, ['COURSE', 'ONE_ON_ONE', 'CLINIC']),
-        isNotNull(liveSession.tutorJoinedAt)
+        inArray(liveSession.sessionType, ['COURSE', 'ONE_ON_ONE', 'CLINIC'])
       )
     )
     .returning({ sessionId: liveSession.sessionId })
