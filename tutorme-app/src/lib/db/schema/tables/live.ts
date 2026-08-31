@@ -64,6 +64,9 @@ export const liveSession = pgTable(
     // session (or re-enter the same one) while the scheduled session keeps its
     // lifecycle for students until its scheduled end time.
     tutorLeftAt: timestamp('tutorLeftAt', { withTimezone: true }),
+    // Set when the tutor first joins/enters the classroom. Used to determine when
+    // a scheduled session is actually "live" and to gate payment processing.
+    tutorJoinedAt: timestamp('tutorJoinedAt', { withTimezone: true }),
   },
   table => ({
     LiveSession_tutorId_idx: index('LiveSession_tutorId_idx').on(table.tutorId),

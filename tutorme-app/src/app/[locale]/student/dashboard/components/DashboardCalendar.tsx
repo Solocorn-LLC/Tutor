@@ -107,6 +107,7 @@ export interface ClassItem {
   requiresPayment?: boolean
   price?: number | null
   status?: 'scheduled' | 'live' | 'completed' | 'cancelled'
+  tutorJoinedAt?: string | null
   meetingUrl?: string | null
   courseName?: string | null
   courseDescription?: string | null
@@ -358,6 +359,7 @@ export function DashboardCalendar({
           maxStudents: (ev as any).maxAttendees ?? 50,
           isBooked: true,
           status,
+          tutorJoinedAt: (ev as any).tutorJoinedAt || null,
           meetingUrl: (ev as any).meetingUrl || null,
           sessionId: (ev as any).sessionId || ev.id,
           courseName: (ev as any).courseName || null,
@@ -385,7 +387,11 @@ export function DashboardCalendar({
     return events.map(ev => {
       const evStatus = (ev as any).status as string | undefined
       const evScheduledAt = (ev as any).start as string | undefined
-      const ui = getSessionUiState({ status: evStatus, scheduledAt: evScheduledAt }, Date.now())
+      const evTutorJoinedAt = (ev as any).tutorJoinedAt as string | undefined
+      const ui = getSessionUiState(
+        { status: evStatus, scheduledAt: evScheduledAt, tutorJoinedAt: evTutorJoinedAt },
+        Date.now()
+      )
       const status: 'live' | 'completed' | 'scheduled' | 'cancelled' = ui.isUiLive
         ? 'live'
         : evStatus === 'ended' || evStatus === 'completed'

@@ -82,6 +82,7 @@ export const GET = withAuth(
             tutorId: calendarEvent.tutorId,
             externalId: calendarEvent.externalId,
             sessionStatus: liveSession.status,
+            tutorJoinedAt: liveSession.tutorJoinedAt,
           })
           .from(calendarEvent)
           .leftJoin(liveSession, eq(liveSession.sessionId, calendarEvent.externalId))
@@ -115,6 +116,7 @@ export const GET = withAuth(
             courseId: liveSession.courseId,
             durationMinutes: liveSession.durationMinutes,
             tutorId: liveSession.tutorId,
+            tutorJoinedAt: liveSession.tutorJoinedAt,
           })
           .from(liveSession)
           .where(and(...lsFilters))
@@ -150,6 +152,7 @@ export const GET = withAuth(
         tutorId: calendarEvent.tutorId,
         externalId: calendarEvent.externalId,
         sessionStatus: liveSession.status,
+        tutorJoinedAt: liveSession.tutorJoinedAt,
         requestId: oneOnOneBookingRequest.requestId,
         bookingStatus: oneOnOneBookingRequest.status,
         bookingTimezone: oneOnOneBookingRequest.timezone,
@@ -189,6 +192,7 @@ export const GET = withAuth(
         durationMinutes: liveSession.durationMinutes,
         meetingUrl: liveSession.roomUrl,
         sessionStatus: liveSession.status,
+        tutorJoinedAt: liveSession.tutorJoinedAt,
         seatStatus: groupSessionParticipant.status,
       })
       .from(groupSessionParticipant)
@@ -222,6 +226,7 @@ export const GET = withAuth(
         location: e.location,
         isVirtual: e.isVirtual,
         status: e.sessionStatus || 'scheduled',
+        tutorJoinedAt: e.tutorJoinedAt?.toISOString?.() ?? null,
         courseId: e.courseId,
       })),
       ...liveSessions
@@ -243,6 +248,7 @@ export const GET = withAuth(
           location: 'Online',
           isVirtual: true,
           status: ls.status,
+          tutorJoinedAt: ls.tutorJoinedAt?.toISOString?.() ?? null,
           courseId: ls.courseId,
         })),
       ...oneOnOneEvents.map(e => ({
@@ -264,6 +270,7 @@ export const GET = withAuth(
         location: e.location,
         isVirtual: e.isVirtual,
         status: e.sessionStatus || e.status || 'scheduled',
+        tutorJoinedAt: e.tutorJoinedAt?.toISOString?.() ?? null,
         // True when the tutor accepted but the student hasn't paid — the UI can
         // badge it "awaiting payment" instead of showing a confirmed session.
         pendingPayment: e.bookingStatus === 'ACCEPTED',
@@ -302,6 +309,7 @@ export const GET = withAuth(
           location: 'Online',
           isVirtual: true,
           status: e.sessionStatus || 'scheduled',
+          tutorJoinedAt: e.tutorJoinedAt?.toISOString?.() ?? null,
           pendingPayment: e.seatStatus === 'RESERVED',
           courseId: null as string | null,
         }

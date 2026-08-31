@@ -10,7 +10,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, or, gte, lte, inArray } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { UI_LIVE_LEAD_MS } from '@/lib/sessions/live-session-status'
 import {
   oneOnOneBookingRequest,
   calendarEvent,
@@ -22,8 +21,6 @@ import {
 
 const LOOKAHEAD_MS = 30 * 60 * 1000 // 30 min before start
 const LINGER_AFTER_END_MS = 15 * 60 * 1000 // 15 min after end
-// Must match the UI live/join-open window.
-const EARLY_ENTRY_MS = UI_LIVE_LEAD_MS
 
 interface Candidate {
   sessionId: string
@@ -217,7 +214,7 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
   // or an imminent unpaid nudge when nothing is joinable yet).
   const joinableNow = (c: Candidate): boolean => {
     if (c.needsPayment || !c.scheduledAt) return false
-    return c.status === 'active' || now >= c.scheduledAt.getTime() - EARLY_ENTRY_MS
+    return c.status === 'active'
   }
   const pick = eligible.find(joinableNow) ?? eligible[0]
   if (!pick || !pick.scheduledAt) {
@@ -253,7 +250,7 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
       // An unpaid booking can't be joined until checkout completes — the launcher
       // shows "Pay to join" instead of Join and routes to the pay path below.
       needsPayment,
-      joinable: !needsPayment && (pick.status === 'active' || now >= start - EARLY_ENTRY_MS),
+      joinable: !needsPayment && pick.status === 'active',
       live: !needsPayment && pick.status === 'active',
       payRequestId: needsPayment ? (pick.requestId ?? null) : null,
       payParticipantId: needsPayment ? (pick.participantId ?? null) : null,
