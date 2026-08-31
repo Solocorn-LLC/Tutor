@@ -1,0 +1,1 @@
+ALTER TABLE "LiveSession" ADD COLUMN "tutorJoinedAt" timestamp with time zone;

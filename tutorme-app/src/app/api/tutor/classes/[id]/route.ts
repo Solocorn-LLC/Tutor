@@ -390,21 +390,32 @@ export const POST = withCsrf(
         })
       }
 
-      // Scheduled course sessions are activated automatically at scheduledAt by
-      // the reminder scheduler. Tutors can freely enter early to prepare, but
-      // this endpoint no longer flips the status.
+      // Scheduled course sessions record the tutor's join time, but they only
+      // become "active" (and therefore "Live" for students) once the scheduledAt
+      // time has arrived. This prevents early tutor prep from showing a session
+      // as live, and gives payment processing a reliable tutor-login signal.
       if (liveSessionRow.sessionType === 'COURSE' || liveSessionRow.status === 'scheduled') {
-        await drizzleDb
+        const now = new Date()
+        const scheduledAt = liveSessionRow.scheduledAt
+        const hasStarted = scheduledAt ? now >= scheduledAt : false
+        const shouldActivate = hasStarted || liveSessionRow.status === 'active'
+        const [updated] = await drizzleDb
           .update(liveSession)
-          .set({ tutorLeftAt: null })
+          .set({
+            status: shouldActivate ? 'active' : liveSessionRow.status,
+            startedAt: shouldActivate ? liveSessionRow.startedAt || now : liveSessionRow.startedAt,
+            tutorJoinedAt: liveSessionRow.tutorJoinedAt || now,
+            tutorLeftAt: null,
+          })
           .where(eq(liveSession.sessionId, classId))
+          .returning()
         return NextResponse.json({
           session: {
-            id: liveSessionRow.sessionId,
-            status: liveSessionRow.status,
-            startedAt: liveSessionRow.startedAt?.toISOString?.() ?? null,
-            roomId: liveSessionRow.roomId,
-            roomUrl: liveSessionRow.roomUrl,
+            id: updated!.sessionId,
+            status: updated!.status,
+            startedAt: updated!.startedAt?.toISOString?.() ?? null,
+            roomId: updated!.roomId,
+            roomUrl: updated!.roomUrl,
           },
         })
       }

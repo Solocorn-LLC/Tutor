@@ -19,7 +19,7 @@ import {
 } from '@/components/course/PreferenceEnrollmentDialog'
 import { ScheduleViewModal } from '@/components/course/ScheduleViewModal'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
-import { getSessionUiState, UI_LIVE_LEAD_MS } from '@/lib/sessions/live-session-status'
+import { getSessionUiState } from '@/lib/sessions/live-session-status'
 import {
   Clock,
   Calendar,
@@ -130,10 +130,6 @@ function getSessionStatus(scheduledAt: string, existingStatus?: string): Session
   if (ui.isUiLive) return 'active'
   if (existingStatus === 'ended' || existingStatus === 'paused' || existingStatus === 'completed')
     return 'ended'
-  const start = new Date(scheduledAt).getTime()
-  const now = Date.now()
-  const diff = start - now
-  if (diff <= UI_LIVE_LEAD_MS) return 'opening_soon'
   return 'upcoming'
 }
 
