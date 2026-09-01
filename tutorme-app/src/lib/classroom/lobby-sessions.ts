@@ -16,17 +16,27 @@ export interface LobbySessionLike {
 /**
  * Split the course's sessions into the single "next" session and the list of
  * past sessions to review.
- *  - next = a currently-live session if any, else the soonest upcoming scheduled one
+ *  - next = a session already in progress (active/live/preparing/paused) if any,
+ *           else the soonest upcoming scheduled one. In-progress selection is based
+ *           on backend status, not the time-gated UI "Live" badge, so a tutor can
+ *           enter/launch before the scheduled start if needed.
  *  - past = ended sessions (or real sessions with an endedAt), newest first
  */
 export function categorizeLobbySessions<T extends LobbySessionLike>(
   sessions: T[],
   nowMs: number = Date.now()
 ): { nextSession: T | null; pastSessions: T[] } {
-  const liveOrOpening = sessions.find(s => getSessionUiState(s, nowMs).isUiLive)
+  const inProgressStatuses = ['active', 'live', 'preparing', 'paused']
+  const liveOrOpening = sessions.find(s => inProgressStatuses.includes(s.status))
 
   const upcoming = sessions
-    .filter(s => s.status === 'scheduled' && s.scheduledAt && !getSessionUiState(s, nowMs).isUiLive)
+    .filter(
+      s =>
+        s.status === 'scheduled' &&
+        s.scheduledAt &&
+        !inProgressStatuses.includes(s.status) &&
+        !getSessionUiState(s, nowMs).isUiLive
+    )
     .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
 
   const past = sessions

@@ -43,11 +43,10 @@ export interface SessionUiState {
 /**
  * Compute the user-facing live state for a session.
  *
- * Backend statuses drive the truth: ended sessions are always ended. Active/live
- * sessions are always live. Scheduled sessions remain scheduled until the tutor
- * actually enters and launches the session.
- *
- * Demo / ad-hoc sessions are created active and are therefore always live.
+ * Backend statuses drive the truth: ended sessions are always ended. A session is
+ * only considered live when its backend status is active/live/preparing/paused
+ * AND its scheduled start time has arrived. Demo / ad-hoc sessions are created
+ * active and bypass the scheduledAt gate.
  */
 export function getSessionUiState(
   input: SessionUiStateInput,
@@ -61,12 +60,12 @@ export function getSessionUiState(
     return { isUiLive: false, isJoinOpen: false, uiStatusLabel: 'Ended', tutorHasJoined }
   }
 
+  const hasStarted =
+    isDemoLike || !input.scheduledAt || new Date(input.scheduledAt).getTime() <= nowMs
+
   if (
-    status === 'active' ||
-    status === 'live' ||
-    status === 'preparing' ||
-    status === 'paused' ||
-    isDemoLike
+    hasStarted &&
+    (status === 'active' || status === 'live' || status === 'preparing' || status === 'paused')
   ) {
     return { isUiLive: true, isJoinOpen: true, uiStatusLabel: 'Live', tutorHasJoined }
   }

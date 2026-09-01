@@ -31,13 +31,18 @@ describe('getSessionUiState', () => {
     expect(ui.tutorHasJoined).toBe(true)
   })
 
-  it('treats active/live/preparing/paused as live', () => {
+  it('treats active/live/preparing/paused as live only after the scheduled start time', () => {
     for (const status of ['active', 'live', 'preparing', 'paused']) {
-      const ui = getSessionUiState({ status, scheduledAt }, beforeStart)
-      expect(ui.isUiLive).toBe(true)
-      expect(ui.isJoinOpen).toBe(true)
-      expect(ui.uiStatusLabel).toBe('Live')
-      expect(ui.tutorHasJoined).toBe(false)
+      const before = getSessionUiState({ status, scheduledAt }, beforeStart)
+      expect(before.isUiLive).toBe(false)
+      expect(before.isJoinOpen).toBe(false)
+      expect(before.uiStatusLabel).toBe('Scheduled')
+
+      const after = getSessionUiState({ status, scheduledAt }, afterStart)
+      expect(after.isUiLive).toBe(true)
+      expect(after.isJoinOpen).toBe(true)
+      expect(after.uiStatusLabel).toBe('Live')
+      expect(after.tutorHasJoined).toBe(false)
     }
   })
 
