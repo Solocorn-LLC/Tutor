@@ -62,7 +62,6 @@ import { AvatarUploader } from '@/components/avatar-uploader'
 import { TimezoneSelector } from '@/components/timezone-selector'
 import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { PendingRefundsPanel } from '@/components/tutor/pending-refunds-panel'
-import SessionLog from '@/components/session-log'
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -374,7 +373,6 @@ export default function TutorSettings() {
       'notifications',
       'security',
       'controls',
-      'session-log',
     ]
     return validTabs.find(tab => tab === tabParam) ?? 'profile'
   })
@@ -747,7 +745,6 @@ export default function TutorSettings() {
             { value: 'notifications', label: 'Notifications' },
             { value: 'security', label: 'Security' },
             { value: 'controls', label: 'Account' },
-            { value: 'session-log', label: 'Session Log' },
           ]}
         >
           {/* Profile & Identity */}
@@ -1670,14 +1667,6 @@ export default function TutorSettings() {
                 </div>
               </div>
             </CollapsibleCard>
-          </TabsContent>
-
-          {/* Session Log */}
-          <TabsContent
-            value="session-log"
-            className="scrollbar-hide mt-0 flex h-full flex-col gap-4 overflow-y-auto px-6 pb-4"
-          >
-            <SessionLog />
           </TabsContent>
         </SessionCalendarPanel>
       </div>
