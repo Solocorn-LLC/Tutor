@@ -101,6 +101,7 @@ export default function TutorHelpPage() {
       subtitle="Find answers, tutorials, and get support"
       heroGradient="bg-gradient-to-br from-[#3B82F6] to-[#3B82F6]"
       topics={topics}
+      role="tutor"
     />
   )
 }

@@ -337,14 +337,17 @@ export function DashboardCalendar({
       .map(ev => {
         const evStatus = (ev as any).status as string | undefined
         const startMs = new Date(ev.start).getTime()
-        const isPast = startMs < now - graceMs
+        const endMs = startMs + (ev.duration || 60) * 60000
+        const isPast = endMs < now - graceMs
         // Treat future sessions marked 'ended'/'completed' as scheduled so a
         // lifecycle bug does not hide upcoming course sessions from the list.
         const status: ClassItem['status'] =
-          (evStatus === 'ended' || evStatus === 'completed') && isPast
-            ? 'completed'
-            : evStatus === 'cancelled'
-              ? 'cancelled'
+          evStatus === 'cancelled'
+            ? 'cancelled'
+            : evStatus === 'ended' || evStatus === 'completed'
+              ? isPast
+                ? 'completed'
+                : 'scheduled'
               : ((evStatus as ClassItem['status']) ?? 'scheduled')
         return {
           id: ev.id,
@@ -392,11 +395,17 @@ export function DashboardCalendar({
         { status: evStatus, scheduledAt: evScheduledAt, tutorJoinedAt: evTutorJoinedAt },
         Date.now()
       )
+      const now = Date.now()
+      const graceMs = 5 * 60 * 1000
+      const endMs = new Date(ev.end).getTime()
+      const isPast = endMs < now - graceMs
       const status: 'live' | 'completed' | 'scheduled' | 'cancelled' = ui.isUiLive
         ? 'live'
-        : evStatus === 'ended' || evStatus === 'completed'
-          ? 'completed'
-          : 'scheduled'
+        : evStatus === 'cancelled'
+          ? 'cancelled'
+          : (evStatus === 'ended' || evStatus === 'completed') && isPast
+            ? 'completed'
+            : 'scheduled'
       const isOneOnOne = (ev as any).type === 'one-on-one'
       const isGroup = (ev as any).type === 'group'
       return {

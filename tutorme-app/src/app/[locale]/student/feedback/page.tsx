@@ -242,6 +242,8 @@ interface ClassroomControlsPanelProps {
     twoWay?: boolean
   }) => void
   setShowDirectoryPanel: (value: boolean) => void
+  heroHeaderRef?: React.RefObject<HTMLDivElement | null>
+  courseNameRef?: React.RefObject<HTMLHeadingElement | null>
 }
 
 function ClassroomControlsPanel({
@@ -254,6 +256,8 @@ function ClassroomControlsPanel({
   twoWay,
   openVideoOverlay,
   setShowDirectoryPanel,
+  heroHeaderRef,
+  courseNameRef,
   variant = 'floating',
 }: ClassroomControlsPanelProps & { variant?: 'floating' | 'docked' }) {
   const router = useRouter()
@@ -281,13 +285,30 @@ function ClassroomControlsPanel({
     if (!panel || !container) return
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
-    // Park the panel at the top-right of the header area, flush with the top edge.
-    const x = containerRect.width - panelRect.width
-    const y = 0
+
+    // Default: right-of-center, vertically centered in the hero header.
+    let x = containerRect.width * 0.6 - panelRect.width / 2
+    let y = 12
+
+    const header = heroHeaderRef?.current
+    const courseName = courseNameRef?.current
+    if (header) {
+      const headerRect = header.getBoundingClientRect()
+      y = headerRect.top + headerRect.height / 2 - panelRect.height / 2 - containerRect.top
+    }
+    if (courseName) {
+      const nameRect = courseName.getBoundingClientRect()
+      x = nameRect.right + 24 - containerRect.left
+    }
+
+    // Keep the panel inside the drag container with a small margin.
+    x = Math.max(12, Math.min(x, containerRect.width - panelRect.width - 12))
+    y = Math.max(0, Math.min(y, containerRect.height - panelRect.height))
+
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
-  }, [panelX, panelY, panelOpacity])
+  }, [panelX, panelY, panelOpacity, heroHeaderRef, courseNameRef])
 
   useLayoutEffect(() => {
     positionPanel()
@@ -1259,14 +1280,18 @@ function StudentFeedbackContent() {
   const boardSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Right Panel state
-  const [rightPanelWidth, setRightPanelWidth] = useState(380)
+  const [rightPanelWidth, setRightPanelWidth] = useState(440)
   const [rightPanelResizing, setRightPanelResizing] = useState(false)
   const rightResizeStartX = useRef(0)
-  const rightResizeStartW = useRef(380)
+  const rightResizeStartW = useRef(440)
 
   // The right panel keeps a consistent base width across tabs; students can drag
   // the resize handle to adjust it for convenience.
-  const EXPANDED_PANEL_BONUS = 300
+  const EXPANDED_PANEL_BONUS = 220
+
+  // Refs for positioning the floating Controls bar relative to the hero header.
+  const heroHeaderRef = useRef<HTMLDivElement>(null)
+  const courseNameRef = useRef<HTMLHeadingElement>(null)
 
   // Assets state
   const [selectedReport, setSelectedReport] = useState<any | null>(null)
@@ -2516,7 +2541,7 @@ function StudentFeedbackContent() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-gray-50">
       <div className="flex h-full w-full min-w-0 flex-1 flex-col bg-gray-50/50">
-        <div className="w-full px-4 pt-2">
+        <div className="w-full px-4 pt-2" ref={heroHeaderRef}>
           <div className="flex min-h-[72px] w-full flex-col gap-3 rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(0,0,0,0.08)] sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-1 items-center gap-4">
               <Button variant="ghost" size="icon" onClick={() => router.push('/student/dashboard')}>
@@ -2582,7 +2607,7 @@ function StudentFeedbackContent() {
             <div className="flex flex-1 items-center justify-center gap-2">
               {sessionContext && (
                 <>
-                  <h1 className="truncate text-sm font-semibold text-[#1F2933]">
+                  <h1 ref={courseNameRef} className="truncate text-sm font-semibold text-[#1F2933]">
                     {sessionContext.courseName || sessionContext.courseCategory || 'Live Class'}
                   </h1>
                   {(sessionContext.courseCategory || sessionContext.variantName) && (
@@ -2700,6 +2725,8 @@ function StudentFeedbackContent() {
           twoWay={sessionContext?.twoWay}
           openVideoOverlay={openVideoOverlay}
           setShowDirectoryPanel={setShowDirectoryPanel}
+          heroHeaderRef={heroHeaderRef}
+          courseNameRef={courseNameRef}
         />
 
         {/* Content Wrapper */}
@@ -2948,7 +2975,7 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              // Narrow width for Lessons/Interact (380px), expanded for Assessment/My Board (680px)
+              // Default width for Lessons/Interact (440px), expanded for Assessment/My Board (660px)
               width:
                 rightPanelWidth +
                 (rightPanelTab === 'lessons' || rightPanelTab === 'interactions'

@@ -58,6 +58,20 @@ export {
 } from './course-builder-assistant'
 
 export {
+  STUDENT_SUPPORT_ASSISTANT_GUARDRAILS,
+  studentSupportSystemPrompt,
+  validateStudentSupportAssistantOutput,
+  runStudentSupportGuardrails,
+} from './student-support-assistant'
+
+export {
+  TUTOR_SUPPORT_ASSISTANT_GUARDRAILS,
+  tutorSupportSystemPrompt,
+  validateTutorSupportAssistantOutput,
+  runTutorSupportGuardrails,
+} from './tutor-support-assistant'
+
+export {
   checkCurriculumMatch,
   detectExamBoards,
   normalizeBoard,
