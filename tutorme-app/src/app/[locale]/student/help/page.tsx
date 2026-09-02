@@ -101,6 +101,7 @@ export default function StudentHelpPage() {
       subtitle="Find answers and get support"
       heroGradient="bg-gradient-to-br from-[#F97316] to-[#EA580C]"
       topics={topics}
+      role="student"
     />
   )
 }

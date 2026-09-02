@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Bot, User } from 'lucide-react'
+import { Send, Bot, User, Loader2 } from 'lucide-react'
+import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { toast } from 'sonner'
 
 type Message = {
   id: string
@@ -12,7 +14,11 @@ type Message = {
   text: string
 }
 
-export function SupportAiAssistant() {
+interface SupportAiAssistantProps {
+  role: 'student' | 'tutor'
+}
+
+export function SupportAiAssistant({ role }: SupportAiAssistantProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -21,30 +27,72 @@ export function SupportAiAssistant() {
     },
   ])
   const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }, [messages])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const text = input.trim()
-    if (!text) return
+    if (!text || loading) return
 
-    setMessages(prev => [...prev, { id: String(Date.now()), role: 'user', text }])
+    const userMessage: Message = { id: String(Date.now()), role: 'user', text }
+    setMessages(prev => [...prev, userMessage])
     setInput('')
+    setLoading(true)
 
-    // Placeholder response — wire this to your AI endpoint later.
-    setTimeout(() => {
+    try {
+      const conversation = messages
+        .filter(m => m.id !== 'welcome')
+        .concat(userMessage)
+        .map(m => ({ role: m.role, content: m.text }))
+
+      const endpoint =
+        role === 'student' ? '/api/student/support/ai-assistant' : '/api/tutor/support/ai-assistant'
+
+      const res = await fetchWithCsrf(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ messages: conversation }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Request failed (${res.status})`)
+      }
+
+      const data = await res.json()
+      const reply = typeof data.reply === 'string' ? data.reply : 'Sorry, I had trouble with that.'
+
       setMessages(prev => [
         ...prev,
         {
           id: String(Date.now() + 1),
           role: 'assistant',
-          text: "Thanks for your question. I'm looking into that for you — this is a placeholder response you can replace with a real AI call.",
+          text: reply,
         },
       ])
-    }, 600)
+
+      if (Array.isArray(data.guardrailWarnings) && data.guardrailWarnings.length > 0) {
+        console.warn('[support-ai-assistant] guardrail warnings:', data.guardrailWarnings)
+      }
+    } catch (err) {
+      console.error('Support AI assistant error:', err)
+      toast.error('Could not reach the support assistant. Please try again.')
+      setMessages(prev => [
+        ...prev,
+        {
+          id: String(Date.now() + 1),
+          role: 'assistant',
+          text: 'Sorry, I could not generate a response right now. Please try again in a moment.',
+        },
+      ])
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -85,6 +133,12 @@ export function SupportAiAssistant() {
               </div>
             </div>
           ))}
+          {loading && (
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Thinking…
+            </div>
+          )}
           <div ref={scrollRef} />
         </div>
       </ScrollArea>
@@ -100,15 +154,16 @@ export function SupportAiAssistant() {
             }
           }}
           placeholder="Ask a question..."
+          disabled={loading}
           className="flex-1"
         />
         <Button
           size="icon"
           onClick={handleSend}
-          disabled={!input.trim()}
+          disabled={!input.trim() || loading}
           className="bg-[#2563EB] hover:bg-[#1D4ED8]"
         >
-          <Send className="h-4 w-4" />
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </div>
     </div>
