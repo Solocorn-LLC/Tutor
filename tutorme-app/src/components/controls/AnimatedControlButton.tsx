@@ -42,7 +42,7 @@ export function AnimatedControlButton({
         )}
       >
         {icon}
-        <span className="whitespace-nowrap leading-none">{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
       </motion.button>
     )
   }
@@ -55,10 +55,10 @@ export function AnimatedControlButton({
       onHoverEnd={() => setHovered(false)}
       className={cn(actionButtonBase, 'relative overflow-hidden', className)}
     >
-      <span className="flex items-center justify-center gap-2 leading-none">
+      <span className="flex items-center justify-center gap-2">
         {icon}
         <motion.span
-          className="overflow-hidden whitespace-nowrap leading-none"
+          className="overflow-hidden whitespace-nowrap"
           initial={{ opacity: 0, width: 0 }}
           animate={{
             opacity: hovered && !buttonDisabled ? 1 : 0,
