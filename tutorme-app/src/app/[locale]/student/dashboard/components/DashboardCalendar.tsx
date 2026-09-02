@@ -106,7 +106,7 @@ export interface ClassItem {
   isBooked?: boolean
   requiresPayment?: boolean
   price?: number | null
-  status?: 'scheduled' | 'live' | 'completed' | 'cancelled'
+  status?: 'scheduled' | 'live' | 'active' | 'completed' | 'cancelled'
   tutorJoinedAt?: string | null
   meetingUrl?: string | null
   courseName?: string | null
@@ -341,11 +341,11 @@ export function DashboardCalendar({
         // Treat future sessions marked 'ended'/'completed' as scheduled so a
         // lifecycle bug does not hide upcoming course sessions from the list.
         const status: ClassItem['status'] =
-          evStatus === 'live' || evStatus === 'active'
-            ? 'live'
-            : (evStatus === 'ended' || evStatus === 'completed') && isPast
-              ? 'completed'
-              : 'scheduled'
+          (evStatus === 'ended' || evStatus === 'completed') && isPast
+            ? 'completed'
+            : evStatus === 'cancelled'
+              ? 'cancelled'
+              : ((evStatus as ClassItem['status']) ?? 'scheduled')
         return {
           id: ev.id,
           title: ev.title,
