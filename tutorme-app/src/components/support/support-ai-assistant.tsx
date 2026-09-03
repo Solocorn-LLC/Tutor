@@ -61,7 +61,8 @@ export function SupportAiAssistant({ role }: SupportAiAssistantProps) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || `Request failed (${res.status})`)
+        const errorId = data.errorId ? ` [${data.errorId}]` : ''
+        throw new Error(data.error || `Request failed (${res.status})${errorId}`)
       }
 
       const data = await res.json()
