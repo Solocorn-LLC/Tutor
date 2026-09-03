@@ -15,6 +15,8 @@ export interface CollapsibleCardProps {
   contentClassName?: string
   flush?: boolean
   fillHeight?: boolean
+  /** Omit the drop shadow so the card sits flush (no floating effect). */
+  noShadow?: boolean
   children: React.ReactNode
 }
 
@@ -28,6 +30,7 @@ export function CollapsibleCard({
   contentClassName,
   flush = false,
   fillHeight = false,
+  noShadow = false,
   children,
 }: CollapsibleCardProps) {
   const [open, setOpen] = useState(defaultOpen)
@@ -43,9 +46,8 @@ export function CollapsibleCard({
         className={cn(
           'flex flex-col',
           fillHeight && 'h-full',
-          flush
-            ? 'rounded-b-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
-            : 'rounded-[16px] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
+          flush ? 'rounded-b-[16px] bg-white' : 'rounded-[16px] bg-white',
+          !noShadow && 'shadow-[0_14px_45px_rgba(0,0,0,0.14)]',
           className
         )}
       >

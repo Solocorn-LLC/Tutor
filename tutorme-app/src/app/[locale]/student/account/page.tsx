@@ -341,7 +341,12 @@ export default function StudentAccount() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard title="Profile & Identity" defaultOpen className={sectionCardClass}>
+              <CollapsibleCard
+                title="Profile & Identity"
+                defaultOpen
+                noShadow
+                className={sectionCardClass}
+              >
                 <CardContent className="space-y-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
@@ -464,6 +469,7 @@ export default function StudentAccount() {
                 title="Billing & Payment Methods"
                 description="Manage your payment methods and billing preferences"
                 defaultOpen
+                noShadow
                 className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
@@ -523,6 +529,7 @@ export default function StudentAccount() {
                 title="Billing History"
                 description="View and download your invoices and receipts"
                 defaultOpen
+                noShadow
                 className={sectionCardClass}
               >
                 <CardContent>
@@ -580,6 +587,7 @@ export default function StudentAccount() {
                 title="Notification Preferences"
                 description="Control how and when we contact you"
                 defaultOpen
+                noShadow
                 className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
@@ -692,6 +700,7 @@ export default function StudentAccount() {
                 title="Privacy & Security"
                 description="Manage your password and account security"
                 defaultOpen
+                noShadow
                 className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
@@ -800,6 +809,7 @@ export default function StudentAccount() {
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"
                 defaultOpen
+                noShadow
                 className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
