@@ -95,7 +95,7 @@ function WifiSignal({
   const sizeClass = size === 'lg' ? 'h-6 w-6' : size === 'md' ? 'h-5 w-5' : 'h-4 w-4'
 
   return (
-    <div className="relative flex items-center justify-center">
+    <div className="relative flex items-center justify-center rounded-md bg-white p-1">
       <style jsx>{`
         @keyframes wifi-bar {
           0%,
@@ -425,7 +425,7 @@ function TutorControlsPanel({
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
         className={cn(
           'pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
-          open ? 'rounded-t-2xl border-b' : 'rounded-2xl'
+          open ? 'rounded-t-2xl' : 'rounded-2xl'
         )}
       >
         {/* Header / drag handle */}
@@ -603,9 +603,7 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    <span className="leading-none">
-                      {leavingSession ? 'Leaving…' : 'Leave classroom'}
-                    </span>
+                    <span>{leavingSession ? 'Leaving…' : 'Leave classroom'}</span>
                   </button>
                 ) : hasSession && onEndSession ? (
                   <button
@@ -622,7 +620,7 @@ function TutorControlsPanel({
                     ) : (
                       <PhoneOff className="h-4 w-4" />
                     )}
-                    <span className="leading-none">
+                    <span>
                       {endingSession ? 'Ending…' : isDemoSession ? 'Exit' : 'End Session'}
                     </span>
                   </button>
@@ -640,7 +638,7 @@ function TutorControlsPanel({
                           )}
                         >
                           <Calendar className="h-4 w-4" />
-                          <span className="leading-none">{createTemplateButtonLabel}</span>
+                          <span>{createTemplateButtonLabel}</span>
                         </button>
                       </TooltipTrigger>
                     </Tooltip>
@@ -659,7 +657,7 @@ function TutorControlsPanel({
                           )}
                         >
                           <Calendar className="h-4 w-4" />
-                          <span className="leading-none">Schedule & Publish</span>
+                          <span>Schedule & Publish</span>
                         </button>
                       </TooltipTrigger>
                     </Tooltip>

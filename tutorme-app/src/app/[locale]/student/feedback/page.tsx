@@ -243,7 +243,6 @@ interface ClassroomControlsPanelProps {
   }) => void
   setShowDirectoryPanel: (value: boolean) => void
   heroHeaderRef?: React.RefObject<HTMLDivElement | null>
-  courseNameRef?: React.RefObject<HTMLHeadingElement | null>
 }
 
 function ClassroomControlsPanel({
@@ -257,7 +256,6 @@ function ClassroomControlsPanel({
   openVideoOverlay,
   setShowDirectoryPanel,
   heroHeaderRef,
-  courseNameRef,
   variant = 'floating',
 }: ClassroomControlsPanelProps & { variant?: 'floating' | 'docked' }) {
   const router = useRouter()
@@ -286,19 +284,15 @@ function ClassroomControlsPanel({
     const containerRect = container.getBoundingClientRect()
     const panelRect = panel.getBoundingClientRect()
 
-    // Default: right-of-center, vertically centered in the hero header.
-    let x = containerRect.width * 0.6 - panelRect.width / 2
+    // Default: right side of the hero header, vertically centered.
+    let x = containerRect.width - panelRect.width - 24
     let y = 12
 
     const header = heroHeaderRef?.current
-    const courseName = courseNameRef?.current
     if (header) {
       const headerRect = header.getBoundingClientRect()
       y = headerRect.top + headerRect.height / 2 - panelRect.height / 2 - containerRect.top
-    }
-    if (courseName) {
-      const nameRect = courseName.getBoundingClientRect()
-      x = nameRect.right + 24 - containerRect.left
+      x = headerRect.right - containerRect.left - panelRect.width - 24
     }
 
     // Keep the panel inside the drag container with a small margin.
@@ -308,7 +302,7 @@ function ClassroomControlsPanel({
     panelX.set(x)
     panelY.set(y)
     panelOpacity.set(1)
-  }, [panelX, panelY, panelOpacity, heroHeaderRef, courseNameRef])
+  }, [panelX, panelY, panelOpacity, heroHeaderRef])
 
   useLayoutEffect(() => {
     positionPanel()
@@ -1289,9 +1283,8 @@ function StudentFeedbackContent() {
   // the resize handle to adjust it for convenience.
   const EXPANDED_PANEL_BONUS = 220
 
-  // Refs for positioning the floating Controls bar relative to the hero header.
+  // Ref for positioning the floating Controls bar relative to the hero header.
   const heroHeaderRef = useRef<HTMLDivElement>(null)
-  const courseNameRef = useRef<HTMLHeadingElement>(null)
 
   // Assets state
   const [selectedReport, setSelectedReport] = useState<any | null>(null)
@@ -2607,7 +2600,7 @@ function StudentFeedbackContent() {
             <div className="flex flex-1 items-center justify-center gap-2">
               {sessionContext && (
                 <>
-                  <h1 ref={courseNameRef} className="truncate text-sm font-semibold text-[#1F2933]">
+                  <h1 className="truncate text-sm font-semibold text-[#1F2933]">
                     {sessionContext.courseName || sessionContext.courseCategory || 'Live Class'}
                   </h1>
                   {(sessionContext.courseCategory || sessionContext.variantName) && (
@@ -2726,7 +2719,6 @@ function StudentFeedbackContent() {
           openVideoOverlay={openVideoOverlay}
           setShowDirectoryPanel={setShowDirectoryPanel}
           heroHeaderRef={heroHeaderRef}
-          courseNameRef={courseNameRef}
         />
 
         {/* Content Wrapper */}
