@@ -298,8 +298,7 @@ export default function StudentAccount() {
     toast.success('Payment method removed')
   }
 
-  const sectionCardClass =
-    'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
+  const sectionCardClass = 'overflow-hidden rounded-[16px] border border-slate-200 bg-white'
 
   if (loading) {
     return (
