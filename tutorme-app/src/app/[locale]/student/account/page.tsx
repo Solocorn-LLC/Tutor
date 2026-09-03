@@ -300,6 +300,7 @@ export default function StudentAccount() {
 
   const sectionCardClass =
     'overflow-hidden rounded-[16px] border border-slate-200 bg-white shadow-[0_14px_45px_rgba(0,0,0,0.14)]'
+  const sectionCardClassNoShadow = 'overflow-hidden rounded-[16px] border border-slate-200 bg-white'
 
   if (loading) {
     return (
@@ -342,7 +343,11 @@ export default function StudentAccount() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard title="Profile & Identity" defaultOpen className={sectionCardClass}>
+              <CollapsibleCard
+                title="Profile & Identity"
+                defaultOpen
+                className={sectionCardClassNoShadow}
+              >
                 <CardContent className="space-y-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
