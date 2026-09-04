@@ -358,9 +358,13 @@ export const mention = pgTable(
   'Mention',
   {
     mentionId: uuid('mentionId').primaryKey().notNull().defaultRandom(),
-    messageId: text('messageId')
+    // No FK: messageId references either a classroom Message or a
+    // DirectMessage depending on `source` (see lib/messaging). The previous
+    // FK to Message rejected DM mention rows at insert time.
+    messageId: text('messageId').notNull(),
+    source: text('source', { enum: ['classroom', 'direct'] })
       .notNull()
-      .references(() => message.messageId, { onDelete: 'cascade' }),
+      .default('direct'),
     mentionerId: text('mentionerId')
       .notNull()
       .references(() => user.userId, { onDelete: 'cascade' }),

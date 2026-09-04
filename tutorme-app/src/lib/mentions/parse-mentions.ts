@@ -32,11 +32,12 @@ export function parseMentions(text: string): ParsedMention[] {
 export async function recordMentions(params: {
   text: string
   messageId: string
+  source: 'classroom' | 'direct'
   mentionerId: string
   mentionerName?: string
   actionUrl?: string
 }): Promise<string[]> {
-  const { text, messageId, mentionerId, mentionerName, actionUrl } = params
+  const { text, messageId, source, mentionerId, mentionerName, actionUrl } = params
   const parsed = parseMentions(text)
   if (parsed.length === 0) return []
 
@@ -46,6 +47,7 @@ export async function recordMentions(params: {
   await drizzleDb.insert(mention).values(
     uniqueIds.map(mentioneeId => ({
       messageId,
+      source,
       mentionerId,
       mentioneeId,
     }))

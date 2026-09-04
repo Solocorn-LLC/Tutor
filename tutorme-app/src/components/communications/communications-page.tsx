@@ -9,6 +9,7 @@ import { SessionCalendarPanel } from '@/components/session-calendar-panel'
 import { CollapsibleCard } from '@/components/collapsible-card'
 import { cn } from '@/lib/utils'
 import MessagingPanel, { type CommSection } from './messaging-panel'
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout'
 import NotificationsPanel from './notifications-panel'
 import StudentRequestsPanel from './student-requests-panel'
 import type { AppNotification, CommsRole } from './types'
@@ -35,7 +36,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch('/api/notifications', { credentials: 'include' })
+      const res = await fetchWithTimeout('/api/notifications', { credentials: 'include' })
       if (!res.ok) {
         if (res.status === 401) return
         throw new Error('Failed to load notifications')
