@@ -9,7 +9,8 @@ import { withAuth, handleApiError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { conversation, directMessage, user, profile } from '@/lib/db/schema'
 import { or, eq, and, desc, ne, inArray, sql } from 'drizzle-orm'
-import { canSendDirectMessage, isConversationAllowedByRoles } from '@/lib/messaging/permissions'
+import { isConversationAllowedByRoles } from '@/lib/messaging/permissions'
+import { canCreateConversation } from '@/lib/messaging/relationships'
 
 type AppRole = 'STUDENT' | 'TUTOR' | 'PARENT' | 'ADMIN'
 
@@ -160,16 +161,6 @@ export const POST = withAuth(async (req: NextRequest, session) => {
     }
     const participantUserId = participant.userId
 
-    if (
-      !canSendDirectMessage(userRole, participant.role as AppRole) ||
-      !canSendDirectMessage(participant.role as AppRole, userRole)
-    ) {
-      return NextResponse.json(
-        { error: 'Messaging is not allowed between these roles' },
-        { status: 403 }
-      )
-    }
-
     const existing = await drizzleDb
       .select()
       .from(conversation)
@@ -189,6 +180,17 @@ export const POST = withAuth(async (req: NextRequest, session) => {
 
     let conv: (typeof existing)[0] | undefined = existing[0]
     if (!conv) {
+      // New conversations are relationship-gated: student↔tutor requires a
+      // completed 1-on-1 booking; tutor↔tutor requires mutual follows.
+      // Existing threads (e.g. opened automatically by the 1-on-1 booking
+      // flow) always resolve so pre-booking coordination keeps working.
+      const gate = await canCreateConversation(
+        { id: userId, role: userRole },
+        { id: participantUserId, role: participant.role as AppRole }
+      )
+      if (!gate.allowed) {
+        return NextResponse.json({ error: gate.reason }, { status: 403 })
+      }
       const id = crypto.randomUUID()
       await drizzleDb.insert(conversation).values({
         conversationId: id,

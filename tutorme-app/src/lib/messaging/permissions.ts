@@ -2,7 +2,10 @@ export type AppRole = 'STUDENT' | 'TUTOR' | 'PARENT' | 'ADMIN'
 
 const MESSAGING_ALLOWED_TARGETS: Record<AppRole, AppRole[]> = {
   STUDENT: ['TUTOR', 'PARENT', 'ADMIN'],
-  TUTOR: ['STUDENT', 'PARENT', 'ADMIN'],
+  // TUTOR↔TUTOR is matrix-allowed so existing threads work at the
+  // message/socket level, but NEW tutor↔tutor conversations are gated on
+  // mutual follows at creation time (see lib/messaging/relationships.ts).
+  TUTOR: ['STUDENT', 'PARENT', 'ADMIN', 'TUTOR'],
   PARENT: ['STUDENT', 'TUTOR', 'ADMIN'],
   ADMIN: ['STUDENT', 'TUTOR', 'PARENT', 'ADMIN'],
 }
