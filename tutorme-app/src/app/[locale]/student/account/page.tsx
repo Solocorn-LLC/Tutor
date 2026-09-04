@@ -298,8 +298,6 @@ export default function StudentAccount() {
     toast.success('Payment method removed')
   }
 
-  const sectionCardClass = 'overflow-hidden rounded-[16px] border border-slate-200 bg-white'
-
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white">
@@ -332,7 +330,7 @@ export default function StudentAccount() {
             { value: 'billing', label: 'Billing', icon: CreditCard },
             { value: 'notifications', label: 'Notifications', icon: Bell },
             { value: 'security', label: 'Security', icon: Shield },
-            { value: 'controls', label: 'Controls', icon: Power },
+            { value: 'controls', label: 'Account', icon: Power },
           ]}
         >
           {/* Profile & Identity */}
@@ -341,12 +339,7 @@ export default function StudentAccount() {
             className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
           >
             <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
-              <CollapsibleCard
-                title="Profile & Identity"
-                defaultOpen
-                noShadow
-                className={sectionCardClass}
-              >
+              <CollapsibleCard title="Profile & Identity" defaultOpen>
                 <CardContent className="space-y-6">
                   {/* Avatar */}
                   <div className="flex items-center gap-4">
@@ -469,8 +462,6 @@ export default function StudentAccount() {
                 title="Billing & Payment Methods"
                 description="Manage your payment methods and billing preferences"
                 defaultOpen
-                noShadow
-                className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
                   {paymentMethods.map(method => (
@@ -529,8 +520,6 @@ export default function StudentAccount() {
                 title="Billing History"
                 description="View and download your invoices and receipts"
                 defaultOpen
-                noShadow
-                className={sectionCardClass}
               >
                 <CardContent>
                   <div className="space-y-4">
@@ -587,8 +576,6 @@ export default function StudentAccount() {
                 title="Notification Preferences"
                 description="Control how and when we contact you"
                 defaultOpen
-                noShadow
-                className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
                   <div className="space-y-4">
@@ -700,8 +687,6 @@ export default function StudentAccount() {
                 title="Privacy & Security"
                 description="Manage your password and account security"
                 defaultOpen
-                noShadow
-                className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
                   {/* Password Change */}
@@ -809,8 +794,6 @@ export default function StudentAccount() {
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"
                 defaultOpen
-                noShadow
-                className={sectionCardClass}
               >
                 <CardContent className="space-y-6">
                   {/* Deactivate Account */}
