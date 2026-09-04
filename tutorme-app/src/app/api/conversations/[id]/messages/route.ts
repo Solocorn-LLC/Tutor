@@ -8,9 +8,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, parseBoundedInt, handleApiError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { conversation, directMessage, user, profile, notification } from '@/lib/db/schema'
+import { conversation, directMessage, user, profile } from '@/lib/db/schema'
 import { or, eq, and, desc, ne, lt, inArray } from 'drizzle-orm'
 import { getInboxPathByRole, isConversationAllowedByRoles } from '@/lib/messaging/permissions'
+import { notify } from '@/lib/notifications/notify'
 import { recordMentions } from '@/lib/mentions/parse-mentions'
 import { getIO } from '@/lib/socket-server-enhanced'
 
@@ -106,7 +107,7 @@ export const GET = withAuth(async (req: NextRequest, session, context) => {
       .limit(limit)
   }
 
-  await drizzleDb
+  const newlyRead = await drizzleDb
     .update(directMessage)
     .set({ read: true, readAt: new Date() })
     .where(
@@ -116,6 +117,17 @@ export const GET = withAuth(async (req: NextRequest, session, context) => {
         eq(directMessage.read, false)
       )
     )
+    .returning({ directMessageId: directMessage.directMessageId })
+
+  // If anything was marked read, tell the other participant so their "read"
+  // receipts update in real time (mirrors the dm:read socket handler).
+  if (newlyRead.length > 0) {
+    const otherParticipantId =
+      conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id
+    getIO()
+      ?.to(`user:${otherParticipantId}`)
+      .emit('dm:read', { conversationId: id, readerId: userId })
+  }
 
   const senderIds = [...new Set(messages.map(m => m.senderId))]
   const senders = await drizzleDb.select().from(user).where(inArray(user.userId, senderIds))
@@ -215,14 +227,12 @@ export const POST = withAuth(async (req: NextRequest, session, context) => {
     const recipientId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id
     const recipientRole = conv.participant1Id === userId ? p2[0].role : p1[0].role
 
-    await drizzleDb.insert(notification).values({
-      notificationId: crypto.randomUUID(),
+    await notify({
       userId: recipientId,
       type: 'message',
       title: 'New Message',
       message: (content?.slice(0, 100) as string) || 'You received a new message',
       actionUrl: getInboxPathByRole(recipientRole as AppRole),
-      read: false,
     })
 
     const [message] = await drizzleDb

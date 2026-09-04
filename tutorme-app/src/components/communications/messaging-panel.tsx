@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { MentionInput } from '@/components/mentions/MentionInput'
 import { renderMentions } from '@/lib/mentions/render-mentions'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
+import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout'
 import { toast } from 'sonner'
 import {
   MessageSquare,
@@ -252,7 +253,7 @@ export default function MessagingPanel({
 
   const fetchConversations = async () => {
     try {
-      const res = await fetch('/api/conversations', { credentials: 'include' })
+      const res = await fetchWithTimeout('/api/conversations', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setConversations(data.conversations || [])
