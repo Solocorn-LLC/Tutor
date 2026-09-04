@@ -25,8 +25,28 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDirectMessageSocket, type DirectMessage } from '@/hooks'
+import { NotificationSettings } from '@/components/notifications/NotificationSettings'
+import type { CommsRole } from './types'
 
 export type CommSection = 'chats' | 'contacts' | 'requests' | 'followers' | 'settings'
+
+interface ContactItem {
+  id: string
+  name: string | null
+  handle: string | null
+  avatarUrl: string | null
+  bio: string | null
+}
+
+interface OneOnOneRequestItem {
+  requestId: string
+  status: string
+  requestedDate: string
+  startTime: string
+  courseName?: string | null
+  tutor?: { userId: string; handle: string | null; email: string | null; image: string | null }
+  student?: { userId: string; handle: string | null; email: string | null; image: string | null }
+}
 
 interface Conversation {
   id: string
@@ -63,6 +83,7 @@ interface Message {
 }
 
 interface MessagingPanelProps {
+  role: CommsRole
   activeSection: CommSection
   onSectionChange: (section: CommSection) => void
   onUnreadCountChange?: (count: number) => void
@@ -90,8 +111,8 @@ const emptyStates: Record<CommSection, { icon: React.ElementType; title: string;
   followers: { icon: Heart, title: 'No followers yet', hint: 'Your followers will appear here' },
   settings: {
     icon: Settings,
-    title: 'Settings',
-    hint: 'Communication preferences will appear here',
+    title: 'Communication Settings',
+    hint: 'Manage channels, quiet hours, and email digest',
   },
 }
 
@@ -114,6 +135,7 @@ function mapDirectMessage(dm: DirectMessage): Message {
 }
 
 export default function MessagingPanel({
+  role,
   activeSection,
   onSectionChange,
   onUnreadCountChange,
@@ -127,18 +149,21 @@ export default function MessagingPanel({
   const [sending, setSending] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [typingUserIds, setTypingUserIds] = useState<Set<string>>(new Set())
-  const [followers, setFollowers] = useState<
-    Array<{
-      id: string
-      name: string | null
-      handle: string | null
-      avatarUrl: string | null
-      bio: string | null
-    }>
-  >([])
+  const [followers, setFollowers] = useState<ContactItem[]>([])
   const [followersLoading, setFollowersLoading] = useState(false)
+  const [contacts, setContacts] = useState<ContactItem[]>([])
+  const [contactsLoading, setContactsLoading] = useState(false)
+  const [requests, setRequests] = useState<OneOnOneRequestItem[]>([])
+  const [requestsLoading, setRequestsLoading] = useState(false)
   const [startingChatId, setStartingChatId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Mirror of `conversations` for use inside stable callbacks (socket handlers).
+  const conversationsRef = useRef<Conversation[]>([])
+  const convRefetchInFlight = useRef(false)
+
+  useEffect(() => {
+    conversationsRef.current = conversations
+  }, [conversations])
 
   const list = emptyStates[activeSection]
   const ListIcon = list.icon
@@ -158,7 +183,7 @@ export default function MessagingPanel({
     if (activeSection !== 'followers') return
     let cancelled = false
     setFollowersLoading(true)
-    fetch('/api/follows/followers', { credentials: 'include' })
+    fetchWithTimeout('/api/follows/followers', { credentials: 'include' })
       .then(r => (r.ok ? r.json() : { followers: [] }))
       .then(d => {
         if (!cancelled) setFollowers(d.followers || [])
@@ -173,6 +198,49 @@ export default function MessagingPanel({
       cancelled = true
     }
   }, [activeSection])
+
+  // Load the people the current user follows when the Contacts tab is opened.
+  useEffect(() => {
+    if (activeSection !== 'contacts') return
+    let cancelled = false
+    setContactsLoading(true)
+    fetchWithTimeout('/api/follows/list', { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { following: [] }))
+      .then(d => {
+        if (!cancelled) setContacts(d.following || [])
+      })
+      .catch(() => {
+        if (!cancelled) setContacts([])
+      })
+      .finally(() => {
+        if (!cancelled) setContactsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeSection])
+
+  // Load 1-on-1 booking requests when the Requests tab is opened.
+  useEffect(() => {
+    if (activeSection !== 'requests') return
+    let cancelled = false
+    setRequestsLoading(true)
+    const rq = role === 'student' ? 'sent' : 'received'
+    fetchWithTimeout(`/api/one-on-one/request?role=${rq}`, { credentials: 'include' })
+      .then(r => (r.ok ? r.json() : { requests: [] }))
+      .then(d => {
+        if (!cancelled) setRequests(d.requests || [])
+      })
+      .catch(() => {
+        if (!cancelled) setRequests([])
+      })
+      .finally(() => {
+        if (!cancelled) setRequestsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeSection, role])
 
   useEffect(() => {
     if (selectedConversation) {
@@ -193,7 +261,18 @@ export default function MessagingPanel({
 
       setConversations(prev => {
         const existing = prev.find(c => c.id === conversationId)
-        if (!existing) return prev
+        // First message from a brand-new counterparty: the conversation isn't
+        // in the list yet — refetch so the thread appears (guarded against
+        // concurrent refetches from a burst of messages).
+        if (!existing) {
+          if (!convRefetchInFlight.current) {
+            convRefetchInFlight.current = true
+            void fetchConversations().finally(() => {
+              convRefetchInFlight.current = false
+            })
+          }
+          return prev
+        }
         const isFromMe = message.senderId === session?.user?.id
         const updated: Conversation = {
           ...existing,
@@ -363,6 +442,97 @@ export default function MessagingPanel({
     c.otherParticipant.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const filteredFollowers = followers.filter(f =>
+    (f.name || f.handle || '').toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredContacts = contacts.filter(f =>
+    (f.name || f.handle || '').toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredRequests = requests.filter(r => {
+    const other = role === 'student' ? r.tutor : r.student
+    const name = (other?.handle || other?.email || '').toLowerCase()
+    return name.includes(searchQuery.toLowerCase())
+  })
+
+  // Shared avatar + name + Message button row for people lists (followers, contacts).
+  const renderPersonRow = (f: ContactItem, fallbackLabel: string) => (
+    <div key={f.id} className="flex items-center gap-3 p-4">
+      <Avatar className="h-10 w-10">
+        {f.avatarUrl ? <AvatarImage src={f.avatarUrl} alt={f.name || ''} /> : null}
+        <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
+          {(f.name || f.handle || '?').charAt(0).toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-slate-800">
+          {f.name || (f.handle ? `@${f.handle}` : 'User')}
+        </span>
+        <p className="mt-0.5 truncate text-xs text-slate-500">
+          {f.bio || (f.handle ? `@${f.handle}` : fallbackLabel)}
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-8 shrink-0 rounded-full px-3 text-xs"
+        disabled={startingChatId === f.id}
+        onClick={() => startChatWithFollower(f.id)}
+      >
+        {startingChatId === f.id ? (
+          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <MessageSquare className="mr-1 h-3.5 w-3.5" />
+        )}
+        Message
+      </Button>
+    </div>
+  )
+
+  const requestStatusStyles: Record<string, string> = {
+    PENDING: 'bg-amber-100 text-amber-700',
+    ACCEPTED: 'bg-blue-100 text-blue-700',
+    PAID: 'bg-emerald-100 text-emerald-700',
+    COMPLETED: 'bg-emerald-100 text-emerald-700',
+    REJECTED: 'bg-slate-100 text-slate-500',
+    EXPIRED: 'bg-slate-100 text-slate-500',
+    CANCELLED: 'bg-slate-100 text-slate-500',
+  }
+
+  const renderRequestCard = (r: OneOnOneRequestItem) => {
+    const other = role === 'student' ? r.tutor : r.student
+    const name =
+      other?.handle || other?.email?.split('@')[0] || (role === 'student' ? 'Tutor' : 'Student')
+    const dateLabel = `${new Date(r.requestedDate).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })} · ${r.startTime}`
+    return (
+      <div
+        key={r.requestId}
+        className="rounded-[12px] border border-[rgba(0,0,0,0.04)] bg-white p-4"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-slate-800">{name}</span>
+          <Badge
+            className={cn(
+              'border-0 text-[10px] hover:bg-transparent',
+              requestStatusStyles[r.status] || 'bg-slate-100 text-slate-500'
+            )}
+          >
+            {r.status.charAt(0) + r.status.slice(1).toLowerCase()}
+          </Badge>
+        </div>
+        <p className="mt-1 truncate text-xs text-slate-500">
+          {dateLabel}
+          {r.courseName ? ` · ${r.courseName}` : ''}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full w-full overflow-hidden bg-white">
       {/* Left menu rail */}
@@ -442,6 +612,12 @@ export default function MessagingPanel({
                     )}
                   >
                     <Avatar className="h-10 w-10">
+                      {conv.otherParticipant.avatarUrl ? (
+                        <AvatarImage
+                          src={conv.otherParticipant.avatarUrl}
+                          alt={conv.otherParticipant.name}
+                        />
+                      ) : null}
                       <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
                         {conv.otherParticipant.name.charAt(0).toUpperCase()}
                       </AvatarFallback>
@@ -467,42 +643,29 @@ export default function MessagingPanel({
             <div className="flex flex-1 items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
             </div>
-          ) : activeSection === 'followers' && followers.length > 0 ? (
+          ) : activeSection === 'followers' && filteredFollowers.length > 0 ? (
             <ScrollArea className="h-full">
               <div className="divide-y divide-slate-100">
-                {followers.map(f => (
-                  <div key={f.id} className="flex items-center gap-3 p-4">
-                    <Avatar className="h-10 w-10">
-                      {f.avatarUrl ? <AvatarImage src={f.avatarUrl} alt={f.name || ''} /> : null}
-                      <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
-                        {(f.name || f.handle || '?').charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-slate-800">
-                        {f.name || (f.handle ? `@${f.handle}` : 'Student')}
-                      </span>
-                      <p className="mt-0.5 truncate text-xs text-slate-500">
-                        {f.bio || (f.handle ? `@${f.handle}` : 'Follows you')}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8 shrink-0 rounded-full px-3 text-xs"
-                      disabled={startingChatId === f.id}
-                      onClick={() => startChatWithFollower(f.id)}
-                    >
-                      {startingChatId === f.id ? (
-                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <MessageSquare className="mr-1 h-3.5 w-3.5" />
-                      )}
-                      Message
-                    </Button>
-                  </div>
-                ))}
+                {filteredFollowers.map(f => renderPersonRow(f, 'Follows you'))}
               </div>
+            </ScrollArea>
+          ) : activeSection === 'contacts' && contactsLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+          ) : activeSection === 'contacts' && filteredContacts.length > 0 ? (
+            <ScrollArea className="h-full">
+              <div className="divide-y divide-slate-100">
+                {filteredContacts.map(f => renderPersonRow(f, 'Following'))}
+              </div>
+            </ScrollArea>
+          ) : activeSection === 'requests' && requestsLoading ? (
+            <div className="flex flex-1 items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            </div>
+          ) : activeSection === 'requests' && filteredRequests.length > 0 ? (
+            <ScrollArea className="h-full">
+              <div className="space-y-3 p-3">{filteredRequests.map(renderRequestCard)}</div>
             </ScrollArea>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center">
@@ -520,11 +683,15 @@ export default function MessagingPanel({
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-slate-50/30">
         {/* Chat viewport */}
         <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
-          {!selectedConversation ? (
+          {activeSection === 'settings' ? (
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              <NotificationSettings />
+            </div>
+          ) : !selectedConversation ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center">
               <Inbox className="mb-3 h-16 w-16 text-slate-300" />
               <p className="text-lg font-bold text-slate-700">
-                Select a {activeSection === 'settings' ? 'setting' : activeSection.slice(0, -1)}
+                Select a {activeSection.slice(0, -1)}
               </p>
               <p className="mt-1 text-sm text-slate-500">
                 Choose an item from the {activeSection} list to view details
