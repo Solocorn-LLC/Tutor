@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -136,6 +137,7 @@ export default function MessagingPanel({
     }>
   >([])
   const [followersLoading, setFollowersLoading] = useState(false)
+  const [startingChatId, setStartingChatId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const list = emptyStates[activeSection]
@@ -251,17 +253,48 @@ export default function MessagingPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const fetchConversations = async () => {
+  const fetchConversations = async (): Promise<Conversation[]> => {
     try {
       const res = await fetchWithTimeout('/api/conversations', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
-        setConversations(data.conversations || [])
+        const list: Conversation[] = data.conversations || []
+        setConversations(list)
+        return list
       }
     } catch {
       toast.error('Failed to load conversations')
     } finally {
       setLoading(false)
+    }
+    return []
+  }
+
+  // Start (or open) a DM with a follower. The server relationship-gates new
+  // conversations (student↔tutor needs a completed 1-on-1 booking; tutor↔tutor
+  // needs mutual follows) and returns a 403 reason when the gate rejects.
+  const startChatWithFollower = async (followerId: string) => {
+    setStartingChatId(followerId)
+    try {
+      const res = await fetchWithCsrf('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ participantId: followerId }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!res.ok) {
+        toast.error(data?.error || 'Could not start a chat')
+        return
+      }
+      const convs = await fetchConversations()
+      onSectionChange('chats')
+      const created = convs.find(c => c.otherParticipant.id === followerId)
+      if (created) setSelectedConversation(created)
+    } catch {
+      toast.error('Could not start a chat')
+    } finally {
+      setStartingChatId(null)
     }
   }
 
@@ -453,6 +486,20 @@ export default function MessagingPanel({
                         {f.bio || (f.handle ? `@${f.handle}` : 'Follows you')}
                       </p>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 shrink-0 rounded-full px-3 text-xs"
+                      disabled={startingChatId === f.id}
+                      onClick={() => startChatWithFollower(f.id)}
+                    >
+                      {startingChatId === f.id ? (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      Message
+                    </Button>
                   </div>
                 ))}
               </div>
