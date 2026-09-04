@@ -1274,10 +1274,10 @@ function StudentFeedbackContent() {
   const boardSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Right Panel state
-  const [rightPanelWidth, setRightPanelWidth] = useState(440)
+  const [rightPanelWidth, setRightPanelWidth] = useState(540)
   const [rightPanelResizing, setRightPanelResizing] = useState(false)
   const rightResizeStartX = useRef(0)
-  const rightResizeStartW = useRef(440)
+  const rightResizeStartW = useRef(540)
 
   // The right panel keeps a consistent base width across tabs; students can drag
   // the resize handle to adjust it for convenience.
@@ -2967,7 +2967,7 @@ function StudentFeedbackContent() {
               rightPanelResizing ? 'transition-none' : 'transition-all duration-500 ease-out'
             )}
             style={{
-              // Default width for Lessons/Interact (440px), expanded for Assessment/My Board (660px)
+              // Default width for Lessons/Interact (540px), expanded for Assessment/My Board (760px)
               width:
                 rightPanelWidth +
                 (rightPanelTab === 'lessons' || rightPanelTab === 'interactions'
