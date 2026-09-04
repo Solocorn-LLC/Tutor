@@ -237,6 +237,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
               className="flex-1"
             >
               <MessagingPanel
+                role={role}
                 activeSection={activeSection}
                 onSectionChange={setActiveSection}
                 onUnreadCountChange={setUnreadMessageCount}

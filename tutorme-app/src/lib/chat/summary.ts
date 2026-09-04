@@ -7,6 +7,7 @@ import { asc, eq, and } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { message, profile, user } from '@/lib/db/schema'
 import { generateWithFallback } from '@/lib/agents'
+import cacheManager from '@/lib/cache-manager'
 
 export type SummaryType = 'session' | 'topic' | 'student'
 
@@ -31,16 +32,29 @@ export interface SummaryOptions {
   maxLength?: 'short' | 'medium' | 'detailed'
   includeActionItems?: boolean
   language?: 'zh' | 'en'
+  /**
+   * Skip the cache and regenerate even if a cached summary exists.
+   * Defaults to false (cached summaries are returned when fresh).
+   */
+  forceRegenerate?: boolean
 }
 
 /**
- * Generate summary for a session's chat messages
+ * Generate summary for a session's chat messages.
+ * Returns a cached summary when one exists unless forceRegenerate is set.
  */
 export async function generateSessionSummary(
   sessionId: string,
   options: SummaryOptions = { type: 'session', maxLength: 'medium', includeActionItems: true }
 ): Promise<{ success: boolean; summary?: ChatSummary; error?: string }> {
   try {
+    if (!options.forceRegenerate) {
+      const cached = await getCachedSummary(sessionId)
+      if (cached) {
+        return { success: true, summary: cached }
+      }
+    }
+
     const messagesRows = await drizzleDb
       .select({
         messageId: message.messageId,
@@ -104,7 +118,7 @@ export async function generateSessionSummary(
       generatedAt: new Date(),
     }
 
-    // Save summary to database for future reference
+    // Save summary to cache for future lookups
     await saveSummary(sessionId, summary)
 
     return { success: true, summary }
@@ -236,25 +250,45 @@ function calculateEngagementScore(
 }
 
 /**
- * Save summary to database for caching
+ * Cache TTL for generated summaries (24 hours)
+ */
+const SUMMARY_CACHE_TTL_SECONDS = 60 * 60 * 24
+
+function summaryCacheKey(sessionId: string): string {
+  return `chat:summary:${sessionId}`
+}
+
+/**
+ * Save summary to the cache layer for future lookups.
+ * Cache failures are logged but never block summary generation.
  */
 async function saveSummary(sessionId: string, summary: ChatSummary): Promise<void> {
   try {
-    // Note: This would require a ChatSummary model in the database
-    // For now, we'll just log it
-    console.log(`Summary saved for session ${sessionId}:`, summary.id)
+    await cacheManager.set(summaryCacheKey(sessionId), summary, {
+      ttl: SUMMARY_CACHE_TTL_SECONDS,
+      tags: ['chat-summary'],
+    })
   } catch (error) {
     console.error('Failed to save summary:', error)
   }
 }
 
 /**
- * Get cached summary for a session
+ * Get cached summary for a session, or null if absent/expired.
+ * Dates are serialized to JSON strings in the cache, so revive them here.
  */
 export async function getCachedSummary(sessionId: string): Promise<ChatSummary | null> {
-  // This would query the database for a cached summary
-  // For now, return null to regenerate
-  return null
+  try {
+    const cached = await cacheManager.get<ChatSummary>(summaryCacheKey(sessionId))
+    if (!cached) return null
+    return {
+      ...cached,
+      generatedAt: cached.generatedAt ? new Date(cached.generatedAt) : new Date(),
+    }
+  } catch (error) {
+    console.error('Failed to load cached summary:', error)
+    return null
+  }
 }
 
 /**
