@@ -246,6 +246,7 @@ export const POST = withAuth(async (req: NextRequest, session, context) => {
       await recordMentions({
         text: content,
         messageId,
+        source: 'direct',
         mentionerId: userId,
         mentionerName: senderProfile?.name ?? sender?.email ?? 'Someone',
         actionUrl: getInboxPathByRole(recipientRole as AppRole),
