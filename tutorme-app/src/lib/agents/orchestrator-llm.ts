@@ -236,7 +236,7 @@ export async function* streamWithFallback(
   messages: Array<{ role: string; content: string }>,
   options: AIOptions = {}
 ): AsyncGenerator<{ content: string; provider: AIProvider }, void, unknown> {
-  const modelStr = process.env.KIMI_MODEL || 'moonshot-v1-auto'
+  const modelStr = process.env.KIMI_MODEL || 'kimi-k3'
   try {
     const stream = streamKimi(messages, {
       model: modelStr,

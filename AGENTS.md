@@ -399,8 +399,8 @@ NEXTAUTH_URL="http://localhost:3003"
 # AI (required for AI features; Kimi only)
 KIMI_API_KEY="your_kimi_api_key"
 KIMI_BASE_URL="https://api.moonshot.ai/v1"   # or https://api.moonshot.cn/v1
-KIMI_MODEL="kimi-k2.5"
-KIMI_VISION_MODEL="moonshot-v1-8k-vision-preview"
+KIMI_MODEL="kimi-k3"
+KIMI_VISION_MODEL="kimi-k3"
 
 # Video (required for live clinics)
 DAILY_API_KEY="your_daily_api_key"
@@ -681,8 +681,8 @@ Several larger security/compliance gaps remain documented in `INVESTOR_RISK_ASSE
 
 ### Primary Provider: Kimi (Moonshot)
 
-- **Model:** defaults to `kimi-k2.5` (configurable via `KIMI_MODEL`)
-- **Vision:** defaults to `moonshot-v1-8k-vision-preview` (configurable via `KIMI_VISION_MODEL`)
+- **Model:** defaults to `kimi-k3` (configurable via `KIMI_MODEL`)
+- **Vision:** defaults to `kimi-k3` (native visual understanding; configurable via `KIMI_VISION_MODEL`)
 - **API:** OpenAI-compatible chat completions endpoint
 - **Base URL:** defaults to `https://api.moonshot.cn/v1` (China); use `https://api.moonshot.ai/v1` for global
 - **Required env:** `KIMI_API_KEY`
