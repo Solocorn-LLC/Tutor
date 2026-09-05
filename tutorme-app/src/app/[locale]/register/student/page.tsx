@@ -106,6 +106,10 @@ export default function StudentRegistrationPage() {
     age: '',
     region: '',
     countryCode: '',
+    // Browser-detected so new accounts get their real timezone instead of the
+    // server-side Asia/Shanghai default (same pattern as tutor/parent signup).
+    timezone:
+      (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) || 'UTC',
     isSixteen: false,
     tosAccepted: false,
     avatarUrl: '',
@@ -201,6 +205,7 @@ export default function StudentRegistrationPage() {
             age: Number(formData.age),
             region: selectedRegionName,
             country: selectedCountryName,
+            timezone: formData.timezone,
             isSixteen: formData.isSixteen,
             middleName: formData.middleName,
             parentEmail: formData.parentEmail,

@@ -22,6 +22,8 @@ const profileUpdateSchema = z.strictObject({
   hourlyRate: z.number().optional(),
   subjectsOfInterest: z.array(z.string()).optional(),
   preferredLanguages: z.array(z.string()).optional(),
+  // Singular alias sent by the Account pages; mapped onto preferredLanguages.
+  preferredLanguage: z.string().optional(),
   paidClassesEnabled: z.boolean().optional(),
   paymentGatewayPreference: z.enum(['HITPAY', 'AIRWALLEX', '']).optional(),
   currency: z.string().optional(),
@@ -92,6 +94,7 @@ async function putHandler(req: NextRequest, session: Session) {
       hourlyRate,
       subjectsOfInterest,
       preferredLanguages,
+      preferredLanguage,
       paidClassesEnabled,
       paymentGatewayPreference,
       currency,
@@ -127,6 +130,11 @@ async function putHandler(req: NextRequest, session: Session) {
     if (subjectsOfInterest !== undefined) updateData.subjectsOfInterest = subjectsOfInterest
     if (preferredLanguages !== undefined)
       updateData.preferredLanguages = Array.isArray(preferredLanguages) ? preferredLanguages : []
+    // Singular alias from the Account pages: wrap into the array column.
+    if (preferredLanguage !== undefined && preferredLanguages === undefined)
+      updateData.preferredLanguages = [sanitizeHtml(String(preferredLanguage)).trim()].filter(
+        Boolean
+      )
     if (learningGoals !== undefined)
       updateData.learningGoals = Array.isArray(learningGoals) ? learningGoals : []
 
