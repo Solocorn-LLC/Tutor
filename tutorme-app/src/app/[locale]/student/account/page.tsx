@@ -77,8 +77,9 @@ export default function StudentAccount() {
   const [activeTab, setActiveTab] = useState('profile')
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    // Scroll to top of content area when tab changes
-    const contentArea = document.querySelector('.h-full.space-y-6.overflow-y-auto')
+    // Scroll to top of content area when tab changes. Scrolling is handled by
+    // the layout's main container (overflow-y-auto), matching the tutor pages.
+    const contentArea = document.querySelector('.scrollbar-hide.overflow-y-auto')
     if (contentArea) {
       contentArea.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -334,11 +335,8 @@ export default function StudentAccount() {
           ]}
         >
           {/* Profile & Identity */}
-          <TabsContent
-            value="profile"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+          <TabsContent value="profile" className="flex h-full flex-col gap-4 overflow-visible pb-4">
+            <div className="space-y-6">
               <CollapsibleCard title="Profile & Identity" defaultOpen>
                 <CardContent className="space-y-6">
                   {/* Avatar */}
@@ -453,11 +451,8 @@ export default function StudentAccount() {
           </TabsContent>
 
           {/* Billing & Payment */}
-          <TabsContent
-            value="billing"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
-          >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+          <TabsContent value="billing" className="flex h-full flex-col gap-4 overflow-visible pb-4">
+            <div className="space-y-6">
               <CollapsibleCard
                 title="Billing & Payment Methods"
                 description="Manage your payment methods and billing preferences"
@@ -569,9 +564,9 @@ export default function StudentAccount() {
           {/* Notifications */}
           <TabsContent
             value="notifications"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="flex h-full flex-col gap-4 overflow-visible pb-4"
           >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+            <div className="space-y-6">
               <CollapsibleCard
                 title="Notification Preferences"
                 description="Control how and when we contact you"
@@ -680,9 +675,9 @@ export default function StudentAccount() {
           {/* Privacy & Security */}
           <TabsContent
             value="security"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="flex h-full flex-col gap-4 overflow-visible pb-4"
           >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+            <div className="space-y-6">
               <CollapsibleCard
                 title="Privacy & Security"
                 description="Manage your password and account security"
@@ -787,9 +782,9 @@ export default function StudentAccount() {
           {/* Account Controls */}
           <TabsContent
             value="controls"
-            className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden"
+            className="flex h-full flex-col gap-4 overflow-visible pb-4"
           >
-            <div className="h-full space-y-6 overflow-y-auto pb-4 pr-2">
+            <div className="space-y-6">
               <CollapsibleCard
                 title="Account Controls"
                 description="Temporarily deactivate or permanently delete your account"
