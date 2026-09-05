@@ -163,8 +163,13 @@ export default function StudentAccount() {
             name: data.profile.name || '',
             email: data.email || '',
             avatarUrl: data.profile.avatarUrl || '',
-            language: data.profile.preferredLanguage || 'en',
-            timezone: data.profile.timezone || 'Asia/Shanghai',
+            language: data.profile.preferredLanguages?.[0] || 'en',
+            // Fall back to the browser timezone when the profile has none —
+            // never assume a region the user didn't choose.
+            timezone:
+              data.profile.timezone ||
+              (typeof Intl !== 'undefined' && Intl.DateTimeFormat().resolvedOptions().timeZone) ||
+              'UTC',
           })
         }
         setLoading(false)
@@ -191,7 +196,7 @@ export default function StudentAccount() {
         },
         body: JSON.stringify({
           avatarUrl: formData.avatarUrl,
-          preferredLanguage: formData.language,
+          preferredLanguages: [formData.language],
           timezone: formData.timezone,
         }),
       })
