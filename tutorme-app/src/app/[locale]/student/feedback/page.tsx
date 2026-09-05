@@ -431,13 +431,34 @@ function ClassroomControlsPanel({
           <motion.div
             key="controls-body"
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+            animate={{
+              height: 'auto',
+              opacity: 1,
+              transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] },
+            }}
+            exit={{
+              height: 0,
+              opacity: 0,
+              // Closing should accelerate upward (ease-in) so the panel feels
+              // like it folds into its header instead of drifting shut.
+              transition: { duration: 0.28, ease: [0.4, 0, 1, 1] },
+            }}
             style={{ x: panelX, y: bodyY }}
             className="pointer-events-auto absolute left-0 top-0 w-96 origin-top overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-[rgba(31,41,51,0.60)] shadow-2xl backdrop-blur-xl"
           >
-            <div className="grid grid-cols-2 gap-2 p-3">{controls}</div>
+            <motion.div
+              initial={{ y: -12 }}
+              animate={{ y: 0, transition: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } }}
+              exit={{
+                y: -12,
+                opacity: 0,
+                // Content leads the fold: it slides up and fades slightly
+                // faster than the container collapses.
+                transition: { duration: 0.2, ease: [0.4, 0, 1, 1] },
+              }}
+            >
+              <div className="grid grid-cols-2 gap-2 p-3">{controls}</div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
