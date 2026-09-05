@@ -219,7 +219,7 @@ export function StudentHeroSection({
   }
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F97316] to-[#EA580C] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
+    <div className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F4A9A0] to-[#E08B80] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
       <div className="relative z-10 flex flex-1 flex-col">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
