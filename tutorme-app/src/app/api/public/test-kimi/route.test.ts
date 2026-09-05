@@ -31,7 +31,7 @@ describe('/api/public/test-kimi', () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
-          model: 'kimi-k2.5',
+          model: 'kimi-k3',
           choices: [{ message: { content: 'ok' } }],
           usage: { total_tokens: 10 },
         }),

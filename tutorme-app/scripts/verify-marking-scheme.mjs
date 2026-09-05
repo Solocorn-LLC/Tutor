@@ -57,7 +57,7 @@ const systemPrompt = routeTaskPrompt()
 const userPrompt = `Question references to match (use the leading #N as "number"):\n${questionList}\n\nMarking scheme:\n${content}`
 
 const base = process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1'
-const model = process.env.KIMI_MODEL || 'kimi-k2.5'
+const model = process.env.KIMI_MODEL || 'kimi-k3'
 console.log(`Calling ${base} (model ${model}) with ${content.length} chars of scoring guide…\n`)
 
 const resp = await fetch(`${base}/chat/completions`, {

@@ -6,7 +6,7 @@
 import { NextResponse } from 'next/server'
 
 const KIMI_BASE_URL = 'https://api.moonshot.cn/v1'
-const DEFAULT_MODEL = 'kimi-k2.5'
+const DEFAULT_MODEL = 'kimi-k3'
 
 export async function GET() {
   const isProd = process.env.NODE_ENV === 'production'

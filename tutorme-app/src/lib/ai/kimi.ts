@@ -41,11 +41,10 @@ const KIMI_BASE_URL = (process.env.KIMI_BASE_URL || 'https://api.moonshot.cn/v1'
   /\/+$/,
   ''
 )
-const DEFAULT_MODEL = process.env.KIMI_MODEL || 'kimi-k2.5'
-// Image (vision) calls need a vision-capable model, which Moonshot exposes as
-// separate *-vision-preview models. Configurable so a different platform/region
-// can use its own vision model name; defaults to the standard Moonshot one.
-const VISION_MODEL = process.env.KIMI_VISION_MODEL || 'moonshot-v1-8k-vision-preview'
+const DEFAULT_MODEL = process.env.KIMI_MODEL || 'kimi-k3'
+// kimi-k3 has native visual understanding (1M context); configurable so a
+// different platform/region can use its own vision model name.
+const VISION_MODEL = process.env.KIMI_VISION_MODEL || 'kimi-k3'
 
 /**
  * Generate text using Kimi K2.5
@@ -349,14 +348,14 @@ export async function generateWithKimiVision(
 export function getKimiModels(): Array<{ id: string; name: string; description: string }> {
   return [
     {
-      id: 'kimi-k2.5',
-      name: 'Kimi K2.5',
-      description: 'Latest model with 256K context, best for complex reasoning and long documents',
+      id: 'kimi-k3',
+      name: 'Kimi K3',
+      description: 'Most capable model: 1M context, native visual understanding, deep reasoning',
     },
     {
-      id: 'kimi-latest',
-      name: 'Kimi Latest',
-      description: 'Always points to the latest Kimi model',
+      id: 'kimi-k2.6',
+      name: 'Kimi K2.6',
+      description: 'Visual and text input, thinking/non-thinking modes, 256K context',
     },
   ]
 }
