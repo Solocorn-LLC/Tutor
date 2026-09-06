@@ -99,7 +99,7 @@ export default function StudentHelpPage() {
   return (
     <SupportPage
       subtitle="Find answers and get support"
-      heroGradient="bg-gradient-to-br from-[#F97316] to-[#EA580C]"
+      heroGradient="bg-gradient-to-br from-[#F4A9A0] to-[#E08B80]"
       topics={topics}
       role="student"
     />
