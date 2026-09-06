@@ -46,15 +46,17 @@ export function CountryFlag({
 
   const renderFallback = () => {
     if (fallback === 'none') {
-      return showLabel ? <span className={labelClassName}>{resolvedName}</span> : null
+      return showLabel ? (
+        <span className={cn('leading-none', labelClassName)}>{resolvedName}</span>
+      ) : null
     }
     if (fallback === 'text') {
-      return <span className={labelClassName}>{resolvedName}</span>
+      return <span className={cn('leading-none', labelClassName)}>{resolvedName}</span>
     }
     return (
       <>
-        <Globe className={cn('h-auto w-auto text-current', sizeClasses[size])} />
-        {showLabel && <span className={labelClassName}>{resolvedName}</span>}
+        <Globe className={cn('block h-auto w-auto text-current', sizeClasses[size])} />
+        {showLabel && <span className={cn('leading-none', labelClassName)}>{resolvedName}</span>}
       </>
     )
   }
@@ -68,13 +70,15 @@ export function CountryFlag({
         <img
           src={`/flags/${resolvedCode}.svg`}
           alt={resolvedName}
-          className={cn('h-auto w-auto object-contain', sizeClasses[size])}
+          className={cn('block h-auto w-auto object-contain', sizeClasses[size])}
           onError={() => setFailed(true)}
         />
       ) : (
         renderFallback()
       )}
-      {hasFlag && showLabel && <span className={labelClassName}>{resolvedName}</span>}
+      {hasFlag && showLabel && (
+        <span className={cn('leading-none', labelClassName)}>{resolvedName}</span>
+      )}
     </span>
   )
 }
