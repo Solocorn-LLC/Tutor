@@ -424,8 +424,8 @@ function TutorControlsPanel({
         onDragEnd={() => setTimeout(() => setIsDragging(false), 50)}
         style={{ x: panelX, y: panelY, opacity: panelOpacity }}
         className={cn(
-          'pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden border border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl',
-          open ? 'rounded-t-2xl' : 'rounded-2xl'
+          'pointer-events-auto absolute left-0 top-0 z-10 flex h-10 w-96 cursor-default select-none items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_12px_40px_-4px_rgba(0,0,0,0.18)]',
+          open && 'rounded-b-none'
         )}
       >
         {/* Header / drag handle */}
@@ -443,7 +443,7 @@ function TutorControlsPanel({
           }}
         >
           <span className="w-4 shrink-0" aria-hidden="true" />
-          <span className="mx-auto text-xs font-semibold text-white">Controls</span>
+          <span className="mx-auto text-xs font-semibold text-slate-700">Controls</span>
           <WifiSignal connected={isConnected ?? false} error={connectionError ?? false} />
         </button>
       </motion.div>
@@ -468,7 +468,7 @@ function TutorControlsPanel({
               transition: { duration: 0.28, ease: [0.4, 0, 1, 1] },
             }}
             style={{ x: panelX, y: bodyY }}
-            className="pointer-events-auto absolute left-0 top-0 w-96 origin-top overflow-hidden rounded-b-2xl border border-t-0 border-white/10 bg-[#1F2933]/60 shadow-2xl backdrop-blur-xl"
+            className="pointer-events-auto absolute left-0 top-0 w-96 origin-top overflow-hidden rounded-b-2xl border border-t-0 border-slate-200 bg-white shadow-[0_12px_40px_-4px_rgba(0,0,0,0.18)]"
           >
             <motion.div
               initial={{ y: -12 }}
@@ -491,7 +491,7 @@ function TutorControlsPanel({
                   <TabsList
                     ref={modeListRef}
                     data-testid="builder-mode-tabs"
-                    className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-white p-1"
+                    className="relative grid h-9 w-full grid-cols-3 gap-1 rounded-lg bg-slate-100 p-1 shadow-inner"
                   >
                     <TabsTrigger
                       value="edit"
@@ -552,7 +552,7 @@ function TutorControlsPanel({
                         label="Save"
                         disabled={panelDisabled}
                         onClick={onSave}
-                        className="bg-white text-gray-900"
+                        className="border border-slate-200 bg-white text-gray-900 hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50"
                       />
 
                       <AnimatedControlButton
@@ -560,7 +560,7 @@ function TutorControlsPanel({
                         label="Delete"
                         disabled={panelDisabled || mode !== 'edit' || !canDelete}
                         onClick={onDelete}
-                        className="bg-white text-red-600"
+                        className="border border-slate-200 bg-white text-red-600 hover:bg-red-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50"
                       />
 
                       <AnimatedControlButton
@@ -568,7 +568,7 @@ function TutorControlsPanel({
                         label="Edit Category"
                         disabled={panelDisabled || mode !== 'edit' || !onEditCourse}
                         onClick={onEditCourse}
-                        className="bg-white text-slate-700"
+                        className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50"
                       />
                     </div>
 
@@ -578,7 +578,7 @@ function TutorControlsPanel({
                         label="Create Class"
                         disabled={panelDisabled || mode !== 'edit' || !canGoLive}
                         onClick={onGoLive}
-                        className="bg-white text-emerald-600"
+                        className="border border-slate-200 bg-white text-emerald-600 hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50"
                       />
 
                       <AnimatedControlButton
@@ -586,7 +586,7 @@ function TutorControlsPanel({
                         label={isDemoSession ? 'Record Demo' : 'Video'}
                         disabled={panelDisabled || !hasSession}
                         onClick={isDemoSession ? onRecordDemo : onLaunchVideo}
-                        className="bg-white text-slate-700"
+                        className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50"
                       />
 
                       <AnimatedControlButton
@@ -594,7 +594,7 @@ function TutorControlsPanel({
                         label="New Course"
                         disabled={panelDisabled || mode !== 'edit'}
                         onClick={onCreateCourse}
-                        className="bg-white text-blue-500"
+                        className="border border-slate-200 bg-white text-[#3B82F6] hover:bg-slate-50 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50"
                       />
                     </div>
                   </div>
@@ -615,7 +615,7 @@ function TutorControlsPanel({
                       onClick={onLeaveSession}
                       className={cn(
                         actionButtonBase,
-                        'mt-2 w-full justify-center bg-white text-slate-700 hover:bg-slate-100 active:bg-slate-200'
+                        'mt-2 w-full justify-center border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 active:bg-slate-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50'
                       )}
                     >
                       {leavingSession ? (
@@ -632,7 +632,7 @@ function TutorControlsPanel({
                       onClick={onEndSession}
                       className={cn(
                         actionButtonBase,
-                        'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
+                        'mt-2 w-full justify-center bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50'
                       )}
                     >
                       {endingSession ? (
@@ -654,7 +654,7 @@ function TutorControlsPanel({
                             onClick={onCreateTemplate}
                             className={cn(
                               actionButtonBase,
-                              'mt-2 w-full bg-white text-[#3B82F6] hover:bg-blue-50 active:bg-blue-100'
+                              'mt-2 w-full border border-slate-200 bg-white text-[#3B82F6] hover:bg-blue-50 active:bg-blue-100 disabled:bg-slate-50 disabled:text-slate-400 disabled:hover:bg-slate-50'
                             )}
                           >
                             <Calendar className="h-4 w-4" />
@@ -673,7 +673,9 @@ function TutorControlsPanel({
                             onClick={onSchedule}
                             className={cn(
                               actionButtonBase,
-                              'mt-2 w-full bg-white text-[#3B82F6] hover:bg-blue-500 hover:text-white active:bg-blue-600'
+                              // Primary action — filled blue, mirroring the filled
+                              // action buttons on the Upcoming Sessions cards.
+                              'mt-2 w-full bg-[#3B82F6] text-white hover:bg-[#2563EB] active:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:hover:bg-slate-200'
                             )}
                           >
                             <Calendar className="h-4 w-4" />
