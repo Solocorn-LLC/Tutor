@@ -463,7 +463,7 @@ export function DashboardCalendar({
         onCalendarViewChange={setCalendarView}
         timezone={timezone}
         onTimezoneChange={setTimezone}
-        variant="orange"
+        variant="apricot"
       >
         {/* My Calendar Tab */}
         <TabsContent value="calendar" className="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">

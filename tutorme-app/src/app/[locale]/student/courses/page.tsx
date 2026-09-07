@@ -643,7 +643,7 @@ function CoursePageInner() {
             setActiveTab(value as typeof activeTab)
             router.push(`?tab=${value}`, { scroll: false })
           }}
-          variant="orange"
+          variant="apricot"
           tabs={[
             { value: 'mine', label: `Ongoing (${ongoing.length})` },
             { value: 'pending', label: `Pending (${upcoming.length})` },
