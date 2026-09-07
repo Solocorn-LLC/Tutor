@@ -144,7 +144,7 @@ export function SessionCalendarPanel({
                   ? 'bg-gradient-to-r from-[#F97316] to-[#EA580C]'
                   : variant === 'charcoal'
                     ? 'bg-[#1F2933]'
-                    : 'bg-gradient-to-r from-[#2563EB] to-[#1D4ED8]'
+                    : 'bg-gradient-to-r from-[#3B82F6] to-[#3B82F6]'
               )}
             >
               {tabs.map(tab => (
@@ -157,7 +157,7 @@ export function SessionCalendarPanel({
                       ? 'data-[state=active]:!text-[#EA580C]'
                       : variant === 'charcoal'
                         ? 'data-[state=active]:!text-[#1F2933]'
-                        : 'data-[state=active]:!text-[#2563EB]'
+                        : 'data-[state=active]:!text-[#3B82F6]'
                   )}
                   style={{ color: tab.value === value ? activeTextColor : undefined }}
                 >
