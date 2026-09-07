@@ -387,13 +387,21 @@ export const GET = withAuth(async (request: NextRequest, session) => {
       .where(eq(profile.userId, session.user.id))
       .limit(1)
     const currency = me?.currency ?? null
-    requests = rows.map(r => {
+    const seenStudents = new Set<string>()
+    requests = rows.flatMap(r => {
+      // One card per student: a student with several booked sessions would
+      // otherwise render as duplicate cards. Rows are newest-first, so the
+      // first occurrence is their most recent booking.
+      if (seenStudents.has(r.student.userId)) return []
+      seenStudents.add(r.student.userId)
       const sp = profileByUser.get(r.student.userId)
-      return {
-        ...r,
-        currency,
-        student: { ...r.student, name: sp?.name ?? null, country: sp?.country ?? null },
-      }
+      return [
+        {
+          ...r,
+          currency,
+          student: { ...r.student, name: sp?.name ?? null, country: sp?.country ?? null },
+        },
+      ]
     })
   } else {
     throw new ValidationError('Invalid role parameter')
