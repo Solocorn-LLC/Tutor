@@ -11,6 +11,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { conversation, directMessage, user, profile } from '@/lib/db/schema'
 import { or, eq, and, desc, ne, lt, inArray } from 'drizzle-orm'
 import { getInboxPathByRole, isConversationAllowedByRoles } from '@/lib/messaging/permissions'
+import { followEachOther } from '@/lib/messaging/relationships'
 import { notify } from '@/lib/notifications/notify'
 import { recordMentions } from '@/lib/mentions/parse-mentions'
 import { getIO } from '@/lib/socket-server-enhanced'
@@ -206,6 +207,19 @@ export const POST = withAuth(async (req: NextRequest, session, context) => {
       !isConversationAllowedByRoles(p1[0].role as AppRole, p2[0].role as AppRole)
     ) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+    }
+
+    // Tutor ↔ tutor threads: re-verify the mutual follow at SEND time so that
+    // unfollowing after a thread exists cuts off further messages (the
+    // creation-time gate alone can't do that).
+    if (p1[0].role === 'TUTOR' && p2[0].role === 'TUTOR') {
+      const otherUserId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id
+      if (!(await followEachOther(userId, otherUserId))) {
+        return NextResponse.json(
+          { error: 'Tutors can message each other only after following each other' },
+          { status: 403 }
+        )
+      }
     }
 
     const messageId = crypto.randomUUID()
