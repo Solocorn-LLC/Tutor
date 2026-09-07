@@ -26,7 +26,9 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDirectMessageSocket, type DirectMessage } from '@/hooks'
-import { NotificationSettings } from '@/components/notifications/NotificationSettings'
+import { ChatSettings } from '@/components/communications/chat-settings'
+import { useChatPreferences } from '@/hooks/use-chat-preferences'
+import { playMessageSound } from '@/lib/chat/chat-preferences'
 import type { CommsRole } from './types'
 
 export type CommSection = 'chats' | 'contacts' | 'requests' | 'followers' | 'settings'
@@ -119,8 +121,8 @@ const emptyStates: Record<CommSection, { icon: React.ElementType; title: string;
   followers: { icon: Heart, title: 'No followers yet', hint: 'Your followers will appear here' },
   settings: {
     icon: Settings,
-    title: 'Communication Settings',
-    hint: 'Manage channels, quiet hours, and email digest',
+    title: 'Chat Settings',
+    hint: 'Message sounds, timestamps, and send behavior',
   },
 }
 
@@ -164,6 +166,9 @@ export default function MessagingPanel({
   const [requests, setRequests] = useState<OneOnOneRequestItem[]>([])
   const [requestsLoading, setRequestsLoading] = useState(false)
   const [startingChatId, setStartingChatId] = useState<string | null>(null)
+  const [chatPrefs, updateChatPrefs] = useChatPreferences()
+  const chatPrefsRef = useRef(chatPrefs)
+  chatPrefsRef.current = chatPrefs
   const messagesEndRef = useRef<HTMLDivElement>(null)
   // Mirror of `conversations` for use inside stable callbacks (socket handlers).
   const conversationsRef = useRef<Conversation[]>([])
@@ -262,6 +267,10 @@ export default function MessagingPanel({
       const { conversationId, message } = payload
       const isSelected = selectedConversation?.id === conversationId
 
+      if (message.senderId !== session?.user?.id && chatPrefsRef.current.soundsOn) {
+        playMessageSound()
+      }
+
       setMessages(prev => {
         if (prev.some(m => m.id === message.id)) return prev
         return [...prev, mapDirectMessage(message)]
@@ -337,8 +346,10 @@ export default function MessagingPanel({
   })
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (chatPrefs.autoScrollOnNew) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, chatPrefs.autoScrollOnNew])
 
   const fetchConversations = async (): Promise<Conversation[]> => {
     try {
@@ -730,7 +741,7 @@ export default function MessagingPanel({
         <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto">
           {activeSection === 'settings' ? (
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
-              <NotificationSettings />
+              <ChatSettings prefs={chatPrefs} onChange={updateChatPrefs} />
             </div>
           ) : !selectedConversation ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-6 text-center">
@@ -779,18 +790,21 @@ export default function MessagingPanel({
                         )}
                       >
                         <p className="leading-relaxed">{renderMentions(msg.content)}</p>
-                        <span
-                          className={cn(
-                            'mt-1.5 block text-[10px] font-medium',
-                            isMe ? 'text-indigo-200' : 'text-slate-400'
-                          )}
-                        >
-                          {new Date(msg.createdAt).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                          {msg.read && isMe && ' • Read'}
-                        </span>
+                        {(chatPrefs.showTimestamps || (msg.read && isMe)) && (
+                          <span
+                            className={cn(
+                              'mt-1.5 block text-[10px] font-medium',
+                              isMe ? 'text-indigo-200' : 'text-slate-400'
+                            )}
+                          >
+                            {chatPrefs.showTimestamps &&
+                              new Date(msg.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            {msg.read && isMe && (chatPrefs.showTimestamps ? ' • Read' : 'Read')}
+                          </span>
+                        )}
                       </div>
                     </div>
                   )
@@ -823,7 +837,9 @@ export default function MessagingPanel({
                 }
               }}
               onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey && !sending) {
+                if (e.key !== 'Enter' || sending) return
+                const shouldSend = chatPrefs.enterToSend ? !e.shiftKey : e.ctrlKey || e.metaKey
+                if (shouldSend) {
                   e.preventDefault()
                   sendMessage()
                 }
