@@ -55,11 +55,17 @@ export const POST = withCsrf(
           guardrailWarnings: result.guardrailWarnings,
         })
       } catch (err: unknown) {
-        return handleApiError(
+        const res = handleApiError(
           err,
           'Could not generate support response right now.',
           'tutor-support-assistant'
         )
+        // TEMP-DIAGNOSTIC: surface the real upstream error in the response so
+        // production failures are visible without Cloud Run log access. REVERT
+        // after the support-assistant outage is diagnosed.
+        const data = await res.json()
+        const detail = err instanceof Error ? err.message : String(err)
+        return NextResponse.json({ ...data, detail }, { status: res.status })
       }
     },
     { role: 'TUTOR' }
