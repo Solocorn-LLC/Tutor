@@ -259,7 +259,8 @@ async function tutorCurrencyMap(tutorIds: string[]): Promise<Map<string, string 
   return new Map(rows.map(r => [r.userId, r.currency]))
 }
 
-// Get all pending requests for the current user (student or tutor)
+// Get requests for the current user: sent bookings (as student) or booked
+// students (as tutor — accepted/paid/completed only; see the received branch).
 export const GET = withAuth(async (request: NextRequest, session) => {
   const { searchParams } = new URL(request.url)
   const role = searchParams.get('role') // 'sent' or 'received'
@@ -346,9 +347,14 @@ export const GET = withAuth(async (request: NextRequest, session) => {
     const currencyByTutor = await tutorCurrencyMap(rows.map(r => r.tutorId))
     requests = rows.map(r => ({ ...r, currency: currencyByTutor.get(r.tutorId) ?? null }))
   } else if (role === 'received' || session.user.role === 'TUTOR') {
-    // Get requests received by current user (as tutor)
+    // Requests the tutor can message: students who have booked a session
+    // (accepted, paid, or completed). Pending/unpaid asks stay on the tutor
+    // dashboard, not in the communications Requests list.
     const rows = await drizzleDb.query.oneOnOneBookingRequest.findMany({
-      where: eq(oneOnOneBookingRequest.tutorId, session.user.id),
+      where: and(
+        eq(oneOnOneBookingRequest.tutorId, session.user.id),
+        inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID', 'COMPLETED'])
+      ),
       orderBy: (oneOnOneBookingRequest, { desc }) => [desc(oneOnOneBookingRequest.createdAt)],
       columns: CORE_BOOKING_COLUMNS,
       with: {
@@ -362,6 +368,18 @@ export const GET = withAuth(async (request: NextRequest, session) => {
         },
       },
     })
+    // Attach each student's profile (full name + country) so the request card
+    // can show first name and country without extra queries per row.
+    const studentIds = [...new Set(rows.map(r => r.studentId))]
+    const studentProfiles = await drizzleDb
+      .select({
+        userId: profile.userId,
+        name: profile.name,
+        country: profile.countryOfResidence,
+      })
+      .from(profile)
+      .where(inArray(profile.userId, studentIds))
+    const profileByUser = new Map(studentProfiles.map(p => [p.userId, p]))
     // The tutor is the current user; the price is in their own currency.
     const [me] = await drizzleDb
       .select({ currency: profile.currency })
@@ -369,7 +387,14 @@ export const GET = withAuth(async (request: NextRequest, session) => {
       .where(eq(profile.userId, session.user.id))
       .limit(1)
     const currency = me?.currency ?? null
-    requests = rows.map(r => ({ ...r, currency }))
+    requests = rows.map(r => {
+      const sp = profileByUser.get(r.student.userId)
+      return {
+        ...r,
+        currency,
+        student: { ...r.student, name: sp?.name ?? null, country: sp?.country ?? null },
+      }
+    })
   } else {
     throw new ValidationError('Invalid role parameter')
   }
