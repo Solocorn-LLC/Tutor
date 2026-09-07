@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { MentionInput } from '@/components/mentions/MentionInput'
+import { CountryFlag } from '@/components/country-flag'
 import { renderMentions } from '@/lib/mentions/render-mentions'
 import { fetchWithCsrf } from '@/lib/api/fetch-csrf'
 import { fetchWithTimeout } from '@/lib/api/fetch-with-timeout'
@@ -45,7 +46,14 @@ interface OneOnOneRequestItem {
   startTime: string
   courseName?: string | null
   tutor?: { userId: string; handle: string | null; email: string | null; image: string | null }
-  student?: { userId: string; handle: string | null; email: string | null; image: string | null }
+  student?: {
+    userId: string
+    handle: string | null
+    email: string | null
+    image: string | null
+    name?: string | null
+    country?: string | null
+  }
 }
 
 interface Conversation {
@@ -452,7 +460,8 @@ export default function MessagingPanel({
 
   const filteredRequests = requests.filter(r => {
     const other = role === 'student' ? r.tutor : r.student
-    const name = (other?.handle || other?.email || '').toLowerCase()
+    const studentName = role === 'student' ? '' : (r.student?.name ?? '')
+    const name = (other?.handle || other?.email || studentName).toLowerCase()
     return name.includes(searchQuery.toLowerCase())
   })
 
@@ -501,9 +510,41 @@ export default function MessagingPanel({
   }
 
   const renderRequestCard = (r: OneOnOneRequestItem) => {
-    const other = role === 'student' ? r.tutor : r.student
-    const name =
-      other?.handle || other?.email?.split('@')[0] || (role === 'student' ? 'Tutor' : 'Student')
+    // Tutor view: a booked student is a chat entry point. Show only first
+    // name, avatar, and country — clicking opens (or creates) the DM thread.
+    if (role !== 'student') {
+      const st = r.student
+      if (!st) return null
+      const firstName =
+        st.name?.trim().split(/\s+/)[0] || st.handle || st.email?.split('@')[0] || 'Student'
+      return (
+        <button
+          key={r.requestId}
+          type="button"
+          onClick={() => startChatWithFollower(st.userId)}
+          disabled={startingChatId === st.userId}
+          className="flex w-full items-center gap-3 rounded-[12px] border border-[rgba(0,0,0,0.04)] bg-white p-4 text-left transition-colors hover:bg-slate-50 disabled:opacity-60"
+        >
+          <Avatar className="h-10 w-10 shrink-0">
+            {st.image ? <AvatarImage src={st.image} alt={firstName} /> : null}
+            <AvatarFallback className="bg-indigo-50 font-medium text-indigo-600">
+              {firstName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">
+            {firstName}
+          </span>
+          {st.country ? (
+            <CountryFlag countryName={st.country} size="xs" showLabel />
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+        </button>
+      )
+    }
+
+    const other = r.tutor
+    const name = other?.handle || other?.email?.split('@')[0] || 'Tutor'
     const dateLabel = `${new Date(r.requestedDate).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -673,7 +714,11 @@ export default function MessagingPanel({
                 <ListIcon className="h-7 w-7 text-slate-400" />
               </div>
               <p className="text-sm font-semibold text-slate-700">{list.title}</p>
-              <p className="mt-1 text-xs text-slate-500">{list.hint}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {activeSection === 'requests' && role !== 'student'
+                  ? 'Students who book a 1-on-1 session will appear here'
+                  : list.hint}
+              </p>
             </div>
           )}
         </div>
