@@ -61,7 +61,7 @@ interface SessionCalendarPanelProps {
   onCalendarViewChange?: (view: CalendarView) => void
   timezone?: string
   onTimezoneChange?: (tz: string) => void
-  variant?: 'blue' | 'orange' | 'charcoal'
+  variant?: 'blue' | 'apricot' | 'charcoal'
   className?: string
 }
 
@@ -82,7 +82,7 @@ export function SessionCalendarPanel({
   const [pillStyle, setPillStyle] = useState({ left: 0, width: 0 })
   const _activeIndex = tabs.findIndex(tab => tab.value === value)
   const activeTextColor =
-    variant === 'orange' ? '#EA580C' : variant === 'charcoal' ? '#1F2933' : '#2563EB'
+    variant === 'apricot' ? '#E08B80' : variant === 'charcoal' ? '#1F2933' : '#3B82F6'
 
   const updatePillPosition = useCallback(() => {
     const list = listRef.current
@@ -140,8 +140,8 @@ export function SessionCalendarPanel({
               ref={listRef}
               className={cn(
                 'relative flex gap-1.5 rounded-xl p-1.5',
-                variant === 'orange'
-                  ? 'bg-gradient-to-r from-[#F97316] to-[#EA580C]'
+                variant === 'apricot'
+                  ? 'bg-gradient-to-r from-[#F4A9A0] to-[#E08B80]'
                   : variant === 'charcoal'
                     ? 'bg-[#1F2933]'
                     : 'bg-gradient-to-r from-[#3B82F6] to-[#3B82F6]'
@@ -153,8 +153,8 @@ export function SessionCalendarPanel({
                   value={tab.value}
                   className={cn(
                     'relative z-10 flex-1 rounded-lg text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none',
-                    variant === 'orange'
-                      ? 'data-[state=active]:!text-[#EA580C]'
+                    variant === 'apricot'
+                      ? '!text-[#7A3B34] hover:!text-[#4A2420] data-[state=active]:!text-[#E08B80]'
                       : variant === 'charcoal'
                         ? 'data-[state=active]:!text-[#1F2933]'
                         : 'data-[state=active]:!text-[#3B82F6]'

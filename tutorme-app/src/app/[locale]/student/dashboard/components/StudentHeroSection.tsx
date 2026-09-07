@@ -219,19 +219,19 @@ export function StudentHeroSection({
   }
 
   return (
-    <div className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/10 bg-gradient-to-br from-[#F4A9A0] to-[#E08B80] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
+    <div className="relative flex flex-col overflow-hidden rounded-[18px] border border-white/40 bg-gradient-to-br from-[#F4A9A0] to-[#E08B80] p-5 shadow-[0_12px_32px_rgba(0,0,0,0.12)]">
       <div className="relative z-10 flex flex-1 flex-col">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             {showGreeting && (
               <div className="mb-0.5 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-white/70" />
-                <span className="text-sm font-medium text-white/70">
+                <Sparkles className="h-4 w-4 text-slate-700" />
+                <span className="text-sm font-medium text-slate-700">
                   {greeting}, {session?.user?.name?.split(' ')[0] || 'Student'}
                 </span>
               </div>
             )}
-            <h1 className="text-3xl font-bold text-white">{title}</h1>
+            <h1 className="text-3xl font-bold text-slate-900">{title}</h1>
           </div>
 
           <div
@@ -240,30 +240,30 @@ export function StudentHeroSection({
               statsLoading && 'animate-pulse'
             )}
           >
-            <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <BookOpen className="h-4 w-4 text-white/80" />
-              <span className="text-xs font-medium text-white/80">Courses Enrolled</span>
-              <span className="text-sm font-bold text-white">{stats.coursesEnrolled}</span>
+            <div className="flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 backdrop-blur-sm">
+              <BookOpen className="h-4 w-4 text-slate-700" />
+              <span className="text-xs font-medium text-slate-700">Courses Enrolled</span>
+              <span className="text-sm font-bold text-slate-900">{stats.coursesEnrolled}</span>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <CheckCircle className="h-4 w-4 text-white/80" />
-              <span className="text-xs font-medium text-white/80">Courses Completed</span>
-              <span className="text-sm font-bold text-white">{stats.coursesCompleted}</span>
+            <div className="flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 backdrop-blur-sm">
+              <CheckCircle className="h-4 w-4 text-slate-700" />
+              <span className="text-xs font-medium text-slate-700">Courses Completed</span>
+              <span className="text-sm font-bold text-slate-900">{stats.coursesCompleted}</span>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <Calendar className="h-4 w-4 text-white/80" />
-              <span className="text-xs font-medium text-white/80">Upcoming Sessions</span>
-              <span className="text-sm font-bold text-white">{stats.upcomingSessions}</span>
+            <div className="flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 backdrop-blur-sm">
+              <Calendar className="h-4 w-4 text-slate-700" />
+              <span className="text-xs font-medium text-slate-700">Upcoming Sessions</span>
+              <span className="text-sm font-bold text-slate-900">{stats.upcomingSessions}</span>
             </div>
-            <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 backdrop-blur-sm">
-              <Users className="h-4 w-4 text-white/80" />
-              <span className="text-xs font-medium text-white/80">Total Bookings</span>
-              <span className="text-sm font-bold text-white">{stats.totalBookings}</span>
+            <div className="flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 backdrop-blur-sm">
+              <Users className="h-4 w-4 text-slate-700" />
+              <span className="text-xs font-medium text-slate-700">Total Bookings</span>
+              <span className="text-sm font-bold text-slate-900">{stats.totalBookings}</span>
             </div>
           </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-7 gap-1 rounded-[14px] border border-white/10 bg-white/10 p-3">
+        <div className="mb-4 grid grid-cols-7 gap-1 rounded-[14px] border border-white/40 bg-white/40 p-3">
           {Array.from({ length: 7 }, (_, i) => {
             const d = new Date(currentTime)
             d.setDate(currentTime.getDate() + i)
@@ -273,20 +273,22 @@ export function StudentHeroSection({
               <div
                 key={i}
                 onClick={() => setSelectedDay({ date: d, events: dayEvents })}
-                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl py-2 transition-colors hover:bg-white/20"
+                className="group flex cursor-pointer flex-col items-center justify-center rounded-xl py-2 transition-colors hover:bg-white/60"
               >
-                <span className="text-[11px] font-medium text-white/70">
+                <span className="text-[11px] font-medium text-slate-700">
                   {d.toLocaleDateString('en-US', { weekday: 'short' })}
                 </span>
                 <span
                   className={cn(
                     'mt-0.5 flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold',
-                    i === 0 ? 'bg-white/30 text-white' : 'text-white group-hover:bg-white/10'
+                    i === 0
+                      ? 'bg-white/80 text-slate-900'
+                      : 'text-slate-900 group-hover:bg-white/60'
                   )}
                 >
                   {d.getDate()}
                 </span>
-                <div className="mt-1 h-1 w-1 rounded-full bg-white/40" />
+                <div className="mt-1 h-1 w-1 rounded-full bg-slate-500/50" />
               </div>
             )
           })}
@@ -296,20 +298,20 @@ export function StudentHeroSection({
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-1 items-center justify-start gap-2" />
           <div className="flex-none text-center">
-            <span className="text-base text-white">
+            <span className="text-base text-slate-800">
               {formatDate(currentTime)} • {formatTime(currentTime)} {timeZoneAbbr}
             </span>
           </div>
           <div className="flex flex-1 items-center justify-end gap-2">
             {sessionsLoading ? (
-              <span className="text-sm text-white/70">Loading sessions…</span>
+              <span className="text-sm text-slate-700">Loading sessions…</span>
             ) : countdown ? (
-              <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-300">
+              <div className="flex items-center gap-1.5 text-sm font-medium text-emerald-700">
                 <AnimatedClock className="h-3.5 w-3.5" />
                 <span className="tabular-nums">Next session: {countdown}</span>
               </div>
             ) : (
-              <span className="text-sm text-white/70">No upcoming sessions</span>
+              <span className="text-sm text-slate-700">No upcoming sessions</span>
             )}
           </div>
         </div>
