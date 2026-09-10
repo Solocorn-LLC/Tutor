@@ -152,7 +152,7 @@ C:\VSCODE\Tutor/
 
 | Layer | Technology | Version / Notes |
 |-------|------------|-----------------|
-| **Framework** | Next.js (App Router) | `^16.1.6`, `output: 'standalone'` |
+| **Framework** | Next.js (App Router) | `^16.3.4`, `output: 'standalone'` |
 | **Language** | TypeScript | `^5.9.3`, strict mode (`strict: true`) |
 | **UI** | React | `^18` (main app); `^19` (landing page) |
 | **Styling** | Tailwind CSS | `^3.4.1` (main app); `^4.1.14` (landing page) |

@@ -100,7 +100,7 @@
     "mathjax": "^4.1.1",
     "mathjs": "^15.1.1",
     "nanoid": "^5.1.6",
-    "next": "^16.1.6",
+    "next": "^16.3.4",
     "next-auth": "^4.24.13",
     "next-intl": "^4.8.3",
     "nodemailer": "^7.0.13",
