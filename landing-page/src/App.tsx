@@ -14,6 +14,10 @@ import { ContactModal } from './components/ContactModal'
 // Main App URL configuration
 const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003'
 
+// Full-page background video on the landing page. When disabled, the hero uses the
+// tutor hero panel blue (#3B82F6) instead and the gradient overlay is not rendered.
+const SHOW_BACKGROUND_VIDEO = false
+
 const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; description: string }[]> = {
   Promo: [
     {
@@ -261,19 +265,23 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white">
-      {/* Background Video */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-      >
-        <source src="/landing-bg-video.mp4" type="video/mp4" />
-      </video>
+      {SHOW_BACKGROUND_VIDEO && (
+        <>
+          {/* Background Video */}
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="absolute inset-0 h-full w-full object-cover"
+          >
+            <source src="/landing-bg-video.mp4" type="video/mp4" />
+          </video>
 
-      {/* Gradient overlay for readability */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
+          {/* Gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
+        </>
+      )}
 
       <div className="relative z-10">
         <Navbar setView={setView} />
@@ -285,7 +293,7 @@ export default function App() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="relative flex min-h-screen flex-col"
+              className="relative flex min-h-screen flex-col bg-[#3B82F6]"
             >
               {/* Top spacer: clears navbar and pushes hero toward vertical center */}
               <div className="min-h-[100px] flex-1" />
