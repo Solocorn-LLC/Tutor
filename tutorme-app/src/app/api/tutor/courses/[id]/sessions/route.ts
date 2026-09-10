@@ -18,7 +18,6 @@ import {
 } from '@/lib/db/schema'
 import { formatScheduleName } from '@/lib/sessions/schedule-name'
 import { formatCourseVariantName } from '@/lib/courses/variant-name'
-import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
 export const GET = withAuth(
   async (req, session, context) => {
@@ -75,10 +74,21 @@ export const GET = withAuth(
       )
       const variantName = formatCourseVariantName(variantRow?.category, variantRow?.nationality)
 
-      const familyIds = await expandToCourseFamily([courseId])
+      // Scope to the clicked variant plus its TEMPLATE course. The card
+      // represents one variant, so sibling variants' sessions must not leak in;
+      // but sessions created from the course builder / Desk are stored under the
+      // template id, and hiding those would make them unmanageable. A template
+      // session carries no variant attribution, so it legitimately shows under
+      // every variant of its template.
+      const [variantPair] = await drizzleDb
+        .select({ templateCourseId: courseVariant.templateCourseId })
+        .from(courseVariant)
+        .where(eq(courseVariant.publishedCourseId, courseId))
+        .limit(1)
+      const scopeIds = variantPair ? [courseId, variantPair.templateCourseId] : [courseId]
       const conditions = [
         eq(liveSessionTable.tutorId, tutorId),
-        inArray(liveSessionTable.courseId, familyIds),
+        inArray(liveSessionTable.courseId, scopeIds),
       ]
 
       if (allowedStatuses.length > 0) {
