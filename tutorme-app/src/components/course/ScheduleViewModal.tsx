@@ -165,6 +165,28 @@ export function ScheduleViewModal({
           'Schedule created, but no upcoming sessions were added — check the dates are in the future.'
         )
       }
+      // Slots the server could not materialize (they conflict with the tutor's
+      // other commitments) are dropped silently server-side — surface them here.
+      const skipped = Array.isArray(data?.skippedSlots) ? data.skippedSlots : []
+      if (skipped.length > 0) {
+        const times = skipped
+          .map((s: { scheduledAt?: string }) =>
+            s?.scheduledAt
+              ? new Date(s.scheduledAt).toLocaleString('en-US', {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                })
+              : null
+          )
+          .filter(Boolean)
+          .join(', ')
+        toast.warning(
+          `Some time slots conflict with your other sessions and were skipped: ${times}`
+        )
+      }
       setAddOpen(false)
       setEditingScheduleId(null)
       await loadSchedules()
