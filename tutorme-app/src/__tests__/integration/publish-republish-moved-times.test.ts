@@ -211,17 +211,26 @@ describe('BUG #4: re-publishing a draft variant with edited times updates its se
       )
     const sessionIds = sessionRows.map(r => r.sessionId)
 
-    await t(() => drizzleDb.delete(calendarEvent).where(inArray(calendarEvent.externalId, sessionIds)))
+    await t(() =>
+      drizzleDb.delete(calendarEvent).where(inArray(calendarEvent.externalId, sessionIds))
+    )
     await t(() => drizzleDb.delete(liveSession).where(inArray(liveSession.sessionId, sessionIds)))
-    await t(() => drizzleDb.delete(courseSchedule).where(inArray(courseSchedule.courseId, courseIds)))
+    await t(() =>
+      drizzleDb.delete(courseSchedule).where(inArray(courseSchedule.courseId, courseIds))
+    )
     await t(() => drizzleDb.delete(courseLesson).where(inArray(courseLesson.courseId, courseIds)))
-    await t(() => drizzleDb.delete(courseVariant).where(eq(courseVariant.templateCourseId, TEMPLATE)))
+    await t(() =>
+      drizzleDb.delete(courseVariant).where(eq(courseVariant.templateCourseId, TEMPLATE))
+    )
     await t(() => drizzleDb.delete(course).where(inArray(course.courseId, courseIds)))
     await t(() => drizzleDb.delete(user).where(eq(user.userId, tutorId)))
   })
 
   it('first publish materializes one session at the requested slot with a lesson', async () => {
-    const res = await publishVariants(publishReq(publishBody('10:00')) as unknown as NextRequest, publishCtx)
+    const res = await publishVariants(
+      publishReq(publishBody('10:00')) as unknown as NextRequest,
+      publishCtx
+    )
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.success).toBe(true)
@@ -245,7 +254,10 @@ describe('BUG #4: re-publishing a draft variant with edited times updates its se
     expect(before).toHaveLength(1)
 
     await unpublishVariant()
-    const res = await publishVariants(publishReq(publishBody('10:00')) as unknown as NextRequest, publishCtx)
+    const res = await publishVariants(
+      publishReq(publishBody('10:00')) as unknown as NextRequest,
+      publishCtx
+    )
     expect(res.status).toBe(200)
 
     const after = await variantSessions()
@@ -260,7 +272,10 @@ describe('BUG #4: re-publishing a draft variant with edited times updates its se
     expect(before).toHaveLength(1)
 
     await unpublishVariant()
-    const res = await publishVariants(publishReq(publishBody('09:30')) as unknown as NextRequest, publishCtx)
+    const res = await publishVariants(
+      publishReq(publishBody('09:30')) as unknown as NextRequest,
+      publishCtx
+    )
     expect(res.status).toBe(200)
 
     const after = await variantSessions()
@@ -272,16 +287,14 @@ describe('BUG #4: re-publishing a draft variant with edited times updates its se
     // Lesson assignment survives the move.
     expect(after[0].lessonId).toBe(before[0].lessonId)
     // Nothing is left at the old instant.
-    expect(after.every(s => Math.abs(s.scheduledAt.getTime() - INSTANT_1000.getTime()) > 1000)).toBe(
-      true
-    )
+    expect(
+      after.every(s => Math.abs(s.scheduledAt.getTime() - INSTANT_1000.getTime()) > 1000)
+    ).toBe(true)
     // The CalendarEvent projection follows the session.
     const [ce] = await drizzleDb
       .select({ startTime: calendarEvent.startTime, endTime: calendarEvent.endTime })
       .from(calendarEvent)
-      .where(
-        and(eq(calendarEvent.externalId, after[0].sessionId), isNull(calendarEvent.deletedAt))
-      )
+      .where(and(eq(calendarEvent.externalId, after[0].sessionId), isNull(calendarEvent.deletedAt)))
     expect(ce).toBeDefined()
     expect(Math.abs(ce.startTime.getTime() - INSTANT_0930.getTime())).toBeLessThan(1000)
   })
@@ -291,7 +304,10 @@ describe('BUG #4: re-publishing a draft variant with edited times updates its se
     expect(before).toHaveLength(1)
 
     await unpublishVariant()
-    const res = await publishVariants(publishReq(publishBody('09:30')) as unknown as NextRequest, publishCtx)
+    const res = await publishVariants(
+      publishReq(publishBody('09:30')) as unknown as NextRequest,
+      publishCtx
+    )
     expect(res.status).toBe(200)
 
     const after = await variantSessions()
@@ -318,7 +334,10 @@ describe('BUG #4: re-publishing a draft variant with edited times updates its se
     expect(before).toHaveLength(1)
 
     await unpublishVariant()
-    const res = await publishVariants(publishReq(publishBody('09:00')) as unknown as NextRequest, publishCtx)
+    const res = await publishVariants(
+      publishReq(publishBody('09:00')) as unknown as NextRequest,
+      publishCtx
+    )
     // The existing 409 conflict protection stays authoritative: the publish
     // fails, reports the skipped slot, and the session keeps its 09:30 time.
     expect(res.status).toBe(409)

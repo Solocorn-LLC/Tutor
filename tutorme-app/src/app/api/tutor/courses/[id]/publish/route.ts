@@ -24,7 +24,10 @@ import { createSession } from '@/lib/sessions/create-session'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
-import { findAlternativeSlots as sharedFindAlternativeSlots, findConflicts } from '@/lib/schedule/conflicts'
+import {
+  findAlternativeSlots as sharedFindAlternativeSlots,
+  findConflicts,
+} from '@/lib/schedule/conflicts'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
 import { collectFileKeys } from '@/lib/services/course-builder.service'
 import { fileExists } from '@/lib/storage/service'

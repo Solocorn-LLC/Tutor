@@ -166,11 +166,7 @@ export async function materializeScheduleSessions(
 ): Promise<MaterializeScheduleResult> {
   const dates =
     opts.dates ??
-    generateScheduleSessionDates(
-      opts.slots,
-      opts.weeksToSchedule ?? 8,
-      opts.timezone ?? 'UTC'
-    )
+    generateScheduleSessionDates(opts.slots, opts.weeksToSchedule ?? 8, opts.timezone ?? 'UTC')
 
   const db = tx ?? drizzleDb
   const result: MaterializeScheduleResult = { created: 0, kept: 0, skippedSlots: [] }

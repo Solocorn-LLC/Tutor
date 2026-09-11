@@ -296,16 +296,17 @@ describe('BUG #5/#6: schedule edit wipes lessons and silently drops conflicting 
     const before = await drizzleDb
       .select({ sessionId: liveSession.sessionId, lessonId: liveSession.lessonId })
       .from(liveSession)
-      .where(
-        inArray(liveSession.sessionId, [LS_A1, LS_A2])
-      )
+      .where(inArray(liveSession.sessionId, [LS_A1, LS_A2]))
     expect(before).toHaveLength(2)
     expect(before.every(r => r.lessonId !== null)).toBe(true)
 
     // Re-save the same slots (identical instants; only a display-only field
     // differs, which is exactly what the schedule editor sends).
     const res = await putSchedule(
-      putScheduleReq(COURSE_A, { scheduleId: SCHED_A, schedule: withDisplayFields(SLOTS_A) }) as unknown as NextRequest,
+      putScheduleReq(COURSE_A, {
+        scheduleId: SCHED_A,
+        schedule: withDisplayFields(SLOTS_A),
+      }) as unknown as NextRequest,
       { params: Promise.resolve({ id: COURSE_A }) } as any
     )
 

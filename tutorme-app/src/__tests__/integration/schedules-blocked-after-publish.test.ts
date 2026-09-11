@@ -22,7 +22,14 @@ import crypto from 'crypto'
 import { and, eq, inArray } from 'drizzle-orm'
 import { NextRequest } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { user, course, courseVariant, courseSchedule, liveSession, calendarEvent } from '@/lib/db/schema'
+import {
+  user,
+  course,
+  courseVariant,
+  courseSchedule,
+  liveSession,
+  calendarEvent,
+} from '@/lib/db/schema'
 
 const stamp = Date.now()
 const tutorId = crypto.randomUUID()
@@ -217,7 +224,13 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
       .select({ scheduleId: courseSchedule.scheduleId })
       .from(courseSchedule)
       .where(
-        inArray(courseSchedule.courseId, [TEMPLATE_PUB, TEMPLATE_DRAFT, LEGACY, PUB_VARIANT, DRAFT_VARIANT])
+        inArray(courseSchedule.courseId, [
+          TEMPLATE_PUB,
+          TEMPLATE_DRAFT,
+          LEGACY,
+          PUB_VARIANT,
+          DRAFT_VARIANT,
+        ])
       )
     const scheduleIds = [SCHED_PUB, SCHED_DRAFT, ...scheduleRows.map(r => r.scheduleId)]
 
@@ -242,7 +255,10 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
   })
 
   it('POST is rejected (409) for a template that has a published variant', async () => {
-    const res = await postSchedule(postReq(TEMPLATE_PUB, { schedule: SLOT_FUTURE_B }) as unknown as NextRequest, ctx(TEMPLATE_PUB))
+    const res = await postSchedule(
+      postReq(TEMPLATE_PUB, { schedule: SLOT_FUTURE_B }) as unknown as NextRequest,
+      ctx(TEMPLATE_PUB)
+    )
     expect(res.status).toBe(409)
     const body = await res.json()
     expect(body.error).toContain(GUARD_MESSAGE)
@@ -257,7 +273,10 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
 
   it('PUT is rejected (409) for a template that has a published variant', async () => {
     const res = await putSchedule(
-      putReq(TEMPLATE_PUB, { scheduleId: SCHED_PUB, schedule: SLOT_FUTURE_B }) as unknown as NextRequest,
+      putReq(TEMPLATE_PUB, {
+        scheduleId: SCHED_PUB,
+        schedule: SLOT_FUTURE_B,
+      }) as unknown as NextRequest,
       ctx(TEMPLATE_PUB)
     )
     expect(res.status).toBe(409)
@@ -282,7 +301,10 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
   })
 
   it('POST is rejected (409) when the published variant id is passed directly', async () => {
-    const res = await postSchedule(postReq(PUB_VARIANT, { schedule: SLOT_FUTURE_B }) as unknown as NextRequest, ctx(PUB_VARIANT))
+    const res = await postSchedule(
+      postReq(PUB_VARIANT, { schedule: SLOT_FUTURE_B }) as unknown as NextRequest,
+      ctx(PUB_VARIANT)
+    )
     expect(res.status).toBe(409)
     const body = await res.json()
     expect(body.error).toContain(GUARD_MESSAGE)
@@ -290,7 +312,10 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
 
   it('PUT is rejected (409) when the published variant id is passed directly', async () => {
     const res = await putSchedule(
-      putReq(PUB_VARIANT, { scheduleId: `fix24g_nope_${stamp}`, schedule: SLOT_FUTURE_B }) as unknown as NextRequest,
+      putReq(PUB_VARIANT, {
+        scheduleId: `fix24g_nope_${stamp}`,
+        schedule: SLOT_FUTURE_B,
+      }) as unknown as NextRequest,
       ctx(PUB_VARIANT)
     )
     expect(res.status).toBe(409)
@@ -300,7 +325,10 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
 
   it('POST still works for a template whose variants are all drafts', async () => {
     const res = await postSchedule(
-      postReq(TEMPLATE_DRAFT, { schedule: SLOT_FUTURE, weeksToSchedule: 8 }) as unknown as NextRequest,
+      postReq(TEMPLATE_DRAFT, {
+        schedule: SLOT_FUTURE,
+        weeksToSchedule: 8,
+      }) as unknown as NextRequest,
       ctx(TEMPLATE_DRAFT)
     )
     expect(res.status).toBe(200)
@@ -311,7 +339,10 @@ describe('BUG #2: schedules endpoint is blocked once a course is published', () 
 
   it('PUT still works for a template whose variants are all drafts', async () => {
     const res = await putSchedule(
-      putReq(TEMPLATE_DRAFT, { scheduleId: SCHED_DRAFT, schedule: SLOT_FUTURE_B }) as unknown as NextRequest,
+      putReq(TEMPLATE_DRAFT, {
+        scheduleId: SCHED_DRAFT,
+        schedule: SLOT_FUTURE_B,
+      }) as unknown as NextRequest,
       ctx(TEMPLATE_DRAFT)
     )
     expect(res.status).toBe(200)
