@@ -28,6 +28,7 @@ import {
   findAlternativeSlots as sharedFindAlternativeSlots,
   findConflicts,
 } from '@/lib/schedule/conflicts'
+import { bookingInstants } from '@/lib/one-on-one/time'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
 import { collectFileKeys } from '@/lib/services/course-builder.service'
 import { fileExists } from '@/lib/storage/service'
@@ -165,6 +166,13 @@ const DAY_MAP: Record<string, number> = {
   Friday: 5,
   Saturday: 6,
 }
+
+// A booking's `requestedDate` is midnight UTC of the picked calendar date, but
+// its true instant is that midnight + wall-clock interpreted in the booking's
+// own timezone — worst case ±14h (Line Islands ↔ Baker/Howland). Range filters
+// on `requestedDate` must be widened by this much or timezone-shifted bookings
+// fall outside the fetch and escape conflict detection.
+const MAX_BOOKING_TZ_OFFSET_MS = 14 * 60 * 60 * 1000
 
 /**
  * Robust LiveSession insert that adapts to schema drift.
@@ -418,6 +426,18 @@ export const POST = withCsrf(
 
           const existingMap = new Map(existingRows.map(r => [`${r.category}|${r.nationality}`, r]))
 
+          // Template course schedule rows. Migrated sessions (below) still point
+          // at these; each one carried over into a variant maps to the fresh
+          // variant courseSchedule row so enrolled students can see them.
+          const templateSchedules = await tx
+            .select({
+              scheduleId: courseSchedule.scheduleId,
+              scheduleIndex: courseSchedule.scheduleIndex,
+            })
+            .from(courseSchedule)
+            .where(eq(courseSchedule.courseId, templateCourseId))
+          const templateScheduleIdSet = new Set(templateSchedules.map(s => s.scheduleId))
+
           const requestedKeys = new Set<string>()
 
           for (const v of variants) {
@@ -616,6 +636,10 @@ export const POST = withCsrf(
 
             const schedules = Array.isArray(v.schedules) ? v.schedules : []
             const scheduleIdByPayload = new Map<unknown, string>()
+            // Template courseSchedule id → the variant row created/updated for it
+            // this publish. Built only while schedules may change (same condition
+            // as session generation), so the migration remap below always has it.
+            const variantScheduleIdByTemplateId = new Map<string, string>()
 
             // Schedule changes are not allowed for already-published variants.
             if (!existing || !existing.isPublished) {
@@ -634,6 +658,15 @@ export const POST = withCsrf(
                 const existingSch = existingSchedules.find(
                   es => es.scheduleIndex === s.scheduleIndex
                 )
+                // The template schedule this payload slot carries over: an
+                // explicit template scheduleId wins, otherwise match the
+                // template row by scheduleIndex (payload ids from the GET
+                // response are the variant's own row ids, not template ids).
+                const carriedTemplateId =
+                  s.scheduleId && templateScheduleIdSet.has(s.scheduleId)
+                    ? s.scheduleId
+                    : templateSchedules.find(t => t.scheduleIndex === (s.scheduleIndex || i + 1))
+                        ?.scheduleId
                 if (existingSch) {
                   await tx
                     .update(courseSchedule)
@@ -646,6 +679,9 @@ export const POST = withCsrf(
                     })
                     .where(eq(courseSchedule.scheduleId, existingSch.scheduleId))
                   scheduleIdByPayload.set(s, existingSch.scheduleId)
+                  if (carriedTemplateId) {
+                    variantScheduleIdByTemplateId.set(carriedTemplateId, existingSch.scheduleId)
+                  }
                 } else {
                   const newScheduleId = crypto.randomUUID()
                   await tx.insert(courseSchedule).values({
@@ -661,6 +697,9 @@ export const POST = withCsrf(
                     updatedAt: now,
                   })
                   scheduleIdByPayload.set(s, newScheduleId)
+                  if (carriedTemplateId) {
+                    variantScheduleIdByTemplateId.set(carriedTemplateId, newScheduleId)
+                  }
                 }
               }
 
@@ -746,6 +785,7 @@ export const POST = withCsrf(
                             scheduledAt: liveSession.scheduledAt,
                             durationMinutes: liveSession.durationMinutes,
                             courseId: liveSession.courseId,
+                            scheduleId: liveSession.scheduleId,
                             roomUrl: liveSession.roomUrl,
                             lessonId: liveSession.lessonId,
                           })
@@ -783,6 +823,7 @@ export const POST = withCsrf(
                             requestedDate: oneOnOneBookingRequest.requestedDate,
                             startTime: oneOnOneBookingRequest.startTime,
                             endTime: oneOnOneBookingRequest.endTime,
+                            timezone: oneOnOneBookingRequest.timezone,
                             durationMinutes: oneOnOneBookingRequest.durationMinutes,
                           })
                           .from(oneOnOneBookingRequest)
@@ -790,8 +831,18 @@ export const POST = withCsrf(
                             and(
                               eq(oneOnOneBookingRequest.tutorId, userId),
                               inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID']),
-                              gte(oneOnOneBookingRequest.requestedDate, minScheduledAt),
-                              lte(oneOnOneBookingRequest.requestedDate, sessionEndMax)
+                              // requestedDate is midnight UTC of the picked date;
+                              // the true instant can shift ±14h once the booking's
+                              // own timezone is applied, so widen the date filter
+                              // and resolve exact instants in JS below.
+                              gte(
+                                oneOnOneBookingRequest.requestedDate,
+                                new Date(minScheduledAt.getTime() - MAX_BOOKING_TZ_OFFSET_MS)
+                              ),
+                              lte(
+                                oneOnOneBookingRequest.requestedDate,
+                                new Date(sessionEndMax.getTime() + MAX_BOOKING_TZ_OFFSET_MS)
+                              )
                             )
                           )
                       : Promise.resolve([]),
@@ -957,11 +1008,12 @@ export const POST = withCsrf(
                     continue
                   }
 
-                  const conflictingOo = existingOneOnOnes.find((oo: any) => {
-                    const ooStart = oo.requestedDate
-                    const ooEnd = new Date(
-                      oo.requestedDate.getTime() + (oo.durationMinutes || 60) * 60000
-                    )
+                  // Compare against the booking's TRUE UTC window: requestedDate
+                  // is only midnight UTC of the picked date — the real instant is
+                  // that midnight + startTime/endTime in the booking's own zone
+                  // (see bookingInstants / slotInstants in lib/schedule/conflicts).
+                  const conflictingOo = existingOneOnOnes.find(oo => {
+                    const { start: ooStart, end: ooEnd } = bookingInstants(oo)
                     return sessionStart < ooEnd && sessionEnd > ooStart
                   })
                   if (conflictingOo) {
@@ -970,17 +1022,12 @@ export const POST = withCsrf(
                       session.scheduledAt,
                       session.durationMinutes
                     )
+                    const { start: ooStart, end: ooEnd } = bookingInstants(conflictingOo)
                     skippedSessions.push({
                       scheduledAt: session.scheduledAt,
                       durationMinutes: session.durationMinutes,
                       reason: 'one_on_one',
-                      conflictWith: {
-                        start: conflictingOo.requestedDate,
-                        end: new Date(
-                          conflictingOo.requestedDate.getTime() +
-                            (conflictingOo.durationMinutes || 60) * 60000
-                        ),
-                      },
+                      conflictWith: { start: ooStart, end: ooEnd },
                       recommendations: recs,
                     })
                     continue
@@ -994,9 +1041,30 @@ export const POST = withCsrf(
                       // Sessions materialized from a schedule on the unpublished template
                       // belong to the same logical course. Migrate them to the published variant.
                       if (conflictingLs.courseId === templateCourseId) {
+                        // Remap scheduleId from the TEMPLATE course's schedule
+                        // row to the variant row minted above (matched via the
+                        // template→variant map). A template schedule not carried
+                        // over becomes null (one-time session). Ids that already
+                        // point at a variant/other row are left alone, so
+                        // re-publish is idempotent.
+                        const currentScheduleId = conflictingLs.scheduleId
+                        let migratedScheduleId: string | null | undefined
+                        if (currentScheduleId) {
+                          if (variantScheduleIdByTemplateId.has(currentScheduleId)) {
+                            migratedScheduleId =
+                              variantScheduleIdByTemplateId.get(currentScheduleId)!
+                          } else if (templateScheduleIdSet.has(currentScheduleId)) {
+                            migratedScheduleId = null
+                          }
+                        }
                         await tx
                           .update(liveSession)
-                          .set({ courseId: publishedCourseId })
+                          .set({
+                            courseId: publishedCourseId,
+                            ...(migratedScheduleId !== undefined
+                              ? { scheduleId: migratedScheduleId }
+                              : {}),
+                          })
                           .where(eq(liveSession.sessionId, conflictingLs.sessionId))
 
                         // Keep the linked CalendarEvent in sync with the published course.
