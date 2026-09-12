@@ -154,7 +154,7 @@ export function SessionCalendarPanel({
                   className={cn(
                     'relative z-10 flex-1 rounded-lg text-white/80 transition-colors hover:text-white data-[state=active]:bg-transparent data-[state=active]:shadow-none',
                     variant === 'apricot'
-                      ? '!text-[#7A3B34] hover:!text-[#4A2420] data-[state=active]:!text-[#E08B80]'
+                      ? '!text-white/90 hover:!text-white data-[state=active]:!text-[#E08B80]'
                       : variant === 'charcoal'
                         ? 'data-[state=active]:!text-[#1F2933]'
                         : 'data-[state=active]:!text-[#3B82F6]'
