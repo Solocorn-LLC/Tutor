@@ -8,11 +8,24 @@
  * published course's schedule on a 24h cadence. The duplicate guard inside
  * materializeScheduleSessions makes re-runs idempotent: already-materialized
  * slots are kept as-is and only newly entered weeks create sessions.
+ *
+ * Liveness gate: only ACTIVE courses are topped up — a course counts as active
+ * when it has any session (regardless of status) scheduled within the last
+ * ACTIVE_WINDOW_DAYS, or its row was updated within that window. Without this
+ * gate, long-abandoned courses that were never unpublished (and schedules that
+ * were persisted by entry points which never materialized them) suddenly sprout
+ * weeks of new session cards the first time the job runs.
  */
 
-import { and, asc, eq, isNull, notInArray } from 'drizzle-orm'
+import { and, asc, eq, exists, gte, isNull, notInArray, or } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarAvailability, course, courseSchedule, courseVariant } from '@/lib/db/schema'
+import {
+  calendarAvailability,
+  course,
+  courseSchedule,
+  courseVariant,
+  liveSession,
+} from '@/lib/db/schema'
 import {
   generateScheduleSessionDates,
   materializeScheduleSessions,
@@ -41,6 +54,14 @@ const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const INITIAL_DELAY_MS = 60 * 1000
 const DEFAULT_WEEKS_AHEAD = 8
 const DEFAULT_LIMIT_PER_RUN = 500
+/**
+ * A course is topped up only when it shows activity within this window: any
+ * session scheduled in it (regardless of status — past sessions are 'ended')
+ * or a recent course update. 70 days ≈ the 8-week materialization horizon
+ * plus slack, so an active course that consumed its window still qualifies
+ * while a course dead for months does not.
+ */
+const ACTIVE_WINDOW_DAYS = 70
 
 /**
  * Map a stored CourseSchedule `schedule` JSON payload to ScheduleSlotInput[].
@@ -66,10 +87,10 @@ function toScheduleSlotInputs(payload: unknown): ScheduleSlotInput[] {
 }
 
 /**
- * One pass over every published course's schedules: re-derive the future slot
- * instants (weeksAhead from now, in the tutor's timezone) and materialize the
- * ones that don't exist yet. Per-schedule failures are logged and counted but
- * never abort the run.
+ * One pass over every ACTIVE published course's schedules: re-derive the future
+ * slot instants (weeksAhead from now, in the tutor's timezone) and materialize
+ * the ones that don't exist yet. Per-schedule failures are logged and counted
+ * but never abort the run.
  */
 export async function runRollingScheduleMaterialization(
   opts: RollingMaterializationOptions = {}
@@ -92,6 +113,17 @@ export async function runRollingScheduleMaterialization(
     .select({ templateCourseId: courseVariant.templateCourseId })
     .from(courseVariant)
 
+  // Liveness gate (see file header): skip courses with no session scheduled
+  // within the active window and no recent update — topping those up resurrects
+  // abandoned courses with weeks of unwanted session cards.
+  const activeCutoff = new Date(Date.now() - ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000)
+  const recentSession = drizzleDb
+    .select({ sessionId: liveSession.sessionId })
+    .from(liveSession)
+    .where(
+      and(eq(liveSession.courseId, course.courseId), gte(liveSession.scheduledAt, activeCutoff))
+    )
+
   const rows = await drizzleDb
     .select({
       scheduleId: courseSchedule.scheduleId,
@@ -109,7 +141,8 @@ export async function runRollingScheduleMaterialization(
       and(
         eq(course.isPublished, true),
         isNull(course.deletedAt),
-        notInArray(course.courseId, templateIds)
+        notInArray(course.courseId, templateIds),
+        or(exists(recentSession), gte(course.updatedAt, activeCutoff))
       )
     )
     .orderBy(asc(courseSchedule.scheduleId))

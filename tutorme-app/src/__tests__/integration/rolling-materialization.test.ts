@@ -30,11 +30,13 @@ const tutorId = crypto.randomUUID()
 
 const PUBLISHED_COURSE = `roll_pub_${stamp}`
 const TEMPLATE_COURSE = `roll_tmpl_${stamp}`
+const STALE_COURSE = `roll_stale_${stamp}`
 const VARIANT_ID = `roll_var_${stamp}`
 const SCHED_PUB = `roll_sched_pub_${stamp}`
 const SCHED_PUB_DATES = `roll_sched_pub_dates_${stamp}`
 const SCHED_TMPL = `roll_sched_tmpl_${stamp}`
-const SCHEDULE_IDS = [SCHED_PUB, SCHED_PUB_DATES, SCHED_TMPL]
+const SCHED_STALE = `roll_sched_stale_${stamp}`
+const SCHEDULE_IDS = [SCHED_PUB, SCHED_PUB_DATES, SCHED_TMPL, SCHED_STALE]
 
 const DAY_NAMES = [
   'Sunday',
@@ -113,6 +115,17 @@ describe('rolling schedule re-materialization', () => {
         categories: ['math'],
         isPublished: false,
       },
+      {
+        // Abandoned course: published months ago, never touched since, no
+        // sessions. The liveness gate must keep it from being topped up.
+        courseId: STALE_COURSE,
+        name: `roll_stale_${stamp}`,
+        creatorId: tutorId,
+        categories: ['math'],
+        isPublished: true,
+        createdAt: new Date(Date.now() - 120 * 86_400_000),
+        updatedAt: new Date(Date.now() - 120 * 86_400_000),
+      },
     ])
 
     // Template → published variant linkage: the template must be excluded even
@@ -153,6 +166,14 @@ describe('rolling schedule re-materialization', () => {
         weeksToSchedule: 8,
         enrolledCount: 0,
       },
+      {
+        scheduleId: SCHED_STALE,
+        courseId: STALE_COURSE,
+        scheduleIndex: 1,
+        schedule: [WEEKLY_SLOT],
+        weeksToSchedule: 8,
+        enrolledCount: 0,
+      },
     ])
   })
 
@@ -173,7 +194,7 @@ describe('rolling schedule re-materialization', () => {
     await drizzleDb.delete(courseVariant).where(eq(courseVariant.variantId, VARIANT_ID))
     await drizzleDb
       .delete(course)
-      .where(inArray(course.courseId, [PUBLISHED_COURSE, TEMPLATE_COURSE]))
+      .where(inArray(course.courseId, [PUBLISHED_COURSE, TEMPLATE_COURSE, STALE_COURSE]))
     await drizzleDb.delete(user).where(eq(user.userId, tutorId))
   })
 
@@ -234,6 +255,16 @@ describe('rolling schedule re-materialization', () => {
       Math.abs(dateSessions[0].scheduledAt.getTime() - FUTURE_DATE_INSTANT.getTime())
     ).toBeLessThan(1000)
 
+    expect(run.errors).toBe(0)
+  })
+
+  it('never tops up abandoned courses with no recent activity (liveness gate)', async () => {
+    // STALE_COURSE was "updated" 120 days ago and has no sessions at all: it
+    // must be ignored even though it is still published.
+    const run = await runRollingScheduleMaterialization({ weeksAhead: 2 })
+
+    const staleSessions = await sessionsForSchedule(SCHED_STALE)
+    expect(staleSessions).toHaveLength(0)
     expect(run.errors).toBe(0)
   })
 
