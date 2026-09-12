@@ -231,9 +231,7 @@ describe('publish route 1-on-1 conflict window (timezone-aware instants)', () =>
       )
     }
     await t(() =>
-      drizzleDb
-        .delete(courseVariant)
-        .where(inArray(courseVariant.templateCourseId, templateIds))
+      drizzleDb.delete(courseVariant).where(inArray(courseVariant.templateCourseId, templateIds))
     )
     await t(() => drizzleDb.delete(courseLesson).where(inArray(courseLesson.courseId, templateIds)))
     await t(() => drizzleDb.delete(course).where(inArray(course.courseId, allCourseIds)))
@@ -266,9 +264,7 @@ describe('publish route 1-on-1 conflict window (timezone-aware instants)', () =>
     ).toBe(409)
     expect(data.code).toBe('SESSION_CONFLICTS')
     expect(
-      (data.skippedSessions ?? []).some(
-        (s: { reason: string }) => s.reason === 'one_on_one'
-      ),
+      (data.skippedSessions ?? []).some((s: { reason: string }) => s.reason === 'one_on_one'),
       `expected a skipped session with reason 'one_on_one', got ${JSON.stringify(data.skippedSessions)}`
     ).toBe(true)
 

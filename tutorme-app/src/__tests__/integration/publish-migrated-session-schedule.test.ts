@@ -250,9 +250,7 @@ describe('BUG #3: migrated sessions keep template scheduleId — students see ze
       drizzleDb.delete(courseSchedule).where(inArray(courseSchedule.courseId, courseIds))
     )
     await t(() =>
-      drizzleDb
-        .delete(courseVariant)
-        .where(eq(courseVariant.templateCourseId, TEMPLATE_COURSE_ID))
+      drizzleDb.delete(courseVariant).where(eq(courseVariant.templateCourseId, TEMPLATE_COURSE_ID))
     )
     await t(() => drizzleDb.delete(courseLesson).where(inArray(courseLesson.courseId, courseIds)))
     await t(() => drizzleDb.delete(course).where(inArray(course.courseId, courseIds)))
