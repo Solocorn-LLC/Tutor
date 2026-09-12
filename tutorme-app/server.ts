@@ -13,6 +13,7 @@ import { validateEnv } from './src/lib/env'
 import { applyStartupSchemaFixes } from './src/lib/db/startup-schema-fix'
 import { applyStartupDataCleanup } from './src/lib/db/startup-cleanup'
 import { startSessionReminderScheduler } from './src/lib/notifications/session-reminder-scheduler'
+import { startRollingMaterializationScheduler } from './src/lib/sessions/rolling-materialization'
 
 // Load environment variables from .env.local before validation
 // .env.local takes precedence over .env
@@ -224,6 +225,10 @@ server
 
         // Background: send upcoming-session reminders into the notification bell.
         startSessionReminderScheduler()
+
+        // Background: top up published courses' schedules so sessions keep
+        // appearing N weeks ahead (rolling re-materialization).
+        startRollingMaterializationScheduler()
       } catch (err: unknown) {
         const error = err instanceof Error ? err : new Error('Background initialization failed')
         console.error('❌ [Server] Background Initialization Failed:', error)
