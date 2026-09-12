@@ -10,7 +10,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { conversation, directMessage, user, profile } from '@/lib/db/schema'
 import { or, eq, and, desc, ne, inArray, sql } from 'drizzle-orm'
 import { isConversationAllowedByRoles } from '@/lib/messaging/permissions'
-import { canCreateConversation } from '@/lib/messaging/relationships'
+import { canCreateConversation, canTutorChatWith } from '@/lib/messaging/relationships'
 
 type AppRole = 'STUDENT' | 'TUTOR' | 'PARENT' | 'ADMIN'
 
@@ -65,69 +65,87 @@ export const GET = withAuth(async (req: NextRequest, session) => {
   }
   const unreadByConvId = Object.fromEntries(unreadRows.map(r => [r.conversationId, r.count]))
 
-  const formattedConversations = conversations
-    .filter(conv =>
-      isConversationAllowedByRoles(
-        (userById[conv.participant1Id]?.role as AppRole) ?? 'STUDENT',
-        (userById[conv.participant2Id]?.role as AppRole) ?? 'STUDENT'
-      )
+  const roleEligibleConversations = conversations.filter(conv =>
+    isConversationAllowedByRoles(
+      (userById[conv.participant1Id]?.role as AppRole) ?? 'STUDENT',
+      (userById[conv.participant2Id]?.role as AppRole) ?? 'STUDENT'
     )
-    .map(conv => {
-      const p1 = userById[conv.participant1Id]
-      const p2 = userById[conv.participant2Id]
-      const otherParticipant = conv.participant1Id === userId ? p2 : p1
-      const otherProfile = otherParticipant ? profileByUserId[otherParticipant.userId] : null
-      const lastMsg = lastMessageByConvId[conv.conversationId]
-      return {
-        ...conv,
-        // The DB row exposes `conversationId` (column `id`); the client reads
-        // `conversation.id` (used to build /api/conversations/:id/messages URLs).
-        // Without this, that id was `undefined` → 404 on load and send.
-        id: conv.conversationId,
-        participant1: p1
-          ? {
-              id: p1?.userId,
-              email: p1.email,
-              role: p1.role,
-              profile: profileByUserId[p1?.userId ?? '']
-                ? {
-                    name: profileByUserId[p1?.userId ?? ''].name,
-                    avatarUrl: profileByUserId[p1?.userId ?? ''].avatarUrl,
-                  }
-                : null,
-            }
-          : null,
-        participant2: p2
-          ? {
-              id: p2?.userId,
-              email: p2.email,
-              role: p2.role,
-              profile: profileByUserId[p2?.userId ?? '']
-                ? {
-                    name: profileByUserId[p2?.userId ?? ''].name,
-                    avatarUrl: profileByUserId[p2?.userId ?? ''].avatarUrl,
-                  }
-                : null,
-            }
-          : null,
-        otherParticipant: otherParticipant
-          ? {
-              id: otherParticipant.userId,
-              name: otherProfile?.name ?? otherParticipant.email?.split('@')[0] ?? '',
-              avatarUrl: otherProfile?.avatarUrl ?? null,
-            }
-          : null,
-        lastMessage: lastMsg
-          ? {
-              content: lastMsg.content,
-              createdAt: lastMsg.createdAt,
-              read: lastMsg.read,
-              senderId: lastMsg.senderId,
-            }
-          : null,
-        unreadCount: unreadByConvId[conv.conversationId] ?? 0,
+  )
+
+  // Tutor view: only show threads whose counterpart is eligible — mutual
+  // follows (tutors) or students with a confirmed 1-on-1 booking. Threads
+  // opened automatically (booking request, group-session join, ...) can
+  // exist with ineligible counterparts; they stay in the DB and reappear
+  // once eligibility is established, but don't clutter the Chats menu.
+  let visibleConversations = roleEligibleConversations
+  if ((session.user.role as AppRole) === 'TUTOR') {
+    const eligible: typeof roleEligibleConversations = []
+    for (const conv of roleEligibleConversations) {
+      const otherId = conv.participant1Id === userId ? conv.participant2Id : conv.participant1Id
+      const otherRole = (userById[otherId]?.role as AppRole) ?? 'STUDENT'
+      if (await canTutorChatWith(userId, { id: otherId, role: otherRole })) {
+        eligible.push(conv)
       }
-    })
+    }
+    visibleConversations = eligible
+  }
+
+  const formattedConversations = visibleConversations.map(conv => {
+    const p1 = userById[conv.participant1Id]
+    const p2 = userById[conv.participant2Id]
+    const otherParticipant = conv.participant1Id === userId ? p2 : p1
+    const otherProfile = otherParticipant ? profileByUserId[otherParticipant.userId] : null
+    const lastMsg = lastMessageByConvId[conv.conversationId]
+    return {
+      ...conv,
+      // The DB row exposes `conversationId` (column `id`); the client reads
+      // `conversation.id` (used to build /api/conversations/:id/messages URLs).
+      // Without this, that id was `undefined` → 404 on load and send.
+      id: conv.conversationId,
+      participant1: p1
+        ? {
+            id: p1?.userId,
+            email: p1.email,
+            role: p1.role,
+            profile: profileByUserId[p1?.userId ?? '']
+              ? {
+                  name: profileByUserId[p1?.userId ?? ''].name,
+                  avatarUrl: profileByUserId[p1?.userId ?? ''].avatarUrl,
+                }
+              : null,
+          }
+        : null,
+      participant2: p2
+        ? {
+            id: p2?.userId,
+            email: p2.email,
+            role: p2.role,
+            profile: profileByUserId[p2?.userId ?? '']
+              ? {
+                  name: profileByUserId[p2?.userId ?? ''].name,
+                  avatarUrl: profileByUserId[p2?.userId ?? ''].avatarUrl,
+                }
+              : null,
+          }
+        : null,
+      otherParticipant: otherParticipant
+        ? {
+            id: otherParticipant.userId,
+            name: otherProfile?.name ?? otherParticipant.email?.split('@')[0] ?? '',
+            avatarUrl: otherProfile?.avatarUrl ?? null,
+          }
+        : null,
+      lastMessage: lastMsg
+        ? {
+            content: lastMsg.content,
+            createdAt: lastMsg.createdAt,
+            read: lastMsg.read,
+            senderId: lastMsg.senderId,
+          }
+        : null,
+      unreadCount: unreadByConvId[conv.conversationId] ?? 0,
+    }
+  })
 
   return NextResponse.json({ conversations: formattedConversations })
 })

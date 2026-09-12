@@ -1,12 +1,17 @@
 /**
- * Relationship gate for creating NEW direct-message conversations.
+ * Relationship gate for direct-message conversations.
  *
- * Rules (enforced at conversation creation only — threads that already exist,
- * e.g. ones opened automatically by the 1-on-1 booking flow, keep working):
+ * Rules:
  *
  * - student ↔ tutor: requires a completed 1-on-1 booking between them
  *   (a PAID/COMPLETED booking whose scheduled end + grace period has passed)
+ *   — enforced at conversation creation; threads opened automatically by the
+ *   booking flow keep working
  * - tutor ↔ tutor: requires that they follow each other (mutual TutorFollow)
+ *   — enforced at conversation creation AND re-checked on every message send
+ *   (api/conversations/[id]/messages), so unfollowing cuts off existing
+ *   threads; tutors' conversation lists are also filtered by
+ *   canTutorChatWith (confirmed-booking students and mutual follows only)
  * - all other role pairs allowed by the matrix: no extra requirement
  */
 
@@ -47,7 +52,7 @@ async function hasCompletedOneOnOneBooking(studentId: string, tutorId: string): 
   })
 }
 
-async function followEachOther(userAId: string, userBId: string): Promise<boolean> {
+export async function followEachOther(userAId: string, userBId: string): Promise<boolean> {
   const rows = await drizzleDb
     .select({ followerId: tutorFollow.followerId })
     .from(tutorFollow)
@@ -58,6 +63,41 @@ async function followEachOther(userAId: string, userBId: string): Promise<boolea
       )
     )
   return rows.length === 2
+}
+
+/**
+ * Any confirmed 1-on-1 booking between the student and tutor (ACCEPTED,
+ * PAID, or COMPLETED). Used for chat-list eligibility: a tutor's Chats menu
+ * shows students with whom a booking has been agreed, regardless of whether
+ * the session has already taken place.
+ */
+async function hasBookedOneOnOne(studentId: string, tutorId: string): Promise<boolean> {
+  const rows = await drizzleDb
+    .select({ requestId: oneOnOneBookingRequest.requestId })
+    .from(oneOnOneBookingRequest)
+    .where(
+      and(
+        eq(oneOnOneBookingRequest.studentId, studentId),
+        eq(oneOnOneBookingRequest.tutorId, tutorId),
+        inArray(oneOnOneBookingRequest.status, ['ACCEPTED', 'PAID', 'COMPLETED'])
+      )
+    )
+    .limit(1)
+  return rows.length > 0
+}
+
+/**
+ * Whether a tutor is allowed to see/chat with an existing conversation
+ * counterpart: tutors require a mutual follow, students require a confirmed
+ * 1-on-1 booking, all other roles pass through.
+ */
+export async function canTutorChatWith(
+  tutorId: string,
+  counterpart: { id: string; role: AppRole }
+): Promise<boolean> {
+  if (counterpart.role === 'TUTOR') return followEachOther(tutorId, counterpart.id)
+  if (counterpart.role === 'STUDENT') return hasBookedOneOnOne(counterpart.id, tutorId)
+  return true
 }
 
 export type ConversationGateResult = { allowed: true } | { allowed: false; reason: string }
