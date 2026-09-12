@@ -46,14 +46,16 @@ export function generateScheduleSessionDates(
   schedule: ScheduleSlotInput[],
   weeksAhead = 8,
   timeZone = 'UTC',
-  skipPast = true
+  skipPast = true,
+  now?: Date
 ): Array<{ scheduledAt: Date; durationMinutes: number }> {
   const sessions: Array<{ scheduledAt: Date; durationMinutes: number }> = []
   // Skip sessions that are already in the past (with a 1-minute buffer) so we
   // don't create sessions that have already started. We no longer skip future
   // sessions within the next hour — a schedule published shortly before a slot
   // should still include that slot.
-  const cutoffMs = skipPast ? Date.now() - 60 * 1000 : 0
+  const referenceNow = now ?? new Date()
+  const cutoffMs = skipPast ? referenceNow.getTime() - 60 * 1000 : 0
 
   const addDays = (year: number, month: number, day: number, n: number) => {
     const t = new Date(Date.UTC(year, month - 1, day + n))
@@ -91,9 +93,8 @@ export function generateScheduleSessionDates(
     }
 
     // Next occurrence of this weekday in the tutor's timezone.
-    const now = new Date()
-    const todayZ = zonedDateParts(now, timeZone)
-    const todayWeekday = zonedWeekday(now, timeZone)
+    const todayZ = zonedDateParts(referenceNow, timeZone)
+    const todayWeekday = zonedWeekday(referenceNow, timeZone)
     const daysUntil = (targetDay - todayWeekday + 7) % 7
     let occ = addDays(todayZ.year, todayZ.month, todayZ.day, daysUntil)
     let first = zonedWallClockToUtc(occ.year, occ.month, occ.day, hours, minutes, timeZone)
@@ -122,6 +123,9 @@ export interface MaterializeScheduleOptions {
   weeksToSchedule?: number
   /** Tutor's timezone (from calendarAvailability); defaults to UTC. */
   timezone?: string
+  /** Reference clock for slot generation (rolling re-materialization, tests);
+   *  defaults to the real clock so existing callers are unaffected. */
+  now?: Date
   maxStudents?: number | null
   title: string
   category: string
@@ -166,7 +170,13 @@ export async function materializeScheduleSessions(
 ): Promise<MaterializeScheduleResult> {
   const dates =
     opts.dates ??
-    generateScheduleSessionDates(opts.slots, opts.weeksToSchedule ?? 8, opts.timezone ?? 'UTC')
+    generateScheduleSessionDates(
+      opts.slots,
+      opts.weeksToSchedule ?? 8,
+      opts.timezone ?? 'UTC',
+      true,
+      opts.now
+    )
 
   const db = tx ?? drizzleDb
   const result: MaterializeScheduleResult = { created: 0, kept: 0, skippedSlots: [] }
