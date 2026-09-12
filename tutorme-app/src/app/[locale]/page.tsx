@@ -829,6 +829,10 @@ const CELEBRITY_TUTORS = [
 
 const SPECIAL_CODES = ['kim.kon#26', 'stephen#26']
 
+// Full-page background video on the landing page. When disabled, the hero uses the
+// tutor hero panel blue (#3B82F6) instead and the gradient overlay is not rendered.
+const SHOW_BACKGROUND_VIDEO = false
+
 // How It Works dialog content.
 // Upload PDFs to GCS_BUCKET under `how-it-works/pdfs/` and make them public,
 // or replace the URLs with signed URLs from getFileUrl().
@@ -5136,23 +5140,25 @@ export default function LandingPage() {
       </AnimatePresence>
 
       {/* Video layer — isolated outside motion.main so Framer Motion never touches it */}
-      <div className="absolute inset-x-0 top-0 h-screen bg-black">
-        <video
-          key="landing-bg-video"
-          autoPlay
-          muted
-          loop
-          playsInline
-          preload="auto"
-          src="/landing-bg-video.mp4"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
-        />
-        {/* Gradient overlay for readability */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
-      </div>
+      {SHOW_BACKGROUND_VIDEO && (
+        <div className="absolute inset-x-0 top-0 h-screen bg-black">
+          <video
+            key="landing-bg-video"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            src="/landing-bg-video.mp4"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+          />
+          {/* Gradient overlay for readability */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
+        </div>
+      )}
 
       <motion.main initial={motionFadeIn} animate={motionFadeIn} className="relative">
-        <section className="snap-panel relative h-screen snap-start overflow-hidden">
+        <section className="snap-panel relative h-screen snap-start overflow-hidden bg-[#3B82F6]">
           <header className="relative z-10 flex items-center justify-between px-8 pt-8">
             <div className="flex items-center gap-3">
               <img src="/solocornlogo.png" alt="Solocorn" className="h-9 w-9" />
