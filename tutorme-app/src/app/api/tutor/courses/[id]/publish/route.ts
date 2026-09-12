@@ -24,7 +24,10 @@ import { createSession } from '@/lib/sessions/create-session'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
-import { findAlternativeSlots as sharedFindAlternativeSlots } from '@/lib/schedule/conflicts'
+import {
+  findAlternativeSlots as sharedFindAlternativeSlots,
+  findConflicts,
+} from '@/lib/schedule/conflicts'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
 import { collectFileKeys } from '@/lib/services/course-builder.service'
 import { fileExists } from '@/lib/storage/service'
@@ -719,17 +722,24 @@ export const POST = withCsrf(
                     ? new Date(Math.max(...scheduledAts.map(d => d.getTime())))
                     : null
 
-                // Fetch all existing sessions/events that could overlap with the generated range
+                // Fetch all existing sessions/events that could overlap with the generated range.
+                // The live-session window covers the full slot range plus one max slot
+                // duration on each side, so sessions still in progress when the first
+                // slot starts (or starting before the last slot ends) are seen —
+                // they are conflict or move candidates, not invisible overlaps.
+                const maxSlotDurationMinutes = Math.max(
+                  ...sessionDates.map(s => s.durationMinutes || 60)
+                )
                 const sessionEndMax = maxScheduledAt
-                  ? new Date(
-                      maxScheduledAt.getTime() +
-                        Math.max(...sessionDates.map(s => s.durationMinutes || 60)) * 60000
-                    )
+                  ? new Date(maxScheduledAt.getTime() + maxSlotDurationMinutes * 60000)
+                  : null
+                const windowStart = minScheduledAt
+                  ? new Date(minScheduledAt.getTime() - maxSlotDurationMinutes * 60000)
                   : null
 
                 const [existingLiveSessions, existingCalendarEvents, existingOneOnOnes] =
                   await Promise.all([
-                    minScheduledAt && maxScheduledAt
+                    windowStart && sessionEndMax
                       ? tx
                           .select({
                             sessionId: liveSession.sessionId,
@@ -744,8 +754,8 @@ export const POST = withCsrf(
                             and(
                               eq(liveSession.tutorId, userId),
                               inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
-                              gte(liveSession.scheduledAt, minScheduledAt),
-                              lte(liveSession.scheduledAt, maxScheduledAt)
+                              gte(liveSession.scheduledAt, windowStart),
+                              lte(liveSession.scheduledAt, sessionEndMax)
                             )
                           )
                       : Promise.resolve([]),
@@ -754,6 +764,7 @@ export const POST = withCsrf(
                           .select({
                             startTime: calendarEvent.startTime,
                             endTime: calendarEvent.endTime,
+                            externalId: calendarEvent.externalId,
                           })
                           .from(calendarEvent)
                           .where(
@@ -889,6 +900,13 @@ export const POST = withCsrf(
                   return start < existingEnd && end > existingStart
                 }
 
+                // Ids of the tutor's open live sessions in this window — a
+                // CalendarEvent whose externalId is one of these is the read-only
+                // PROJECTION of that session, not an independent commitment, so it
+                // must not count as a calendar-event conflict (it is handled by
+                // the live-session conflict logic below).
+                const openSessionIds = new Set(existingLiveSessions.map(ls => ls.sessionId))
+
                 for (const session of sessionDates) {
                   const sessionStart = session.scheduledAt
                   const sessionEnd = new Date(
@@ -916,8 +934,10 @@ export const POST = withCsrf(
                   const conflictingLs = existingLiveSessions.find(ls =>
                     overlaps(sessionStart, sessionEnd, ls)
                   )
-                  const conflictingCe = existingCalendarEvents.find(ce =>
-                    overlaps(sessionStart, sessionEnd, ce)
+                  const conflictingCe = existingCalendarEvents.find(
+                    ce =>
+                      overlaps(sessionStart, sessionEnd, ce) &&
+                      !(ce.externalId && openSessionIds.has(ce.externalId))
                   )
 
                   if (conflictingCe) {
@@ -989,6 +1009,106 @@ export const POST = withCsrf(
                               isNull(calendarEvent.deletedAt)
                             )
                           )
+                      }
+
+                      // A session of this still-unpublished variant that overlaps the
+                      // desired slot at a DIFFERENT instant/duration means the draft's
+                      // times were edited since the last save. Move it to the new slot
+                      // in place — preserving its id, room, participants and lesson.
+                      // If the move would overlap one of the tutor's OTHER
+                      // commitments, the slot is reported through the standard
+                      // skipped-session mechanism so the publish fails with the
+                      // usual 409 and the session is never half-moved.
+                      const exactSlotMatch =
+                        !!conflictingLs.scheduledAt &&
+                        conflictingLs.scheduledAt.getTime() === sessionStart.getTime() &&
+                        (conflictingLs.durationMinutes ?? 60) === session.durationMinutes
+                      const isFutureSession =
+                        !!conflictingLs.scheduledAt &&
+                        conflictingLs.scheduledAt.getTime() > now.getTime()
+
+                      if (
+                        !exactSlotMatch &&
+                        conflictingLs.courseId === publishedCourseId &&
+                        isFutureSession
+                      ) {
+                        // Exclude the session's own CalendarEvent projection, or the
+                        // move would always "conflict" with itself.
+                        const [ownCe] = await tx
+                          .select({ eventId: calendarEvent.eventId })
+                          .from(calendarEvent)
+                          .where(
+                            and(
+                              eq(calendarEvent.externalId, conflictingLs.sessionId),
+                              isNull(calendarEvent.deletedAt)
+                            )
+                          )
+                          .limit(1)
+                        const moveConflicts = await findConflicts(
+                          userId,
+                          sessionStart,
+                          sessionEnd,
+                          {
+                            excludeSessionId: conflictingLs.sessionId,
+                            excludeEventId: ownCe?.eventId,
+                          }
+                        )
+                        if (moveConflicts.length === 0) {
+                          await tx
+                            .update(liveSession)
+                            .set({
+                              scheduledAt: session.scheduledAt,
+                              durationMinutes: session.durationMinutes,
+                            })
+                            .where(eq(liveSession.sessionId, conflictingLs.sessionId))
+                          await tx
+                            .update(calendarEvent)
+                            .set({ startTime: session.scheduledAt, endTime: sessionEnd })
+                            .where(
+                              and(
+                                eq(calendarEvent.externalId, conflictingLs.sessionId),
+                                isNull(calendarEvent.deletedAt)
+                              )
+                            )
+                          // Backfill the lesson (parity with the keep-as-is path below).
+                          const movedBackfillLessonId =
+                            lessonCursor < publishedLessons.length
+                              ? publishedLessons[lessonCursor].lessonId
+                              : null
+                          if (!conflictingLs.lessonId && movedBackfillLessonId) {
+                            await tx
+                              .update(liveSession)
+                              .set({ lessonId: movedBackfillLessonId })
+                              .where(eq(liveSession.sessionId, conflictingLs.sessionId))
+                          }
+                          // The moved session now occupies this slot → advance.
+                          lessonCursor++
+                          continue
+                        }
+
+                        // The move would overlap one of the tutor's OTHER
+                        // commitments — surface it through the standard
+                        // skipped-session mechanism so the whole publish fails
+                        // with the usual 409 and nothing is half-moved.
+                        const blocker = moveConflicts[0]
+                        const recs = await findAlternativeSlots(
+                          userId,
+                          session.scheduledAt,
+                          session.durationMinutes
+                        )
+                        skippedSessions.push({
+                          scheduledAt: session.scheduledAt,
+                          durationMinutes: session.durationMinutes,
+                          reason:
+                            blocker.type === 'one_on_one'
+                              ? 'one_on_one'
+                              : blocker.type === 'calendar_event'
+                                ? 'calendar_event'
+                                : 'other_course_live_session',
+                          conflictWith: { start: blocker.startTime, end: blocker.endTime },
+                          recommendations: recs,
+                        })
+                        continue
                       }
 
                       // Same-course existing session: ensure it has a CalendarEvent

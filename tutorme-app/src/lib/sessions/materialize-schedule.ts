@@ -126,31 +126,50 @@ export interface MaterializeScheduleOptions {
   title: string
   category: string
   description?: string | null
+  /** Precomputed slot instants (see generateScheduleSessionDates). When omitted
+   *  they are derived from `slots` — pass them when the caller already generated
+   *  the same list so slot-keeping logic compares against identical instants. */
+  dates?: Array<{ scheduledAt: Date; durationMinutes: number }>
+}
+
+export interface SkippedScheduleSlot {
+  scheduledAt: Date
+  durationMinutes: number
+  reason: string
+}
+
+export interface MaterializeScheduleResult {
+  /** Sessions created during this run. */
+  created: number
+  /** Slots that already had an equivalent non-ended session and were kept as-is. */
+  kept: number
+  /** Slots that could NOT be materialized (e.g. tutor conflict) — surfaced so
+   *  callers can warn the tutor instead of silently dropping the slot. */
+  skippedSlots: SkippedScheduleSlot[]
 }
 
 /**
  * Create LiveSession + CalendarEvent rows for every future occurrence of a
- * schedule. Returns the number of sessions created.
+ * schedule.
  *
  * Hardening:
- * - Skips slots where an equivalent non-ended session already exists for the
- *   same schedule, so repeated saves / retries cannot duplicate sessions.
- * - Skips slots that overlap with the tutor's existing live sessions, calendar
- *   events, or confirmed 1-on-1 bookings.
+ * - Slots where an equivalent non-ended session already exists for the same
+ *   schedule are kept as-is (counted in `kept`), so repeated saves / retries
+ *   cannot duplicate sessions or wipe their lesson assignments.
+ * - Slots that overlap with the tutor's existing live sessions, calendar
+ *   events, or confirmed 1-on-1 bookings are NOT created; they are returned in
+ *   `skippedSlots` so the caller can surface the dropped slot to the tutor.
  */
 export async function materializeScheduleSessions(
   opts: MaterializeScheduleOptions,
   tx?: NodePgDatabase<typeof schema>
-): Promise<number> {
-  const dates = generateScheduleSessionDates(
-    opts.slots,
-    opts.weeksToSchedule ?? 8,
-    opts.timezone ?? 'UTC'
-  )
+): Promise<MaterializeScheduleResult> {
+  const dates =
+    opts.dates ??
+    generateScheduleSessionDates(opts.slots, opts.weeksToSchedule ?? 8, opts.timezone ?? 'UTC')
 
   const db = tx ?? drizzleDb
-  let created = 0
-  let skipped = 0
+  const result: MaterializeScheduleResult = { created: 0, kept: 0, skippedSlots: [] }
   for (const d of dates) {
     const endTime = new Date(d.scheduledAt.getTime() + d.durationMinutes * 60000)
 
@@ -171,7 +190,7 @@ export async function materializeScheduleSessions(
       .limit(1)
 
     if (existing) {
-      skipped++
+      result.kept++
       continue
     }
 
@@ -182,7 +201,11 @@ export async function materializeScheduleSessions(
         `[materializeScheduleSessions] skipping conflicting slot for schedule ${opts.scheduleId} at ${d.scheduledAt.toISOString()}:`,
         conflicts.map(c => ({ type: c.type, id: c.id, title: c.title }))
       )
-      skipped++
+      result.skippedSlots.push({
+        scheduledAt: d.scheduledAt,
+        durationMinutes: d.durationMinutes,
+        reason: 'conflict',
+      })
       continue
     }
 
@@ -203,15 +226,15 @@ export async function materializeScheduleSessions(
       },
       tx
     )
-    created++
+    result.created++
   }
 
-  if (skipped > 0) {
+  if (result.kept > 0 || result.skippedSlots.length > 0) {
     console.log(
-      `[materializeScheduleSessions] schedule ${opts.scheduleId}: created ${created}, skipped ${skipped}`
+      `[materializeScheduleSessions] schedule ${opts.scheduleId}: created ${result.created}, kept ${result.kept}, skipped ${result.skippedSlots.length}`
     )
   }
-  return created
+  return result
 }
 
 /**
@@ -236,6 +259,43 @@ export async function clearFutureScheduleSessions(scheduleId: string): Promise<n
     )
   if (future.length === 0) return 0
   const ids = future.map(s => s.sessionId)
+  await drizzleDb
+    .update(liveSession)
+    .set({ status: 'ended', endedAt: now })
+    .where(inArray(liveSession.sessionId, ids))
+  await drizzleDb
+    .update(calendarEvent)
+    .set({ isCancelled: true, deletedAt: now })
+    .where(inArray(calendarEvent.externalId, ids))
+  return ids.length
+}
+
+/**
+ * Retire only the STALE future sessions of a schedule: future, not-yet-started
+ * sessions whose scheduledAt is NOT one of `keepInstants`. Used when a schedule
+ * is re-saved so that unchanged slots keep their existing sessions (and their
+ * lesson assignments / room / participants) while removed or moved slots are
+ * retired before re-materialization. Returns the number of sessions retired.
+ */
+export async function clearStaleScheduleSessions(
+  scheduleId: string,
+  keepInstants: Date[]
+): Promise<number> {
+  const now = new Date()
+  const keep = new Set(keepInstants.map(d => new Date(d).getTime()))
+  const future = await drizzleDb
+    .select({ sessionId: liveSession.sessionId, scheduledAt: liveSession.scheduledAt })
+    .from(liveSession)
+    .where(
+      and(
+        eq(liveSession.scheduleId, scheduleId),
+        eq(liveSession.status, 'scheduled'),
+        gt(liveSession.scheduledAt, now)
+      )
+    )
+  const stale = future.filter(s => s.scheduledAt && !keep.has(new Date(s.scheduledAt).getTime()))
+  if (stale.length === 0) return 0
+  const ids = stale.map(s => s.sessionId)
   await drizzleDb
     .update(liveSession)
     .set({ status: 'ended', endedAt: now })

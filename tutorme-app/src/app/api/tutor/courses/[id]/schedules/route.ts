@@ -10,19 +10,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { courseSchedule, course, calendarAvailability } from '@/lib/db/schema'
+import { courseSchedule, course, calendarAvailability, courseVariant } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { notifyStudentsOfScheduleChange } from '@/lib/notifications/reschedule'
 import {
   materializeScheduleSessions,
   clearFutureScheduleSessions,
+  clearStaleScheduleSessions,
+  generateScheduleSessionDates,
+  type MaterializeScheduleResult,
 } from '@/lib/sessions/materialize-schedule'
 import crypto from 'crypto'
+
+interface MaterializeForScheduleResult extends MaterializeScheduleResult {
+  /** Sessions soft-retired because their slot disappeared from the pattern. */
+  sessionsRetired: number
+}
 
 /**
  * Fetch the tutor's timezone + course display fields, then materialize a
  * schedule's future occurrences into real sessions. Shared by POST (create) and
- * PUT (edit). Returns the number of sessions created.
+ * PUT (edit). With `retireStale`, sessions whose slot vanished from the pattern
+ * are retired first so unchanged slots keep their existing sessions.
  */
 async function materializeForSchedule(
   courseId: string,
@@ -30,10 +39,11 @@ async function materializeForSchedule(
   scheduleId: string,
   slots: unknown,
   weeksToSchedule: unknown,
-  maxStudents: unknown
-): Promise<number> {
+  maxStudents: unknown,
+  opts: { retireStale?: boolean } = {}
+): Promise<MaterializeForScheduleResult> {
   const list = Array.isArray(slots) ? slots : []
-  if (list.length === 0) return 0
+  if (list.length === 0) return { created: 0, kept: 0, skippedSlots: [], sessionsRetired: 0 }
   const [tzRow] = await drizzleDb
     .select({ timezone: calendarAvailability.timezone })
     .from(calendarAvailability)
@@ -44,30 +54,66 @@ async function materializeForSchedule(
     .from(course)
     .where(eq(course.courseId, courseId))
     .limit(1)
-  return materializeScheduleSessions({
+  const timezone = tzRow?.timezone || 'UTC'
+  const weeks = typeof weeksToSchedule === 'number' ? weeksToSchedule : 8
+  const dates = generateScheduleSessionDates(list, weeks, timezone)
+  let sessionsRetired = 0
+  if (opts.retireStale) {
+    sessionsRetired = await clearStaleScheduleSessions(
+      scheduleId,
+      dates.map(d => d.scheduledAt)
+    )
+  }
+  const result = await materializeScheduleSessions({
     tutorId: userId,
     courseId,
     scheduleId,
     slots: list,
-    weeksToSchedule: typeof weeksToSchedule === 'number' ? weeksToSchedule : 8,
-    timezone: tzRow?.timezone || 'UTC',
+    weeksToSchedule: weeks,
+    timezone,
     maxStudents: typeof maxStudents === 'number' ? maxStudents : null,
     title: courseRow?.name || 'Live Session',
     category: courseRow?.categories?.[0] || 'General',
+    dates,
   })
+  return { ...result, sessionsRetired }
 }
 
-/** Guard: schedules must not be added, edited, or removed once a course is published. */
+/**
+ * Guard: schedules must not be added, edited, or removed once a course is
+ * published. This endpoint is keyed by TEMPLATE course ids (templates are never
+ * themselves published — their variants are), so besides checking the passed
+ * course's own flag we also resolve a passed variant id back to its template
+ * and reject the mutation when the template has ANY published variant. This
+ * mirrors the publish route, which does not allow schedule changes for
+ * already-published variants.
+ */
 async function guardUnpublished(courseId: string): Promise<NextResponse | null> {
   const [row] = await drizzleDb
     .select({ isPublished: course.isPublished })
     .from(course)
     .where(eq(course.courseId, courseId))
     .limit(1)
-  if (row?.isPublished) {
+
+  let templateId = courseId
+  const asVariant = await drizzleDb
+    .select({ templateCourseId: courseVariant.templateCourseId })
+    .from(courseVariant)
+    .where(eq(courseVariant.publishedCourseId, courseId))
+    .limit(1)
+  if (asVariant.length > 0) templateId = asVariant[0].templateCourseId
+
+  const [publishedVariant] = await drizzleDb
+    .select({ publishedCourseId: courseVariant.publishedCourseId })
+    .from(courseVariant)
+    .innerJoin(course, eq(course.courseId, courseVariant.publishedCourseId))
+    .where(and(eq(courseVariant.templateCourseId, templateId), eq(course.isPublished, true)))
+    .limit(1)
+
+  if (row?.isPublished || templateId !== courseId || publishedVariant) {
     return NextResponse.json(
-      { error: 'Cannot modify schedules on a published course' },
-      { status: 400 }
+      { error: 'Schedules cannot be changed after publishing. Unpublish or create a new variant.' },
+      { status: 409 }
     )
   }
   return null
@@ -170,8 +216,13 @@ export const POST = withCsrf(
         // schedule is already saved, so a materialization hiccup shouldn't fail
         // the request — the count is surfaced so the UI can warn if it's zero.
         let sessionsCreated = 0
+        let skippedSlots: Array<{
+          scheduledAt: Date
+          durationMinutes: number
+          reason: string
+        }> = []
         try {
-          sessionsCreated = await materializeForSchedule(
+          const mat = await materializeForSchedule(
             courseId,
             userId,
             newSchedule[0].scheduleId,
@@ -179,11 +230,13 @@ export const POST = withCsrf(
             body.weeksToSchedule,
             body.maxStudents
           )
+          sessionsCreated = mat.created
+          skippedSlots = mat.skippedSlots
         } catch (matErr) {
           console.error('[POST /api/tutor/courses/[id]/schedules] materialize failed:', matErr)
         }
 
-        return NextResponse.json({ schedule: newSchedule[0], sessionsCreated })
+        return NextResponse.json({ schedule: newSchedule[0], sessionsCreated, skippedSlots })
       } catch (error: any) {
         console.error('[POST /api/tutor/courses/[id]/schedules] Error:', error)
         return NextResponse.json(
@@ -262,6 +315,13 @@ export const PUT = withCsrf(
           body.schedule !== undefined &&
           JSON.stringify(before?.schedule ?? null) !== JSON.stringify(body.schedule)
         let sessionsCreated = 0
+        let sessionsKept = 0
+        let sessionsRetired = 0
+        let skippedSlots: Array<{
+          scheduledAt: Date
+          durationMinutes: number
+          reason: string
+        }> = []
         if (scheduleChanged) {
           const [row] = await drizzleDb
             .select({ name: course.name })
@@ -270,25 +330,37 @@ export const PUT = withCsrf(
             .limit(1)
           await notifyStudentsOfScheduleChange({ courseId, courseName: row?.name })
 
-          // Re-materialize: retire the old upcoming sessions for this schedule and
-          // create fresh ones at the new times. Clearing first avoids duplicates.
-          // Best-effort — the schedule row is already updated.
+          // Re-materialize: retire only the sessions whose slot vanished from the
+          // pattern (unchanged slots keep their sessions and lesson assignments),
+          // then materialize the new pattern — the duplicate guard skips slots
+          // that still have a live session. Best-effort — the schedule row is
+          // already updated.
           try {
-            await clearFutureScheduleSessions(scheduleId)
-            sessionsCreated = await materializeForSchedule(
+            const mat = await materializeForSchedule(
               courseId,
               userId,
               scheduleId,
               body.schedule,
               body.weeksToSchedule ?? updated[0].weeksToSchedule,
-              body.maxStudents ?? updated[0].maxStudents
+              body.maxStudents ?? updated[0].maxStudents,
+              { retireStale: true }
             )
+            sessionsCreated = mat.created
+            sessionsKept = mat.kept
+            sessionsRetired = mat.sessionsRetired
+            skippedSlots = mat.skippedSlots
           } catch (matErr) {
             console.error('[PUT /api/tutor/courses/[id]/schedules] re-materialize failed:', matErr)
           }
         }
 
-        return NextResponse.json({ schedule: updated[0], sessionsCreated })
+        return NextResponse.json({
+          schedule: updated[0],
+          sessionsCreated,
+          sessionsKept,
+          sessionsRetired,
+          skippedSlots,
+        })
       } catch (error: any) {
         console.error('[PUT /api/tutor/courses/[id]/schedules] Error:', error)
         return NextResponse.json(
