@@ -181,7 +181,7 @@ export default function CommunicationsPage({ role }: CommunicationsPageProps) {
           'relative mb-4 flex-shrink-0 rounded-[20px] border border-white/10 p-5 shadow-[0_12px_40px_-4px_rgba(0,0,0,0.22)] ring-1 ring-white/20',
           role === 'student'
             ? 'bg-gradient-to-br from-[#F4A9A0] to-[#E08B80]'
-            : 'bg-gradient-to-br from-[#2563EB] to-[#1D4ED8]'
+            : 'bg-gradient-to-br from-[#3B82F6] to-[#3B82F6]'
         )}
       >
         <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-center">
