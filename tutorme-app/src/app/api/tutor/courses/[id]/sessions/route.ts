@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
 import { withAuth, ForbiddenError } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
-import { eq, and, asc, inArray } from 'drizzle-orm'
+import { eq, and, asc, inArray, ne } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession as liveSessionTable,
@@ -89,6 +89,9 @@ export const GET = withAuth(
       const conditions = [
         eq(liveSessionTable.tutorId, tutorId),
         inArray(liveSessionTable.courseId, scopeIds),
+        // Demo classes are schedule-less and live only in the dedicated demos
+        // tab (same rule as GET /api/tutor/classes).
+        ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO'),
       ]
 
       if (allowedStatuses.length > 0) {
