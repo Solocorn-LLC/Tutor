@@ -231,7 +231,10 @@ export function StudentHeroSection({
                 </span>
               </div>
             )}
-            <h1 className="text-3xl font-bold text-white">{title}</h1>
+            {/* font-sans overrides the global h1 rule, which puts 'Fira Code'
+                (monospace) first — its wide space glyph made the title look
+                like it had a double space ("My  Courses"). */}
+            <h1 className="font-sans text-3xl font-bold text-white">{title}</h1>
           </div>
 
           <div

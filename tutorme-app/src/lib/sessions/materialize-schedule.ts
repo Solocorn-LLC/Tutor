@@ -134,6 +134,14 @@ export interface MaterializeScheduleOptions {
    *  they are derived from `slots` — pass them when the caller already generated
    *  the same list so slot-keeping logic compares against identical instants. */
   dates?: Array<{ scheduledAt: Date; durationMinutes: number }>
+  /**
+   * Hard cap on materialization: occurrences strictly after this instant are
+   * dropped before any duplicate/conflict checks (counted in
+   * `result.beyondHorizon` and logged). Used by the rolling re-materialization
+   * job to enforce each schedule's own horizon; omit for uncapped flows
+   * (publish, schedule edit).
+   */
+  horizonEnd?: Date
 }
 
 export interface SkippedScheduleSlot {
@@ -150,6 +158,8 @@ export interface MaterializeScheduleResult {
   /** Slots that could NOT be materialized (e.g. tutor conflict) — surfaced so
    *  callers can warn the tutor instead of silently dropping the slot. */
   skippedSlots: SkippedScheduleSlot[]
+  /** Occurrences dropped because they fell after `horizonEnd` (0 when no cap). */
+  beyondHorizon: number
 }
 
 /**
@@ -168,7 +178,7 @@ export async function materializeScheduleSessions(
   opts: MaterializeScheduleOptions,
   tx?: NodePgDatabase<typeof schema>
 ): Promise<MaterializeScheduleResult> {
-  const dates =
+  const generated =
     opts.dates ??
     generateScheduleSessionDates(
       opts.slots,
@@ -178,8 +188,28 @@ export async function materializeScheduleSessions(
       opts.now
     )
 
+  // Horizon cap (rolling re-materialization): the schedule's own horizon ends
+  // at scheduleStart + weeksToSchedule, so occurrences past that point must
+  // never be created — even though generation anchors at "now" and would
+  // otherwise keep producing them. Drop before duplicate/conflict checks so
+  // capped occurrences are not even counted as "kept".
+  let dates = generated
+  let beyondHorizon = 0
+  if (opts.horizonEnd) {
+    const horizonMs = opts.horizonEnd.getTime()
+    dates = generated.filter(d => d.scheduledAt.getTime() <= horizonMs)
+    beyondHorizon = generated.length - dates.length
+    if (beyondHorizon > 0) {
+      console.log(
+        `[materializeScheduleSessions] schedule ${opts.scheduleId}: ` +
+          `dropped ${beyondHorizon} occurrence(s) beyond horizon ` +
+          opts.horizonEnd.toISOString()
+      )
+    }
+  }
+
   const db = tx ?? drizzleDb
-  const result: MaterializeScheduleResult = { created: 0, kept: 0, skippedSlots: [] }
+  const result: MaterializeScheduleResult = { created: 0, kept: 0, skippedSlots: [], beyondHorizon }
   for (const d of dates) {
     const endTime = new Date(d.scheduledAt.getTime() + d.durationMinutes * 60000)
 
