@@ -84,8 +84,12 @@ async function main() {
     byCourse.set(c.courseId, list)
   }
 
-  console.log(`\nstale demo sessions to retire: ${candidates.length} across ${byCourse.size} course(s)`)
-  for (const [courseId, list] of [...byCourse.entries()].sort((a, b) => b[1].length - a[1].length)) {
+  console.log(
+    `\nstale demo sessions to retire: ${candidates.length} across ${byCourse.size} course(s)`
+  )
+  for (const [courseId, list] of [...byCourse.entries()].sort(
+    (a, b) => b[1].length - a[1].length
+  )) {
     console.log(`  retire ${list.length}x: ${list[0].courseName} (${courseId})`)
   }
 
@@ -111,7 +115,9 @@ async function main() {
       .set({ isCancelled: true, deletedAt: now })
       .where(inArray(calendarEvent.externalId, chunk))
   }
-  console.log(`\nRetired ${ids.length} demo session(s) (status -> ended, calendar events cancelled).`)
+  console.log(
+    `\nRetired ${ids.length} demo session(s) (status -> ended, calendar events cancelled).`
+  )
 }
 
 main()
