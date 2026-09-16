@@ -7,7 +7,17 @@
  * sessions on everyone's calendars. This job re-runs materialization for every
  * published course's schedule on a 24h cadence. The duplicate guard inside
  * materializeScheduleSessions makes re-runs idempotent: already-materialized
- * slots are kept as-is and only newly entered weeks create sessions.
+ * slots are kept as-is and only missing slots inside the horizon are created.
+ *
+ * Horizon cap: each schedule row is only materialized up to its OWN horizon —
+ * scheduleStart + weeksToSchedule weeks. The anchor is `courseSchedule.createdAt`:
+ * the schema has no dedicated start-date column, and `updatedAt` is bumped by
+ * routine writes (e.g. enrolledCount), which would re-open the horizon forever
+ * — the exact runaway growth this cap exists to stop. Occurrences are generated
+ * anchored at "now" (see generateScheduleSessionDates), so the cap is enforced
+ * by filtering generated instants against the horizon end; a schedule whose
+ * horizon is entirely in the past gets nothing, and the job can never extend a
+ * course beyond the window its tutor configured.
  *
  * Liveness gate: only ACTIVE courses are topped up — a course counts as active
  * when it has any session (regardless of status) scheduled within the last
@@ -33,8 +43,6 @@ import {
 } from './materialize-schedule'
 
 export interface RollingMaterializationOptions {
-  /** How many weeks ahead to materialize on each run. Defaults to 8. */
-  weeksAhead?: number
   /** Reference clock override (integration tests). Defaults to the real clock. */
   now?: Date
   /** Max course schedules processed per run. Defaults to 500. */
@@ -52,12 +60,12 @@ export interface RollingMaterializationResult {
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 /** Delay the first run so it doesn't compete with cold-start work. */
 const INITIAL_DELAY_MS = 60 * 1000
-const DEFAULT_WEEKS_AHEAD = 8
 const DEFAULT_LIMIT_PER_RUN = 500
+const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 /**
  * A course is topped up only when it shows activity within this window: any
  * session scheduled in it (regardless of status — past sessions are 'ended')
- * or a recent course update. 70 days ≈ the 8-week materialization horizon
+ * or a recent course update. 70 days ≈ the default 8-week schedule horizon
  * plus slack, so an active course that consumed its window still qualifies
  * while a course dead for months does not.
  */
@@ -87,16 +95,16 @@ function toScheduleSlotInputs(payload: unknown): ScheduleSlotInput[] {
 }
 
 /**
- * One pass over every ACTIVE published course's schedules: re-derive the future
- * slot instants (weeksAhead from now, in the tutor's timezone) and materialize
- * the ones that don't exist yet. Per-schedule failures are logged and counted
- * but never abort the run.
+ * One pass over every ACTIVE published course's schedules: re-derive the slot
+ * instants in the tutor's timezone (anchored at now, spanning the schedule's
+ * own weeksToSchedule) and materialize the ones inside the schedule's horizon
+ * that don't exist yet. Per-schedule failures are logged and counted but never
+ * abort the run.
  */
 export async function runRollingScheduleMaterialization(
   opts: RollingMaterializationOptions = {}
 ): Promise<RollingMaterializationResult> {
   const startedAt = Date.now()
-  const weeksAhead = opts.weeksAhead ?? DEFAULT_WEEKS_AHEAD
   const limitPerRun = opts.limitPerRun ?? DEFAULT_LIMIT_PER_RUN
   const result: RollingMaterializationResult = {
     schedulesScanned: 0,
@@ -130,6 +138,7 @@ export async function runRollingScheduleMaterialization(
       courseId: courseSchedule.courseId,
       schedule: courseSchedule.schedule,
       weeksToSchedule: courseSchedule.weeksToSchedule,
+      scheduleCreatedAt: courseSchedule.createdAt,
       maxStudents: courseSchedule.maxStudents,
       tutorId: course.creatorId,
       courseName: course.name,
@@ -174,8 +183,22 @@ export async function runRollingScheduleMaterialization(
       const slots = toScheduleSlotInputs(row.schedule)
       if (slots.length === 0) continue
 
+      // The schedule's own horizon: createdAt (the schedule's start date — the
+      // schema has no dedicated start-date column; updatedAt is bumped by
+      // routine writes and would re-open the horizon) + its configured
+      // weeksToSchedule. Generated occurrences anchor at "now", so without
+      // this cap the job would keep extending the course forever.
+      const weeksToSchedule = row.weeksToSchedule ?? 8
+      const horizonEnd = new Date(row.scheduleCreatedAt.getTime() + weeksToSchedule * MS_PER_WEEK)
+
+      // Horizon entirely in the past: generation only produces future
+      // instants (skipPast), so everything it made would be dropped anyway —
+      // skip without touching the DB.
+      const referenceNowMs = opts.now?.getTime() ?? Date.now()
+      if (horizonEnd.getTime() < referenceNowMs) continue
+
       const timezone = await timezoneFor(row.tutorId)
-      const dates = generateScheduleSessionDates(slots, weeksAhead, timezone, true, opts.now)
+      const dates = generateScheduleSessionDates(slots, weeksToSchedule, timezone, true, opts.now)
       if (dates.length === 0) continue
 
       const materialized = await materializeScheduleSessions({
@@ -183,13 +206,14 @@ export async function runRollingScheduleMaterialization(
         courseId: row.courseId,
         scheduleId: row.scheduleId,
         slots,
-        weeksToSchedule: weeksAhead,
+        weeksToSchedule,
         timezone,
         now: opts.now,
         maxStudents: row.maxStudents,
         title: row.courseName || 'Live Session',
         category: row.categories?.[0] || 'General',
         dates,
+        horizonEnd,
       })
 
       if (materialized.created > 0) result.schedulesToppedUp++
