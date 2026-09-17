@@ -9,6 +9,7 @@ import {
   forwardRef,
   useImperativeHandle,
   type ComponentProps,
+  type ReactNode,
   Fragment,
 } from 'react'
 
@@ -717,6 +718,58 @@ function PciReadinessBadge({ instructions }: { instructions?: string }) {
         PCI
       </span>
     </span>
+  )
+}
+
+/**
+ * Scale-to-fit host for the locked 1100 x 620 slide canvas. The canvas keeps
+ * its fixed design size — so the Test/Live snapshot stays 1:1 and overflow
+ * checks stay valid — while the preview is scaled down to fit the available
+ * panel, which removes the scrollbars that appear whenever the panel is
+ * smaller than the canvas.
+ */
+function ScaledSlideCanvas({
+  canvasClassName,
+  children,
+}: {
+  canvasClassName?: string
+  children: ReactNode
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const update = () => {
+      const { width, height } = el.getBoundingClientRect()
+      setScale(Math.min(1, width / 1100, height / 620))
+    }
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-50"
+    >
+      {/* Layout box at the scaled size; the canvas itself is drawn at the full
+          1100 x 620 and shrunk via transform from its top-left corner. */}
+      <div className="relative" style={{ width: 1100 * scale, height: 620 * scale }}>
+        <div
+          className={cn(
+            'absolute left-0 top-0 h-[620px] w-[1100px] bg-white shadow-md',
+            canvasClassName
+          )}
+          style={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -15228,124 +15281,121 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                   )?.audioTrack
                                                 : taskBuilder.audioTrack
                                               return (
-                                                <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                                  <div className="relative flex h-[620px] w-[1100px] flex-shrink-0 flex-col bg-white shadow-md">
-                                                    <div
-                                                      className={cn(
-                                                        'relative overflow-auto',
-                                                        activeAudioTrack ? 'h-1/2' : 'h-full'
-                                                      )}
-                                                    >
-                                                      <TaskSlideTextEditor
-                                                        ref={taskSlideEditorRef}
-                                                        html={
-                                                          taskBuilder.activeExtensionId
-                                                            ? taskBuilder.extensions.find(
-                                                                e =>
-                                                                  e.id ===
-                                                                  taskBuilder.activeExtensionId
-                                                              )?.content || ''
-                                                            : taskBuilder.taskContent
-                                                        }
-                                                        onHtmlChange={(newContent: string) => {
-                                                          if (
-                                                            !loadedTaskId &&
-                                                            !taskBuilder.activeExtensionId
-                                                          ) {
-                                                            autoCreateTask()
-                                                          }
-                                                          if (taskBuilder.activeExtensionId) {
-                                                            setTaskBuilder(prev => ({
-                                                              ...prev,
-                                                              extensions: prev.extensions.map(
-                                                                ext =>
-                                                                  ext.id === prev.activeExtensionId
-                                                                    ? {
-                                                                        ...ext,
-                                                                        content: newContent,
-                                                                      }
-                                                                    : ext
-                                                              ),
-                                                            }))
-                                                          } else {
-                                                            setTaskBuilder(prev => ({
-                                                              ...prev,
-                                                              taskContent: newContent,
-                                                            }))
-                                                          }
-                                                        }}
-                                                        readOnly={!canEdit}
-                                                        placeholder="Type the task content here — or load a document above to work from it."
-                                                        className="h-full w-full"
-                                                      />
-                                                      {taskBuilder.linkPreviews.map(preview => (
-                                                        <LinkPreviewCard
-                                                          key={preview.id}
-                                                          item={preview}
-                                                          containerWidth={1100}
-                                                          containerHeight={620}
-                                                          onChange={updates =>
-                                                            setTaskBuilder(prev => ({
-                                                              ...prev,
-                                                              linkPreviews: prev.linkPreviews.map(
-                                                                p =>
-                                                                  p.id === preview.id
-                                                                    ? { ...p, ...updates }
-                                                                    : p
-                                                              ),
-                                                            }))
-                                                          }
-                                                          onRemove={() => {
-                                                            setTaskBuilder(prev => {
-                                                              const activeHtml =
-                                                                prev.activeExtensionId
-                                                                  ? prev.extensions.find(
-                                                                      e =>
-                                                                        e.id ===
-                                                                        prev.activeExtensionId
-                                                                    )?.content || ''
-                                                                  : prev.taskContent
-                                                              const cleanedHtml =
-                                                                removeStandaloneUrlsFromHtml(
-                                                                  activeHtml,
-                                                                  [preview.url]
-                                                                )
-                                                              const next = {
-                                                                ...prev,
-                                                                linkPreviews:
-                                                                  prev.linkPreviews.filter(
-                                                                    p => p.id !== preview.id
-                                                                  ),
-                                                              }
-                                                              if (prev.activeExtensionId) {
-                                                                next.extensions =
-                                                                  prev.extensions.map(e =>
-                                                                    e.id === prev.activeExtensionId
-                                                                      ? {
-                                                                          ...e,
-                                                                          content: cleanedHtml,
-                                                                        }
-                                                                      : e
-                                                                  )
-                                                              } else {
-                                                                next.taskContent = cleanedHtml
-                                                              }
-                                                              return next
-                                                            })
-                                                          }}
-                                                        />
-                                                      ))}
-                                                    </div>
-                                                    {activeAudioTrack && (
-                                                      <div className="flex h-1/2 flex-col justify-center border-t border-slate-200 bg-slate-50 p-4">
-                                                        <AudioPlayer
-                                                          track={activeAudioTrack}
-                                                          className="w-full"
-                                                        />
-                                                      </div>
+                                                <ScaledSlideCanvas canvasClassName="flex flex-col">
+                                                  <div
+                                                    className={cn(
+                                                      'relative overflow-auto',
+                                                      activeAudioTrack ? 'h-1/2' : 'h-full'
                                                     )}
+                                                  >
+                                                    <TaskSlideTextEditor
+                                                      ref={taskSlideEditorRef}
+                                                      html={
+                                                        taskBuilder.activeExtensionId
+                                                          ? taskBuilder.extensions.find(
+                                                              e =>
+                                                                e.id ===
+                                                                taskBuilder.activeExtensionId
+                                                            )?.content || ''
+                                                          : taskBuilder.taskContent
+                                                      }
+                                                      onHtmlChange={(newContent: string) => {
+                                                        if (
+                                                          !loadedTaskId &&
+                                                          !taskBuilder.activeExtensionId
+                                                        ) {
+                                                          autoCreateTask()
+                                                        }
+                                                        if (taskBuilder.activeExtensionId) {
+                                                          setTaskBuilder(prev => ({
+                                                            ...prev,
+                                                            extensions: prev.extensions.map(ext =>
+                                                              ext.id === prev.activeExtensionId
+                                                                ? {
+                                                                    ...ext,
+                                                                    content: newContent,
+                                                                  }
+                                                                : ext
+                                                            ),
+                                                          }))
+                                                        } else {
+                                                          setTaskBuilder(prev => ({
+                                                            ...prev,
+                                                            taskContent: newContent,
+                                                          }))
+                                                        }
+                                                      }}
+                                                      readOnly={!canEdit}
+                                                      placeholder="Type the task content here — or load a document above to work from it."
+                                                      className="h-full w-full"
+                                                    />
+                                                    {taskBuilder.linkPreviews.map(preview => (
+                                                      <LinkPreviewCard
+                                                        key={preview.id}
+                                                        item={preview}
+                                                        containerWidth={1100}
+                                                        containerHeight={620}
+                                                        onChange={updates =>
+                                                          setTaskBuilder(prev => ({
+                                                            ...prev,
+                                                            linkPreviews: prev.linkPreviews.map(
+                                                              p =>
+                                                                p.id === preview.id
+                                                                  ? { ...p, ...updates }
+                                                                  : p
+                                                            ),
+                                                          }))
+                                                        }
+                                                        onRemove={() => {
+                                                          setTaskBuilder(prev => {
+                                                            const activeHtml =
+                                                              prev.activeExtensionId
+                                                                ? prev.extensions.find(
+                                                                    e =>
+                                                                      e.id ===
+                                                                      prev.activeExtensionId
+                                                                  )?.content || ''
+                                                                : prev.taskContent
+                                                            const cleanedHtml =
+                                                              removeStandaloneUrlsFromHtml(
+                                                                activeHtml,
+                                                                [preview.url]
+                                                              )
+                                                            const next = {
+                                                              ...prev,
+                                                              linkPreviews:
+                                                                prev.linkPreviews.filter(
+                                                                  p => p.id !== preview.id
+                                                                ),
+                                                            }
+                                                            if (prev.activeExtensionId) {
+                                                              next.extensions = prev.extensions.map(
+                                                                e =>
+                                                                  e.id === prev.activeExtensionId
+                                                                    ? {
+                                                                        ...e,
+                                                                        content: cleanedHtml,
+                                                                      }
+                                                                    : e
+                                                              )
+                                                            } else {
+                                                              next.taskContent = cleanedHtml
+                                                            }
+                                                            return next
+                                                          })
+                                                        }}
+                                                      />
+                                                    ))}
                                                   </div>
-                                                </div>
+                                                  {activeAudioTrack && (
+                                                    <div className="flex h-1/2 flex-col justify-center border-t border-slate-200 bg-slate-50 p-4">
+                                                      <AudioPlayer
+                                                        track={activeAudioTrack}
+                                                        className="w-full"
+                                                      />
+                                                    </div>
+                                                  )}
+                                                </ScaledSlideCanvas>
                                               )
                                             })()
                                           ) : (
@@ -15806,69 +15856,66 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
                                                 assessmentPdfVisible ? 'w-1/2' : 'w-full'
                                               )}
                                             >
-                                              <div className="relative flex h-full w-full items-center justify-center overflow-auto bg-slate-50">
-                                                <div className="relative h-[620px] w-[1100px] flex-shrink-0 bg-white shadow-md">
-                                                  <TaskSlideTextEditor
-                                                    ref={assessmentSlideEditorRef}
-                                                    html={
-                                                      assessmentBuilder.pages[
-                                                        assessmentBuilder.activePageIndex
-                                                      ] ?? ''
+                                              <ScaledSlideCanvas>
+                                                <TaskSlideTextEditor
+                                                  ref={assessmentSlideEditorRef}
+                                                  html={
+                                                    assessmentBuilder.pages[
+                                                      assessmentBuilder.activePageIndex
+                                                    ] ?? ''
+                                                  }
+                                                  onHtmlChange={(newContent: string) => {
+                                                    if (!loadedAssessmentId) {
+                                                      autoCreateAssessment()
                                                     }
-                                                    onHtmlChange={(newContent: string) => {
-                                                      if (!loadedAssessmentId) {
-                                                        autoCreateAssessment()
-                                                      }
-                                                      updateAssessmentPageContent(
-                                                        assessmentBuilder.activePageIndex,
-                                                        newContent
-                                                      )
-                                                    }}
-                                                    readOnly={!canEdit}
-                                                    placeholder="Type your assessment questions here — or load a document above to work from it."
-                                                    className="h-full w-full"
-                                                  />
-                                                  {assessmentBuilder.linkPreviews.map(preview => (
-                                                    <LinkPreviewCard
-                                                      key={preview.id}
-                                                      item={preview}
-                                                      containerWidth={1100}
-                                                      containerHeight={620}
-                                                      onChange={updates =>
-                                                        setAssessmentBuilder(prev => ({
+                                                    updateAssessmentPageContent(
+                                                      assessmentBuilder.activePageIndex,
+                                                      newContent
+                                                    )
+                                                  }}
+                                                  readOnly={!canEdit}
+                                                  placeholder="Type your assessment questions here — or load a document above to work from it."
+                                                  className="h-full w-full"
+                                                />
+                                                {assessmentBuilder.linkPreviews.map(preview => (
+                                                  <LinkPreviewCard
+                                                    key={preview.id}
+                                                    item={preview}
+                                                    containerWidth={1100}
+                                                    containerHeight={620}
+                                                    onChange={updates =>
+                                                      setAssessmentBuilder(prev => ({
+                                                        ...prev,
+                                                        linkPreviews: prev.linkPreviews.map(p =>
+                                                          p.id === preview.id
+                                                            ? { ...p, ...updates }
+                                                            : p
+                                                        ),
+                                                      }))
+                                                    }
+                                                    onRemove={() => {
+                                                      setAssessmentBuilder(prev => {
+                                                        const activeHtml =
+                                                          prev.pages[prev.activePageIndex] ?? ''
+                                                        const cleanedHtml =
+                                                          removeStandaloneUrlsFromHtml(activeHtml, [
+                                                            preview.url,
+                                                          ])
+                                                        const next = {
                                                           ...prev,
-                                                          linkPreviews: prev.linkPreviews.map(p =>
-                                                            p.id === preview.id
-                                                              ? { ...p, ...updates }
-                                                              : p
+                                                          linkPreviews: prev.linkPreviews.filter(
+                                                            p => p.id !== preview.id
                                                           ),
-                                                        }))
-                                                      }
-                                                      onRemove={() => {
-                                                        setAssessmentBuilder(prev => {
-                                                          const activeHtml =
-                                                            prev.pages[prev.activePageIndex] ?? ''
-                                                          const cleanedHtml =
-                                                            removeStandaloneUrlsFromHtml(
-                                                              activeHtml,
-                                                              [preview.url]
-                                                            )
-                                                          const next = {
-                                                            ...prev,
-                                                            linkPreviews: prev.linkPreviews.filter(
-                                                              p => p.id !== preview.id
-                                                            ),
-                                                            pages: [...prev.pages],
-                                                          }
-                                                          next.pages[prev.activePageIndex] =
-                                                            cleanedHtml
-                                                          return next
-                                                        })
-                                                      }}
-                                                    />
-                                                  ))}
-                                                </div>
-                                              </div>
+                                                          pages: [...prev.pages],
+                                                        }
+                                                        next.pages[prev.activePageIndex] =
+                                                          cleanedHtml
+                                                        return next
+                                                      })
+                                                    }}
+                                                  />
+                                                ))}
+                                              </ScaledSlideCanvas>
                                             </div>
                                           )}
 

@@ -43,7 +43,8 @@ async function materializeForSchedule(
   opts: { retireStale?: boolean } = {}
 ): Promise<MaterializeForScheduleResult> {
   const list = Array.isArray(slots) ? slots : []
-  if (list.length === 0) return { created: 0, kept: 0, skippedSlots: [], sessionsRetired: 0 }
+  if (list.length === 0)
+    return { created: 0, kept: 0, skippedSlots: [], beyondHorizon: 0, sessionsRetired: 0 }
   const [tzRow] = await drizzleDb
     .select({ timezone: calendarAvailability.timezone })
     .from(calendarAvailability)

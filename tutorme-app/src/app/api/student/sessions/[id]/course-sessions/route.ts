@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { eq, and, asc, inArray, or, isNull } from 'drizzle-orm'
+import { eq, and, asc, inArray, or, isNull, ne } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
@@ -73,6 +73,9 @@ export const GET = withAuth(
       // Fetch real live sessions, scoped to the student's chosen schedule when
       // they have one (a switch then cascades to which sessions they see).
       // One-time/ad-hoc sessions (scheduleId null) are shown to everyone.
+      // Demo classes are excluded: they are tutor-side rehearsals that
+      // students can enter/leave at will, not real course sessions
+      // (same rule as GET /api/tutor/courses/[id]/sessions).
       // Lesson titles so each session can show which lesson it covers.
       // (familyIds was already resolved for the enrollment gate above.)
       const lessonRows = await drizzleDb
@@ -88,12 +91,16 @@ export const GET = withAuth(
         where: enrolledScheduleId
           ? and(
               inArray(liveSessionTable.courseId, familyIds),
+              ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO'),
               or(
                 eq(liveSessionTable.scheduleId, enrolledScheduleId),
                 isNull(liveSessionTable.scheduleId)
               )
             )
-          : inArray(liveSessionTable.courseId, familyIds),
+          : and(
+              inArray(liveSessionTable.courseId, familyIds),
+              ne(liveSessionTable.sessionType, 'GO_LIVE_DEMO')
+            ),
         orderBy: [asc(liveSessionTable.scheduledAt)],
       })
 
