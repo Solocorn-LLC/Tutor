@@ -7,6 +7,10 @@
  * silently ran out of sessions. The rolling job re-runs materialization daily;
  * these tests exercise runRollingScheduleMaterialization directly.
  *
+ * The job must top up missing sessions inside each schedule's OWN horizon
+ * (schedule createdAt + weeksToSchedule weeks) but never create occurrences
+ * beyond it.
+ *
  * Requires DATABASE_URL + a running, migrated Postgres (see setup.ts).
  * All entities use the `roll_` prefix.
  */
@@ -31,12 +35,15 @@ const tutorId = crypto.randomUUID()
 const PUBLISHED_COURSE = `roll_pub_${stamp}`
 const TEMPLATE_COURSE = `roll_tmpl_${stamp}`
 const STALE_COURSE = `roll_stale_${stamp}`
+const HORIZON_COURSE = `roll_horizon_${stamp}`
 const VARIANT_ID = `roll_var_${stamp}`
 const SCHED_PUB = `roll_sched_pub_${stamp}`
 const SCHED_PUB_DATES = `roll_sched_pub_dates_${stamp}`
 const SCHED_TMPL = `roll_sched_tmpl_${stamp}`
 const SCHED_STALE = `roll_sched_stale_${stamp}`
-const SCHEDULE_IDS = [SCHED_PUB, SCHED_PUB_DATES, SCHED_TMPL, SCHED_STALE]
+const SCHED_HORIZON = `roll_sched_horizon_${stamp}`
+const SCHEDULE_IDS = [SCHED_PUB, SCHED_PUB_DATES, SCHED_TMPL, SCHED_STALE, SCHED_HORIZON]
+const COURSE_IDS = [PUBLISHED_COURSE, TEMPLATE_COURSE, STALE_COURSE, HORIZON_COURSE]
 
 const DAY_NAMES = [
   'Sunday',
@@ -126,6 +133,17 @@ describe('rolling schedule re-materialization', () => {
         createdAt: new Date(Date.now() - 120 * 86_400_000),
         updatedAt: new Date(Date.now() - 120 * 86_400_000),
       },
+      {
+        // Active course whose schedule was created 6 weeks ago with an
+        // 8-week horizon: the horizon end (~2 weeks from now) lies in the
+        // future, so the job must backfill in-horizon occurrences but never
+        // create anything past the horizon end.
+        courseId: HORIZON_COURSE,
+        name: `roll_horizon_${stamp}`,
+        creatorId: tutorId,
+        categories: ['math'],
+        isPublished: true,
+      },
     ])
 
     // Template → published variant linkage: the template must be excluded even
@@ -147,7 +165,8 @@ describe('rolling schedule re-materialization', () => {
         courseId: PUBLISHED_COURSE,
         scheduleIndex: 1,
         schedule: [WEEKLY_SLOT],
-        weeksToSchedule: 8,
+        // Starts at 1 week; the first test grows the configured horizon.
+        weeksToSchedule: 1,
         enrolledCount: 0,
       },
       {
@@ -174,6 +193,16 @@ describe('rolling schedule re-materialization', () => {
         weeksToSchedule: 8,
         enrolledCount: 0,
       },
+      {
+        scheduleId: SCHED_HORIZON,
+        courseId: HORIZON_COURSE,
+        scheduleIndex: 1,
+        schedule: [{ dayOfWeek: 'Tuesday', startTime: '12:00', durationMinutes: 60 }],
+        weeksToSchedule: 8,
+        enrolledCount: 0,
+        createdAt: new Date(Date.now() - 6 * 7 * 86_400_000),
+        updatedAt: new Date(Date.now() - 6 * 7 * 86_400_000),
+      },
     ])
   })
 
@@ -192,24 +221,29 @@ describe('rolling schedule re-materialization', () => {
     await drizzleDb.delete(liveSession).where(inArray(liveSession.scheduleId, SCHEDULE_IDS))
     await drizzleDb.delete(courseSchedule).where(inArray(courseSchedule.scheduleId, SCHEDULE_IDS))
     await drizzleDb.delete(courseVariant).where(eq(courseVariant.variantId, VARIANT_ID))
-    await drizzleDb
-      .delete(course)
-      .where(inArray(course.courseId, [PUBLISHED_COURSE, TEMPLATE_COURSE, STALE_COURSE]))
+    await drizzleDb.delete(course).where(inArray(course.courseId, COURSE_IDS))
     await drizzleDb.delete(user).where(eq(user.userId, tutorId))
   })
 
-  it('tops up additional weeks as weeksAhead grows, with zero duplicates', async () => {
-    // First run: only 1 week ahead → exactly one Monday 10:00 UTC session.
-    const run1 = await runRollingScheduleMaterialization({ weeksAhead: 1 })
+  it("tops up additional weeks as the schedule's configured weeksToSchedule grows, with zero duplicates", async () => {
+    // First run: schedule configured for 1 week → exactly one Monday 10:00 UTC
+    // session. The job always uses the schedule's own weeksToSchedule; there is
+    // no override.
+    const run1 = await runRollingScheduleMaterialization()
     const after1 = await sessionsForSchedule(SCHED_PUB)
     expect(after1).toHaveLength(1)
     expect(after1[0].scheduledAt.getUTCDay()).toBe(1) // Monday
     expect(after1[0].scheduledAt.getUTCHours()).toBe(10)
     expect(after1[0].scheduledAt.getUTCMinutes()).toBe(0)
 
-    // Second run with a larger horizon: the existing slot is kept, the two
-    // newly entered weeks are added — total equals the distinct instants.
-    const run2 = await runRollingScheduleMaterialization({ weeksAhead: 3 })
+    // Widen the schedule's configured horizon to 3 weeks (as a tutor would in
+    // the scheduler UI): the existing slot is kept, the two newly entered
+    // weeks are added — total equals the distinct instants.
+    await drizzleDb
+      .update(courseSchedule)
+      .set({ weeksToSchedule: 3 })
+      .where(eq(courseSchedule.scheduleId, SCHED_PUB))
+    const run2 = await runRollingScheduleMaterialization()
     const after2 = await sessionsForSchedule(SCHED_PUB)
     expect(after2).toHaveLength(3)
 
@@ -229,26 +263,58 @@ describe('rolling schedule re-materialization', () => {
     expect(run2.errors).toBe(0)
   })
 
+  it("never creates occurrences beyond the schedule's own configured horizon", async () => {
+    // SCHED_HORIZON: createdAt = now - 6 weeks, weeksToSchedule = 8 → the
+    // horizon ends ~2 weeks from now. Wipe any sessions earlier tests created
+    // so this run starts clean: generation would produce 8 weekly instants,
+    // and everything after the horizon end must be dropped.
+    const existing = await drizzleDb
+      .select({ sessionId: liveSession.sessionId })
+      .from(liveSession)
+      .where(eq(liveSession.scheduleId, SCHED_HORIZON))
+    await drizzleDb.delete(calendarEvent).where(
+      inArray(
+        calendarEvent.externalId,
+        existing.map(s => s.sessionId)
+      )
+    )
+    await drizzleDb.delete(liveSession).where(eq(liveSession.scheduleId, SCHED_HORIZON))
+
+    const run = await runRollingScheduleMaterialization()
+
+    const horizonEnd = new Date(Date.now() - 6 * 7 * 86_400_000 + 8 * 7 * 86_400_000)
+    const sessions = await sessionsForSchedule(SCHED_HORIZON)
+    // The remaining in-horizon weeks (next Tuesday + the one after) must be
+    // backfilled…
+    expect(sessions.length).toBeGreaterThanOrEqual(2)
+    // …but the uncapped generation would have produced 8 — the cap must have bit.
+    expect(sessions.length).toBeLessThan(8)
+    for (const s of sessions) {
+      expect(new Date(s.scheduledAt).getTime()).toBeLessThanOrEqual(horizonEnd.getTime() + 1000)
+    }
+    expect(run.errors).toBe(0)
+  })
+
   it('is idempotent: a repeat run with the same horizon creates nothing', async () => {
     const before = await totalForSchedules()
-    const run = await runRollingScheduleMaterialization({ weeksAhead: 3 })
+    const run = await runRollingScheduleMaterialization()
     const after = await totalForSchedules()
 
     expect(after).toBe(before)
-    // The weekly schedule already covers the full 3-week horizon: nothing new.
+    // The weekly schedule already covers its full configured horizon: nothing new.
     const weekly = await sessionsForSchedule(SCHED_PUB)
     expect(weekly).toHaveLength(3)
     expect(run.errors).toBe(0)
   })
 
   it('never materializes template-course schedules (even with a published variant)', async () => {
-    const run = await runRollingScheduleMaterialization({ weeksAhead: 2 })
+    const run = await runRollingScheduleMaterialization()
 
     const templateSessions = await sessionsForSchedule(SCHED_TMPL)
     expect(templateSessions).toHaveLength(0)
 
     // Date-specific slots: exactly one session for the future date (never
-    // repeated regardless of weeksAhead); the past date is skipped.
+    // repeated); the past date is skipped.
     const dateSessions = await sessionsForSchedule(SCHED_PUB_DATES)
     expect(dateSessions).toHaveLength(1)
     expect(
@@ -261,7 +327,7 @@ describe('rolling schedule re-materialization', () => {
   it('never tops up abandoned courses with no recent activity (liveness gate)', async () => {
     // STALE_COURSE was "updated" 120 days ago and has no sessions at all: it
     // must be ignored even though it is still published.
-    const run = await runRollingScheduleMaterialization({ weeksAhead: 2 })
+    const run = await runRollingScheduleMaterialization()
 
     const staleSessions = await sessionsForSchedule(SCHED_STALE)
     expect(staleSessions).toHaveLength(0)
@@ -269,13 +335,20 @@ describe('rolling schedule re-materialization', () => {
   })
 
   it('reports counts consistent with the materialized rows', async () => {
+    // Widen the weekly schedule's configured horizon 3 → 4 weeks.
+    await drizzleDb
+      .update(courseSchedule)
+      .set({ weeksToSchedule: 4 })
+      .where(eq(courseSchedule.scheduleId, SCHED_PUB))
+
     const before = await totalForSchedules()
-    const run = await runRollingScheduleMaterialization({ weeksAhead: 4 })
+    const run = await runRollingScheduleMaterialization()
     const after = await totalForSchedules()
 
     // Horizon grew 3 → 4 for the weekly slot: exactly one new session for our
-    // schedules. Other suites may have their own published courses in the
-    // shared DB during a parallel run, so only our rows are compared exactly.
+    // schedules (the horizon-capped schedule is already fully materialized).
+    // Other suites may have their own published courses in the shared DB during
+    // a parallel run, so only our rows are compared exactly.
     expect(after - before).toBe(1)
     expect(run.errors).toBe(0)
     expect(run.schedulesScanned).toBeGreaterThanOrEqual(2)
@@ -287,5 +360,27 @@ describe('rolling schedule re-materialization', () => {
     expect(weekly).toHaveLength(4)
     const instants = weekly.map(r => new Date(r.scheduledAt).getTime())
     expect(new Set(instants).size).toBe(4)
+  })
+
+  it('backfills missing in-horizon occurrences', async () => {
+    // Simulate a missed run / partial wipe: retire one of the weekly schedule's
+    // existing in-horizon sessions, then let the job re-run. The duplicate
+    // guard only protects non-ended sessions, so the slot must be recreated.
+    const weekly = await sessionsForSchedule(SCHED_PUB)
+    expect(weekly).toHaveLength(4)
+    const victim = weekly.reduce((a, b) =>
+      new Date(a.scheduledAt).getTime() > new Date(b.scheduledAt).getTime() ? a : b
+    )
+    await drizzleDb
+      .update(liveSession)
+      .set({ status: 'ended' })
+      .where(eq(liveSession.sessionId, victim.sessionId))
+
+    const run = await runRollingScheduleMaterialization()
+    const restored = await sessionsForSchedule(SCHED_PUB)
+    expect(restored).toHaveLength(4)
+    const instants = restored.map(r => new Date(r.scheduledAt).getTime())
+    expect(instants).toContain(new Date(victim.scheduledAt).getTime())
+    expect(run.errors).toBe(0)
   })
 })

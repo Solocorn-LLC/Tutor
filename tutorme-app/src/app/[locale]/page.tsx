@@ -839,9 +839,9 @@ const SHOW_BACKGROUND_VIDEO = false
 const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; description: string }[]> = {
   Promo: [
     {
-      id: 'FMFH3d07Lsw',
+      id: 'PLACEHOLDER_0',
       title: 'Promo',
-      description: 'Watch the platform promo.',
+      description: 'Platform introduction — coming soon.',
     },
   ],
   'Building Live Courses': [

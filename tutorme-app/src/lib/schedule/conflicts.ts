@@ -102,6 +102,12 @@ export async function findConflicts(
     eventConditions.push(ne(calendarEvent.eventId, options.excludeEventId))
   }
 
+  // Calendar events are read-only projections of live sessions (externalId =
+  // sessionId). An event whose source session has ENDED is historical, not a
+  // future commitment — it must not block new bookings, just as the ended
+  // session itself is excluded from the live-session check above. Without
+  // this, retiring a future session (e.g. for re-materialization) would leave
+  // its orphaned event behind as a permanent conflict on that slot.
   const events = await drizzleDb
     .select({
       eventId: calendarEvent.eventId,
@@ -110,7 +116,10 @@ export async function findConflicts(
       endTime: calendarEvent.endTime,
     })
     .from(calendarEvent)
-    .where(and(...eventConditions))
+    .leftJoin(liveSession, eq(calendarEvent.externalId, liveSession.sessionId))
+    .where(
+      and(...eventConditions, or(isNull(liveSession.sessionId), ne(liveSession.status, 'ended')))
+    )
 
   for (const ev of events) {
     conflicts.push({
