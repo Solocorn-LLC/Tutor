@@ -127,7 +127,11 @@ describe('GET /api/student/enrollments', () => {
       [
         makeSessionRow({ sessionId: 'sess-future', scheduledAt: future, status: 'scheduled' }),
         makeSessionRow({ sessionId: 'sess-past', scheduledAt: past, status: 'ended' }),
-        makeSessionRow({ sessionId: 'sess-other-sched', scheduleId: 'sched-2' }),
+        makeSessionRow({
+          sessionId: 'sess-other-sched',
+          scheduleId: 'sched-2',
+          scheduledAt: future,
+        }),
         makeSessionRow({ sessionId: 'sess-adhoc', scheduleId: null }),
         makeSessionRow({ sessionId: 'sess-cancelled', status: 'cancelled' }),
       ],
