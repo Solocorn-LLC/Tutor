@@ -20,14 +20,17 @@
  * course beyond the window its tutor configured.
  *
  * Liveness gate: only ACTIVE courses are topped up — a course counts as active
- * when it has any session (regardless of status) scheduled within the last
- * ACTIVE_WINDOW_DAYS, or its row was updated within that window. Without this
- * gate, long-abandoned courses that were never unpublished (and schedules that
- * were persisted by entry points which never materialized them) suddenly sprout
- * weeks of new session cards the first time the job runs.
+ * when it has a live (non-ended) session scheduled within the last
+ * ACTIVE_WINDOW_DAYS, or its row was updated within that window. Ended
+ * sessions must NOT count: cleanup passes retire abandoned courses' sessions
+ * precisely so those courses stop being topped up, and counting ended rows
+ * would resurrect them on the very next tick. Without this gate, long-abandoned
+ * courses that were never unpublished (and schedules that were persisted by
+ * entry points which never materialized them) suddenly sprout weeks of new
+ * session cards the first time the job runs.
  */
 
-import { and, asc, eq, exists, gte, isNull, notInArray, or } from 'drizzle-orm'
+import { and, asc, eq, exists, gte, isNull, ne, notInArray, or } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   calendarAvailability,
@@ -63,9 +66,9 @@ const INITIAL_DELAY_MS = 60 * 1000
 const DEFAULT_LIMIT_PER_RUN = 500
 const MS_PER_WEEK = 7 * 24 * 60 * 60 * 1000
 /**
- * A course is topped up only when it shows activity within this window: any
- * session scheduled in it (regardless of status — past sessions are 'ended')
- * or a recent course update. 70 days ≈ the default 8-week schedule horizon
+ * A course is topped up only when it shows activity within this window: a live
+ * (non-ended) session scheduled in it or a recent course update. 70 days ≈ the
+ * default 8-week schedule horizon
  * plus slack, so an active course that consumed its window still qualifies
  * while a course dead for months does not.
  */
@@ -121,15 +124,22 @@ export async function runRollingScheduleMaterialization(
     .select({ templateCourseId: courseVariant.templateCourseId })
     .from(courseVariant)
 
-  // Liveness gate (see file header): skip courses with no session scheduled
-  // within the active window and no recent update — topping those up resurrects
-  // abandoned courses with weeks of unwanted session cards.
+  // Liveness gate (see file header): skip courses with no live session
+  // scheduled within the active window and no recent update — topping those
+  // up resurrects abandoned courses with weeks of unwanted session cards.
+  // Ended sessions are excluded on purpose: cleanup passes retire abandoned
+  // courses' sessions so they leave the rotation, and counting ended rows
+  // would undo the cleanup on the very next tick.
   const activeCutoff = new Date(Date.now() - ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000)
   const recentSession = drizzleDb
     .select({ sessionId: liveSession.sessionId })
     .from(liveSession)
     .where(
-      and(eq(liveSession.courseId, course.courseId), gte(liveSession.scheduledAt, activeCutoff))
+      and(
+        eq(liveSession.courseId, course.courseId),
+        gte(liveSession.scheduledAt, activeCutoff),
+        ne(liveSession.status, 'ended')
+      )
     )
 
   const rows = await drizzleDb
