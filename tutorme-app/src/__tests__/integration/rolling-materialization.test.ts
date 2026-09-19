@@ -363,9 +363,30 @@ describe('rolling schedule re-materialization', () => {
   })
 
   it('backfills missing in-horizon occurrences', async () => {
-    // Simulate a missed run / partial wipe: retire one of the weekly schedule's
-    // existing in-horizon sessions, then let the job re-run. The duplicate
-    // guard only protects non-ended sessions, so the slot must be recreated.
+    // Simulate a true gap — a session the materializer intended to create but
+    // whose row never landed (crash between insert steps, partial wipe): the
+    // LiveSession row AND its CalendarEvent projection are gone entirely. The
+    // next run must recreate the slot.
+    const weekly = await sessionsForSchedule(SCHED_PUB)
+    expect(weekly).toHaveLength(4)
+    const victim = weekly.reduce((a, b) =>
+      new Date(a.scheduledAt).getTime() > new Date(b.scheduledAt).getTime() ? a : b
+    )
+    await drizzleDb.delete(calendarEvent).where(eq(calendarEvent.externalId, victim.sessionId))
+    await drizzleDb.delete(liveSession).where(eq(liveSession.sessionId, victim.sessionId))
+
+    const run = await runRollingScheduleMaterialization()
+    const restored = await sessionsForSchedule(SCHED_PUB)
+    expect(restored).toHaveLength(4)
+    const instants = restored.map(r => new Date(r.scheduledAt).getTime())
+    expect(instants).toContain(new Date(victim.scheduledAt).getTime())
+    expect(run.errors).toBe(0)
+  })
+
+  it('never resurrects retired (ended) occurrences', async () => {
+    // A future session marked 'ended' is a deliberate cancellation (tutor
+    // cancelled the occurrence, a cleanup retired it). The duplicate guard
+    // honours ended rows, so the next run must NOT recreate the slot.
     const weekly = await sessionsForSchedule(SCHED_PUB)
     expect(weekly).toHaveLength(4)
     const victim = weekly.reduce((a, b) =>
@@ -377,10 +398,10 @@ describe('rolling schedule re-materialization', () => {
       .where(eq(liveSession.sessionId, victim.sessionId))
 
     const run = await runRollingScheduleMaterialization()
-    const restored = await sessionsForSchedule(SCHED_PUB)
-    expect(restored).toHaveLength(4)
-    const instants = restored.map(r => new Date(r.scheduledAt).getTime())
-    expect(instants).toContain(new Date(victim.scheduledAt).getTime())
+    const after = await sessionsForSchedule(SCHED_PUB)
+    expect(after).toHaveLength(3)
+    const instants = after.map(r => new Date(r.scheduledAt).getTime())
+    expect(instants).not.toContain(new Date(victim.scheduledAt).getTime())
     expect(run.errors).toBe(0)
   })
 })

@@ -21,6 +21,7 @@ import {
 import { notifyMany } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
+import { clearOrphanedScheduleSessions } from '@/lib/sessions/materialize-schedule'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
@@ -735,8 +736,13 @@ export const POST = withCsrf(
                 .orderBy(courseLesson.order)
 
               // Generate live sessions from all schedules
+              // Track the instants each schedule's current pattern produces so
+              // the orphan sweep below can tell ghosts from live sessions.
+              const validInstantsBySchedule = new Map<string, Set<number>>()
               for (const s of schedules) {
                 const scheduleItems = Array.isArray(s.schedule) ? s.schedule : []
+                const rowScheduleId = scheduleIdByPayload.get(s)
+                if (rowScheduleId) validInstantsBySchedule.set(rowScheduleId, new Set())
                 if (scheduleItems.length === 0) continue
                 const sessionDates = generateSessionDates(
                   scheduleItems,
@@ -744,6 +750,11 @@ export const POST = withCsrf(
                   tutorTimeZone,
                   courseName
                 )
+                if (rowScheduleId) {
+                  for (const d of sessionDates) {
+                    validInstantsBySchedule.get(rowScheduleId)!.add(d.scheduledAt.getTime())
+                  }
+                }
 
                 // Each schedule is an independent offering that walks the whole
                 // course, so the lesson cursor restarts at Lesson 1 per schedule.
@@ -1296,6 +1307,20 @@ export const POST = withCsrf(
                   }
                 }
               }
+
+              // Orphan sweep: this (re)publish re-affirms the exact session set
+              // its schedules produce. Future sessions still 'scheduled' that no
+              // current pattern generates — schedules removed from the payload,
+              // weeksToSchedule trimmed, slot times changed while the draft was
+              // unpublished — would otherwise linger forever: publish is the one
+              // flow that historically only ever ADDED sessions. One-time
+              // sessions (scheduleId null) are never touched here.
+              await clearOrphanedScheduleSessions(
+                publishedCourseId,
+                validInstantsBySchedule,
+                now,
+                tx
+              )
             }
           }
 
