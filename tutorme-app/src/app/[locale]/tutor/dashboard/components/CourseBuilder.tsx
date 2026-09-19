@@ -8977,13 +8977,16 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
 
     const renderAssetsFolder = () => (
       <div className="mb-3 mt-3 rounded-xl border border-emerald-500 bg-white shadow-sm">
-        {/* Header row matching image 1 */}
+        {/* Header row matching image 1 — clickable to toggle the folder */}
         <div
-          className="relative flex cursor-pointer items-center justify-center px-3 py-2"
+          className="relative flex cursor-pointer select-none items-center justify-center px-3 py-2"
           onClick={() => setAssetsOpen(prev => !prev)}
         >
           <span className="text-sm font-semibold text-emerald-500">Assets</span>
-          <div className="absolute right-3 flex items-center gap-3">
+          <div
+            className="absolute right-3 flex items-center gap-3"
+            onClick={e => e.stopPropagation()}
+          >
             <button
               className="-translate-x-[3px] text-sm font-medium text-emerald-600 hover:text-emerald-700"
               onClick={e => {
