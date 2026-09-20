@@ -9,7 +9,7 @@
  * never reached the calendar. This shared helper closes that gap.
  */
 
-import { and, eq, gt, inArray, ne } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, calendarEvent } from '@/lib/db/schema'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts } from '@/lib/time/tz'
@@ -142,6 +142,16 @@ export interface MaterializeScheduleOptions {
    * (publish, schedule edit).
    */
   horizonEnd?: Date
+  /**
+   * How to treat an EXISTING but ENDED session at a generated instant.
+   * Default (false): the ended row is honoured as a deliberate cancellation —
+   * nothing is created, so unattended backfill runs (the rolling job) never
+   * resurrect sessions a tutor cancelled or a cleanup retired. Pass true only
+   * when the caller is an explicit tutor action that re-affirms the whole
+   * pattern (schedule re-save), where a retired slot the pattern still
+   * generates should come back.
+   */
+  recreateRetiredSlots?: boolean
 }
 
 export interface SkippedScheduleSlot {
@@ -153,7 +163,7 @@ export interface SkippedScheduleSlot {
 export interface MaterializeScheduleResult {
   /** Sessions created during this run. */
   created: number
-  /** Slots that already had an equivalent non-ended session and were kept as-is. */
+  /** Slots already represented by an existing row (live, or retired and left retired). */
   kept: number
   /** Slots that could NOT be materialized (e.g. tutor conflict) — surfaced so
    *  callers can warn the tutor instead of silently dropping the slot. */
@@ -167,9 +177,12 @@ export interface MaterializeScheduleResult {
  * schedule.
  *
  * Hardening:
- * - Slots where an equivalent non-ended session already exists for the same
- *   schedule are kept as-is (counted in `kept`), so repeated saves / retries
- *   cannot duplicate sessions or wipe their lesson assignments.
+ * - Slots where an equivalent session already exists for the same schedule
+ *   are kept as-is (counted in `kept`). An ENDED session at the exact instant
+ *   counts as "already exists" unless `recreateRetiredSlots` is set — ended
+ *   rows are deliberate cancellations, not gaps (the rolling job must not
+ *   resurrect what a tutor cancelled; only a true gap — no row at all — is
+ *   backfilled).
  * - Slots that overlap with the tutor's existing live sessions, calendar
  *   events, or confirmed 1-on-1 bookings are NOT created; they are returned in
  *   `skippedSlots` so the caller can surface the dropped slot to the tutor.
@@ -213,23 +226,26 @@ export async function materializeScheduleSessions(
   for (const d of dates) {
     const endTime = new Date(d.scheduledAt.getTime() + d.durationMinutes * 60000)
 
-    // Duplicate guard: an existing non-ended session for this exact schedule slot
-    // means a previous materialization (or retry) already created it.
+    // Duplicate guard: any existing session for this exact schedule slot —
+    // live OR ended — means this instant is already accounted for. An ended
+    // row is a deliberate cancellation (tutor cancelled the occurrence, a
+    // cleanup retired it); it must not be resurrected by an unattended
+    // backfill run. Callers that re-affirm the whole pattern (schedule
+    // re-save) pass recreateRetiredSlots to materialize over retired rows.
     const [existing] = await db
-      .select({ sessionId: liveSession.sessionId })
+      .select({ sessionId: liveSession.sessionId, status: liveSession.status })
       .from(liveSession)
       .where(
         and(
           eq(liveSession.tutorId, opts.tutorId),
           eq(liveSession.courseId, opts.courseId),
           eq(liveSession.scheduleId, opts.scheduleId),
-          eq(liveSession.scheduledAt, d.scheduledAt),
-          ne(liveSession.status, 'ended')
+          eq(liveSession.scheduledAt, d.scheduledAt)
         )
       )
       .limit(1)
 
-    if (existing) {
+    if (existing && (existing.status !== 'ended' || !opts.recreateRetiredSlots)) {
       result.kept++
       continue
     }
@@ -341,6 +357,61 @@ export async function clearStaleScheduleSessions(
     .set({ status: 'ended', endedAt: now })
     .where(inArray(liveSession.sessionId, ids))
   await drizzleDb
+    .update(calendarEvent)
+    .set({ isCancelled: true, deletedAt: now })
+    .where(inArray(calendarEvent.externalId, ids))
+  return ids.length
+}
+
+/**
+ * Retire future, not-yet-started 'scheduled' COURSE sessions of a course that
+ * its current schedule patterns no longer produce:
+ * - sessions whose scheduleId no longer belongs to the course (the schedule
+ *   row was removed), and
+ * - sessions whose instant their schedule's current pattern no longer
+ *   generates (e.g. weeksToSchedule trimmed, slot times changed).
+ *
+ * One-time sessions (scheduleId null) and sessions at still-generated
+ * instants are left untouched. Used by the publish flow after it
+ * re-materializes a variant, because publish historically only ever ADDED
+ * sessions — ghosts from removed schedules or old patterns accumulated
+ * forever. Soft-retires (status 'ended' + calendar event cancelled) like the
+ * other clear* helpers. Returns the number of sessions retired.
+ */
+export async function clearOrphanedScheduleSessions(
+  courseId: string,
+  validInstantsBySchedule: Map<string, Set<number>>,
+  now: Date,
+  tx?: NodePgDatabase<typeof schema>
+): Promise<number> {
+  const db = tx ?? drizzleDb
+  const future = await db
+    .select({
+      sessionId: liveSession.sessionId,
+      scheduleId: liveSession.scheduleId,
+      scheduledAt: liveSession.scheduledAt,
+    })
+    .from(liveSession)
+    .where(
+      and(
+        eq(liveSession.courseId, courseId),
+        eq(liveSession.status, 'scheduled'),
+        gt(liveSession.scheduledAt, now),
+        isNotNull(liveSession.scheduleId)
+      )
+    )
+  const stale = future.filter(s => {
+    if (!s.scheduleId || !s.scheduledAt) return false
+    const valid = validInstantsBySchedule.get(s.scheduleId)
+    return !valid || !valid.has(new Date(s.scheduledAt).getTime())
+  })
+  if (stale.length === 0) return 0
+  const ids = stale.map(s => s.sessionId)
+  await db
+    .update(liveSession)
+    .set({ status: 'ended', endedAt: now })
+    .where(inArray(liveSession.sessionId, ids))
+  await db
     .update(calendarEvent)
     .set({ isCancelled: true, deletedAt: now })
     .where(inArray(calendarEvent.externalId, ids))

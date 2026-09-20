@@ -76,6 +76,11 @@ async function materializeForSchedule(
     title: courseRow?.name || 'Live Session',
     category: courseRow?.categories?.[0] || 'General',
     dates,
+    // Adding/editing a schedule is an explicit tutor action that re-affirms
+    // the whole pattern: a slot the pattern generates must exist, even if a
+    // previous edit retired a row at the same instant (e.g. the slot was
+    // moved away and then moved back).
+    recreateRetiredSlots: true,
   })
   return { ...result, sessionsRetired }
 }
