@@ -9,15 +9,15 @@
  * materializeScheduleSessions makes re-runs idempotent: already-materialized
  * slots are kept as-is and only missing slots inside the horizon are created.
  *
- * Horizon cap: each schedule row is only materialized up to its OWN horizon —
- * scheduleStart + weeksToSchedule weeks. The anchor is `courseSchedule.createdAt`:
- * the schema has no dedicated start-date column, and `updatedAt` is bumped by
- * routine writes (e.g. enrolledCount), which would re-open the horizon forever
- * — the exact runaway growth this cap exists to stop. Occurrences are generated
- * anchored at "now" (see generateScheduleSessionDates), so the cap is enforced
- * by filtering generated instants against the horizon end; a schedule whose
- * horizon is entirely in the past gets nothing, and the job can never extend a
- * course beyond the window its tutor configured.
+ * Horizon: a sliding window. The course is kept materialized exactly
+ * weeksToSchedule weeks AHEAD of "now" — the same window publish/edit used to
+ * materialize relative to the moment they ran. Anchoring instead at
+ * courseSchedule.createdAt would pin the horizon: a course published months
+ * ago would see its horizon expire and silently stop growing new sessions,
+ * even though its schedule is still meant to recur. Growth stays bounded
+ * because generation yields at most weeksToSchedule occurrences per slot and
+ * the duplicate guard keeps the live total at that ceiling — the window
+ * slides forward, it never widens.
  *
  * Liveness gate: only ACTIVE courses are topped up — a course counts as active
  * when it has a live (non-ended) session scheduled within the last
@@ -100,9 +100,9 @@ function toScheduleSlotInputs(payload: unknown): ScheduleSlotInput[] {
 /**
  * One pass over every ACTIVE published course's schedules: re-derive the slot
  * instants in the tutor's timezone (anchored at now, spanning the schedule's
- * own weeksToSchedule) and materialize the ones inside the schedule's horizon
- * that don't exist yet. Per-schedule failures are logged and counted but never
- * abort the run.
+ * weeksToSchedule) and materialize the ones inside the sliding weeks-ahead
+ * horizon that don't exist yet. Per-schedule failures are logged and counted
+ * but never abort the run.
  */
 export async function runRollingScheduleMaterialization(
   opts: RollingMaterializationOptions = {}
@@ -148,7 +148,6 @@ export async function runRollingScheduleMaterialization(
       courseId: courseSchedule.courseId,
       schedule: courseSchedule.schedule,
       weeksToSchedule: courseSchedule.weeksToSchedule,
-      scheduleCreatedAt: courseSchedule.createdAt,
       maxStudents: courseSchedule.maxStudents,
       tutorId: course.creatorId,
       courseName: course.name,
@@ -193,19 +192,15 @@ export async function runRollingScheduleMaterialization(
       const slots = toScheduleSlotInputs(row.schedule)
       if (slots.length === 0) continue
 
-      // The schedule's own horizon: createdAt (the schedule's start date — the
-      // schema has no dedicated start-date column; updatedAt is bumped by
-      // routine writes and would re-open the horizon) + its configured
-      // weeksToSchedule. Generated occurrences anchor at "now", so without
-      // this cap the job would keep extending the course forever.
+      // Sliding horizon: the course is topped up to "now + weeksToSchedule
+      // weeks". Anchoring at createdAt would pin the horizon at publish/edit
+      // time, so courses published months ago would silently stop growing new
+      // sessions. Generation yields at most weeksToSchedule occurrences per
+      // slot and the duplicate guard keeps the live total at that ceiling, so
+      // the window slides forward without widening.
       const weeksToSchedule = row.weeksToSchedule ?? 8
-      const horizonEnd = new Date(row.scheduleCreatedAt.getTime() + weeksToSchedule * MS_PER_WEEK)
-
-      // Horizon entirely in the past: generation only produces future
-      // instants (skipPast), so everything it made would be dropped anyway —
-      // skip without touching the DB.
       const referenceNowMs = opts.now?.getTime() ?? Date.now()
-      if (horizonEnd.getTime() < referenceNowMs) continue
+      const horizonEnd = new Date(referenceNowMs + weeksToSchedule * MS_PER_WEEK)
 
       const timezone = await timezoneFor(row.tutorId)
       const dates = generateScheduleSessionDates(slots, weeksToSchedule, timezone, true, opts.now)

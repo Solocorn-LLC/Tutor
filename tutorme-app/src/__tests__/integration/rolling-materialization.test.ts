@@ -7,9 +7,10 @@
  * silently ran out of sessions. The rolling job re-runs materialization daily;
  * these tests exercise runRollingScheduleMaterialization directly.
  *
- * The job must top up missing sessions inside each schedule's OWN horizon
- * (schedule createdAt + weeksToSchedule weeks) but never create occurrences
- * beyond it.
+ * The job must top up missing sessions inside each schedule's sliding horizon
+ * (weeksToSchedule weeks ahead of now) and never create occurrences beyond it —
+ * the horizon anchors at "now", not at schedule creation, so courses published
+ * months ago keep growing sessions instead of silently expiring.
  *
  * Requires DATABASE_URL + a running, migrated Postgres (see setup.ts).
  * All entities use the `roll_` prefix.
@@ -263,11 +264,11 @@ describe('rolling schedule re-materialization', () => {
     expect(run2.errors).toBe(0)
   })
 
-  it("never creates occurrences beyond the schedule's own configured horizon", async () => {
-    // SCHED_HORIZON: createdAt = now - 6 weeks, weeksToSchedule = 8 → the
-    // horizon ends ~2 weeks from now. Wipe any sessions earlier tests created
-    // so this run starts clean: generation would produce 8 weekly instants,
-    // and everything after the horizon end must be dropped.
+  it('keeps an old schedule topped up to its sliding horizon (now + weeksToSchedule)', async () => {
+    // SCHED_HORIZON: createdAt = now - 6 weeks, weeksToSchedule = 8. With a
+    // createdAt-anchored horizon its window would have ended ~2 weeks from now;
+    // the sliding horizon instead keeps the next full 8 weeks materialized.
+    // Wipe any sessions earlier tests created so this run starts clean.
     const existing = await drizzleDb
       .select({ sessionId: liveSession.sessionId })
       .from(liveSession)
@@ -282,15 +283,15 @@ describe('rolling schedule re-materialization', () => {
 
     const run = await runRollingScheduleMaterialization()
 
-    const horizonEnd = new Date(Date.now() - 6 * 7 * 86_400_000 + 8 * 7 * 86_400_000)
+    const horizonEnd = new Date(Date.now() + 8 * 7 * 86_400_000)
     const sessions = await sessionsForSchedule(SCHED_HORIZON)
-    // The remaining in-horizon weeks (next Tuesday + the one after) must be
-    // backfilled…
-    expect(sessions.length).toBeGreaterThanOrEqual(2)
-    // …but the uncapped generation would have produced 8 — the cap must have bit.
-    expect(sessions.length).toBeLessThan(8)
+    // All 8 in-window occurrences must be materialized despite the old
+    // createdAt — the horizon slides with "now".
+    expect(sessions).toHaveLength(8)
     for (const s of sessions) {
-      expect(new Date(s.scheduledAt).getTime()).toBeLessThanOrEqual(horizonEnd.getTime() + 1000)
+      const t = new Date(s.scheduledAt).getTime()
+      expect(t).toBeGreaterThan(Date.now() - 60_000)
+      expect(t).toBeLessThanOrEqual(horizonEnd.getTime() + 1000)
     }
     expect(run.errors).toBe(0)
   })
