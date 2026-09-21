@@ -7,6 +7,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -21,9 +22,15 @@ import { Loader2 } from 'lucide-react'
 type GoLiveDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onConfirmTeaching?: () => Promise<void>
-  onConfirmTeachingUnpublished?: (courseId: string, description: string) => Promise<void>
+  onConfirmTeaching?: (demoName?: string) => Promise<void>
+  onConfirmTeachingUnpublished?: (
+    courseId: string,
+    description: string,
+    demoName?: string
+  ) => Promise<void>
   unpublishedCourses?: { id: string; name: string }[]
+  /** Show the "Demo name" input even without an unpublished-course picker. */
+  showDemoName?: boolean
   onConfirmTraining: (data: {
     token: string
     targetAudience: string
@@ -37,20 +44,22 @@ export function GoLiveDialog({
   onConfirmTeaching,
   onConfirmTeachingUnpublished,
   unpublishedCourses,
+  showDemoName = false,
 }: GoLiveDialogProps) {
   const [loading, setLoading] = useState(false)
 
   // Teaching fields (only used when a dashboard caller provides unpublished courses)
   const [selectedCourseId, setSelectedCourseId] = useState('')
   const [description, setDescription] = useState('')
+  const [demoName, setDemoName] = useState('')
 
   const handleConfirm = async () => {
     setLoading(true)
     try {
       if (unpublishedCourses && unpublishedCourses.length > 0) {
-        await onConfirmTeachingUnpublished?.(selectedCourseId, description)
+        await onConfirmTeachingUnpublished?.(selectedCourseId, description, demoName.trim())
       } else {
-        await onConfirmTeaching?.()
+        await onConfirmTeaching?.(demoName.trim() || undefined)
       }
       onOpenChange(false)
     } catch (_err) {
@@ -62,6 +71,8 @@ export function GoLiveDialog({
 
   const confirmDisabled =
     loading || Boolean(unpublishedCourses && unpublishedCourses.length > 0 && !selectedCourseId)
+  const demoNameVisible =
+    showDemoName || Boolean(unpublishedCourses && unpublishedCourses.length > 0)
 
   return (
     <Dialog
@@ -82,6 +93,22 @@ export function GoLiveDialog({
               Create a demo lesson for your course.
             </div>
           </div>
+
+          {demoNameVisible && (
+            <div className="space-y-2">
+              <Label className="text-white">Demo name</Label>
+              <Input
+                value={demoName}
+                onChange={e => {
+                  const val = e.target.value
+                  if (val.length <= 100) setDemoName(val)
+                }}
+                placeholder="Name this demo lesson (defaults to the course name)"
+                maxLength={100}
+                className="border-white/20 bg-white text-gray-700 placeholder:text-gray-500"
+              />
+            </div>
+          )}
 
           {unpublishedCourses && unpublishedCourses.length > 0 && (
             <div className="space-y-4">
