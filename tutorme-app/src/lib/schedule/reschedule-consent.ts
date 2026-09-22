@@ -11,7 +11,8 @@
  * Non-responders leave it PENDING (no auto-expire). See [[tutorme-reschedule-consent]].
  *
  * The "who must agree" roster is confirmed/paid attendees only:
- *   course enrollees (variant-family-expanded) ∪ already-joined participants ∪
+ *   course enrollees (the session's own course, expanded to the variant family
+ *   only when the session is template-scoped) ∪ already-joined participants ∪
  *   RESERVED/PAID group-seat holders. See [[tutorme-template-vs-published-course-ids]].
  */
 
@@ -24,6 +25,7 @@ import {
   liveSession,
   calendarEvent,
   courseEnrollment,
+  courseVariant,
   sessionParticipant,
   groupSession,
   groupSessionParticipant,
@@ -73,11 +75,31 @@ export async function resolveVoterRoster(
   const ids = new Set<string>()
 
   if (courseId) {
-    const familyIds = await expandToCourseFamily([courseId])
+    // Scope to the session's own course. When the session is template-scoped
+    // (its courseId is a template with published variants), enrollees of any
+    // variant may attend, so expand to the whole family; when the session
+    // belongs to a published variant (or a standalone course), only that
+    // variant's enrollees attend this class — sibling-variant enrollees must
+    // not get a consent vote for a session they never see.
+    let sessionCourseId = courseId
+    const [sess] = await drizzleDb
+      .select({ courseId: liveSession.courseId })
+      .from(liveSession)
+      .where(eq(liveSession.sessionId, sessionId))
+      .limit(1)
+    if (sess?.courseId) sessionCourseId = sess.courseId
+
+    const [variantRow] = await drizzleDb
+      .select({ publishedCourseId: courseVariant.publishedCourseId })
+      .from(courseVariant)
+      .where(eq(courseVariant.templateCourseId, sessionCourseId))
+      .limit(1)
+    const scopeIds = variantRow ? await expandToCourseFamily([sessionCourseId]) : [sessionCourseId]
+
     const enrolled = await drizzleDb
       .select({ studentId: courseEnrollment.studentId })
       .from(courseEnrollment)
-      .where(inArray(courseEnrollment.courseId, familyIds))
+      .where(inArray(courseEnrollment.courseId, scopeIds))
     for (const r of enrolled) if (r.studentId) ids.add(r.studentId)
   }
 
@@ -412,16 +434,67 @@ async function resolveProposal(
     .where(eq(sessionRescheduleProposal.proposalId, proposalId))
 }
 
-/** Move the live session + its calendar projection to the new time. */
+/**
+ * Move the live session + its calendar projection to the new time.
+ *
+ * The moved occurrence detaches from its schedule (scheduleId → null) so it
+ * becomes a one-off nothing will ever retire or duplicate, and a tombstone
+ * row (status 'ended') is left at the OLD instant under the original
+ * scheduleId. Without the tombstone the next rolling re-materialization tick
+ * would regenerate the old pattern slot, find no row there, and create a
+ * duplicate session. The materializer honours ended rows at a pattern
+ * instant (it never resurrects deliberate cancellations), so the old slot
+ * stays dead. The calendar event moves with the session — none is created
+ * for the tombstone.
+ */
 async function applySessionMove(sessionId: string, start: Date, end: Date): Promise<void> {
+  const [sess] = await drizzleDb
+    .select({
+      tutorId: liveSession.tutorId,
+      courseId: liveSession.courseId,
+      title: liveSession.title,
+      category: liveSession.category,
+      sessionType: liveSession.sessionType,
+      scheduleId: liveSession.scheduleId,
+      scheduledAt: liveSession.scheduledAt,
+      durationMinutes: liveSession.durationMinutes,
+      maxStudents: liveSession.maxStudents,
+    })
+    .from(liveSession)
+    .where(eq(liveSession.sessionId, sessionId))
+    .limit(1)
+
+  const now = new Date()
   await drizzleDb
     .update(liveSession)
-    .set({ scheduledAt: start, durationMinutes: durationMinutes(start, end), reminderSentAt: null })
+    .set({
+      scheduledAt: start,
+      durationMinutes: durationMinutes(start, end),
+      reminderSentAt: null,
+      scheduleId: null,
+    })
     .where(eq(liveSession.sessionId, sessionId))
   await drizzleDb
     .update(calendarEvent)
-    .set({ startTime: start, endTime: end, updatedAt: new Date() })
+    .set({ startTime: start, endTime: end, updatedAt: now })
     .where(eq(calendarEvent.externalId, sessionId))
+
+  if (sess?.scheduleId && sess.scheduledAt) {
+    await drizzleDb.insert(liveSession).values({
+      sessionId: crypto.randomUUID(),
+      tutorId: sess.tutorId,
+      courseId: sess.courseId,
+      title: sess.title,
+      category: sess.category,
+      scheduledAt: sess.scheduledAt,
+      status: 'ended',
+      endedAt: now,
+      sessionType: sess.sessionType,
+      scheduleId: sess.scheduleId,
+      durationMinutes: sess.durationMinutes,
+      maxStudents: sess.maxStudents,
+    })
+  }
 }
 
 type Proposal = typeof sessionRescheduleProposal.$inferSelect

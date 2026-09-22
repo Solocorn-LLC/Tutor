@@ -697,6 +697,31 @@ export const DELETE = withAuth(
         }
       }
 
+      // A future session materialized from a course schedule must NOT be
+      // hard-deleted: the rolling re-materialization job would just recreate it
+      // at the same pattern instant. Soft-retire it instead — the ended row at
+      // that instant acts as a tombstone the materializer honours (it never
+      // resurrects ended slots), and the calendar projection is cancelled.
+      const isFutureScheduled =
+        liveSessionRow.status === 'scheduled' &&
+        liveSessionRow.scheduleId !== null &&
+        liveSessionRow.scheduledAt !== null &&
+        liveSessionRow.scheduledAt.getTime() > Date.now()
+      if (isFutureScheduled) {
+        const now = new Date()
+        await drizzleDb.transaction(async tx => {
+          await tx
+            .update(liveSession)
+            .set({ status: 'ended', endedAt: now })
+            .where(eq(liveSession.sessionId, classId))
+          await tx
+            .update(calendarEvent)
+            .set({ isCancelled: true, status: 'CANCELLED', deletedAt: now })
+            .where(eq(calendarEvent.externalId, classId))
+        })
+        return NextResponse.json({ message: 'Class cancelled successfully' })
+      }
+
       // Remove the LiveSession and its calendar projection (linked by externalId).
       await drizzleDb.transaction(async tx => {
         await tx.delete(calendarEvent).where(eq(calendarEvent.externalId, classId))
