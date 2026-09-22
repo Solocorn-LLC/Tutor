@@ -507,6 +507,15 @@ export const PATCH = withCsrf(
         })
         .where(eq(liveSession.sessionId, classId))
 
+      // Cancel the calendar projection too — every other terminal path
+      // (1-on-1 cancel, group cancel, schedule sweeps) does this; without it
+      // the ended class's event stays CONFIRMED and keeps surfacing in
+      // calendar queries that only filter on isCancelled.
+      await drizzleDb
+        .update(calendarEvent)
+        .set({ isCancelled: true, status: 'CANCELLED', deletedAt: endedAt })
+        .where(eq(calendarEvent.externalId, classId))
+
       getIO()?.to(classId).emit('session:ended', { sessionId: classId, reason: 'tutor-ended' })
 
       // Tear down the Daily.co room now that the session is over. Recordings are
