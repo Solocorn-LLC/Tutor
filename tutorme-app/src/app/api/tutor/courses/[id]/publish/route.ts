@@ -974,6 +974,12 @@ export const POST = withCsrf(
                   const sessionEnd = new Date(
                     sessionStart.getTime() + session.durationMinutes * 60000
                   )
+                  // Set when the migration branch below rewrites a TEMPLATE-owned
+                  // session onto this variant: the in-memory snapshot still shows
+                  // the template courseId, so the exact-match/move check must
+                  // treat the session as same-course to actually move it onto
+                  // the generated slot. Reset every iteration.
+                  let migratedToVariant = false
 
                   // Enforce tutor availability server-side (the scheduler UI guard
                   // is not authoritative on its own).
@@ -1078,6 +1084,8 @@ export const POST = withCsrf(
                           })
                           .where(eq(liveSession.sessionId, conflictingLs.sessionId))
 
+                        migratedToVariant = true
+
                         // Keep the linked CalendarEvent in sync with the published course.
                         await tx
                           .update(calendarEvent)
@@ -1108,7 +1116,7 @@ export const POST = withCsrf(
 
                       if (
                         !exactSlotMatch &&
-                        conflictingLs.courseId === publishedCourseId &&
+                        (conflictingLs.courseId === publishedCourseId || migratedToVariant) &&
                         isFutureSession
                       ) {
                         // Exclude the session's own CalendarEvent projection, or the
@@ -1130,7 +1138,8 @@ export const POST = withCsrf(
                           {
                             excludeSessionId: conflictingLs.sessionId,
                             excludeEventId: ownCe?.eventId,
-                          }
+                          },
+                          tx
                         )
                         if (moveConflicts.length === 0) {
                           await tx
@@ -1366,6 +1375,34 @@ export const POST = withCsrf(
                   .update(course)
                   .set({ isPublished: false, updatedAt: now })
                   .where(eq(course.courseId, existing.publishedCourseId))
+
+                // Soft-retire the variant's future sessions (same idiom as
+                // clearOrphanedScheduleSessions, scoped to the whole course):
+                // the rolling job only tops up published courses, so these
+                // would otherwise stay 'scheduled' forever — blocking the
+                // tutor's availability and showing on calendars for a course
+                // that no longer exists. Past/active sessions are untouched.
+                const futureSessions = await tx
+                  .select({ sessionId: liveSession.sessionId })
+                  .from(liveSession)
+                  .where(
+                    and(
+                      eq(liveSession.courseId, existing.publishedCourseId),
+                      eq(liveSession.status, 'scheduled'),
+                      gt(liveSession.scheduledAt, now)
+                    )
+                  )
+                if (futureSessions.length > 0) {
+                  const ids = futureSessions.map(s => s.sessionId)
+                  await tx
+                    .update(liveSession)
+                    .set({ status: 'ended', endedAt: now })
+                    .where(inArray(liveSession.sessionId, ids))
+                  await tx
+                    .update(calendarEvent)
+                    .set({ isCancelled: true, status: 'CANCELLED', deletedAt: now })
+                    .where(inArray(calendarEvent.externalId, ids))
+                }
               }
             }
           }

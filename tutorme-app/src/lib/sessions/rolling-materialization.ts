@@ -35,7 +35,7 @@
  * weeks.
  */
 
-import { and, asc, eq, exists, gte, isNull, ne, notInArray, or } from 'drizzle-orm'
+import { and, asc, count, eq, exists, gte, isNull, ne, notInArray, or } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   calendarAvailability,
@@ -46,6 +46,7 @@ import {
   liveSession,
 } from '@/lib/db/schema'
 import {
+  clearStaleScheduleSessions,
   generateScheduleSessionDates,
   materializeScheduleSessions,
   type ScheduleSlotInput,
@@ -154,6 +155,27 @@ export async function runRollingScheduleMaterialization(
     .from(courseEnrollment)
     .where(eq(courseEnrollment.courseId, course.courseId))
 
+  // Rotate the scan window per run: with more live schedules than limitPerRun,
+  // a fixed asc(scheduleId) + limit would rescan the same leading rows every
+  // tick (they self-perpetuate via the liveness EXISTS) and starve the tail.
+  // A count query picks a random offset each run so every schedule is visited
+  // over successive runs.
+  const whereClause = and(
+    eq(course.isPublished, true),
+    isNull(course.deletedAt),
+    notInArray(course.courseId, templateIds),
+    or(exists(recentSession), gte(course.updatedAt, activeCutoff), exists(hasEnrollment))
+  )
+
+  const [countRow] = await drizzleDb
+    .select({ n: count() })
+    .from(courseSchedule)
+    .innerJoin(course, eq(course.courseId, courseSchedule.courseId))
+    .where(whereClause)
+  const matchingCount = countRow?.n ?? 0
+  const offset =
+    matchingCount > limitPerRun ? Math.floor(Math.random() * (matchingCount - limitPerRun + 1)) : 0
+
   const rows = await drizzleDb
     .select({
       scheduleId: courseSchedule.scheduleId,
@@ -167,16 +189,10 @@ export async function runRollingScheduleMaterialization(
     })
     .from(courseSchedule)
     .innerJoin(course, eq(course.courseId, courseSchedule.courseId))
-    .where(
-      and(
-        eq(course.isPublished, true),
-        isNull(course.deletedAt),
-        notInArray(course.courseId, templateIds),
-        or(exists(recentSession), gte(course.updatedAt, activeCutoff), exists(hasEnrollment))
-      )
-    )
+    .where(whereClause)
     .orderBy(asc(courseSchedule.scheduleId))
     .limit(limitPerRun)
+    .offset(offset)
 
   result.schedulesScanned = rows.length
 
@@ -217,6 +233,18 @@ export async function runRollingScheduleMaterialization(
       const timezone = await timezoneFor(row.tutorId)
       const dates = generateScheduleSessionDates(slots, weeksToSchedule, timezone, true, opts.now)
       if (dates.length === 0) continue
+
+      // Converge onto the current pattern + timezone BEFORE materializing: the
+      // exact-instant duplicate guard alone cannot detect a timezone change —
+      // the old-instant rows stay 'scheduled' and the same wall-clock slots
+      // would be re-created at their new instants, yielding two parallel sets
+      // of sessions. Retiring stale future rows first lets materialization
+      // recreate only the current pattern's instants. Moved sessions
+      // (scheduleId nulled by the reschedule flow) are unaffected.
+      await clearStaleScheduleSessions(
+        row.scheduleId,
+        dates.map(d => d.scheduledAt)
+      )
 
       const materialized = await materializeScheduleSessions({
         tutorId: row.tutorId,

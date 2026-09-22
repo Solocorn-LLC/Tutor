@@ -12,6 +12,8 @@ import {
   calendarException,
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, lt, gt, isNull, inArray, ne } from 'drizzle-orm'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type * as schema from '@/lib/db/schema'
 import { bookingInstants } from '@/lib/one-on-one/time'
 
 export interface ConflictResult {
@@ -31,6 +33,10 @@ export interface AlternativeSlot {
 /**
  * Check for overlapping scheduled items for a tutor in a time range.
  * Queries liveSession, calendarEvent, and oneOnOneBookingRequest tables.
+ *
+ * `db` lets callers inside a transaction pass their tx handle so rows written
+ * earlier in the same transaction are visible to conflict detection; it
+ * defaults to the module-level pool client.
  */
 export async function findConflicts(
   tutorId: string,
@@ -43,7 +49,8 @@ export async function findConflicts(
     /** Minutes of gap to require around the slot: an existing session within
      *  this many minutes of [startArg, endArg] counts as a conflict. */
     bufferMinutes?: number
-  } = {}
+  } = {},
+  db: NodePgDatabase<typeof schema> = drizzleDb
 ): Promise<ConflictResult[]> {
   const conflicts: ConflictResult[] = []
   // Expand the window by the buffer so back-to-back / too-close bookings are
@@ -64,7 +71,7 @@ export async function findConflicts(
     liveSessionConditions.push(ne(liveSession.sessionId, options.excludeSessionId))
   }
 
-  const liveSessions = await drizzleDb
+  const liveSessions = await db
     .select({
       sessionId: liveSession.sessionId,
       title: liveSession.title,
@@ -108,7 +115,7 @@ export async function findConflicts(
   // session itself is excluded from the live-session check above. Without
   // this, retiring a future session (e.g. for re-materialization) would leave
   // its orphaned event behind as a permanent conflict on that slot.
-  const events = await drizzleDb
+  const events = await db
     .select({
       eventId: calendarEvent.eventId,
       title: calendarEvent.title,
@@ -149,7 +156,7 @@ export async function findConflicts(
     oneOnOneConditions.push(ne(oneOnOneBookingRequest.requestId, options.excludeOneOnOneId))
   }
 
-  const oneOnOnes = await drizzleDb
+  const oneOnOnes = await db
     .select({
       requestId: oneOnOneBookingRequest.requestId,
       requestedDate: oneOnOneBookingRequest.requestedDate,
