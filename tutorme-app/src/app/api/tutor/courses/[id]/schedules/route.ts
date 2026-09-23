@@ -18,6 +18,7 @@ import {
   clearFutureScheduleSessions,
   clearStaleScheduleSessions,
   generateScheduleSessionDates,
+  clampWeeksToSchedule,
   type MaterializeScheduleResult,
 } from '@/lib/sessions/materialize-schedule'
 import crypto from 'crypto'
@@ -25,6 +26,37 @@ import crypto from 'crypto'
 interface MaterializeForScheduleResult extends MaterializeScheduleResult {
   /** Sessions soft-retired because their slot disappeared from the pattern. */
   sessionsRetired: number
+}
+
+/**
+ * Canonical structural comparison of two schedule slot lists. Postgres jsonb
+ * does not preserve object key order, so JSON.stringify equality flags spurious
+ * "changes" on a byte-identical re-save. Normalize both sides to sorted
+ * canonical tuples and compare those instead; malformed entries (non-objects
+ * without a startTime) are dropped from both sides.
+ */
+function slotsEqual(a: unknown, b: unknown): boolean {
+  const canonical = (value: unknown): string => {
+    if (!Array.isArray(value)) return ''
+    return value
+      .filter(
+        (slot): slot is Record<string, unknown> =>
+          typeof slot === 'object' &&
+          slot !== null &&
+          typeof (slot as { startTime?: unknown }).startTime === 'string'
+      )
+      .map(slot =>
+        JSON.stringify({
+          kind: slot.date ? 'date' : 'weekly',
+          day: slot.date ?? slot.dayOfWeek ?? null,
+          startTime: slot.startTime,
+          durationMinutes: slot.durationMinutes ?? null,
+        })
+      )
+      .sort()
+      .join('|')
+  }
+  return canonical(a) === canonical(b)
 }
 
 /**
@@ -43,8 +75,17 @@ async function materializeForSchedule(
   opts: { retireStale?: boolean } = {}
 ): Promise<MaterializeForScheduleResult> {
   const list = Array.isArray(slots) ? slots : []
-  if (list.length === 0)
-    return { created: 0, kept: 0, skippedSlots: [], beyondHorizon: 0, sessionsRetired: 0 }
+  if (list.length === 0) {
+    // The new pattern generates nothing — every future session this schedule
+    // previously materialized is now stale, so retire them all (an empty
+    // keep-list means "keep none"). Without this, PUT { schedule: [] } left
+    // the old future sessions 'scheduled' forever.
+    let sessionsRetired = 0
+    if (opts.retireStale) {
+      sessionsRetired = await clearStaleScheduleSessions(scheduleId, [])
+    }
+    return { created: 0, kept: 0, skippedSlots: [], beyondHorizon: 0, sessionsRetired }
+  }
   const [tzRow] = await drizzleDb
     .select({ timezone: calendarAvailability.timezone })
     .from(calendarAvailability)
@@ -56,7 +97,7 @@ async function materializeForSchedule(
     .where(eq(course.courseId, courseId))
     .limit(1)
   const timezone = tzRow?.timezone || 'UTC'
-  const weeks = typeof weeksToSchedule === 'number' ? weeksToSchedule : 8
+  const weeks = clampWeeksToSchedule(weeksToSchedule)
   const dates = generateScheduleSessionDates(list, weeks, timezone)
   let sessionsRetired = 0
   if (opts.retireStale) {
@@ -200,7 +241,7 @@ export const POST = withCsrf(
             courseId,
             scheduleIndex: nextIndex,
             schedule: body.schedule || [],
-            weeksToSchedule: body.weeksToSchedule ?? 8,
+            weeksToSchedule: clampWeeksToSchedule(body.weeksToSchedule),
             maxStudents: body.maxStudents ?? null,
             enrolledCount: 0,
           })
@@ -286,7 +327,10 @@ export const PUT = withCsrf(
         // Snapshot the current schedule so we only notify students when the
         // actual times change (not on a maxStudents rename or a no-op save).
         const [before] = await drizzleDb
-          .select({ schedule: courseSchedule.schedule })
+          .select({
+            schedule: courseSchedule.schedule,
+            weeksToSchedule: courseSchedule.weeksToSchedule,
+          })
           .from(courseSchedule)
           .where(
             and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId))
@@ -315,11 +359,13 @@ export const PUT = withCsrf(
           return NextResponse.json({ error: 'Schedule not found' }, { status: 404 })
         }
 
-        // Notify enrolled students when the schedule times actually changed.
-        // Best-effort — never blocks the save.
+        // Notify enrolled students when the schedule times actually changed
+        // (structural comparison — jsonb key order is not stable) or when the
+        // materialization horizon moved. Best-effort — never blocks the save.
         const scheduleChanged =
-          body.schedule !== undefined &&
-          JSON.stringify(before?.schedule ?? null) !== JSON.stringify(body.schedule)
+          body.schedule !== undefined && !slotsEqual(before?.schedule ?? null, body.schedule)
+        const weeksChanged =
+          body.weeksToSchedule != null && body.weeksToSchedule !== before?.weeksToSchedule
         let sessionsCreated = 0
         let sessionsKept = 0
         let sessionsRetired = 0
@@ -328,17 +374,11 @@ export const PUT = withCsrf(
           durationMinutes: number
           reason: string
         }> = []
-        if (scheduleChanged) {
-          const [row] = await drizzleDb
-            .select({ name: course.name })
-            .from(course)
-            .where(eq(course.courseId, courseId))
-            .limit(1)
-          await notifyStudentsOfScheduleChange({ courseId, courseName: row?.name })
-
+        let materializeSucceeded = false
+        if (scheduleChanged || weeksChanged) {
           // Re-materialize: retire only the sessions whose slot vanished from the
           // pattern (unchanged slots keep their sessions and lesson assignments),
-          // then materialize the new pattern — the duplicate guard skips slots
+          // then materialize the pattern — the duplicate guard skips slots
           // that still have a live session. Best-effort — the schedule row is
           // already updated.
           try {
@@ -346,7 +386,7 @@ export const PUT = withCsrf(
               courseId,
               userId,
               scheduleId,
-              body.schedule,
+              body.schedule ?? updated[0].schedule,
               body.weeksToSchedule ?? updated[0].weeksToSchedule,
               body.maxStudents ?? updated[0].maxStudents,
               { retireStale: true }
@@ -355,8 +395,21 @@ export const PUT = withCsrf(
             sessionsKept = mat.kept
             sessionsRetired = mat.sessionsRetired
             skippedSlots = mat.skippedSlots
+            materializeSucceeded = true
           } catch (matErr) {
             console.error('[PUT /api/tutor/courses/[id]/schedules] re-materialize failed:', matErr)
+          }
+
+          // Only tell students the schedule changed once the sessions actually
+          // reflect it — notifying before a failed re-materialize would report
+          // a change that never happened.
+          if (materializeSucceeded) {
+            const [row] = await drizzleDb
+              .select({ name: course.name })
+              .from(course)
+              .where(eq(course.courseId, courseId))
+              .limit(1)
+            await notifyStudentsOfScheduleChange({ courseId, courseName: row?.name })
           }
         }
 

@@ -9,7 +9,7 @@
  * never reached the calendar. This shared helper closes that gap.
  */
 
-import { and, eq, gt, inArray, isNotNull } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, calendarEvent } from '@/lib/db/schema'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts } from '@/lib/time/tz'
@@ -26,6 +26,17 @@ const DAY_MAP: Record<string, number> = {
   Thursday: 4,
   Friday: 5,
   Saturday: 6,
+}
+
+/**
+ * Clamp a user-supplied weeksToSchedule to a sane integer in [1, 52] so a
+ * malformed payload can never materialize decades of sessions.
+ * Missing / NaN / non-numeric input falls back to 8 (the historical default).
+ */
+export function clampWeeksToSchedule(value: unknown): number {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return 8
+  return Math.min(52, Math.max(1, Math.round(n)))
 }
 
 export interface ScheduleSlotInput {
@@ -172,6 +183,70 @@ export interface MaterializeScheduleResult {
   beyondHorizon: number
 }
 
+/** Desired display/capacity attributes for a kept session. */
+export interface KeptSessionAttributes {
+  title: string
+  category: string
+  description?: string | null
+  /** Effective cap — callers resolve their own default (e.g. `?? 50`). */
+  maxStudents: number
+}
+
+/**
+ * Propagate course/schedule attribute changes onto a KEPT (already-existing)
+ * session. Without this, editing the course (e.g. lowering maxStudents 50→10)
+ * and re-publishing / re-materializing leaves every future session carrying
+ * the stale values — the new cap would silently not be enforced.
+ *
+ * Only cheap differing-field updates: title / category / description /
+ * maxStudents on liveSession, plus the matching title / description /
+ * maxAttendees on its CalendarEvent projection. NEVER touches lessonId,
+ * roomId/roomUrl, status, scheduledAt, or participants.
+ *
+ * Returns true when liveSession was actually patched.
+ */
+export async function refreshKeptSessionAttributes(
+  sessionId: string,
+  attrs: KeptSessionAttributes,
+  tx?: NodePgDatabase<typeof schema>
+): Promise<boolean> {
+  const db = tx ?? drizzleDb
+  const [row] = await db
+    .select({
+      title: liveSession.title,
+      category: liveSession.category,
+      description: liveSession.description,
+      maxStudents: liveSession.maxStudents,
+    })
+    .from(liveSession)
+    .where(eq(liveSession.sessionId, sessionId))
+    .limit(1)
+  if (!row) return false
+
+  const patch: Partial<typeof liveSession.$inferInsert> = {}
+  if (row.title !== attrs.title) patch.title = attrs.title
+  if (row.category !== attrs.category) patch.category = attrs.category
+  const newDesc = attrs.description ?? null
+  if ((row.description ?? null) !== newDesc) patch.description = newDesc
+  if ((row.maxStudents ?? null) !== attrs.maxStudents) patch.maxStudents = attrs.maxStudents
+
+  if (Object.keys(patch).length === 0) return false
+
+  await db.update(liveSession).set(patch).where(eq(liveSession.sessionId, sessionId))
+
+  const cePatch: Partial<typeof calendarEvent.$inferInsert> = {}
+  if (patch.title !== undefined) cePatch.title = attrs.title
+  if (patch.description !== undefined) cePatch.description = newDesc
+  if (patch.maxStudents !== undefined) cePatch.maxAttendees = attrs.maxStudents
+  if (Object.keys(cePatch).length > 0) {
+    await db
+      .update(calendarEvent)
+      .set(cePatch)
+      .where(and(eq(calendarEvent.externalId, sessionId), isNull(calendarEvent.deletedAt)))
+  }
+  return true
+}
+
 /**
  * Create LiveSession + CalendarEvent rows for every future occurrence of a
  * schedule.
@@ -195,7 +270,7 @@ export async function materializeScheduleSessions(
     opts.dates ??
     generateScheduleSessionDates(
       opts.slots,
-      opts.weeksToSchedule ?? 8,
+      clampWeeksToSchedule(opts.weeksToSchedule),
       opts.timezone ?? 'UTC',
       true,
       opts.now
@@ -233,7 +308,14 @@ export async function materializeScheduleSessions(
     // backfill run. Callers that re-affirm the whole pattern (schedule
     // re-save) pass recreateRetiredSlots to materialize over retired rows.
     const [existing] = await db
-      .select({ sessionId: liveSession.sessionId, status: liveSession.status })
+      .select({
+        sessionId: liveSession.sessionId,
+        status: liveSession.status,
+        title: liveSession.title,
+        category: liveSession.category,
+        description: liveSession.description,
+        maxStudents: liveSession.maxStudents,
+      })
       .from(liveSession)
       .where(
         and(
@@ -247,6 +329,28 @@ export async function materializeScheduleSessions(
 
     if (existing && (existing.status !== 'ended' || !opts.recreateRetiredSlots)) {
       result.kept++
+      // Propagate attribute changes (title/category/description/maxStudents)
+      // onto the kept session so a lowered cap or renamed course is actually
+      // enforced. Best-effort: a refresh hiccup must not block the rest.
+      if (existing.status !== 'ended') {
+        try {
+          await refreshKeptSessionAttributes(
+            existing.sessionId,
+            {
+              title: opts.title,
+              category: opts.category,
+              description: opts.description,
+              maxStudents: opts.maxStudents ?? 50,
+            },
+            tx
+          )
+        } catch (err) {
+          console.error(
+            `[materializeScheduleSessions] failed to refresh kept session ${existing.sessionId}:`,
+            err
+          )
+        }
+      }
       continue
     }
 

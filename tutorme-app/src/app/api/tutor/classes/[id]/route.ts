@@ -507,6 +507,15 @@ export const PATCH = withCsrf(
         })
         .where(eq(liveSession.sessionId, classId))
 
+      // Cancel the calendar projection too — every other terminal path
+      // (1-on-1 cancel, group cancel, schedule sweeps) does this; without it
+      // the ended class's event stays CONFIRMED and keeps surfacing in
+      // calendar queries that only filter on isCancelled.
+      await drizzleDb
+        .update(calendarEvent)
+        .set({ isCancelled: true, status: 'CANCELLED', deletedAt: endedAt })
+        .where(eq(calendarEvent.externalId, classId))
+
       getIO()?.to(classId).emit('session:ended', { sessionId: classId, reason: 'tutor-ended' })
 
       // Tear down the Daily.co room now that the session is over. Recordings are
@@ -686,6 +695,31 @@ export const DELETE = withAuth(
         } catch (roomErr) {
           console.warn('[Class Delete] Failed to delete Daily room:', roomErr)
         }
+      }
+
+      // A future session materialized from a course schedule must NOT be
+      // hard-deleted: the rolling re-materialization job would just recreate it
+      // at the same pattern instant. Soft-retire it instead — the ended row at
+      // that instant acts as a tombstone the materializer honours (it never
+      // resurrects ended slots), and the calendar projection is cancelled.
+      const isFutureScheduled =
+        liveSessionRow.status === 'scheduled' &&
+        liveSessionRow.scheduleId !== null &&
+        liveSessionRow.scheduledAt !== null &&
+        liveSessionRow.scheduledAt.getTime() > Date.now()
+      if (isFutureScheduled) {
+        const now = new Date()
+        await drizzleDb.transaction(async tx => {
+          await tx
+            .update(liveSession)
+            .set({ status: 'ended', endedAt: now })
+            .where(eq(liveSession.sessionId, classId))
+          await tx
+            .update(calendarEvent)
+            .set({ isCancelled: true, status: 'CANCELLED', deletedAt: now })
+            .where(eq(calendarEvent.externalId, classId))
+        })
+        return NextResponse.json({ message: 'Class cancelled successfully' })
       }
 
       // Remove the LiveSession and its calendar projection (linked by externalId).
