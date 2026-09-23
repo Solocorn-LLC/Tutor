@@ -18,6 +18,7 @@ import {
   clearFutureScheduleSessions,
   clearStaleScheduleSessions,
   generateScheduleSessionDates,
+  clampWeeksToSchedule,
   type MaterializeScheduleResult,
 } from '@/lib/sessions/materialize-schedule'
 import crypto from 'crypto'
@@ -96,7 +97,7 @@ async function materializeForSchedule(
     .where(eq(course.courseId, courseId))
     .limit(1)
   const timezone = tzRow?.timezone || 'UTC'
-  const weeks = typeof weeksToSchedule === 'number' ? weeksToSchedule : 8
+  const weeks = clampWeeksToSchedule(weeksToSchedule)
   const dates = generateScheduleSessionDates(list, weeks, timezone)
   let sessionsRetired = 0
   if (opts.retireStale) {
@@ -240,7 +241,7 @@ export const POST = withCsrf(
             courseId,
             scheduleIndex: nextIndex,
             schedule: body.schedule || [],
-            weeksToSchedule: body.weeksToSchedule ?? 8,
+            weeksToSchedule: clampWeeksToSchedule(body.weeksToSchedule),
             maxStudents: body.maxStudents ?? null,
             enrolledCount: 0,
           })

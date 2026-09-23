@@ -21,7 +21,11 @@ import {
 import { notifyMany } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
-import { clearOrphanedScheduleSessions } from '@/lib/sessions/materialize-schedule'
+import {
+  clearOrphanedScheduleSessions,
+  clampWeeksToSchedule,
+  refreshKeptSessionAttributes,
+} from '@/lib/sessions/materialize-schedule'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
@@ -674,7 +678,7 @@ export const POST = withCsrf(
                     .set({
                       name: s.name ?? null,
                       schedule: s.schedule || [],
-                      weeksToSchedule: s.weeksToSchedule || 8,
+                      weeksToSchedule: clampWeeksToSchedule(s.weeksToSchedule),
                       maxStudents: s.maxStudents ?? null,
                       updatedAt: now,
                     })
@@ -691,7 +695,7 @@ export const POST = withCsrf(
                     scheduleIndex: s.scheduleIndex || i + 1,
                     name: s.name ?? null,
                     schedule: s.schedule || [],
-                    weeksToSchedule: s.weeksToSchedule || 8,
+                    weeksToSchedule: clampWeeksToSchedule(s.weeksToSchedule),
                     maxStudents: s.maxStudents ?? null,
                     enrolledCount: 0,
                     createdAt: now,
@@ -746,7 +750,7 @@ export const POST = withCsrf(
                 if (scheduleItems.length === 0) continue
                 const sessionDates = generateSessionDates(
                   scheduleItems,
-                  s.weeksToSchedule || 8,
+                  clampWeeksToSchedule(s.weeksToSchedule),
                   tutorTimeZone,
                   courseName
                 )
@@ -799,6 +803,10 @@ export const POST = withCsrf(
                             scheduleId: liveSession.scheduleId,
                             roomUrl: liveSession.roomUrl,
                             lessonId: liveSession.lessonId,
+                            title: liveSession.title,
+                            category: liveSession.category,
+                            description: liveSession.description,
+                            maxStudents: liveSession.maxStudents,
                           })
                           .from(liveSession)
                           .where(
@@ -1200,6 +1208,29 @@ export const POST = withCsrf(
                       }
 
                       // Same-course existing session: ensure it has a CalendarEvent
+                      // (kept path — the slot's exact instant/duration already
+                      // matches, or it isn't movable). Propagate attribute
+                      // changes (title/category/description/maxStudents) onto
+                      // the kept session + its CalendarEvent projection so a
+                      // lowered cap or renamed course is actually enforced;
+                      // lesson, room, status and timing are left untouched.
+                      try {
+                        await refreshKeptSessionAttributes(
+                          conflictingLs.sessionId,
+                          {
+                            title: session.title,
+                            category: v.category,
+                            description: templateCourse.description ?? null,
+                            maxStudents: s.maxStudents ?? 50,
+                          },
+                          tx
+                        )
+                      } catch (refreshErr) {
+                        console.error(
+                          '[publish] failed to refresh kept session attributes:',
+                          refreshErr
+                        )
+                      }
                       const [existingCe] = await tx
                         .select({ eventId: calendarEvent.eventId })
                         .from(calendarEvent)

@@ -79,6 +79,11 @@ export async function ensureSingleActiveSession(
  * session (test-condition early entry) so that only one session is ever active
  * at a time; deployments and student joins therefore target the correct room.
  *
+ * GO_LIVE_DEMO sessions and sessions the tutor already left (tutorLeftAt set)
+ * are NOT ended — demos may run alongside course sessions, and a room the
+ * tutor walked out of is handled by the lifecycle checks, not here (mirrors
+ * ensureSingleActiveSession's exclusions).
+ *
  * @param tutorId - tutor whose other active sessions should be ended
  * @param excludeSessionId - session that must remain active
  * @returns the number of sessions that were ended
@@ -94,6 +99,8 @@ export async function endOtherActiveSessions(
       and(
         eq(liveSession.tutorId, tutorId),
         inArray(liveSession.status, ACTIVE_STATUSES as any),
+        isNull(liveSession.tutorLeftAt),
+        ne(liveSession.sessionType, 'GO_LIVE_DEMO'),
         ne(liveSession.sessionId, excludeSessionId)
       )
     )

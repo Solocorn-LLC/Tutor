@@ -7,7 +7,7 @@
  */
 
 import { NextResponse } from 'next/server'
-import { eq, inArray, asc, desc } from 'drizzle-orm'
+import { eq, inArray, asc, and, ne } from 'drizzle-orm'
 import { withAuth } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -44,6 +44,10 @@ export const GET = withAuth(async (req, _session, context) => {
     .orderBy(courseSchedule.scheduleIndex)
 
   const scheduleIds = rows.map(r => r.scheduleId)
+  const now = new Date()
+  // Only OPEN sessions count: ended/retired rows must not inflate
+  // actualSessionCount or skew startDate/endDate — a schedule whose sessions
+  // all happened months ago is not "fully booked/active".
   const liveSessions =
     scheduleIds.length > 0
       ? await drizzleDb
@@ -52,7 +56,7 @@ export const GET = withAuth(async (req, _session, context) => {
             scheduledAt: liveSession.scheduledAt,
           })
           .from(liveSession)
-          .where(inArray(liveSession.scheduleId, scheduleIds))
+          .where(and(inArray(liveSession.scheduleId, scheduleIds), ne(liveSession.status, 'ended')))
           .orderBy(asc(liveSession.scheduledAt))
       : []
 
@@ -79,8 +83,12 @@ export const GET = withAuth(async (req, _session, context) => {
     const spotsLeft =
       typeof r.maxStudents === 'number' ? Math.max(0, r.maxStudents - (r.enrolledCount ?? 0)) : null
     const sessions = sessionsBySchedule[r.scheduleId] || []
-    const firstScheduledAt = sessions[0]?.scheduledAt ?? null
-    const lastScheduledAt = sessions[sessions.length - 1]?.scheduledAt ?? null
+    // Date bounds come from UPCOMING open sessions; a schedule with only past
+    // sessions falls back to its full open range so it still shows when it ran.
+    const future = sessions.filter(s => s.scheduledAt && s.scheduledAt >= now)
+    const basis = future.length > 0 ? future : sessions
+    const firstScheduledAt = basis[0]?.scheduledAt ?? null
+    const lastScheduledAt = basis[basis.length - 1]?.scheduledAt ?? null
     return {
       scheduleId: r.scheduleId,
       scheduleIndex: r.scheduleIndex,
