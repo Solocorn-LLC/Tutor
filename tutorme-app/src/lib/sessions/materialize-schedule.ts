@@ -369,24 +369,36 @@ export async function materializeScheduleSessions(
       continue
     }
 
-    await createSession(
-      {
-        tutorId: opts.tutorId,
-        title: opts.title,
-        scheduledAt: d.scheduledAt,
-        durationMinutes: d.durationMinutes,
-        category: opts.category,
-        type: 'COURSE',
-        courseId: opts.courseId,
-        scheduleId: opts.scheduleId,
-        description: opts.description ?? undefined,
-        status: 'scheduled',
-        maxStudents: opts.maxStudents ?? 50,
-        timezone: 'UTC',
-      },
-      tx
-    )
-    result.created++
+    try {
+      await createSession(
+        {
+          tutorId: opts.tutorId,
+          title: opts.title,
+          scheduledAt: d.scheduledAt,
+          durationMinutes: d.durationMinutes,
+          category: opts.category,
+          type: 'COURSE',
+          courseId: opts.courseId,
+          scheduleId: opts.scheduleId,
+          description: opts.description ?? undefined,
+          status: 'scheduled',
+          maxStudents: opts.maxStudents ?? 50,
+          timezone: 'UTC',
+        },
+        tx
+      )
+      result.created++
+    } catch (err) {
+      // A concurrent materialization (rolling job vs publish) can insert the
+      // same instant between the duplicate-guard check above and this insert.
+      // Postgres' unique-violation code means the slot is already accounted
+      // for by the other writer — count it as kept, not as a failure.
+      if ((err as { code?: string }).code === '23505') {
+        result.kept++
+        continue
+      }
+      throw err
+    }
   }
 
   if (result.kept > 0 || result.skippedSlots.length > 0) {
