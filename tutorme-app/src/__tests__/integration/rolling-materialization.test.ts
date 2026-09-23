@@ -362,11 +362,14 @@ describe('rolling schedule re-materialization', () => {
         createdAt: old,
         updatedAt: old,
       })
+      // Distinct slot (Thursday 15:00) — the shared tutor already has future
+      // Monday 10:00 sessions from this file's other fixtures, and the
+      // conflict guard would (correctly) skip colliding instants.
       await drizzleDb.insert(courseSchedule).values({
         scheduleId: enrolledScheduleId,
         courseId: enrolledCourseId,
         scheduleIndex: 1,
-        schedule: [WEEKLY_SLOT],
+        schedule: [{ dayOfWeek: 'Thursday', startTime: '15:00', durationMinutes: 60 }],
         weeksToSchedule: 3,
         enrolledCount: 1,
         createdAt: old,
