@@ -238,7 +238,6 @@ export const GET = withAuth(
           ? p.totalLessons
           : (lessonCountByCourse.get(row.courseId) ?? 0)
       const lessonsDone = Math.min(p?.lessonsCompleted ?? 0, lessonTotal)
-      const isCompleted = p?.isCompleted === true || row.enrollment.completedAt != null
       // Prefer the count for the student's chosen schedule; fall back to the
       // course-wide count, then to the expected slots × weeks (pre-materialize).
       // Completion is subtracted from the SAME scope so remaining can't be
@@ -261,6 +260,18 @@ export const GET = withAuth(
           ? (completedCountBySchedule.get(scheduleKey!) ?? 0)
           : (completedCountByCourse.get(row.courseId) ?? 0)
       const remainingSessions = Math.max(0, sessionCount - completedSessions)
+      // Completion is DERIVED, not just flag-read: nothing in the codebase ever
+      // writes courseProgress.isCompleted = true or courseEnrollment.completedAt,
+      // so without this every fully-consumed course (0 remaining, 100% bar)
+      // would sit in the student's "Ongoing" tab forever. A course counts as
+      // completed once every session in its count scope has run — the same
+      // basis as the card's progress bar. The synthesized fallback count only
+      // ever has real completed rows subtracted from it, so a course with no
+      // materialized sessions can never complete spuriously.
+      const isCompleted =
+        p?.isCompleted === true ||
+        row.enrollment.completedAt != null ||
+        (sessionCount > 0 && completedSessions >= sessionCount)
       const sessions = (sessionsByCourse.get(row.courseId) ?? []).map(s => ({
         id: s.sessionId,
         scheduledAt: s.scheduledAt ? s.scheduledAt.toISOString() : null,

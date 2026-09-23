@@ -154,6 +154,7 @@ describe('GET /api/student/enrollments', () => {
     expect(e.sessionCount).toBe(2)
     expect(e.completedSessions).toBe(1)
     expect(e.remainingSessions).toBe(1)
+    expect(e.progress.isCompleted).toBe(false)
     // The sessions array is family-scoped to the whole course's countable set
     // (including other schedules), ordered by scheduledAt ascending (past
     // first), with the exact field names.
@@ -185,10 +186,33 @@ describe('GET /api/student/enrollments', () => {
     expect(e.sessionCount).toBe(3)
     expect(e.completedSessions).toBe(1)
     expect(e.remainingSessions).toBe(2)
+    expect(e.progress.isCompleted).toBe(false)
     expect(e.sessions.map((s: { id: string }) => s.id)).toEqual(['a', 'b', 'c'])
   })
 
-  it('synthesizes sessionCount from schedule slots x weeks when no sessions exist', async () => {
+  it('derives isCompleted when every session in the count scope has run', async () => {
+    const past = new Date(Date.now() - DAY)
+    mocks.selectQueue = [
+      [makeEnrollmentRow()],
+      [],
+      [],
+      [
+        makeSessionRow({ sessionId: 'sess-past-1', scheduledAt: past, status: 'ended' }),
+        makeSessionRow({ sessionId: 'sess-past-2', scheduledAt: past, status: 'ended' }),
+      ],
+      [scheduleRow],
+    ]
+
+    const data = await runGet()
+    const e = data.enrollments[0]
+
+    expect(e.sessionCount).toBe(2)
+    expect(e.completedSessions).toBe(2)
+    expect(e.remainingSessions).toBe(0)
+    expect(e.progress.isCompleted).toBe(true)
+  })
+
+  it('never completes spuriously from the synthesized fallback count', async () => {
     mocks.selectQueue = [
       [
         makeEnrollmentRow({
@@ -204,9 +228,10 @@ describe('GET /api/student/enrollments', () => {
     const data = await runGet()
     const e = data.enrollments[0]
 
-    expect(e.sessionCount).toBe(16) // 2 slots x 8 default weeks
+    expect(e.sessionCount).toBe(16)
     expect(e.completedSessions).toBe(0)
     expect(e.remainingSessions).toBe(16)
+    expect(e.progress.isCompleted).toBe(false)
     expect(e.sessions).toEqual([])
   })
 })

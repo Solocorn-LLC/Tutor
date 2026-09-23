@@ -21,13 +21,18 @@
  *
  * Liveness gate: only ACTIVE courses are topped up — a course counts as active
  * when it has a live (non-ended) session scheduled within the last
- * ACTIVE_WINDOW_DAYS, or its row was updated within that window. Ended
- * sessions must NOT count: cleanup passes retire abandoned courses' sessions
- * precisely so those courses stop being topped up, and counting ended rows
- * would resurrect them on the very next tick. Without this gate, long-abandoned
- * courses that were never unpublished (and schedules that were persisted by
- * entry points which never materialized them) suddenly sprout weeks of new
- * session cards the first time the job runs.
+ * ACTIVE_WINDOW_DAYS, its row was updated within that window, or it has at
+ * least one enrollment. Ended sessions must NOT count: cleanup passes retire
+ * abandoned courses' sessions precisely so those courses stop being topped
+ * up, and counting ended rows would resurrect them on the very next tick.
+ * Without this gate, long-abandoned courses that were never unpublished (and
+ * schedules that were persisted by entry points which never materialized
+ * them) suddenly sprout weeks of new session cards the first time the job
+ * runs. The enrollment clause matters for genuinely ongoing courses whose
+ * sessions all happened to end more than ACTIVE_WINDOW_DAYS ago (e.g. every
+ * slot consumed): without it they silently run dry even though students are
+ * still enrolled and the sliding horizon should keep producing the next
+ * weeks.
  */
 
 import { and, asc, eq, exists, gte, isNull, ne, notInArray, or } from 'drizzle-orm'
@@ -35,6 +40,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import {
   calendarAvailability,
   course,
+  courseEnrollment,
   courseSchedule,
   courseVariant,
   liveSession,
@@ -125,11 +131,13 @@ export async function runRollingScheduleMaterialization(
     .from(courseVariant)
 
   // Liveness gate (see file header): skip courses with no live session
-  // scheduled within the active window and no recent update — topping those
-  // up resurrects abandoned courses with weeks of unwanted session cards.
-  // Ended sessions are excluded on purpose: cleanup passes retire abandoned
-  // courses' sessions so they leave the rotation, and counting ended rows
-  // would undo the cleanup on the very next tick.
+  // scheduled within the active window, no recent update, and no enrollments
+  // — topping those up resurrects abandoned courses with weeks of unwanted
+  // session cards. Ended sessions are excluded on purpose: cleanup passes
+  // retire abandoned courses' sessions so they leave the rotation, and
+  // counting ended rows would undo the cleanup on the very next tick. The
+  // enrollment clause keeps genuinely ongoing courses in the rotation even
+  // when every scheduled slot has already run its course.
   const activeCutoff = new Date(Date.now() - ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000)
   const recentSession = drizzleDb
     .select({ sessionId: liveSession.sessionId })
@@ -141,6 +149,10 @@ export async function runRollingScheduleMaterialization(
         ne(liveSession.status, 'ended')
       )
     )
+  const hasEnrollment = drizzleDb
+    .select({ enrollmentId: courseEnrollment.enrollmentId })
+    .from(courseEnrollment)
+    .where(eq(courseEnrollment.courseId, course.courseId))
 
   const rows = await drizzleDb
     .select({
@@ -160,7 +172,7 @@ export async function runRollingScheduleMaterialization(
         eq(course.isPublished, true),
         isNull(course.deletedAt),
         notInArray(course.courseId, templateIds),
-        or(exists(recentSession), gte(course.updatedAt, activeCutoff))
+        or(exists(recentSession), gte(course.updatedAt, activeCutoff), exists(hasEnrollment))
       )
     )
     .orderBy(asc(courseSchedule.scheduleId))

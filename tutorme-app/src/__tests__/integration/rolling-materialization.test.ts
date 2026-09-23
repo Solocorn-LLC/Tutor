@@ -23,6 +23,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import {
   user,
   course,
+  courseEnrollment,
   courseSchedule,
   courseVariant,
   liveSession,
@@ -333,6 +334,75 @@ describe('rolling schedule re-materialization', () => {
     const staleSessions = await sessionsForSchedule(SCHED_STALE)
     expect(staleSessions).toHaveLength(0)
     expect(run.errors).toBe(0)
+  })
+
+  it('tops up an enrolled course even when all activity predates the window', async () => {
+    // The enrollment clause of the liveness gate: a published course with
+    // enrolled students must stay in the rotation even when its last session
+    // ended more than ACTIVE_WINDOW_DAYS ago — otherwise genuinely ongoing
+    // courses silently run dry (zero sessions on every student's dashboard).
+    const old = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000)
+    const enrolledCourseId = `roll_enr_${stamp}`
+    const enrolledScheduleId = `roll_sched_enr_${stamp}`
+    const enrolledStudentId = crypto.randomUUID()
+    try {
+      await drizzleDb.insert(user).values({
+        userId: enrolledStudentId,
+        email: `roll_enr_student_${stamp}@example.com`,
+        role: 'STUDENT',
+        createdAt: old,
+        updatedAt: old,
+      })
+      await drizzleDb.insert(course).values({
+        courseId: enrolledCourseId,
+        name: 'roll Enrolled Course',
+        creatorId: tutorId,
+        isPublished: true,
+        categories: ['General'],
+        createdAt: old,
+        updatedAt: old,
+      })
+      await drizzleDb.insert(courseSchedule).values({
+        scheduleId: enrolledScheduleId,
+        courseId: enrolledCourseId,
+        scheduleIndex: 1,
+        schedule: [WEEKLY_SLOT],
+        weeksToSchedule: 3,
+        enrolledCount: 1,
+        createdAt: old,
+        updatedAt: old,
+      })
+      await drizzleDb.insert(courseEnrollment).values({
+        enrollmentId: `roll_enr_enrollment_${stamp}`,
+        studentId: enrolledStudentId,
+        courseId: enrolledCourseId,
+        enrolledAt: old,
+      })
+
+      const run = await runRollingScheduleMaterialization()
+      const sessions = await sessionsForSchedule(enrolledScheduleId)
+      expect(sessions.length).toBeGreaterThan(0)
+      expect(run.errors).toBe(0)
+    } finally {
+      const ids = (
+        await drizzleDb
+          .select({ sessionId: liveSession.sessionId })
+          .from(liveSession)
+          .where(eq(liveSession.scheduleId, enrolledScheduleId))
+      ).map(s => s.sessionId)
+      if (ids.length > 0) {
+        await drizzleDb.delete(calendarEvent).where(inArray(calendarEvent.externalId, ids))
+        await drizzleDb.delete(liveSession).where(inArray(liveSession.sessionId, ids))
+      }
+      await drizzleDb
+        .delete(courseEnrollment)
+        .where(eq(courseEnrollment.courseId, enrolledCourseId))
+      await drizzleDb
+        .delete(courseSchedule)
+        .where(eq(courseSchedule.scheduleId, enrolledScheduleId))
+      await drizzleDb.delete(course).where(eq(course.courseId, enrolledCourseId))
+      await drizzleDb.delete(user).where(eq(user.userId, enrolledStudentId))
+    }
   })
 
   it('reports counts consistent with the materialized rows', async () => {
