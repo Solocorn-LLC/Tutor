@@ -15,7 +15,7 @@ import {
   tutorApplication,
   liveSession,
 } from '@/lib/db/schema'
-import { eq, and, inArray, desc } from 'drizzle-orm'
+import { eq, and, inArray, desc, lte, ne, or } from 'drizzle-orm'
 import { getTutorRating } from '@/lib/one-on-one/reviews'
 import { computeCourseSessionCount } from '@/lib/courses/session-count'
 
@@ -312,6 +312,11 @@ export async function GET(
       }
     })
 
+    // A 'scheduled' demo is only listed once it starts within the next 24h —
+    // sessions further out are upcoming, not live now, and would otherwise
+    // list indefinitely. active/live/preparing/paused rows list regardless.
+    const scheduledHorizon = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
     // Fetch demo lessons (GO_LIVE_DEMO sessions) for this tutor
     const demoSessionRows = await drizzleDb
       .select({
@@ -341,7 +346,8 @@ export async function GET(
             'live',
             'paused',
             'ended',
-          ])
+          ]),
+          or(ne(liveSession.status, 'scheduled'), lte(liveSession.scheduledAt, scheduledHorizon))
         )
       )
       .orderBy(desc(liveSession.scheduledAt))

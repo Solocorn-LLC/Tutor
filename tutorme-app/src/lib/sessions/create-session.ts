@@ -78,62 +78,77 @@ export async function createSession(input: CreateSessionInput, tx?: DbClient) {
   // so it never blocks or fails session creation.
   void ensureDailyWebhook()
 
-  // 2. Insert LiveSession (source of truth)
-  const [liveSessionRow] = await db
-    .insert(liveSession)
-    .values({
-      sessionId,
-      tutorId: input.tutorId,
-      courseId: input.courseId ?? null,
-      scheduleId: input.scheduleId ?? null,
-      lessonId: input.lessonId ?? null,
-      title: input.title,
-      category: input.category,
-      description: input.description ?? null,
-      scheduledAt: input.scheduledAt ?? null,
-      startedAt: input.startedAt ?? null,
-      status: input.status ?? 'scheduled',
-      sessionType: input.type,
-      roomId: room.id,
-      roomUrl: room.url,
-      maxStudents: input.maxStudents ?? 50,
-      durationMinutes: input.durationMinutes,
-    })
-    .returning()
-
-  // 3. Upsert CalendarEvent (read-only projection) — skip for schedule-less demo
-  // rooms so Go Live sessions do not block the tutor's calendar.
+  // 2. Insert LiveSession (source of truth) and 3. upsert the CalendarEvent
+  // projection. If either throws, the Daily room created above would dangle
+  // forever with no session row — best-effort delete it (never masks the
+  // original error). Rooms passed in via existingRoom are owned by the caller.
+  let liveSessionRow: typeof liveSession.$inferSelect
   let calendarEventRow: typeof calendarEvent.$inferSelect | undefined
-  if (input.type !== 'GO_LIVE_DEMO' && input.scheduledAt && endTime) {
-    const [ce] = await db
-      .insert(calendarEvent)
+  try {
+    ;[liveSessionRow] = await db
+      .insert(liveSession)
       .values({
-        eventId: crypto.randomUUID(),
+        sessionId,
         tutorId: input.tutorId,
-        title: input.title,
-        description: input.description ?? null,
-        type: TYPE_TO_EVENT_TYPE[input.type],
-        status: 'CONFIRMED',
-        startTime: input.scheduledAt,
-        endTime,
-        timezone,
-        isAllDay: false,
-        isRecurring: false,
-        isVirtual: true,
-        meetingUrl: room.url,
         courseId: input.courseId ?? null,
-        studentId: input.studentId ?? null,
-        attendees: input.studentId ? [input.studentId] : [],
-        maxAttendees: input.maxStudents ?? 50,
-        reminders: [15, 60],
-        createdBy: input.tutorId,
-        externalId: sessionId,
-        isCancelled: false,
-        createdAt: now,
-        updatedAt: now,
+        scheduleId: input.scheduleId ?? null,
+        lessonId: input.lessonId ?? null,
+        title: input.title,
+        category: input.category,
+        description: input.description ?? null,
+        scheduledAt: input.scheduledAt ?? null,
+        startedAt: input.startedAt ?? null,
+        status: input.status ?? 'scheduled',
+        sessionType: input.type,
+        roomId: room.id,
+        roomUrl: room.url,
+        maxStudents: input.maxStudents ?? 50,
+        durationMinutes: input.durationMinutes,
       })
       .returning()
-    calendarEventRow = ce
+
+    // Skip the projection for schedule-less demo rooms so Go Live sessions do
+    // not block the tutor's calendar.
+    if (input.type !== 'GO_LIVE_DEMO' && input.scheduledAt && endTime) {
+      const [ce] = await db
+        .insert(calendarEvent)
+        .values({
+          eventId: crypto.randomUUID(),
+          tutorId: input.tutorId,
+          title: input.title,
+          description: input.description ?? null,
+          type: TYPE_TO_EVENT_TYPE[input.type],
+          status: 'CONFIRMED',
+          startTime: input.scheduledAt,
+          endTime,
+          timezone,
+          isAllDay: false,
+          isRecurring: false,
+          isVirtual: true,
+          meetingUrl: room.url,
+          courseId: input.courseId ?? null,
+          studentId: input.studentId ?? null,
+          attendees: input.studentId ? [input.studentId] : [],
+          maxAttendees: input.maxStudents ?? 50,
+          reminders: [15, 60],
+          createdBy: input.tutorId,
+          externalId: sessionId,
+          isCancelled: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning()
+      calendarEventRow = ce
+    }
+  } catch (error) {
+    if (!input.existingRoom) {
+      try {
+        await dailyProvider.deleteRoom(room.id)
+      } catch (cleanupError) {
+        console.error('[createSession] failed to delete orphaned Daily room:', cleanupError)
+      }
+    }
+    throw error
   }
 
   return { liveSession: liveSessionRow, calendarEvent: calendarEventRow }

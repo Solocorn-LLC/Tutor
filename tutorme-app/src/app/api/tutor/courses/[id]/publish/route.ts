@@ -646,6 +646,11 @@ export const POST = withCsrf(
             // as session generation), so the migration remap below always has it.
             const variantScheduleIdByTemplateId = new Map<string, string>()
 
+            // Schedules dropped from the payload that are KEPT because students
+            // are enrolled in them (the sync only deletes zero-enrollment rows).
+            // Tracked so the orphan sweep below leaves their sessions live.
+            const keptEnrolledScheduleIds: string[] = []
+
             // Schedule changes are not allowed for already-published variants.
             if (!existing || !existing.isPublished) {
               // Sync CourseSchedule rows for this published course
@@ -717,6 +722,8 @@ export const POST = withCsrf(
                     await tx
                       .delete(courseSchedule)
                       .where(eq(courseSchedule.scheduleId, es.scheduleId))
+                  } else {
+                    keptEnrolledScheduleIds.push(es.scheduleId)
                   }
                 }
               }
@@ -1355,6 +1362,33 @@ export const POST = withCsrf(
               // unpublished — would otherwise linger forever: publish is the one
               // flow that historically only ever ADDED sessions. One-time
               // sessions (scheduleId null) are never touched here.
+              //
+              // Schedules dropped from the payload but kept because students are
+              // enrolled in them survive the sync above; their sessions must NOT
+              // be swept. Seed the map with the instants their still-open future
+              // sessions already occupy (the rolling job keeps topping them up
+              // from their stored pattern), so the sweep sees them as live.
+              for (const keptId of keptEnrolledScheduleIds) {
+                if (validInstantsBySchedule.has(keptId)) continue
+                const keptSessions = await tx
+                  .select({ scheduledAt: liveSession.scheduledAt })
+                  .from(liveSession)
+                  .where(
+                    and(
+                      eq(liveSession.scheduleId, keptId),
+                      inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
+                      gt(liveSession.scheduledAt, now)
+                    )
+                  )
+                validInstantsBySchedule.set(
+                  keptId,
+                  new Set(
+                    keptSessions
+                      .map(r => r.scheduledAt?.getTime())
+                      .filter((t): t is number => typeof t === 'number')
+                  )
+                )
+              }
               await clearOrphanedScheduleSessions(
                 publishedCourseId,
                 validInstantsBySchedule,

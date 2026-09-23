@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { liveSession, user, profile, course } from '@/lib/db/schema'
 import type { LiveSessionStatus, Role } from '@/lib/db/schema/enums'
-import { and, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, lte, ne, or, sql } from 'drizzle-orm'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,13 +23,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid session type' }, { status: 400 })
     }
 
-    const statuses =
-      statusParam === 'active'
-        ? ['scheduled', 'active', 'preparing', 'live', 'paused']
-        : statusParam
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean)
+    const isActiveExpansion = statusParam === 'active'
+    const statuses = isActiveExpansion
+      ? ['scheduled', 'active', 'preparing', 'live', 'paused']
+      : statusParam
+          .split(',')
+          .map(s => s.trim())
+          .filter(Boolean)
+
+    // A 'scheduled' row is only "live" when it starts within the next 24h —
+    // sessions further out are upcoming, not live now, and must not list
+    // indefinitely. active/preparing/live/paused rows list regardless.
+    const scheduledHorizon = new Date(Date.now() + 24 * 60 * 60 * 1000)
+    const liveNowPredicate = or(
+      ne(liveSession.status, 'scheduled'),
+      lte(liveSession.scheduledAt, scheduledHorizon)
+    )
 
     const pageSize = Math.min(60, Math.max(1, Number(searchParams.get('pageSize')) || 24))
 
@@ -73,6 +82,7 @@ export async function GET(request: NextRequest) {
         and(
           eq(liveSession.sessionType, sessionType),
           inArray(liveSession.status, statuses as LiveSessionStatus[]),
+          ...(isActiveExpansion ? [liveNowPredicate] : []),
           eq(user.role, 'TUTOR' as Role)
         )
       )

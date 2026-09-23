@@ -228,7 +228,11 @@ export async function runRollingScheduleMaterialization(
       // the window slides forward without widening.
       const weeksToSchedule = row.weeksToSchedule ?? 8
       const referenceNowMs = opts.now?.getTime() ?? Date.now()
-      const horizonEnd = new Date(referenceNowMs + weeksToSchedule * MS_PER_WEEK)
+      // +1h buffer: a fixed-ms horizon drifts ±1h across a DST transition,
+      // which could drop (or keep) the one boundary occurrence. Generation
+      // still yields at most weeksToSchedule occurrences per slot, so the
+      // buffer only relaxes the boundary filter, never the growth cap.
+      const horizonEnd = new Date(referenceNowMs + weeksToSchedule * MS_PER_WEEK + 60 * 60 * 1000)
 
       const timezone = await timezoneFor(row.tutorId)
       const dates = generateScheduleSessionDates(slots, weeksToSchedule, timezone, true, opts.now)

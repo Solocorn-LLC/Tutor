@@ -10,8 +10,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { courseSchedule, course, calendarAvailability, courseVariant } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import {
+  courseSchedule,
+  course,
+  calendarAvailability,
+  courseVariant,
+  liveSession,
+  courseEnrollment,
+} from '@/lib/db/schema'
+import { eq, and, sql, lte } from 'drizzle-orm'
 import { notifyStudentsOfScheduleChange } from '@/lib/notifications/reschedule'
 import {
   materializeScheduleSessions,
@@ -484,6 +491,33 @@ export const DELETE = withCsrf(
             '[DELETE /api/tutor/courses/[id]/schedules] clear sessions failed:',
             clearErr
           )
+        }
+
+        // History guard: past sessions and enrollments reference this schedule
+        // via FK set-null, so hard-deleting would wipe their grouping. When
+        // history exists, keep the row as scaffolding with an empty slot
+        // pattern instead (future sessions are already retired above).
+        const [pastSessionRow] = await drizzleDb
+          .select({ sessionId: liveSession.sessionId })
+          .from(liveSession)
+          .where(
+            and(eq(liveSession.scheduleId, scheduleId), lte(liveSession.scheduledAt, new Date()))
+          )
+          .limit(1)
+        const [enrollmentRefRow] = await drizzleDb
+          .select({ enrollmentId: courseEnrollment.enrollmentId })
+          .from(courseEnrollment)
+          .where(eq(courseEnrollment.scheduleId, scheduleId))
+          .limit(1)
+
+        if (pastSessionRow || enrollmentRefRow) {
+          await drizzleDb
+            .update(courseSchedule)
+            .set({ schedule: [], updatedAt: new Date() })
+            .where(
+              and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId))
+            )
+          return NextResponse.json({ success: true })
         }
 
         await drizzleDb
