@@ -84,6 +84,8 @@ interface Course {
   }
   /** Real number of live sessions (materialized time slots) for the student's schedule. */
   sessionCount?: number
+  /** Sessions that have started and completed (mirrors the progress bar's numerator). */
+  completedSessions?: number
   /** Sessions that have not yet occurred. */
   remainingSessions?: number
   /** The course's scheduled sessions (from the enrollments API), used for the
@@ -360,6 +362,7 @@ function CoursePageInner() {
               batches: 0,
             },
             sessionCount: e.sessionCount ?? e.course?.sessionCount ?? 0,
+            completedSessions: e.completedSessions ?? e.course?.completedSessions ?? 0,
             remainingSessions: e.remainingSessions ?? e.sessionCount ?? e.course?.sessionCount ?? 0,
             sessions: e.sessions ?? [],
             chosenSchedule: e.chosenSchedule ?? null,
@@ -983,17 +986,22 @@ function CourseCard({
 }) {
   const progress = course.progress
   const category = course.subject
-  // Session-based progress: sessions that have started and completed (ended,
-  // in the past) over all scheduled sessions. Falls back to lesson progress
-  // only when no session data exists yet.
+  // Session-based progress: sessions that have started and completed, over
+  // the same schedule-scoped sessionCount the "X of Y remaining" statement
+  // uses — the API now ships completedSessions computed on that exact scope,
+  // so the bar and the statement can never disagree. The local computation is
+  // only a fallback for stale responses.
   const sessions = course.sessions ?? []
   const nowMs = Date.now()
-  const completedSessions = sessions.filter(
-    s => s.status === 'ended' && s.scheduledAt && new Date(s.scheduledAt).getTime() <= nowMs
-  ).length
+  const completedSessions =
+    course.completedSessions ??
+    sessions.filter(
+      s => s.status === 'ended' && s.scheduledAt && new Date(s.scheduledAt).getTime() <= nowMs
+    ).length
+  const totalSessions = course.sessionCount ?? sessions.length
   const progressPercent =
-    sessions.length > 0
-      ? Math.round((completedSessions / sessions.length) * 100)
+    totalSessions > 0
+      ? Math.round((completedSessions / totalSessions) * 100)
       : progress && progress.totalLessons > 0
         ? Math.round((progress.lessonsCompleted / progress.totalLessons) * 100)
         : 0

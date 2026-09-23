@@ -7,9 +7,10 @@
  * silently ran out of sessions. The rolling job re-runs materialization daily;
  * these tests exercise runRollingScheduleMaterialization directly.
  *
- * The job must top up missing sessions inside each schedule's OWN horizon
- * (schedule createdAt + weeksToSchedule weeks) but never create occurrences
- * beyond it.
+ * The job must top up missing sessions inside each schedule's sliding horizon
+ * (weeksToSchedule weeks ahead of now) and never create occurrences beyond it —
+ * the horizon anchors at "now", not at schedule creation, so courses published
+ * months ago keep growing sessions instead of silently expiring.
  *
  * Requires DATABASE_URL + a running, migrated Postgres (see setup.ts).
  * All entities use the `roll_` prefix.
@@ -22,6 +23,7 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import {
   user,
   course,
+  courseEnrollment,
   courseSchedule,
   courseVariant,
   liveSession,
@@ -263,11 +265,11 @@ describe('rolling schedule re-materialization', () => {
     expect(run2.errors).toBe(0)
   })
 
-  it("never creates occurrences beyond the schedule's own configured horizon", async () => {
-    // SCHED_HORIZON: createdAt = now - 6 weeks, weeksToSchedule = 8 → the
-    // horizon ends ~2 weeks from now. Wipe any sessions earlier tests created
-    // so this run starts clean: generation would produce 8 weekly instants,
-    // and everything after the horizon end must be dropped.
+  it('keeps an old schedule topped up to its sliding horizon (now + weeksToSchedule)', async () => {
+    // SCHED_HORIZON: createdAt = now - 6 weeks, weeksToSchedule = 8. With a
+    // createdAt-anchored horizon its window would have ended ~2 weeks from now;
+    // the sliding horizon instead keeps the next full 8 weeks materialized.
+    // Wipe any sessions earlier tests created so this run starts clean.
     const existing = await drizzleDb
       .select({ sessionId: liveSession.sessionId })
       .from(liveSession)
@@ -282,15 +284,15 @@ describe('rolling schedule re-materialization', () => {
 
     const run = await runRollingScheduleMaterialization()
 
-    const horizonEnd = new Date(Date.now() - 6 * 7 * 86_400_000 + 8 * 7 * 86_400_000)
+    const horizonEnd = new Date(Date.now() + 8 * 7 * 86_400_000)
     const sessions = await sessionsForSchedule(SCHED_HORIZON)
-    // The remaining in-horizon weeks (next Tuesday + the one after) must be
-    // backfilled…
-    expect(sessions.length).toBeGreaterThanOrEqual(2)
-    // …but the uncapped generation would have produced 8 — the cap must have bit.
-    expect(sessions.length).toBeLessThan(8)
+    // All 8 in-window occurrences must be materialized despite the old
+    // createdAt — the horizon slides with "now".
+    expect(sessions).toHaveLength(8)
     for (const s of sessions) {
-      expect(new Date(s.scheduledAt).getTime()).toBeLessThanOrEqual(horizonEnd.getTime() + 1000)
+      const t = new Date(s.scheduledAt).getTime()
+      expect(t).toBeGreaterThan(Date.now() - 60_000)
+      expect(t).toBeLessThanOrEqual(horizonEnd.getTime() + 1000)
     }
     expect(run.errors).toBe(0)
   })
@@ -332,6 +334,78 @@ describe('rolling schedule re-materialization', () => {
     const staleSessions = await sessionsForSchedule(SCHED_STALE)
     expect(staleSessions).toHaveLength(0)
     expect(run.errors).toBe(0)
+  })
+
+  it('tops up an enrolled course even when all activity predates the window', async () => {
+    // The enrollment clause of the liveness gate: a published course with
+    // enrolled students must stay in the rotation even when its last session
+    // ended more than ACTIVE_WINDOW_DAYS ago — otherwise genuinely ongoing
+    // courses silently run dry (zero sessions on every student's dashboard).
+    const old = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000)
+    const enrolledCourseId = `roll_enr_${stamp}`
+    const enrolledScheduleId = `roll_sched_enr_${stamp}`
+    const enrolledStudentId = crypto.randomUUID()
+    try {
+      await drizzleDb.insert(user).values({
+        userId: enrolledStudentId,
+        email: `roll_enr_student_${stamp}@example.com`,
+        role: 'STUDENT',
+        createdAt: old,
+        updatedAt: old,
+      })
+      await drizzleDb.insert(course).values({
+        courseId: enrolledCourseId,
+        name: 'roll Enrolled Course',
+        creatorId: tutorId,
+        isPublished: true,
+        categories: ['General'],
+        createdAt: old,
+        updatedAt: old,
+      })
+      // Distinct slot (Thursday 15:00) — the shared tutor already has future
+      // Monday 10:00 sessions from this file's other fixtures, and the
+      // conflict guard would (correctly) skip colliding instants.
+      await drizzleDb.insert(courseSchedule).values({
+        scheduleId: enrolledScheduleId,
+        courseId: enrolledCourseId,
+        scheduleIndex: 1,
+        schedule: [{ dayOfWeek: 'Thursday', startTime: '15:00', durationMinutes: 60 }],
+        weeksToSchedule: 3,
+        enrolledCount: 1,
+        createdAt: old,
+        updatedAt: old,
+      })
+      await drizzleDb.insert(courseEnrollment).values({
+        enrollmentId: `roll_enr_enrollment_${stamp}`,
+        studentId: enrolledStudentId,
+        courseId: enrolledCourseId,
+        enrolledAt: old,
+      })
+
+      const run = await runRollingScheduleMaterialization()
+      const sessions = await sessionsForSchedule(enrolledScheduleId)
+      expect(sessions.length).toBeGreaterThan(0)
+      expect(run.errors).toBe(0)
+    } finally {
+      const ids = (
+        await drizzleDb
+          .select({ sessionId: liveSession.sessionId })
+          .from(liveSession)
+          .where(eq(liveSession.scheduleId, enrolledScheduleId))
+      ).map(s => s.sessionId)
+      if (ids.length > 0) {
+        await drizzleDb.delete(calendarEvent).where(inArray(calendarEvent.externalId, ids))
+        await drizzleDb.delete(liveSession).where(inArray(liveSession.sessionId, ids))
+      }
+      await drizzleDb
+        .delete(courseEnrollment)
+        .where(eq(courseEnrollment.courseId, enrolledCourseId))
+      await drizzleDb
+        .delete(courseSchedule)
+        .where(eq(courseSchedule.scheduleId, enrolledScheduleId))
+      await drizzleDb.delete(course).where(eq(course.courseId, enrolledCourseId))
+      await drizzleDb.delete(user).where(eq(user.userId, enrolledStudentId))
+    }
   })
 
   it('reports counts consistent with the materialized rows', async () => {
