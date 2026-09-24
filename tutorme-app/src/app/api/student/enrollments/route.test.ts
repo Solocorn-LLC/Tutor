@@ -155,13 +155,25 @@ describe('GET /api/student/enrollments', () => {
     expect(e.completedSessions).toBe(1)
     expect(e.remainingSessions).toBe(1)
     expect(e.progress.isCompleted).toBe(false)
-    // The sessions array is family-scoped to the whole course's countable set
-    // (including other schedules), ordered by scheduledAt ascending (past
-    // first), with the exact field names.
+    // sched-1 scope: future + past = 2 sessions; only the past one occurred.
+    // The ended-FUTURE ghost is a retired slot — it must not inflate the
+    // count, the completed tally, or the sessions list. The sessions array is
+    // scoped to the enrollment's chosen schedule (sched-1): the sched-2
+    // session is excluded, ordered by scheduledAt ascending (past first), with
+    // the exact field names (scheduleId added, nothing removed).
     expect(e.sessions).toEqual([
-      { id: 'sess-past', scheduledAt: past.toISOString(), status: 'ended' },
-      { id: 'sess-future', scheduledAt: future.toISOString(), status: 'scheduled' },
-      { id: 'sess-other-sched', scheduledAt: future.toISOString(), status: 'scheduled' },
+      {
+        id: 'sess-past',
+        scheduledAt: past.toISOString(),
+        status: 'ended',
+        scheduleId: 'sched-1',
+      },
+      {
+        id: 'sess-future',
+        scheduledAt: future.toISOString(),
+        status: 'scheduled',
+        scheduleId: 'sched-1',
+      },
     ])
   })
 

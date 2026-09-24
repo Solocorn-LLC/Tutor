@@ -20,7 +20,7 @@ import {
   user,
   profile,
 } from '@/lib/db/schema'
-import { and, eq, inArray, desc, isNotNull } from 'drizzle-orm'
+import { and, eq, inArray, desc, isNotNull, isNull } from 'drizzle-orm'
 import { expandFamilyWithMap } from '@/lib/courses/variant-family'
 import { sql } from 'drizzle-orm'
 import { enrollStudentInCourse, enrollmentPaymentRequiredResponse } from '@/lib/api/enrollments'
@@ -96,7 +96,7 @@ export const GET = withAuth(
       .leftJoin(user, eq(course.creatorId, user.userId))
       .leftJoin(profile, eq(profile.userId, course.creatorId))
       .leftJoin(courseVariant, eq(courseVariant.publishedCourseId, course.courseId))
-      .where(eq(courseEnrollment.studentId, session.user.id))
+      .where(and(eq(courseEnrollment.studentId, session.user.id), isNull(course.deletedAt)))
       .orderBy(desc(courseEnrollment.enrolledAt))
 
     // Batch query lesson/session counts. Expand enrolled (published) ids to the
@@ -176,7 +176,12 @@ export const GET = withAuth(
     const completedCountByCourse = new Map<string, number>() // course-wide completed total
     const sessionsByCourse = new Map<
       string,
-      Array<{ sessionId: string; scheduledAt: Date | null; status: string }>
+      Array<{
+        sessionId: string
+        scheduledAt: Date | null
+        status: string
+        scheduleId: string | null
+      }>
     >()
     const now = new Date()
     for (const s of countableSessionRows) {
@@ -199,7 +204,12 @@ export const GET = withAuth(
           completedCountBySchedule.set(key, (completedCountBySchedule.get(key) ?? 0) + 1)
       }
       const list = sessionsByCourse.get(cid)
-      const entry = { sessionId: s.sessionId, scheduledAt: s.scheduledAt, status: s.status }
+      const entry = {
+        sessionId: s.sessionId,
+        scheduledAt: s.scheduledAt,
+        status: s.status,
+        scheduleId: s.scheduleId,
+      }
       if (list) list.push(entry)
       else sessionsByCourse.set(cid, [entry])
     }
@@ -272,10 +282,19 @@ export const GET = withAuth(
         p?.isCompleted === true ||
         row.enrollment.completedAt != null ||
         (sessionCount > 0 && completedSessions >= sessionCount)
-      const sessions = (sessionsByCourse.get(row.courseId) ?? []).map(s => ({
+      // The sessions list follows the SAME scope as the counts: when the
+      // enrollment has a chosen schedule, list only that schedule's sessions
+      // (plus any one-offs/moved sessions with no scheduleId); otherwise list
+      // the whole course family's countable set.
+      const allSessions = sessionsByCourse.get(row.courseId) ?? []
+      const scopedSessions = schedId
+        ? allSessions.filter(s => s.scheduleId === schedId || s.scheduleId == null)
+        : allSessions
+      const sessions = scopedSessions.map(s => ({
         id: s.sessionId,
         scheduledAt: s.scheduledAt ? s.scheduledAt.toISOString() : null,
         status: s.status,
+        scheduleId: s.scheduleId,
       }))
       return {
         ...row.enrollment,
