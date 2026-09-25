@@ -191,9 +191,15 @@ export const POST = withAuth(
           )
         }
 
+        // The tutor-entered demo name (if any) arrives as `title`; fall back to
+        // the template course's name. Trim and cap so a stale/oversized client
+        // can't write an unbounded title.
+        const demoTitle =
+          typeof title === 'string' && title.trim() ? title.trim().slice(0, 100) : undefined
+
         const { liveSession: created } = await createSession({
           tutorId: currentUser.id,
-          title: title || courseRecord.name,
+          title: demoTitle || courseRecord.name,
           scheduledAt: null,
           durationMinutes: 120,
           category: Array.isArray(courseRecord.categories)

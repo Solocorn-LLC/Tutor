@@ -3,8 +3,10 @@
  *
  * Returns aggregate counts for the student dashboard hero:
  *  - coursesEnrolled: number of (non-deleted) course enrollments
- *  - coursesCompleted: enrollments where the student has finished every lesson
- *    (progress lessonsCompleted >= totalLessons), or an explicit completion flag
+ *  - coursesCompleted: enrollments where the student has finished every session
+ *    in the count scope (explicit flag / completedAt short-circuit, lessons
+ *    predicate as fallback when no sessions are materialized yet) — the SAME
+ *    session-derived definition the My Courses tabs use, so hero and tabs agree
  *  - upcomingSessions: future MATERIALIZED sessions, deduped the same way the
  *    student calendar does (so the number matches the calendar, not a projection)
  *  - totalBookings: 1-on-1 bookings the student has placed (excludes requests that
@@ -24,8 +26,8 @@ import {
   type BookingRequestStatus,
   type LiveSessionStatus,
 } from '@/lib/db/schema'
-import { eq, and, inArray, isNull, gte } from 'drizzle-orm'
-import { expandToCourseFamily } from '@/lib/courses/variant-family'
+import { eq, and, inArray, isNull, isNotNull, gte } from 'drizzle-orm'
+import { expandFamilyWithMap } from '@/lib/courses/variant-family'
 import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 
 // A booking that was rejected by the tutor or expired never became a booking, so
@@ -53,6 +55,7 @@ export const GET = withAuth(
         .select({
           enrollmentId: courseEnrollment.enrollmentId,
           courseId: courseEnrollment.courseId,
+          scheduleId: courseEnrollment.scheduleId,
           completedAt: courseEnrollment.completedAt,
           isCompleted: courseProgress.isCompleted,
           lessonsCompleted: courseProgress.lessonsCompleted,
@@ -72,17 +75,84 @@ export const GET = withAuth(
 
       const activeEnrollments = enrollmentRows.filter(e => !e.courseDeletedAt)
       // Expand enrolled (published) ids to the variant family so template-scoped
-      // sessions are counted too (see @/lib/courses/variant-family).
-      const courseIds = await expandToCourseFamily([
+      // sessions are counted too (see @/lib/courses/variant-family). The map rolls
+      // template-scoped rows back up under the enrolled id.
+      const { ids: courseIds, toEnrolled } = await expandFamilyWithMap([
         ...new Set(activeEnrollments.map(e => e.courseId).filter(Boolean)),
       ] as string[])
 
+      // Session-derived completion, mirroring the enrollments route EXACTLY so
+      // the dashboard hero and the My Courses tabs can never disagree:
+      // countable = schedule-materialized (scheduleId NOT NULL), excluding
+      // 'cancelled' rows and ended-FUTURE ghosts (slots retired before they
+      // ran). Completed = ended && scheduledAt <= now. Counts prefer the
+      // enrollment's chosen schedule, falling back to the course-wide family.
+      const nowMs = now.getTime()
+      const countableSessionRows =
+        courseIds.length > 0
+          ? await drizzleDb
+              .select({
+                courseId: liveSession.courseId,
+                scheduleId: liveSession.scheduleId,
+                status: liveSession.status,
+                scheduledAt: liveSession.scheduledAt,
+              })
+              .from(liveSession)
+              .where(
+                and(inArray(liveSession.courseId, courseIds), isNotNull(liveSession.scheduleId))
+              )
+          : []
+      const sessionCountBySchedule = new Map<string, number>() // `courseId:scheduleId`
+      const sessionCountByCourse = new Map<string, number>()
+      const completedCountBySchedule = new Map<string, number>()
+      const completedCountByCourse = new Map<string, number>()
+      // The 'cancelled' comparison must happen on a plain-string status: the
+      // LiveSessionStatus enum has no 'cancelled' value, so comparing the typed
+      // column to the literal errors at compile time (same reason the
+      // enrollments route applies that predicate in JS).
+      for (const s of countableSessionRows as Array<{
+        courseId: string | null
+        scheduleId: string | null
+        status: string
+        scheduledAt: Date | null
+      }>) {
+        const cid = toEnrolled.get(s.courseId ?? '') ?? s.courseId ?? ''
+        if (s.status === 'cancelled') continue
+        if (s.status === 'ended' && s.scheduledAt != null && s.scheduledAt.getTime() > nowMs)
+          continue
+        const isCompleted =
+          s.status === 'ended' && s.scheduledAt != null && s.scheduledAt.getTime() <= nowMs
+        sessionCountByCourse.set(cid, (sessionCountByCourse.get(cid) ?? 0) + 1)
+        if (isCompleted) completedCountByCourse.set(cid, (completedCountByCourse.get(cid) ?? 0) + 1)
+        if (s.scheduleId) {
+          const key = `${cid}:${s.scheduleId}`
+          sessionCountBySchedule.set(key, (sessionCountBySchedule.get(key) ?? 0) + 1)
+          if (isCompleted)
+            completedCountBySchedule.set(key, (completedCountBySchedule.get(key) ?? 0) + 1)
+        }
+      }
+
       // --- 2. Counts that don't depend on sessions ---
       const coursesEnrolled = activeEnrollments.length
-      // Completed = explicit flag (kept as a fallback for when it gets written) OR
-      // the student has finished every lesson per their progress row.
+      // Completed = explicit flag OR enrollment.completedAt OR every session in
+      // the count scope has run (same derivation as the enrollments route, so
+      // the hero and the My Courses tabs agree). When a course has no
+      // materialized sessions yet (sessionCount === 0), fall back to the
+      // lessons predicate so pre-materialization courses still complete.
       const coursesCompleted = activeEnrollments.filter(e => {
         if (e.isCompleted === true || e.completedAt != null) return true
+        const scheduleKey = e.scheduleId ? `${e.courseId}:${e.scheduleId}` : null
+        const scheduleScopedCount = scheduleKey
+          ? sessionCountBySchedule.get(scheduleKey)
+          : undefined
+        const sessionCount = scheduleScopedCount ?? sessionCountByCourse.get(e.courseId) ?? 0
+        if (sessionCount > 0) {
+          const completedSessions =
+            scheduleScopedCount != null
+              ? (completedCountBySchedule.get(scheduleKey!) ?? 0)
+              : (completedCountByCourse.get(e.courseId) ?? 0)
+          return completedSessions >= sessionCount
+        }
         const total = e.totalLessons ?? 0
         const done = e.lessonsCompleted ?? 0
         return total > 0 && done >= total

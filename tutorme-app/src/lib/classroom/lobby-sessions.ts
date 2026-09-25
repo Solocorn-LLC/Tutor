@@ -34,13 +34,21 @@ export function categorizeLobbySessions<T extends LobbySessionLike>(
       s =>
         s.status === 'scheduled' &&
         s.scheduledAt &&
+        new Date(s.scheduledAt).getTime() > nowMs &&
         !inProgressStatuses.includes(s.status) &&
         !getSessionUiState(s, nowMs).isUiLive
     )
     .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())
 
   const past = sessions
-    .filter(s => s.status === 'ended' || (s.endedAt != null && !s.isVirtual))
+    .filter(
+      s =>
+        (s.status === 'ended' || (s.endedAt != null && !s.isVirtual)) &&
+        // A reschedule tombstone is an ENDED row at a FUTURE old instant — it is
+        // not a past session and must not render under "Past sessions — review"
+        // with a future date.
+        (!s.scheduledAt || new Date(s.scheduledAt).getTime() <= nowMs)
+    )
     .sort((a, b) => new Date(b.scheduledAt || 0).getTime() - new Date(a.scheduledAt || 0).getTime())
 
   return { nextSession: liveOrOpening || upcoming[0] || null, pastSessions: past }

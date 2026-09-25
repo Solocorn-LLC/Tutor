@@ -114,7 +114,11 @@ export function ModernHeroSection({
     }
   }
 
-  const handleConfirmTeachingUnpublished = async (courseId: string, description: string) => {
+  const handleConfirmTeachingUnpublished = async (
+    courseId: string,
+    description: string,
+    demoName?: string
+  ) => {
     const course = unpublishedCourses.find(c => c.id === courseId)
     if (!course) return
     try {
@@ -124,7 +128,7 @@ export function ModernHeroSection({
         body: JSON.stringify({
           type: 'teaching',
           courseId,
-          title: course.name,
+          title: demoName || course.name,
           description,
         }),
       })
