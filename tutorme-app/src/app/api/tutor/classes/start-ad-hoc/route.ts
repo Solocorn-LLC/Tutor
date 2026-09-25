@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { getPool } from '@/lib/db/drizzle'
-import { user, course, courseEnrollment } from '@/lib/db/schema'
-import { eq, inArray, sql } from 'drizzle-orm'
+import { user, course, courseEnrollment, liveSession } from '@/lib/db/schema'
+import { eq, inArray, sql, and, or, ne, gt } from 'drizzle-orm'
 import { notify } from '@/lib/notifications/notify'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { createSession } from '@/lib/sessions/create-session'
 import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
+
+/** Double-click/retry window: a GO_LIVE_DEMO created this recently is a
+ *  duplicate confirm of the same click, not a new request. */
+const DEMO_DEDUP_WINDOW_MS = 60 * 1000
 
 const SPECIAL_TOKENS = ['kim.kon#26', 'stephen#26'] // fallback token, should match the one in landing page
 
@@ -163,6 +167,27 @@ export const POST = withAuth(
             { error: 'Course ID is required for teaching sessions' },
             { status: 400 }
           )
+        }
+
+        // Idempotency guard: a double-click or client retry must not spawn a
+        // second demo room. If this tutor already has a non-ended GO_LIVE_DEMO
+        // created within the dedup window (or still active), return the
+        // existing session in the same shape as the create response.
+        const demoWindowStart = new Date(Date.now() - DEMO_DEDUP_WINDOW_MS)
+        const [existingDemo] = await drizzleDb
+          .select({ sessionId: liveSession.sessionId })
+          .from(liveSession)
+          .where(
+            and(
+              eq(liveSession.tutorId, currentUser.id),
+              eq(liveSession.sessionType, 'GO_LIVE_DEMO'),
+              ne(liveSession.status, 'ended'),
+              or(gt(liveSession.createdAt, demoWindowStart), eq(liveSession.status, 'active'))
+            )
+          )
+          .limit(1)
+        if (existingDemo) {
+          return NextResponse.json({ success: true, sessionId: existingDemo.sessionId })
         }
 
         // Check if course is published and has students

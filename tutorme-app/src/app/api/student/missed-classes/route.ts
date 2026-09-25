@@ -15,7 +15,7 @@ import {
   liveSession,
   profile as profileTable,
 } from '@/lib/db/schema'
-import { eq, inArray, and, gte, ne } from 'drizzle-orm'
+import { eq, inArray, and, gte, lte, ne } from 'drizzle-orm'
 import { desc } from 'drizzle-orm'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
@@ -82,17 +82,24 @@ export async function GET(req: NextRequest) {
       })
     }
 
+    // Only sessions that actually occurred can be "missed". Future rows with
+    // status 'ended' are tombstones (deliberate [cancelled] / [rescheduled-away]
+    // markers or unmarked retirements from schedule edits) — without an upper
+    // bound on scheduledAt every upcoming tombstone shows up here with a
+    // negative duration and "No recording".
     const missedWhere = dateFilter
       ? and(
           inArray(liveSession.courseId, familyIds),
           ne(liveSession.sessionType, 'GO_LIVE_DEMO'),
           inArray(liveSession.status, ['ended']),
-          gte(liveSession.scheduledAt!, dateFilter)
+          gte(liveSession.scheduledAt!, dateFilter),
+          lte(liveSession.scheduledAt!, now)
         )
       : and(
           inArray(liveSession.courseId, familyIds),
           ne(liveSession.sessionType, 'GO_LIVE_DEMO'),
-          inArray(liveSession.status, ['ended'])
+          inArray(liveSession.status, ['ended']),
+          lte(liveSession.scheduledAt!, now)
         )
 
     const missedSessionRows = await drizzleDb

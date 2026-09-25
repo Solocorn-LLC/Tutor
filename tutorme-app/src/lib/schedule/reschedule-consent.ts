@@ -17,7 +17,9 @@
  */
 
 import crypto from 'crypto'
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type * as schema from '@/lib/db/schema'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   sessionRescheduleProposal,
@@ -39,8 +41,10 @@ import { formatInZone } from '@/lib/notifications/reschedule'
 import { findConflicts } from '@/lib/schedule/conflicts'
 import { LIVE_SESSION_RESCHEDULED_AWAY_MARKER } from '@/lib/sessions/materialize-schedule'
 
-/**
- * Decide how a reschedule of this session must be handled:
+/** A pool client or an open transaction — both run the same query builders. */
+type DbClient = NodePgDatabase<typeof schema>
+
+/** Decide how a reschedule of this session must be handled:
  *  - 'one_on_one' — a confirmed 1-on-1 booking; it has its own propose/accept
  *    flow, so a direct calendar move is refused and the tutor is routed there.
  *  - 'consent'    — group/course session with a roster; a proposal is required.
@@ -262,19 +266,41 @@ export async function respondToProposal(opts: {
     .limit(1)
   if (!vote) return { status: 'ERROR', error: 'You are not on this session roster' }
 
-  await drizzleDb
-    .update(sessionRescheduleVote)
-    .set({ response, respondedAt: new Date() })
-    .where(eq(sessionRescheduleVote.voteId, vote.voteId))
+  // The vote record, the status re-check and the evaluation/apply must be
+  // atomic: a final AGREE and a concurrent DISAGREE raced here could both win
+  // (session moves AND proposal recorded rejected). Take an advisory lock
+  // keyed on the proposal FIRST, re-read its status under the lock, and run
+  // the evaluation on THIS transaction so the lock covers the whole flow.
+  return drizzleDb.transaction(async tx => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended('reschedule-consent:' || ${proposalId}, 0))`
+    )
 
-  if (response === 'DISAGREE') {
-    await resolveProposal(proposal.proposalId, 'REJECTED', 'student_disagreed')
-    await notifyOutcome(proposal, 'rejected')
-    return { status: 'REJECTED', reason: 'student_disagreed' }
-  }
+    // Re-read under the lock: a concurrent responder may have resolved the
+    // proposal while we waited for it.
+    const [locked] = await tx
+      .select()
+      .from(sessionRescheduleProposal)
+      .where(eq(sessionRescheduleProposal.proposalId, proposalId))
+      .limit(1)
+    if (!locked || locked.status !== 'PENDING') {
+      return { status: 'ERROR', error: 'Proposal is no longer open' }
+    }
 
-  // AGREE recorded — re-evaluate against the CURRENT roster.
-  return evaluatePendingProposal(proposal)
+    await tx
+      .update(sessionRescheduleVote)
+      .set({ response, respondedAt: new Date() })
+      .where(eq(sessionRescheduleVote.voteId, vote.voteId))
+
+    if (response === 'DISAGREE') {
+      await resolveProposal(locked.proposalId, 'REJECTED', 'student_disagreed', tx)
+      await notifyOutcome(locked, 'rejected')
+      return { status: 'REJECTED', reason: 'student_disagreed' }
+    }
+
+    // AGREE recorded — re-evaluate against the CURRENT roster, on the tx.
+    return evaluatePendingProposal(locked, tx)
+  })
 }
 
 /**
@@ -284,20 +310,21 @@ export async function respondToProposal(opts: {
  * unanswered vote would block unanimous agreement forever. Also closes the
  * proposal if its session has ended/been removed.
  */
-async function evaluatePendingProposal(proposal: Proposal): Promise<RespondResult> {
+async function evaluatePendingProposal(proposal: Proposal, tx?: DbClient): Promise<RespondResult> {
+  const db = tx ?? drizzleDb
   // Session gone or ended → the proposal is moot; close it.
-  const [sess] = await drizzleDb
+  const [sess] = await db
     .select({ status: liveSession.status })
     .from(liveSession)
     .where(eq(liveSession.sessionId, proposal.sessionId))
     .limit(1)
   if (!sess || sess.status === 'ended') {
-    await resolveProposal(proposal.proposalId, 'CANCELLED', 'session_ended')
+    await resolveProposal(proposal.proposalId, 'CANCELLED', 'session_ended', tx)
     return { status: 'REJECTED', reason: 'session_ended' }
   }
 
   const [votes, roster] = await Promise.all([
-    drizzleDb
+    db
       .select({
         studentId: sessionRescheduleVote.studentId,
         response: sessionRescheduleVote.response,
@@ -323,7 +350,7 @@ async function evaluatePendingProposal(proposal: Proposal): Promise<RespondResul
     { excludeSessionId: proposal.sessionId }
   )
   if (conflicts.length > 0) {
-    await resolveProposal(proposal.proposalId, 'REJECTED', 'slot_unavailable')
+    await resolveProposal(proposal.proposalId, 'REJECTED', 'slot_unavailable', tx)
     await notifyTutor(
       proposal.proposedBy,
       'Reschedule slot no longer available',
@@ -332,8 +359,8 @@ async function evaluatePendingProposal(proposal: Proposal): Promise<RespondResul
     return { status: 'REJECTED', reason: 'slot_unavailable' }
   }
 
-  await applySessionMove(proposal.sessionId, proposal.proposedStart, proposal.proposedEnd)
-  await resolveProposal(proposal.proposalId, 'APPLIED', 'all_agreed')
+  await applySessionMove(proposal.sessionId, proposal.proposedStart, proposal.proposedEnd, tx)
+  await resolveProposal(proposal.proposalId, 'APPLIED', 'all_agreed', tx)
   await notifyOutcome(proposal, 'applied')
   return { status: 'APPLIED' }
 }
@@ -427,9 +454,11 @@ export async function cancelProposal(proposalId: string, tutorId: string): Promi
 async function resolveProposal(
   proposalId: string,
   status: 'APPLIED' | 'REJECTED' | 'CANCELLED',
-  reason: string
+  reason: string,
+  tx?: DbClient
 ): Promise<void> {
-  await drizzleDb
+  const db = tx ?? drizzleDb
+  await db
     .update(sessionRescheduleProposal)
     .set({ status, resolvedReason: reason, resolvedAt: new Date() })
     .where(eq(sessionRescheduleProposal.proposalId, proposalId))
@@ -449,8 +478,14 @@ async function resolveProposal(
  * explicit re-save / re-publish flows. The calendar event moves with the
  * session — none is created for the tombstone.
  */
-async function applySessionMove(sessionId: string, start: Date, end: Date): Promise<void> {
-  const [sess] = await drizzleDb
+export async function applySessionMove(
+  sessionId: string,
+  start: Date,
+  end: Date,
+  tx?: DbClient
+): Promise<void> {
+  const db = tx ?? drizzleDb
+  const [sess] = await db
     .select({
       tutorId: liveSession.tutorId,
       courseId: liveSession.courseId,
@@ -467,7 +502,7 @@ async function applySessionMove(sessionId: string, start: Date, end: Date): Prom
     .limit(1)
 
   const now = new Date()
-  await drizzleDb
+  await db
     .update(liveSession)
     .set({
       scheduledAt: start,
@@ -476,13 +511,13 @@ async function applySessionMove(sessionId: string, start: Date, end: Date): Prom
       scheduleId: null,
     })
     .where(eq(liveSession.sessionId, sessionId))
-  await drizzleDb
+  await db
     .update(calendarEvent)
     .set({ startTime: start, endTime: end, updatedAt: now })
     .where(eq(calendarEvent.externalId, sessionId))
 
   if (sess?.scheduleId && sess.scheduledAt) {
-    await drizzleDb.insert(liveSession).values({
+    await db.insert(liveSession).values({
       sessionId: crypto.randomUUID(),
       tutorId: sess.tutorId,
       courseId: sess.courseId,
@@ -508,11 +543,19 @@ async function notifyOutcome(
   proposal: Proposal,
   outcome: 'applied' | 'rejected' | 'cancelled'
 ): Promise<void> {
-  const roster = await drizzleDb
-    .select({ studentId: sessionRescheduleVote.studentId })
-    .from(sessionRescheduleVote)
-    .where(eq(sessionRescheduleVote.proposalId, proposal.proposalId))
-  const userIds = roster.map(r => r.studentId)
+  // Notify the CURRENT roster, not just students who already have a vote row:
+  // someone who enrolled after the proposal was created has no vote (they
+  // don't get to decide — voters only) but must still hear the outcome, or a
+  // unanimously-approved move would apply silently around them. Union with
+  // vote-row holders so a student who voted then left is still informed.
+  const [voteHolders, roster] = await Promise.all([
+    drizzleDb
+      .select({ studentId: sessionRescheduleVote.studentId })
+      .from(sessionRescheduleVote)
+      .where(eq(sessionRescheduleVote.proposalId, proposal.proposalId)),
+    resolveVoterRoster(proposal.sessionId, proposal.courseId),
+  ])
+  const userIds = [...new Set([...roster, ...voteHolders.map(r => r.studentId).filter(Boolean)])]
   if (userIds.length === 0) return
   const tzByUser = await timezonesFor(userIds)
 

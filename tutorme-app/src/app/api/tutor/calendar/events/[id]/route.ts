@@ -6,7 +6,11 @@ import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 import { notifyStudentsOfReschedule } from '@/lib/notifications/reschedule'
-import { classifySessionForReschedule, proposeReschedule } from '@/lib/schedule/reschedule-consent'
+import {
+  classifySessionForReschedule,
+  proposeReschedule,
+  applySessionMove,
+} from '@/lib/schedule/reschedule-consent'
 
 /** 409 response steering the tutor to the 1-on-1 propose/accept flow. */
 const ONE_ON_ONE_GATE = {
@@ -139,18 +143,13 @@ export const PATCH = withCsrf(
           })
         }
 
-        await drizzleDb
-          .update(liveSession)
-          .set({ scheduledAt: newStart, durationMinutes: sessDuration })
-          .where(and(eq(liveSession.sessionId, eventId), eq(liveSession.tutorId, tutorId)))
-
-        // Keep any CalendarEvent projection for this session in sync too, so the
-        // student calendar (which prefers CalendarEvent.startTime) never shows a
-        // stale time.
-        await drizzleDb
-          .update(calendarEvent)
-          .set({ startTime: newStart, endTime: sessEnd, updatedAt: new Date() })
-          .where(eq(calendarEvent.externalId, eventId))
+        // applySessionMove resets reminderSentAt (so a session dragged after
+        // its reminder fired gets a fresh one), detaches a schedule-materialized
+        // session from its schedule, and leaves an [rescheduled-away] tombstone
+        // at the old instant so the rolling materializer recreates the original
+        // slot instead of silently reverting this drag. Sessions that were never
+        // schedule-materialized (scheduleId null) just move.
+        await applySessionMove(eventId, newStart, sessEnd)
 
         await notifyStudentsOfReschedule({
           sessionId: eventId,
@@ -249,15 +248,11 @@ export const PATCH = withCsrf(
         .where(eq(calendarEvent.eventId, eventId))
 
       if (calEvent.externalId) {
-        await drizzleDb
-          .update(liveSession)
-          .set({
-            scheduledAt: newStart,
-            durationMinutes: actualDuration,
-          })
-          .where(
-            and(eq(liveSession.sessionId, calEvent.externalId), eq(liveSession.tutorId, tutorId))
-          )
+        // Same reset/detach/tombstone handling as the standalone-session
+        // branch above (reminderSentAt: null, scheduleId: null,
+        // [rescheduled-away] tombstone at the old instant when the session is
+        // schedule-materialized).
+        await applySessionMove(calEvent.externalId, newStart, newEnd)
 
         // Notify the session's students (only sessions have a roster; pure
         // personal calendar events with no externalId have nobody to notify).

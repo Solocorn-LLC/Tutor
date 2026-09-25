@@ -17,10 +17,12 @@ import {
   calendarEvent,
   liveSession,
   profile,
+  sessionParticipant,
 } from '@/lib/db/schema'
 import { notify } from '@/lib/notifications/notify'
 import { refundGroupSeat } from '@/lib/payments/refund-group-session'
 import { countActiveSeats } from '@/lib/group-session/seats'
+import { LIVE_SESSION_CANCELLED_MARKER } from '@/lib/sessions/materialize-schedule'
 
 async function load(id: string) {
   const [gs] = await drizzleDb
@@ -94,31 +96,60 @@ export const DELETE = withCsrf(
       return NextResponse.json({ success: true, alreadyCancelled: true })
     }
 
-    // End the shared session so nobody can join a cancelled slot.
-    if (gs.calendarEventId) {
-      const [ev] = await drizzleDb
-        .update(calendarEvent)
-        .set({ status: 'CANCELLED', isCancelled: true, updatedAt: new Date() })
-        .where(eq(calendarEvent.eventId, gs.calendarEventId))
-        .returning({ externalId: calendarEvent.externalId })
-      if (ev?.externalId) {
-        await drizzleDb
+    // End the shared session so nobody can join a cancelled slot. The
+    // liveSession row becomes a deliberate tombstone (marked [cancelled]) and
+    // the CalendarEvent projection is cancelled in the SAME transaction, per
+    // the standard cancel idiom — otherwise a future-instant 'ended' row with
+    // no marker could be resurrected by a schedule re-save, and the cancelled
+    // event would keep surfacing in calendar queries.
+    const now = new Date()
+    await drizzleDb.transaction(async tx => {
+      const endSession = async (sessionId: string) => {
+        const [existing] = await tx
+          .select({ status: liveSession.status, description: liveSession.description })
+          .from(liveSession)
+          .where(eq(liveSession.sessionId, sessionId))
+          .limit(1)
+        if (!existing || existing.status === 'ended') return
+        await tx
           .update(liveSession)
-          .set({ status: 'ended', endedAt: new Date() })
-          .where(and(eq(liveSession.sessionId, ev.externalId), ne(liveSession.status, 'ended')))
+          .set({
+            status: 'ended',
+            endedAt: now,
+            description:
+              (existing.description || '') + ` ${LIVE_SESSION_CANCELLED_MARKER} Cancelled by host`,
+          })
+          .where(eq(liveSession.sessionId, sessionId))
       }
-    }
-    if (gs.liveSessionId) {
-      await drizzleDb
-        .update(liveSession)
-        .set({ status: 'ended', endedAt: new Date() })
-        .where(and(eq(liveSession.sessionId, gs.liveSessionId), ne(liveSession.status, 'ended')))
-    }
 
-    await drizzleDb
-      .update(groupSession)
-      .set({ status: 'CANCELLED', updatedAt: new Date() })
-      .where(eq(groupSession.groupSessionId, id))
+      if (gs.calendarEventId) {
+        const [ev] = await tx
+          .update(calendarEvent)
+          .set({
+            status: 'CANCELLED',
+            isCancelled: true,
+            deletedAt: now,
+            updatedAt: now,
+          })
+          .where(eq(calendarEvent.eventId, gs.calendarEventId))
+          .returning({ externalId: calendarEvent.externalId })
+        if (ev?.externalId) await endSession(ev.externalId)
+      }
+      if (gs.liveSessionId) {
+        await endSession(gs.liveSessionId)
+        // Drop the room roster: cancelled sessions must not count attendees
+        // for no-show accounting later (mirrors the seat-release path, which
+        // deletes the student's sessionParticipant row on release).
+        await tx
+          .delete(sessionParticipant)
+          .where(eq(sessionParticipant.sessionId, gs.liveSessionId))
+      }
+
+      await tx
+        .update(groupSession)
+        .set({ status: 'CANCELLED', updatedAt: now })
+        .where(eq(groupSession.groupSessionId, id))
+    })
 
     // Refund every paid seat and release all held seats.
     const seats = await drizzleDb

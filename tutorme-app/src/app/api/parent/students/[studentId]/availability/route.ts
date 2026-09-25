@@ -97,6 +97,32 @@ export const POST = withCsrf(
         return NextResponse.json({ error: 'Invalid availability slot' }, { status: 400 })
       }
 
+      if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+        return NextResponse.json(
+          { error: 'startTime and endTime must be in HH:MM format' },
+          { status: 400 }
+        )
+      }
+      const [startHour, startMinute] = startTime.split(':').map(Number)
+      const [endHour, endMinute] = endTime.split(':').map(Number)
+      if (startHour > 23 || startMinute > 59 || endHour > 23 || endMinute > 59) {
+        return NextResponse.json(
+          { error: 'startTime/endTime contain an invalid hour or minute' },
+          { status: 400 }
+        )
+      }
+      if (endTime <= startTime) {
+        return NextResponse.json(
+          { error: 'endTime must be strictly after startTime' },
+          { status: 400 }
+        )
+      }
+      try {
+        Intl.DateTimeFormat(undefined, { timeZone: timezone })
+      } catch {
+        return NextResponse.json({ error: 'Invalid timezone' }, { status: 400 })
+      }
+
       const now = new Date()
       await drizzleDb
         .insert(studentAvailability)
