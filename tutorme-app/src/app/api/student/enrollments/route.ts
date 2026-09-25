@@ -148,9 +148,15 @@ export const GET = withAuth(
 
     // Real session counts: a "session" is a materialized liveSession (one per
     // scheduled time slot, expanded over the schedule's weeks) — NOT a content
-    // lesson. Fetch every family session once and derive counts, past
-    // subtraction and the session list from the same countable set so the
-    // scopes stay symmetric.
+    // lesson. Fetch every family session once and derive counts, completion
+    // and the session list from the same countable set so the scopes stay
+    // symmetric.
+    //
+    // Countable = schedule-materialized, excluding:
+    // - status 'cancelled' (defensive; cancelling sets 'ended' today), and
+    // - ENDED sessions whose scheduledAt is still in the FUTURE — those were
+    //   cancelled before they ever ran (schedule edits, cleanups) and must
+    //   not inflate the totals, the remaining count or the progress bar.
     const countableSessionRows =
       courseIds.length > 0
         ? await drizzleDb
@@ -166,8 +172,8 @@ export const GET = withAuth(
         : []
     const sessionCountBySchedule = new Map<string, number>() // `courseId:scheduleId`
     const sessionCountByCourse = new Map<string, number>() // course-wide total
-    const pastCountBySchedule = new Map<string, number>() // `courseId:scheduleId`
-    const pastCountByCourse = new Map<string, number>() // course-wide past total
+    const completedCountBySchedule = new Map<string, number>() // `courseId:scheduleId`
+    const completedCountByCourse = new Map<string, number>() // course-wide completed total
     const sessionsByCourse = new Map<
       string,
       Array<{ sessionId: string; scheduledAt: Date | null; status: string }>
@@ -177,13 +183,20 @@ export const GET = withAuth(
       // Roll a template-scoped session up under the enrolled (published) id.
       const cid = toEnrolled.get(s.courseId ?? '') ?? s.courseId ?? ''
       if (!isCountableSession(s)) continue
-      const isPast = s.scheduledAt != null && s.scheduledAt <= now
+      const cancelledBeforeStart =
+        s.status === 'ended' && s.scheduledAt != null && s.scheduledAt > now
+      if (cancelledBeforeStart) continue
+      // Completed = started and finished, mirrored verbatim by the card's
+      // progress bar — remaining is derived from this SAME count so the
+      // "X of Y remaining" statement and the bar can never disagree.
+      const isCompleted = s.status === 'ended' && s.scheduledAt != null && s.scheduledAt <= now
       sessionCountByCourse.set(cid, (sessionCountByCourse.get(cid) ?? 0) + 1)
-      if (isPast) pastCountByCourse.set(cid, (pastCountByCourse.get(cid) ?? 0) + 1)
+      if (isCompleted) completedCountByCourse.set(cid, (completedCountByCourse.get(cid) ?? 0) + 1)
       if (s.scheduleId) {
         const key = `${cid}:${s.scheduleId}`
         sessionCountBySchedule.set(key, (sessionCountBySchedule.get(key) ?? 0) + 1)
-        if (isPast) pastCountBySchedule.set(key, (pastCountBySchedule.get(key) ?? 0) + 1)
+        if (isCompleted)
+          completedCountBySchedule.set(key, (completedCountBySchedule.get(key) ?? 0) + 1)
       }
       const list = sessionsByCourse.get(cid)
       const entry = { sessionId: s.sessionId, scheduledAt: s.scheduledAt, status: s.status }
@@ -225,11 +238,11 @@ export const GET = withAuth(
           ? p.totalLessons
           : (lessonCountByCourse.get(row.courseId) ?? 0)
       const lessonsDone = Math.min(p?.lessonsCompleted ?? 0, lessonTotal)
-      const isCompleted = p?.isCompleted === true || row.enrollment.completedAt != null
       // Prefer the count for the student's chosen schedule; fall back to the
       // course-wide count, then to the expected slots × weeks (pre-materialize).
-      // Past sessions are subtracted from the SAME scope so remaining can't be
-      // driven to 0 by course-wide past sessions outside the chosen schedule.
+      // Completion is subtracted from the SAME scope so remaining can't be
+      // driven to 0 by course-wide completed sessions outside the chosen
+      // schedule.
       const scheduleKey = schedId ? `${row.courseId}:${schedId}` : null
       const scheduleScopedCount = scheduleKey ? sessionCountBySchedule.get(scheduleKey) : undefined
       let sessionCount = scheduleScopedCount ?? sessionCountByCourse.get(row.courseId) ?? 0
@@ -242,11 +255,23 @@ export const GET = withAuth(
         const weeks = chosen?.weeksToSchedule ?? 8
         sessionCount = slots.length * (weeks || 1)
       }
-      const pastSessions =
+      const completedSessions =
         scheduleScopedCount != null
-          ? (pastCountBySchedule.get(scheduleKey!) ?? 0)
-          : (pastCountByCourse.get(row.courseId) ?? 0)
-      const remainingSessions = Math.max(0, sessionCount - pastSessions)
+          ? (completedCountBySchedule.get(scheduleKey!) ?? 0)
+          : (completedCountByCourse.get(row.courseId) ?? 0)
+      const remainingSessions = Math.max(0, sessionCount - completedSessions)
+      // Completion is DERIVED, not just flag-read: nothing in the codebase ever
+      // writes courseProgress.isCompleted = true or courseEnrollment.completedAt,
+      // so without this every fully-consumed course (0 remaining, 100% bar)
+      // would sit in the student's "Ongoing" tab forever. A course counts as
+      // completed once every session in its count scope has run — the same
+      // basis as the card's progress bar. The synthesized fallback count only
+      // ever has real completed rows subtracted from it, so a course with no
+      // materialized sessions can never complete spuriously.
+      const isCompleted =
+        p?.isCompleted === true ||
+        row.enrollment.completedAt != null ||
+        (sessionCount > 0 && completedSessions >= sessionCount)
       const sessions = (sessionsByCourse.get(row.courseId) ?? []).map(s => ({
         id: s.sessionId,
         scheduledAt: s.scheduledAt ? s.scheduledAt.toISOString() : null,
@@ -262,6 +287,7 @@ export const GET = withAuth(
             }
           : null,
         sessionCount,
+        completedSessions,
         remainingSessions,
         sessions,
         progress: {
@@ -284,6 +310,7 @@ export const GET = withAuth(
           variantCategory: row.variantCategory,
           variantNationality: row.variantNationality,
           sessionCount,
+          completedSessions,
           _count: {
             lessons: lessonCountByCourse.get(row.courseId) ?? 0,
           },

@@ -12,12 +12,12 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import {
   sessionParticipant,
   courseEnrollment,
-  course,
   liveSession,
   profile as profileTable,
 } from '@/lib/db/schema'
-import { eq, inArray, and, gte } from 'drizzle-orm'
+import { eq, inArray, and, gte, ne } from 'drizzle-orm'
 import { desc } from 'drizzle-orm'
+import { expandToCourseFamily } from '@/lib/courses/variant-family'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions, req)
@@ -64,15 +64,18 @@ export async function GET(req: NextRequest) {
     const enrollmentRows = await drizzleDb
       .select({
         courseId: courseEnrollment.courseId,
-        creatorId: course.creatorId,
       })
       .from(courseEnrollment)
-      .innerJoin(course, eq(courseEnrollment.courseId, course.courseId))
       .where(eq(courseEnrollment.studentId, studentId))
 
-    const tutorIds = [...new Set(enrollmentRows.map(e => e.creatorId).filter(Boolean))] as string[]
+    // Scope to the course families the student is actually enrolled in.
+    // The previous tutorId-only scope leaked ended sessions from the tutor's
+    // OTHER courses, ended demo rooms, and 1-on-1 sessions with other
+    // students — including their recording URLs.
+    const enrolledIds = [...new Set(enrollmentRows.map(e => e.courseId).filter(Boolean))]
+    const familyIds = await expandToCourseFamily(enrolledIds)
 
-    if (tutorIds.length === 0) {
+    if (familyIds.length === 0) {
       return NextResponse.json({
         success: true,
         data: { sessions: [], totalMissed: 0 },
@@ -81,11 +84,16 @@ export async function GET(req: NextRequest) {
 
     const missedWhere = dateFilter
       ? and(
-          inArray(liveSession.tutorId, tutorIds),
+          inArray(liveSession.courseId, familyIds),
+          ne(liveSession.sessionType, 'GO_LIVE_DEMO'),
           inArray(liveSession.status, ['ended']),
           gte(liveSession.scheduledAt!, dateFilter)
         )
-      : and(inArray(liveSession.tutorId, tutorIds), inArray(liveSession.status, ['ended']))
+      : and(
+          inArray(liveSession.courseId, familyIds),
+          ne(liveSession.sessionType, 'GO_LIVE_DEMO'),
+          inArray(liveSession.status, ['ended'])
+        )
 
     const missedSessionRows = await drizzleDb
       .select()

@@ -8,8 +8,10 @@
  * web-pushes.
  *
  * Also flips scheduled sessions to `active` once their scheduledAt time has
- * arrived. The schedule itself launches the session; tutorJoinedAt is tracked
- * separately for payment gating.
+ * arrived, and auto-ends in-progress sessions past their scheduled window +
+ * grace — the latter duplicates the Socket.io sweep so sessions still end when
+ * the server runs in the Socket.io-degraded mode. The schedule itself launches
+ * the session; tutorJoinedAt is tracked separately for payment gating.
  *
  * Runs in the long-running custom server (server.ts). It is:
  *  - Idempotent / race-safe: each session is "claimed" with an atomic
@@ -253,7 +255,11 @@ export async function runSessionActivationScan(): Promise<number> {
       and(
         eq(liveSession.status, 'scheduled'),
         lte(liveSession.scheduledAt, now),
-        inArray(liveSession.sessionType, ['COURSE', 'ONE_ON_ONE', 'CLINIC'])
+        // ADHOC is included: an ad-hoc session given a future scheduledAt (or
+        // whose start passed while this scheduler was down) must still flip to
+        // active — otherwise it stays 'scheduled' forever and public live-
+        // session lists treat it as an open session with no date bound.
+        inArray(liveSession.sessionType, ['COURSE', 'ONE_ON_ONE', 'CLINIC', 'ADHOC'])
       )
     )
     .returning({ sessionId: liveSession.sessionId })
@@ -267,6 +273,79 @@ export async function runSessionActivationScan(): Promise<number> {
   return activated.length
 }
 
+/** Active-ish statuses that can still be ended by the sweep. */
+const ENDABLE_STATUSES = ['active', 'live', 'preparing', 'paused'] as const
+
+/**
+ * End in-progress sessions that have blown past their scheduled window plus a
+ * 10-minute grace period. The Socket.io layer runs the same sweep every 30s,
+ * but it only exists when Socket.io initialized — in the explicitly supported
+ * degraded mode (Socket.io failed, UI still served) nothing ended sessions.
+ * This scan is the safety net there.
+ *
+ * Idempotent / race-safe: each end re-checks the open statuses in the UPDATE's
+ * WHERE clause, so a concurrent socket-server sweep that already flipped the
+ * row to 'ended' makes ours a no-op (rowCount 0 → projection left alone).
+ * GO_LIVE_DEMO sessions are intentionally open-ended and never auto-ended.
+ */
+export async function runSessionEndScan(): Promise<number> {
+  const now = Date.now()
+  const candidates = await drizzleDb
+    .select({
+      sessionId: liveSession.sessionId,
+      sessionType: liveSession.sessionType,
+      scheduledAt: liveSession.scheduledAt,
+      startedAt: liveSession.startedAt,
+      durationMinutes: liveSession.durationMinutes,
+    })
+    .from(liveSession)
+    .where(inArray(liveSession.status, [...ENDABLE_STATUSES]))
+
+  let ended = 0
+  for (const s of candidates) {
+    if (s.sessionType === 'GO_LIVE_DEMO') continue
+
+    // Same anchor rule as the socket sweep: course sessions end relative to
+    // their scheduledAt; everything else relative to when they actually
+    // started (falling back to scheduledAt).
+    const anchorMs =
+      s.sessionType === 'COURSE' && s.scheduledAt
+        ? new Date(s.scheduledAt).getTime()
+        : s.startedAt
+          ? new Date(s.startedAt).getTime()
+          : s.scheduledAt
+            ? new Date(s.scheduledAt).getTime()
+            : null
+    if (!anchorMs) continue
+
+    const endMs = anchorMs + (s.durationMinutes || 120) * 60_000
+    if (endMs + 10 * 60_000 > now) continue
+
+    const result = await drizzleDb
+      .update(liveSession)
+      .set({ status: 'ended', endedAt: new Date() })
+      .where(
+        and(
+          eq(liveSession.sessionId, s.sessionId),
+          inArray(liveSession.status, [...ENDABLE_STATUSES])
+        )
+      )
+    if ((result.rowCount ?? 0) === 0) continue // another sweep won the race
+    ended++
+
+    // Cancel the CalendarEvent projection with the standard soft-cancel idiom.
+    await drizzleDb
+      .update(calendarEvent)
+      .set({ isCancelled: true, status: 'CANCELLED', deletedAt: new Date() })
+      .where(eq(calendarEvent.externalId, s.sessionId))
+  }
+
+  if (ended > 0) {
+    console.log(`[session-reminders] auto-ended ${ended} session(s) past duration + grace`)
+  }
+  return ended
+}
+
 /** Idempotent — starts the periodic scan once per process. */
 export function startSessionReminderScheduler(): void {
   if (started) return
@@ -278,6 +357,9 @@ export function startSessionReminderScheduler(): void {
     )
     void runSessionActivationScan().catch(err =>
       console.error('[session-reminders] activation tick error:', err)
+    )
+    void runSessionEndScan().catch(err =>
+      console.error('[session-reminders] end-sweep tick error:', err)
     )
   }
 
