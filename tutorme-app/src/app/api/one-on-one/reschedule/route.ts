@@ -11,7 +11,7 @@
 import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { oneOnOneBookingRequest, calendarEvent, liveSession, profile } from '@/lib/db/schema'
@@ -235,19 +235,62 @@ export const PATCH = withCsrf(async (req: NextRequest) => {
     )
 
     await drizzleDb.transaction(async tx => {
+      // Serialize against concurrent accepts/reschedule-accepts for this
+      // tutor (same advisory key as the accept flow): the conflict check
+      // below must see every committed booking, and pg advisory xact locks
+      // only protect checks that run AFTER the lock in the SAME transaction.
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended('one-on-one-accept:' || ${booking.tutorId}, 0))`
+      )
+
       if (booking.calendarEventId) {
         const ev = await tx.query.calendarEvent.findFirst({
           where: eq(calendarEvent.eventId, booking.calendarEventId),
         })
+
+        // Re-check conflicts under the lock — the calendar may have changed
+        // since validateSlot ran (a concurrent accept could have taken the
+        // proposed slot). Abort the move if so.
+        const [tutorProfile] = await tx
+          .select({ bufferMinutes: profile.bufferMinutes })
+          .from(profile)
+          .where(eq(profile.userId, booking.tutorId))
+          .limit(1)
+        const lateConflicts = await findConflicts(
+          booking.tutorId,
+          eventStart,
+          eventEnd,
+          {
+            excludeOneOnOneId: booking.requestId,
+            excludeEventId: booking.calendarEventId ?? undefined,
+            excludeSessionId: ev?.externalId ?? undefined,
+            bufferMinutes: tutorProfile?.bufferMinutes ?? 0,
+          },
+          tx
+        )
+        if (lateConflicts.length > 0) {
+          throw Object.assign(
+            new Error('That time conflicts with another session on the tutor’s calendar.'),
+            { status: 409 }
+          )
+        }
+
         await tx
           .update(calendarEvent)
           .set({ startTime: eventStart, endTime: eventEnd })
           .where(eq(calendarEvent.eventId, booking.calendarEventId))
         if (ev?.externalId) {
-          // Move the live session and reset its reminder so a fresh one fires.
+          // Move the live session, reset its reminder so a fresh one fires,
+          // and align durationMinutes with the new slot's actual length (the
+          // event endTime above is the source of truth — a proposal can
+          // change the session's length, not just its start).
           await tx
             .update(liveSession)
-            .set({ scheduledAt: eventStart, reminderSentAt: null })
+            .set({
+              scheduledAt: eventStart,
+              durationMinutes: Math.round((eventEnd.getTime() - eventStart.getTime()) / 60000),
+              reminderSentAt: null,
+            })
             .where(eq(liveSession.sessionId, ev.externalId))
         }
       }
@@ -274,6 +317,10 @@ export const PATCH = withCsrf(async (req: NextRequest) => {
   } catch (err) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: 'Invalid reschedule response' }, { status: 400 })
+    }
+    // Post-lock conflict re-check aborted the move (nothing was persisted).
+    if (err instanceof Error && (err as { status?: number }).status === 409) {
+      return NextResponse.json({ error: err.message }, { status: 409 })
     }
     console.error('reschedule respond failed:', err)
     return NextResponse.json({ error: 'Failed to respond to reschedule' }, { status: 500 })

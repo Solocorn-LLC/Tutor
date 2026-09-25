@@ -25,8 +25,8 @@ import {
   clearOrphanedScheduleSessions,
   clampWeeksToSchedule,
   refreshKeptSessionAttributes,
+  isDeliberateTombstone,
 } from '@/lib/sessions/materialize-schedule'
-import { LIVE_SESSION_OPEN_STATUSES } from '@/lib/sessions/live-session-status'
 import { eq, and, inArray, gte, lte, lt, gt, or, isNull } from 'drizzle-orm'
 import crypto from 'crypto'
 import {
@@ -807,12 +807,12 @@ export const POST = withCsrf(
                             category: liveSession.category,
                             description: liveSession.description,
                             maxStudents: liveSession.maxStudents,
+                            status: liveSession.status,
                           })
                           .from(liveSession)
                           .where(
                             and(
                               eq(liveSession.tutorId, userId),
-                              inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES),
                               gte(liveSession.scheduledAt, windowStart),
                               lte(liveSession.scheduledAt, sessionEndMax)
                             )
@@ -970,18 +970,47 @@ export const POST = withCsrf(
                   return start < existingEnd && end > existingStart
                 }
 
-                // Ids of the tutor's open live sessions in this window — a
+                // Ids of the tutor's OPEN live sessions in this window — a
                 // CalendarEvent whose externalId is one of these is the read-only
                 // PROJECTION of that session, not an independent commitment, so it
                 // must not count as a calendar-event conflict (it is handled by
-                // the live-session conflict logic below).
-                const openSessionIds = new Set(existingLiveSessions.map(ls => ls.sessionId))
+                // the live-session conflict logic below). Ended rows are excluded:
+                // they are tombstones, not commitments.
+                const openLiveSessions = existingLiveSessions.filter(ls => ls.status !== 'ended')
+                const openSessionIds = new Set(openLiveSessions.map(ls => ls.sessionId))
+
+                // Deliberate tombstones at pattern instants — a single occurrence
+                // the tutor cancelled (`[cancelled]`) or a slot a consent
+                // reschedule moved away from (`[rescheduled-away]`), still
+                // carrying this course's id. Re-publish re-affirms the pattern,
+                // but a marked tombstone means the occurrence was intentionally
+                // removed: the slot is skipped silently (not created, not
+                // counted as a conflict, and no lesson is consumed). Scope to
+                // this course family so another course's tombstone can't kill
+                // this course's slot.
+                const markedTombstoneInstants = new Set(
+                  existingLiveSessions
+                    .filter(
+                      ls =>
+                        ls.status === 'ended' &&
+                        (ls.courseId === publishedCourseId || ls.courseId === templateCourseId) &&
+                        isDeliberateTombstone(ls.description)
+                    )
+                    .map(ls => ls.scheduledAt?.getTime())
+                    .filter((t): t is number => typeof t === 'number')
+                )
 
                 for (const session of sessionDates) {
                   const sessionStart = session.scheduledAt
                   const sessionEnd = new Date(
                     sessionStart.getTime() + session.durationMinutes * 60000
                   )
+
+                  // A deliberate tombstone at this exact instant (tutor-cancelled
+                  // occurrence or reschedule-away marker) — the occurrence was
+                  // intentionally removed even though the pattern still
+                  // generates the slot. Never resurrect it on re-publish.
+                  if (markedTombstoneInstants.has(sessionStart.getTime())) continue
                   // Set when the migration branch below rewrites a TEMPLATE-owned
                   // session onto this variant: the in-memory snapshot still shows
                   // the template courseId, so the exact-match/move check must
@@ -1007,7 +1036,7 @@ export const POST = withCsrf(
                     continue
                   }
 
-                  const conflictingLs = existingLiveSessions.find(ls =>
+                  const conflictingLs = openLiveSessions.find(ls =>
                     overlaps(sessionStart, sessionEnd, ls)
                   )
                   const conflictingCe = existingCalendarEvents.find(

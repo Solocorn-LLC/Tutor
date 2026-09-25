@@ -29,6 +29,29 @@ const DAY_MAP: Record<string, number> = {
 }
 
 /**
+ * Markers written into liveSession.description when a future session is
+ * deliberately ended without being a real past session:
+ * - `[cancelled]` — a single occurrence the tutor cancelled via
+ *   PATCH /api/tutor/sessions/[id].
+ * - `[rescheduled-away]` — the tombstone left at the OLD instant when a
+ *   consent-reschedule moves an occurrence to a new time.
+ *
+ * Plain ended rows (no marker) are retirements from schedule edits or
+ * cleanup sweeps: an explicit pattern re-affirm (schedule re-save / re-publish)
+ * may legitimately resurrect those. Marked rows must never be resurrected.
+ */
+export const LIVE_SESSION_CANCELLED_MARKER = '[cancelled]'
+export const LIVE_SESSION_RESCHEDULED_AWAY_MARKER = '[rescheduled-away]'
+
+export function isDeliberateTombstone(description: string | null | undefined): boolean {
+  if (!description) return false
+  return (
+    description.includes(LIVE_SESSION_CANCELLED_MARKER) ||
+    description.includes(LIVE_SESSION_RESCHEDULED_AWAY_MARKER)
+  )
+}
+
+/**
  * Clamp a user-supplied weeksToSchedule to a sane integer in [1, 52] so a
  * malformed payload can never materialize decades of sessions.
  * Missing / NaN / non-numeric input falls back to 8 (the historical default).
@@ -182,7 +205,10 @@ export interface MaterializeScheduleOptions {
    * resurrect sessions a tutor cancelled or a cleanup retired. Pass true only
    * when the caller is an explicit tutor action that re-affirms the whole
    * pattern (schedule re-save), where a retired slot the pattern still
-   * generates should come back.
+   * generates should come back. Ended rows marked as deliberate tombstones
+   * (`[cancelled]` / `[rescheduled-away]`, see isDeliberateTombstone) are
+   * NEVER recreated — they represent a slot the tutor intentionally removed,
+   * not a stale retirement from a previous edit.
    */
   recreateRetiredSlots?: boolean
 }
@@ -328,7 +354,8 @@ export async function materializeScheduleSessions(
     // row is a deliberate cancellation (tutor cancelled the occurrence, a
     // cleanup retired it); it must not be resurrected by an unattended
     // backfill run. Callers that re-affirm the whole pattern (schedule
-    // re-save) pass recreateRetiredSlots to materialize over retired rows.
+    // re-save) pass recreateRetiredSlots to materialize over retired rows —
+    // but never over marked tombstones (see isDeliberateTombstone).
     const [existing] = await db
       .select({
         sessionId: liveSession.sessionId,
@@ -373,6 +400,14 @@ export async function materializeScheduleSessions(
           )
         }
       }
+      continue
+    }
+
+    // recreateRetiredSlots is set, but a MARKED ended row (tutor-cancelled
+    // occurrence, reschedule-away tombstone) is a deliberate removal, not a
+    // stale retirement from a previous edit — keep it dead.
+    if (existing && existing.status === 'ended' && isDeliberateTombstone(existing.description)) {
+      result.kept++
       continue
     }
 
