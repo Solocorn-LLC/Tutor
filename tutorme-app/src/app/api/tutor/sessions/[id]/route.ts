@@ -9,7 +9,13 @@ import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { getParamAsync } from '@/lib/api/params'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { liveSession as liveSessionTable, courseEnrollment, courseLesson } from '@/lib/db/schema'
+import {
+  liveSession as liveSessionTable,
+  courseEnrollment,
+  courseLesson,
+  calendarEvent,
+} from '@/lib/db/schema'
+import { LIVE_SESSION_CANCELLED_MARKER } from '@/lib/sessions/materialize-schedule'
 import { notifyMany } from '@/lib/notifications/notify'
 
 export const PATCH = withCsrf(
@@ -87,19 +93,37 @@ export const PATCH = withCsrf(
         return NextResponse.json({ error: 'Session has already ended' }, { status: 400 })
       }
 
-      // Mark session as ended with cancellation note
-      const cancellationNote = reason ? ` [Cancelled by tutor: ${reason}]` : ' [Cancelled by tutor]'
-      const updatedSession = await drizzleDb
-        .update(liveSessionTable)
-        .set({
-          status: 'ended',
-          endedAt: new Date(),
-          description: (existingSession.description || '') + cancellationNote,
-        })
-        .where(
-          and(eq(liveSessionTable.sessionId, sessionId), eq(liveSessionTable.tutorId, tutorId))
-        )
-        .returning()
+      // Mark session as ended with cancellation note. The `[cancelled]`
+      // marker prefix makes the row a deliberate tombstone: a later schedule
+      // re-save / re-publish must never resurrect this instant.
+      const cancellationNote = reason
+        ? ` ${LIVE_SESSION_CANCELLED_MARKER} Cancelled by tutor: ${reason}`
+        : ` ${LIVE_SESSION_CANCELLED_MARKER} Cancelled by tutor`
+      const endedAt = new Date()
+      const cancelledSession = await drizzleDb.transaction(async tx => {
+        const [updated] = await tx
+          .update(liveSessionTable)
+          .set({
+            status: 'ended',
+            endedAt,
+            description: (existingSession.description || '') + cancellationNote,
+          })
+          .where(
+            and(eq(liveSessionTable.sessionId, sessionId), eq(liveSessionTable.tutorId, tutorId))
+          )
+          .returning()
+
+        // Cancel the calendar projection too — every other terminal path
+        // (class end, 1-on-1 cancel, group cancel, schedule sweeps) does this;
+        // without it the cancelled class's event stays CONFIRMED and keeps
+        // surfacing in calendar queries that only filter on isCancelled.
+        await tx
+          .update(calendarEvent)
+          .set({ isCancelled: true, status: 'CANCELLED', deletedAt: endedAt })
+          .where(eq(calendarEvent.externalId, sessionId))
+
+        return updated
+      })
 
       // Notify enrolled students if this session belongs to a course
       if (existingSession.courseId) {
@@ -137,7 +161,7 @@ export const PATCH = withCsrf(
 
       return NextResponse.json({
         message: 'Session cancelled successfully',
-        session: updatedSession[0],
+        session: cancelledSession,
       })
     },
     { role: 'TUTOR' }

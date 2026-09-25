@@ -37,6 +37,7 @@ import { expandToCourseFamily } from '@/lib/courses/variant-family'
 import { notify } from '@/lib/notifications/notify'
 import { formatInZone } from '@/lib/notifications/reschedule'
 import { findConflicts } from '@/lib/schedule/conflicts'
+import { LIVE_SESSION_RESCHEDULED_AWAY_MARKER } from '@/lib/sessions/materialize-schedule'
 
 /**
  * Decide how a reschedule of this session must be handled:
@@ -439,13 +440,14 @@ async function resolveProposal(
  *
  * The moved occurrence detaches from its schedule (scheduleId → null) so it
  * becomes a one-off nothing will ever retire or duplicate, and a tombstone
- * row (status 'ended') is left at the OLD instant under the original
- * scheduleId. Without the tombstone the next rolling re-materialization tick
- * would regenerate the old pattern slot, find no row there, and create a
- * duplicate session. The materializer honours ended rows at a pattern
- * instant (it never resurrects deliberate cancellations), so the old slot
- * stays dead. The calendar event moves with the session — none is created
- * for the tombstone.
+ * row (status 'ended', marked `[rescheduled-away]`) is left at the OLD
+ * instant under the original scheduleId. Without the tombstone the next
+ * rolling re-materialization tick would regenerate the old pattern slot,
+ * find no row there, and create a duplicate session. The materializer honours
+ * ended rows at a pattern instant (it never resurrects deliberate
+ * cancellations), and the marker additionally protects the slot from
+ * explicit re-save / re-publish flows. The calendar event moves with the
+ * session — none is created for the tombstone.
  */
 async function applySessionMove(sessionId: string, start: Date, end: Date): Promise<void> {
   const [sess] = await drizzleDb
@@ -493,6 +495,9 @@ async function applySessionMove(sessionId: string, start: Date, end: Date): Prom
       scheduleId: sess.scheduleId,
       durationMinutes: sess.durationMinutes,
       maxStudents: sess.maxStudents,
+      // Mark the tombstone so an explicit schedule re-save / re-publish never
+      // resurrects this instant (the moved session lives at the new time).
+      description: LIVE_SESSION_RESCHEDULED_AWAY_MARKER,
     })
   }
 }

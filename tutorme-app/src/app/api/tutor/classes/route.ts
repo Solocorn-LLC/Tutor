@@ -2,7 +2,7 @@
  * GET /api/tutor/classes
  * Returns the current tutor's classes: upcoming (scheduledAt >= now) and active sessions.
  *
- * "Upcoming" definition: all future scheduled sessions plus any currently active session,
+ * "Upcoming" definition: all future non-ended sessions plus any currently active session,
  * with no time cap (all future dates). Same definition used for the "Upcoming" stat count.
  */
 
@@ -26,9 +26,11 @@ export const GET = withAuth(
       where: includeEnded
         ? eq(liveSessionTable.tutorId, tutorId)
         : (() => {
-            // Upcoming = future or in-progress. Future sessions must always show,
-            // even if their status was incorrectly set to 'ended', so we no longer
-            // filter by status. Demo classes are schedule-less and live only in the
+            // Upcoming = future non-ended sessions OR in-progress sessions
+            // (regardless of time). A future session already in 'ended' is a
+            // tombstone (deliberately cancelled occurrence, slot retired by a
+            // schedule edit, reschedule-away marker) and must not keep showing
+            // as upcoming. Demo classes are schedule-less and live only in the
             // dedicated demos tab unless explicitly requested.
             const filters = [eq(liveSessionTable.tutorId, tutorId)]
             if (!includeDemoClasses) {
@@ -36,7 +38,10 @@ export const GET = withAuth(
             }
             return and(
               ...filters,
-              or(gte(liveSessionTable.scheduledAt, now), eq(liveSessionTable.status, 'active'))
+              or(
+                eq(liveSessionTable.status, 'active'),
+                and(gte(liveSessionTable.scheduledAt, now), ne(liveSessionTable.status, 'ended'))
+              )
             )
           })(),
       with: {

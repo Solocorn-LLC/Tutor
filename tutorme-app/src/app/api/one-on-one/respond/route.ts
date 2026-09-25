@@ -149,6 +149,9 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
         // Unified conflict detector, expanded by the tutor's buffer. Earlier
         // siblings aren't yet persisted, so weeks in the same series don't
         // false-conflict with each other (they're on different dates anyway).
+        // Advisory only: two concurrent accepts can both pass this pre-check,
+        // so the authoritative check RE-RUNS inside the accept transaction
+        // after the advisory lock (see below).
         const conflicts = await findConflicts(session.user.id, eventStart, eventEnd, {
           excludeOneOnOneId: req.requestId,
           bufferMinutes,
@@ -192,53 +195,115 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
       )
 
       // One transaction: create each session (LiveSession + CalendarEvent) and
-      // flip the request to ACCEPTED (or PAID when free). All or nothing.
-      const results = await drizzleDb.transaction(async tx => {
-        // Serialize concurrent acceptances for this tutor so two requests for the
-        // same slot cannot both pass the conflict check and double-book.
-        await tx.execute(
-          sql`SELECT pg_advisory_xact_lock(hashtextextended('one-on-one-accept:' || ${session.user.id}, 0))`
-        )
-
-        const out: { updatedRequest: (typeof siblings)[number]; newEvent: { eventId: string } }[] =
-          []
-        for (const p of withRooms) {
-          const { calendarEvent: newEvent } = await createSession(
-            {
-              tutorId: p.req.tutorId,
-              title: `1-on-1 Session`,
-              scheduledAt: p.eventStart,
-              durationMinutes: p.req.durationMinutes,
-              category: 'Consultation',
-              type: 'ONE_ON_ONE',
-              studentId: p.req.studentId,
-              maxStudents: 2,
-              description: `One-on-one tutoring session with student`,
-              timezone: p.req.timezone,
-              courseId: p.req.courseId ?? undefined,
-              existingRoom: p.room,
-            },
-            tx
+      // flip the request to ACCEPTED (or PAID when free). All or nothing. A
+      // post-lock conflict aborts here (see below): the Daily rooms minted
+      // above are freed and the 409 is returned without touching the request.
+      type AcceptResult = {
+        updatedRequest: (typeof siblings)[number]
+        newEvent: { eventId: string }
+      }[]
+      let results: AcceptResult
+      try {
+        results = await drizzleDb.transaction(async tx => {
+          // Serialize concurrent acceptances for this tutor so two requests for the
+          // same slot cannot both pass the conflict check and double-book. The
+          // lock is taken FIRST and the conflict check below runs in THIS
+          // transaction after the lock — a pre-lock check can't prevent the race
+          // because the competing accept isn't committed yet.
+          await tx.execute(
+            sql`SELECT pg_advisory_xact_lock(hashtextextended('one-on-one-accept:' || ${session.user.id}, 0))`
           )
 
-          const [updatedRequest] = await tx
-            .update(oneOnOneBookingRequest)
-            .set({
-              status: isFree ? 'PAID' : 'ACCEPTED',
-              paidAt: isFree ? new Date() : undefined,
-              tutorNotes: validated.tutorNotes || p.req.tutorNotes,
-              tutorResponseAt: new Date(),
-              paymentDueAt: isFree ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
-              calendarEventId: newEvent!.eventId,
-              updatedAt: new Date(),
+          // Authoritative conflict check under the lock: a concurrent accept
+          // that committed after our pre-check above is now visible. The
+          // transaction aborts on conflict (throw) — the catch below frees
+          // the Daily rooms minted above and returns the 409.
+          for (const p of withRooms) {
+            const lateConflicts = await findConflicts(
+              session.user.id,
+              p.eventStart,
+              p.eventEnd,
+              {
+                excludeOneOnOneId: p.req.requestId,
+                bufferMinutes,
+              },
+              tx
+            )
+            if (lateConflicts.length === 0) continue
+            const slotDate = p.req.requestedDate.toISOString().split('T')[0]
+            const alternativeSlots = await findAlternativeSlots(
+              session.user.id,
+              p.eventStart,
+              p.req.durationMinutes || 60,
+              { maxSuggestions: 3, excludeOneOnOneId: p.req.requestId }
+            )
+            throw Object.assign(new Error('slot conflict after advisory lock'), {
+              slotConflictBody: {
+                error: isSeries
+                  ? `The ${slotDate} session conflicts with an existing session, so the series can't be accepted as-is. Ask the student to re-book, or clear the conflict.`
+                  : 'This time slot conflicts with an existing session. Please choose another slot.',
+                conflicts: lateConflicts.map(c => ({
+                  type: c.type,
+                  title: c.title,
+                  startTime: c.startTime.toISOString(),
+                  endTime: c.endTime.toISOString(),
+                })),
+                suggestedTimes: alternativeSlots,
+              },
             })
-            .where(eq(oneOnOneBookingRequest.requestId, p.req.requestId))
-            .returning(CORE_BOOKING_RETURNING)
+          }
 
-          out.push({ updatedRequest, newEvent: newEvent! })
+          const out: {
+            updatedRequest: (typeof siblings)[number]
+            newEvent: { eventId: string }
+          }[] = []
+          for (const p of withRooms) {
+            const { calendarEvent: newEvent } = await createSession(
+              {
+                tutorId: p.req.tutorId,
+                title: `1-on-1 Session`,
+                scheduledAt: p.eventStart,
+                durationMinutes: p.req.durationMinutes,
+                category: 'Consultation',
+                type: 'ONE_ON_ONE',
+                studentId: p.req.studentId,
+                maxStudents: 2,
+                description: `One-on-one tutoring session with student`,
+                timezone: p.req.timezone,
+                courseId: p.req.courseId ?? undefined,
+                existingRoom: p.room,
+              },
+              tx
+            )
+
+            const [updatedRequest] = await tx
+              .update(oneOnOneBookingRequest)
+              .set({
+                status: isFree ? 'PAID' : 'ACCEPTED',
+                paidAt: isFree ? new Date() : undefined,
+                tutorNotes: validated.tutorNotes || p.req.tutorNotes,
+                tutorResponseAt: new Date(),
+                paymentDueAt: isFree ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
+                calendarEventId: newEvent!.eventId,
+                updatedAt: new Date(),
+              })
+              .where(eq(oneOnOneBookingRequest.requestId, p.req.requestId))
+              .returning(CORE_BOOKING_RETURNING)
+
+            out.push({ updatedRequest, newEvent: newEvent! })
+          }
+          return out
+        })
+      } catch (txError) {
+        const slotConflictBody = (txError as { slotConflictBody?: unknown })?.slotConflictBody
+        if (!slotConflictBody) throw txError
+        // The post-lock conflict re-check failed and aborted the accept —
+        // free the Daily rooms minted for it (nothing was persisted).
+        for (const p of withRooms) {
+          dailyProvider.deleteRoom(p.room.id).catch(() => {})
         }
-        return out
-      })
+        return NextResponse.json(slotConflictBody, { status: 409 })
+      }
 
       // Open the student↔tutor direct-message thread as soon as the booking is
       // accepted, so each shows up in the other's chat contact list right away

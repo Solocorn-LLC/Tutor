@@ -29,6 +29,7 @@ import { formatCourseVariantName } from '@/lib/courses/variant-name'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { getIO } from '@/lib/socket-server-enhanced'
 import { ensureSingleActiveSession } from '@/lib/sessions/concurrency'
+import { LIVE_SESSION_CANCELLED_MARKER } from '@/lib/sessions/materialize-schedule'
 
 function buildTranscript(
   messages: Array<{
@@ -702,6 +703,8 @@ export const DELETE = withAuth(
       // at the same pattern instant. Soft-retire it instead — the ended row at
       // that instant acts as a tombstone the materializer honours (it never
       // resurrects ended slots), and the calendar projection is cancelled.
+      // The `[cancelled]` marker makes it a *deliberate* tombstone: a later
+      // schedule re-save / re-publish must not resurrect this instant either.
       const isFutureScheduled =
         liveSessionRow.status === 'scheduled' &&
         liveSessionRow.scheduleId !== null &&
@@ -712,7 +715,13 @@ export const DELETE = withAuth(
         await drizzleDb.transaction(async tx => {
           await tx
             .update(liveSession)
-            .set({ status: 'ended', endedAt: now })
+            .set({
+              status: 'ended',
+              endedAt: now,
+              description:
+                (liveSessionRow.description || '') +
+                ` ${LIVE_SESSION_CANCELLED_MARKER} Class deleted by tutor`,
+            })
             .where(eq(liveSession.sessionId, classId))
           await tx
             .update(calendarEvent)

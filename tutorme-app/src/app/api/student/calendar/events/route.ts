@@ -91,13 +91,17 @@ export const GET = withAuth(
       : []
 
     // --- Fallback source: LiveSession (for courses published before CalendarEvent bridge) ---
-    // Every future LiveSession row for an enrolled course must surface, even if it
-    // was incorrectly marked 'ended'. The frontend filters out past/completed
-    // sessions and re-labels future ended rows as scheduled, so we query by date
-    // rather than status here.
+    // A future session already in 'ended' is a tombstone — a deliberately
+    // cancelled occurrence, a slot retired by a schedule edit, or a
+    // reschedule-away marker — and must NOT surface as an upcoming class (the
+    // dashboard re-labels future 'ended' rows as scheduled/joinable). Past
+    // ended sessions stay visible as history, so only future tombstones are
+    // excluded here.
+    const now = new Date()
     const lsFilters = [
       inArray(liveSession.courseId, courseIds),
       gte(liveSession.scheduledAt, startDate),
+      or(ne(liveSession.status, 'ended'), lte(liveSession.scheduledAt, now)),
     ]
 
     if (endParam) {

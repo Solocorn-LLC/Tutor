@@ -120,7 +120,10 @@ async function materializeForSchedule(
     // Adding/editing a schedule is an explicit tutor action that re-affirms
     // the whole pattern: a slot the pattern generates must exist, even if a
     // previous edit retired a row at the same instant (e.g. the slot was
-    // moved away and then moved back).
+    // moved away and then moved back). Occurrences the tutor deliberately
+    // cancelled (`[cancelled]`) or that were moved away by a consent
+    // reschedule (`[rescheduled-away]`) stay dead — the materializer never
+    // recreates marked tombstones.
     recreateRetiredSlots: true,
   })
   return { ...result, sessionsRetired }
