@@ -20,7 +20,7 @@ import {
   liveSession,
   course,
 } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, gt, lt, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
+import { eq, and, or, gte, lte, gt, lt, ne, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
 import { formatInZone } from '@/lib/time/tz'
 import { getCourseOccupiedRecurringSlots } from '@/lib/schedule/course-occupied-slots'
 import { z } from 'zod'
@@ -84,7 +84,10 @@ export const GET = withAuth(
         const startDate = new Date(start)
         const endDate = new Date(end)
 
-        // Query calendar events with proper overlap detection (catches spanning events)
+        // Query calendar events with proper overlap detection (catches spanning events).
+        // Events are read-only projections of live sessions (externalId = sessionId):
+        // an event whose source session has ENDED is historical, not a commitment —
+        // the same rule findConflicts applies — so it must not block a slot forever.
         const existingEvents = await drizzleDb
           .select({
             startTime: calendarEvent.startTime,
@@ -94,13 +97,15 @@ export const GET = withAuth(
           })
           .from(calendarEvent)
           .leftJoin(course, eq(course.courseId, calendarEvent.courseId))
+          .leftJoin(liveSession, eq(calendarEvent.externalId, liveSession.sessionId))
           .where(
             and(
               eq(calendarEvent.tutorId, tutorId),
               isNull(calendarEvent.deletedAt),
               eq(calendarEvent.isCancelled, false),
               lt(calendarEvent.startTime, endDate),
-              gt(calendarEvent.endTime, startDate)
+              gt(calendarEvent.endTime, startDate),
+              or(isNull(liveSession.sessionId), ne(liveSession.status, 'ended'))
             )
           )
 
@@ -476,15 +481,20 @@ async function generateAvailableSlots(
   const normalizedAvailability = Array.from(availabilityByKey.values())
 
   const existingEvents = await drizzleDb
-    .select()
+    .select({
+      startTime: calendarEvent.startTime,
+      endTime: calendarEvent.endTime,
+    })
     .from(calendarEvent)
+    .leftJoin(liveSession, eq(calendarEvent.externalId, liveSession.sessionId))
     .where(
       and(
         eq(calendarEvent.tutorId, tutorId),
         isNull(calendarEvent.deletedAt),
         eq(calendarEvent.isCancelled, false),
         lt(calendarEvent.startTime, endDate),
-        gt(calendarEvent.endTime, startDate)
+        gt(calendarEvent.endTime, startDate),
+        or(isNull(liveSession.sessionId), ne(liveSession.status, 'ended'))
       )
     )
 

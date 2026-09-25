@@ -96,6 +96,28 @@ export function generateScheduleSessionDates(
     if (slot.date) {
       const [year, month, day] = slot.date.split('-').map(Number)
       if (!year || !month || !day) continue
+      // Reject impossible dates ('2026-13-40' etc.): Date.UTC would silently
+      // normalize the overflow onto a different day than the tutor entered.
+      const isRealDate =
+        month >= 1 &&
+        month <= 12 &&
+        day >= 1 &&
+        day <= 31 &&
+        (() => {
+          const probe = new Date(Date.UTC(year, month - 1, day))
+          return (
+            probe.getUTCFullYear() === year &&
+            probe.getUTCMonth() === month - 1 &&
+            probe.getUTCDate() === day
+          )
+        })()
+      if (!isRealDate) {
+        console.warn(
+          `[generateScheduleSessionDates] skipping slot with invalid date "${slot.date}" ` +
+            `(${slot.dayOfWeek} ${slot.startTime})`
+        )
+        continue
+      }
       const sessionDate = zonedWallClockToUtc(year, month, day, hours, minutes, timeZone)
       if (isNaN(sessionDate.getTime())) continue
       if (sessionDate.getTime() < cutoffMs) continue
