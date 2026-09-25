@@ -18,6 +18,7 @@ import { authorizeSessionStudent } from '@/lib/live/session-student-auth'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
   liveSession,
+  calendarEvent,
   deployedMaterial,
   poll,
   pollOption,
@@ -972,6 +973,13 @@ export async function initEnhancedSocketServer(server: NetServer) {
               .update(liveSession)
               .set({ status: 'ended', endedAt: new Date() })
               .where(eq(liveSession.sessionId, s.sessionId))
+            // Cancel the CalendarEvent projection with the standard soft-cancel
+            // idiom, mirroring runSessionEndScan in the reminder scheduler:
+            // whichever sweep wins the race, the event must end up cancelled.
+            await drizzleDb
+              .update(calendarEvent)
+              .set({ isCancelled: true, status: 'CANCELLED', deletedAt: new Date() })
+              .where(eq(calendarEvent.externalId, s.sessionId))
             io.to(s.sessionId).emit('session:ended', { sessionId: s.sessionId, reason: 'timeout' })
           }
         }

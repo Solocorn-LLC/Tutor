@@ -12,7 +12,7 @@
 import { withCsrf } from '@/lib/api/middleware'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession, authOptions } from '@/lib/auth'
-import { and, desc, eq, gte, inArray } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { nanoid } from 'nanoid'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -21,7 +21,7 @@ import { isNull } from 'drizzle-orm'
 import { createSession } from '@/lib/sessions/create-session'
 import { dailyProvider } from '@/lib/video/daily-provider'
 import { findConflicts } from '@/lib/schedule/conflicts'
-import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
+import { slotInstants, requestedDateFromString, bookingInstants } from '@/lib/one-on-one/time'
 import { countActiveSeats } from '@/lib/group-session/seats'
 import { expireStaleGroupSeats } from '@/lib/group-session/expire-seats'
 import { completeFinishedGroupSessions } from '@/lib/group-session/complete'
@@ -191,8 +191,12 @@ export async function GET(req: NextRequest) {
           gte(groupSession.requestedDate, requestedDateFromString(todayUtc()))
         )
       )
-      .orderBy(desc(groupSession.requestedDate))
-    const withSeats = await withSeatsLeft(rows)
+      .orderBy(asc(groupSession.requestedDate))
+    // Exclude sessions earlier TODAY too (a same-day slot whose start instant
+    // has passed is no longer bookable) — same bookingInstants date math the
+    // join route uses — and show soonest first.
+    const upcoming = rows.filter(r => bookingInstants(r).start.getTime() > Date.now())
+    const withSeats = await withSeatsLeft(upcoming)
     return NextResponse.json({ sessions: await attachCourseName(withSeats) })
   }
 
