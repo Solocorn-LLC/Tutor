@@ -939,7 +939,7 @@ function CourseBuilderInsightsRouteInner({
     }
   }
 
-  const handleConfirmTeaching = async () => {
+  const handleConfirmTeaching = async (demoName?: string) => {
     if (!courseId || courseId === 'insights-draft') {
       toast.error('Please save your course first.')
       return
@@ -949,7 +949,7 @@ function CourseBuilderInsightsRouteInner({
       const res = await fetch('/api/tutor/classes/start-ad-hoc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'teaching', courseId, title: courseName }),
+        body: JSON.stringify({ type: 'teaching', courseId, title: demoName || courseName }),
       })
       if (!res.ok) throw new Error('Failed to start session')
 
@@ -1769,6 +1769,7 @@ function CourseBuilderInsightsRouteInner({
         onOpenChange={setGoLiveDialogOpen}
         onConfirmTeaching={handleConfirmTeaching}
         onConfirmTraining={handleConfirmTraining}
+        showDemoName
       />
     </div>
   )
