@@ -20,7 +20,21 @@ import {
   liveSession,
   course,
 } from '@/lib/db/schema'
-import { eq, and, or, gte, lte, gt, lt, ne, asc, isNull, isNotNull, inArray } from 'drizzle-orm'
+import {
+  eq,
+  and,
+  or,
+  gte,
+  lte,
+  gt,
+  lt,
+  ne,
+  asc,
+  isNull,
+  isNotNull,
+  inArray,
+  sql,
+} from 'drizzle-orm'
 import { formatInZone } from '@/lib/time/tz'
 import { getCourseOccupiedRecurringSlots } from '@/lib/schedule/course-occupied-slots'
 import { z } from 'zod'
@@ -129,10 +143,17 @@ export const GET = withAuth(
               // course here; genuinely course-less sessions (ad-hoc) already surface
               // via their CalendarEvent above, so nothing real is lost.
               isNotNull(liveSession.courseId),
-              // A live session overlaps if: scheduledAt < endDate AND (scheduledAt + duration) > startDate
-              // We approximate with scheduledAt within a window that could overlap
-              gte(liveSession.scheduledAt, new Date(startDate.getTime() - 24 * 60 * 60 * 1000)),
-              lte(liveSession.scheduledAt, endDate)
+              // Real overlap predicate (mirrors the CalendarEvent branch above):
+              // the session starts before the range ends AND its computed end
+              // (scheduledAt + durationMinutes) is after the range starts.
+              // Replaces the old ±24h window heuristic, which under-fetched
+              // slots longer than a day and over-fetched everything else.
+              isNotNull(liveSession.scheduledAt),
+              lt(liveSession.scheduledAt, endDate),
+              gt(
+                sql`${liveSession.scheduledAt} + (${liveSession.durationMinutes} * interval '1 minute')`,
+                startDate
+              )
             )
           )
 

@@ -37,6 +37,7 @@ import { bookingInstants } from '@/lib/one-on-one/time'
 import { zonedWallClockToUtc, zonedWeekday, zonedDateParts, formatInZone } from '@/lib/time/tz'
 import { collectFileKeys } from '@/lib/services/course-builder.service'
 import { fileExists } from '@/lib/storage/service'
+import { z } from 'zod'
 
 // GET current variants for this template course
 export const GET = withAuth(
@@ -161,6 +162,21 @@ interface VariantConfig {
   languageOfInstruction: string
   schedules: CourseScheduleConfig[]
 }
+
+// The publish body is typed as plain interfaces above, so a malformed or
+// hostile durationMinutes (e.g. 1e9) would flow straight into session
+// generation and the LiveSession rows. Validate every schedule slot up front:
+// 5 minutes minimum, 12 hours (720 minutes) maximum.
+const PublishScheduleItemSchema = z.object({
+  dayOfWeek: z.string().min(1),
+  startTime: z.string().regex(/^\d{1,2}:\d{2}$/, 'Use HH:MM format'),
+  durationMinutes: z
+    .number()
+    .int()
+    .min(5)
+    .max(720, 'Session duration cannot exceed 12 hours (720 minutes)'),
+  date: z.string().optional(),
+})
 
 const DAY_MAP: Record<string, number> = {
   Sunday: 0,
@@ -312,6 +328,29 @@ export const POST = withCsrf(
           { error: 'Provide at least one variant configuration' },
           { status: 400 }
         )
+      }
+
+      // Validate every schedule slot's durationMinutes (and time format) before
+      // any sessions are generated — see PublishScheduleItemSchema above.
+      for (const [variantIdx, variant] of variants.entries()) {
+        if (!Array.isArray(variant.schedules)) continue
+        for (const scheduleConfig of variant.schedules) {
+          const items = Array.isArray(scheduleConfig?.schedule) ? scheduleConfig.schedule : []
+          for (const [itemIdx, item] of items.entries()) {
+            const parsed = PublishScheduleItemSchema.safeParse(item)
+            if (!parsed.success) {
+              const issue = parsed.error.issues[0]
+              return NextResponse.json(
+                {
+                  error: `Invalid schedule slot (variant ${variantIdx + 1}, item ${itemIdx + 1})${
+                    issue ? `: ${issue.message}` : ''
+                  }`,
+                },
+                { status: 400 }
+              )
+            }
+          }
+        }
       }
 
       try {

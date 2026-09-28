@@ -57,8 +57,19 @@ export async function GET(req: NextRequest) {
         .map(p => p.sessionId)
     )
 
+    // Positive predicate: a session only counts as fully attended when the
+    // participant row has a leftAt AND the stay was >= 5 minutes. Rows with
+    // leftAt = null (e.g. a paid seat admitted by admitPaidSeat that never
+    // entered the room) fall through to "missed" instead of being counted as
+    // attended via the old negative complement.
     const fullyAttendedIds = new Set(
-      participantRows.filter(p => !participatedIds.has(p.sessionId)).map(p => p.sessionId)
+      participantRows
+        .filter(p => {
+          if (!p.leftAt) return false
+          const stayDuration = p.leftAt.getTime() - (p.joinedAt?.getTime() ?? 0)
+          return stayDuration >= 5 * 60 * 1000
+        })
+        .map(p => p.sessionId)
     )
 
     const enrollmentRows = await drizzleDb

@@ -35,6 +35,7 @@ import {
   groupSessionParticipant,
 } from '@/lib/db/schema'
 import { expandToCourseFamily } from '@/lib/courses/variant-family'
+import { runProposalExpiryScan } from '@/lib/schedule/reschedule-consent'
 import { notify, notifyMany } from './notify'
 
 /** How far ahead of a session's start to send the reminder. */
@@ -305,17 +306,13 @@ export async function runSessionEndScan(): Promise<number> {
   for (const s of candidates) {
     if (s.sessionType === 'GO_LIVE_DEMO') continue
 
-    // Same anchor rule as the socket sweep: course sessions end relative to
-    // their scheduledAt; everything else relative to when they actually
-    // started (falling back to scheduledAt).
-    const anchorMs =
-      s.sessionType === 'COURSE' && s.scheduledAt
-        ? new Date(s.scheduledAt).getTime()
-        : s.startedAt
-          ? new Date(s.startedAt).getTime()
-          : s.scheduledAt
-            ? new Date(s.scheduledAt).getTime()
-            : null
+    // Anchor rule for both sweeps: once the room actually opened (startedAt),
+    // measure the session from the LATER of scheduledAt and startedAt, so a
+    // tutor who opens the room late is not force-ended before the full
+    // duration has run. Sessions that never started anchor on scheduledAt.
+    const scheduledMs = s.scheduledAt ? new Date(s.scheduledAt).getTime() : null
+    const startedMs = s.startedAt ? new Date(s.startedAt).getTime() : null
+    const anchorMs = startedMs != null ? Math.max(scheduledMs ?? startedMs, startedMs) : scheduledMs
     if (!anchorMs) continue
 
     const endMs = anchorMs + (s.durationMinutes || 120) * 60_000
@@ -360,6 +357,9 @@ export function startSessionReminderScheduler(): void {
     )
     void runSessionEndScan().catch(err =>
       console.error('[session-reminders] end-sweep tick error:', err)
+    )
+    void runProposalExpiryScan().catch(err =>
+      console.error('[session-reminders] proposal-expiry tick error:', err)
     )
   }
 
