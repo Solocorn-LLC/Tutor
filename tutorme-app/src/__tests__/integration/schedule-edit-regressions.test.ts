@@ -234,8 +234,12 @@ describe('BUG #5/#6: schedule edit wipes lessons and silently drops conflicting 
         durationMinutes: 60,
         maxStudents: 50,
       },
-      // An unrelated ad-hoc session of the same tutor at the exact same
-      // instant as schedule B's slot (created via "Go Live"/ad-hoc flows).
+      // An unrelated ad-hoc session of the same tutor near schedule B's slot
+      // (created via "Go Live"/ad-hoc flows). It intentionally does NOT share
+      // the slot's exact instant: the partial unique index
+      // (tutorId, scheduledAt) on open sessions — enforced in production since
+      // migration 0040 and now in CI too — makes two open sessions for one
+      // tutor at the same instant impossible.
       {
         sessionId: LS_ADHOC,
         tutorId,
@@ -243,7 +247,7 @@ describe('BUG #5/#6: schedule edit wipes lessons and silently drops conflicting 
         category: 'math',
         status: 'scheduled',
         sessionType: 'ADHOC',
-        scheduledAt: INSTANT_3,
+        scheduledAt: new Date(INSTANT_3.getTime() + 30 * 60_000),
         durationMinutes: 60,
         maxStudents: 50,
       },

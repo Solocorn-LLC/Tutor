@@ -575,6 +575,13 @@
       "when": 1788494594813,
       "tag": "0082_mention-source-and-drop-message-fk",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1790374386098,
+      "tag": "0083_declare_live_session_active_partial_key",
+      "breakpoints": true
     }
   ]
 }

@@ -27,11 +27,11 @@ export const GET = withAuth(
     const endParam = searchParams.get('end')
 
     const startDate = startParam ? new Date(startParam) : new Date()
+    // `end` is already an explicit inclusive instant sent by the client (it
+    // computes end-of-day in its display frame and sends the ISO string).
+    // Re-pinning it to server-local 23:59:59 here truncated/extended the final
+    // day for tutors in zones far from the server's, so the bound is used as-is.
     const endDate = endParam ? new Date(endParam) : new Date()
-
-    if (endParam) {
-      endDate.setHours(23, 59, 59, 999)
-    }
 
     // --- Primary source: CalendarEvent ---
     const calFilters = [
