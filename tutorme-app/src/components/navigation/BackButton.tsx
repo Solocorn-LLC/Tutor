@@ -1,7 +1,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -29,7 +28,8 @@ export function BackButton({
 
   const handleClick = () => {
     if (href) {
-      return // Let Link handle navigation
+      router.push(href)
+      return
     }
     // Try to go back, otherwise go to fallback
     if (window.history.length > 1) {
@@ -39,38 +39,17 @@ export function BackButton({
     }
   }
 
-  const buttonContent = (
+  return (
     <Button
       variant={variant}
       size={size}
-      onClick={!href ? handleClick : undefined}
-      className={cn(
-        'h-9 w-9 rounded-lg p-0 transition-all duration-200 hover:scale-105 hover:bg-slate-300',
-        className
-      )}
+      onClick={handleClick}
+      className={cn(className)}
       aria-label="Go back"
     >
       <Icon className="h-5 w-5" />
     </Button>
   )
-
-  if (href) {
-    return (
-      <Button variant={variant} size={size} asChild className="inline-flex" aria-label="Go back">
-        <Link
-          href={href}
-          className={cn(
-            'h-9 w-9 items-center justify-center rounded-lg p-0 transition-all duration-200 hover:scale-105 hover:bg-slate-300',
-            className
-          )}
-        >
-          <Icon className="h-5 w-5" />
-        </Link>
-      </Button>
-    )
-  }
-
-  return buttonContent
 }
 
 // Convenience component for role-based fallbacks
