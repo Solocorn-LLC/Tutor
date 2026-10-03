@@ -939,18 +939,15 @@ export async function initEnhancedSocketServer(server: NetServer) {
 
           const durationMs = (s.durationMinutes || 120) * 60 * 1000
 
-          // Course sessions run on a fixed schedule: ending is determined by
-          // scheduledAt + duration, regardless of when the tutor opened the room.
-          // Non-course sessions (1-on-1, group, clinic) end relative to when
-          // they were actually started.
+          // Once the room actually opened (startedAt), the session ends at the
+          // LATER of scheduledAt and startedAt plus duration — a tutor who
+          // opens the room late (course sessions can't be tutor-ended) is not
+          // force-ended before the full duration has run. Sessions that never
+          // started still anchor on scheduledAt.
+          const scheduledMs = s.scheduledAt ? new Date(s.scheduledAt).getTime() : null
+          const startedMs = s.startedAt ? new Date(s.startedAt).getTime() : null
           const anchorTime =
-            s.sessionType === 'COURSE' && s.scheduledAt
-              ? new Date(s.scheduledAt).getTime()
-              : s.startedAt
-                ? new Date(s.startedAt).getTime()
-                : s.scheduledAt
-                  ? new Date(s.scheduledAt).getTime()
-                  : null
+            startedMs != null ? Math.max(scheduledMs ?? startedMs, startedMs) : scheduledMs
           if (!anchorTime) continue
 
           const endTime = anchorTime + durationMs

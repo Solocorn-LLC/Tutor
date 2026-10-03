@@ -14,6 +14,7 @@ import {
   index,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 import * as enums from '../enums'
 import { user } from './auth'
 import { course, courseSchedule, courseLesson } from './course'
@@ -69,6 +70,21 @@ export const liveSession = pgTable(
     tutorJoinedAt: timestamp('tutorJoinedAt', { withTimezone: true }),
   },
   table => ({
+    // Schema-parity note: two DB-level objects live ONLY in hand-written
+    // migrations (drizzle/0040_prevent_double_booking.sql) and cannot be fully
+    // expressed or are not expressed here:
+    //  - "CalendarEvent_no_overlap_per_tutor" — a GiST EXCLUDE constraint on
+    //    CalendarEvent; drizzle has no API for exclusion constraints, so a
+    //    `drizzle-kit push --force` will silently DROP it. Keep it in migrations.
+    // The partial unique index below is declared here so push keeps it; its SQL
+    // must stay in sync with migration 0040.
+    LiveSession_tutorId_scheduledAt_active_key: uniqueIndex(
+      'LiveSession_tutorId_scheduledAt_active_key'
+    )
+      .on(table.tutorId, table.scheduledAt)
+      .where(
+        sql`"scheduledAt" IS NOT NULL AND "status" IN ('scheduled', 'active', 'preparing', 'live', 'paused')`
+      ),
     LiveSession_tutorId_idx: index('LiveSession_tutorId_idx').on(table.tutorId),
     LiveSession_courseId_idx: index('LiveSession_courseId_idx').on(table.courseId),
     LiveSession_scheduleId_idx: index('LiveSession_scheduleId_idx').on(table.scheduleId),

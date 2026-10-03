@@ -8,7 +8,10 @@
  *  - agree    → when ALL have agreed, the change is APPLIED (session moved).
  *  - disagree → the proposal is REJECTED; the session keeps its old time.
  *  - cancel   → the tutor withdraws a pending proposal.
- * Non-responders leave it PENDING (no auto-expire). See [[tutorme-reschedule-consent]].
+ * Non-responders leave it PENDING until the proposal expires: once the offered
+ * window (proposedStart) has passed, or 7 days after it was created, a periodic
+ * scan cancels it with resolvedReason 'expired' (see runProposalExpiryScan).
+ * See [[tutorme-reschedule-consent]].
  *
  * The "who must agree" roster is confirmed/paid attendees only:
  *   course enrollees (the session's own course, expanded to the variant family
@@ -17,7 +20,7 @@
  */
 
 import crypto from 'crypto'
-import { and, eq, inArray, sql } from 'drizzle-orm'
+import { and, eq, inArray, lt, or, sql } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@/lib/db/schema'
 import { drizzleDb } from '@/lib/db/drizzle'
@@ -234,7 +237,10 @@ export async function proposeReschedule(opts: {
 export type RespondResult =
   | { status: 'PENDING'; agreed: number; total: number }
   | { status: 'APPLIED' }
-  | { status: 'REJECTED'; reason: 'student_disagreed' | 'slot_unavailable' | 'session_ended' }
+  | {
+      status: 'REJECTED'
+      reason: 'student_disagreed' | 'slot_unavailable' | 'session_ended' | 'expired'
+    }
   | { status: 'ERROR'; error: string }
 
 /** A student agrees or disagrees. Applies the move on unanimous agreement;
@@ -308,7 +314,8 @@ export async function respondToProposal(opts: {
  * still-enrolled voter has agreed. Votes from students who have since left
  * (unenrolled / seat cancelled) are ignored — otherwise a departed student's
  * unanswered vote would block unanimous agreement forever. Also closes the
- * proposal if its session has ended/been removed.
+ * proposal if its session has ended/been removed or its offered window
+ * (proposedStart) has already passed.
  */
 async function evaluatePendingProposal(proposal: Proposal, tx?: DbClient): Promise<RespondResult> {
   const db = tx ?? drizzleDb
@@ -321,6 +328,18 @@ async function evaluatePendingProposal(proposal: Proposal, tx?: DbClient): Promi
   if (!sess || sess.status === 'ended') {
     await resolveProposal(proposal.proposalId, 'CANCELLED', 'session_ended', tx)
     return { status: 'REJECTED', reason: 'session_ended' }
+  }
+
+  // Offered window has passed — applying the move now would reschedule the
+  // session into the past. Reject as expired instead of evaluating votes.
+  if (proposal.proposedStart.getTime() < Date.now()) {
+    await resolveProposal(proposal.proposalId, 'REJECTED', 'expired', tx)
+    await notifyTutor(
+      proposal.proposedBy,
+      'Reschedule proposal expired',
+      'The proposed time has already passed, so the proposal was closed. The session keeps its current time.'
+    )
+    return { status: 'REJECTED', reason: 'expired' }
   }
 
   const [votes, roster] = await Promise.all([
@@ -447,6 +466,56 @@ export async function cancelProposal(proposalId: string, tutorId: string): Promi
   await resolveProposal(proposalId, 'CANCELLED', 'tutor_cancelled')
   await notifyOutcome(proposal, 'cancelled')
   return true
+}
+
+/**
+ * Expire stale PENDING proposals: the offered window (proposedStart) has passed,
+ * or the proposal has sat unanswered for a week. Cancellation is conditional on
+ * the row still being PENDING so a concurrent responder/scan can't double-resolve
+ * (rowCount 0 → someone else won). The tutor is told best-effort, never thrown.
+ */
+export async function runProposalExpiryScan(): Promise<number> {
+  const now = Date.now()
+  const staleBefore = new Date(now - 7 * 24 * 60 * 60 * 1000)
+
+  const stale = await drizzleDb
+    .select()
+    .from(sessionRescheduleProposal)
+    .where(
+      and(
+        eq(sessionRescheduleProposal.status, 'PENDING'),
+        or(
+          lt(sessionRescheduleProposal.proposedStart, new Date(now)),
+          lt(sessionRescheduleProposal.createdAt, staleBefore)
+        )
+      )
+    )
+
+  let expired = 0
+  for (const proposal of stale) {
+    try {
+      const result = await drizzleDb
+        .update(sessionRescheduleProposal)
+        .set({ status: 'CANCELLED', resolvedReason: 'expired', resolvedAt: new Date() })
+        .where(
+          and(
+            eq(sessionRescheduleProposal.proposalId, proposal.proposalId),
+            eq(sessionRescheduleProposal.status, 'PENDING')
+          )
+        )
+      if ((result.rowCount ?? 0) === 0) continue // a concurrent path resolved it
+
+      await notifyTutor(
+        proposal.proposedBy,
+        'Reschedule proposal expired',
+        "A proposed time change did not get everyone's response before it expired, so it was closed. The session keeps its current time."
+      )
+      expired++
+    } catch (err) {
+      console.warn('[reschedule] proposal expiry failed (non-critical):', err)
+    }
+  }
+  return expired
 }
 
 // ── internals ────────────────────────────────────────────────────────────────

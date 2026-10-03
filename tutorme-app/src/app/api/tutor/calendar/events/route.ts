@@ -28,6 +28,10 @@ export const GET = withAuth(
 
     // Clients send explicit inclusive ISO start/end instants — use them as-is.
     const startDate = startParam ? new Date(startParam) : new Date()
+    // `end` is already an explicit inclusive instant sent by the client (it
+    // computes end-of-day in its display frame and sends the ISO string).
+    // Re-pinning it to server-local 23:59:59 here truncated/extended the final
+    // day for tutors in zones far from the server's, so the bound is used as-is.
     const endDate = endParam ? new Date(endParam) : new Date()
 
     // --- Primary source: CalendarEvent ---

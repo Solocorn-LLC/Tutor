@@ -53,7 +53,9 @@ describe('authorizeSessionStudent (integration)', () => {
         title: 'Course-less',
         category: 'general',
         status: 'active',
-        scheduledAt: now,
+        // Offset so the two open rows don't collide on the partial unique
+        // index (tutorId, scheduledAt) — the exact instant is irrelevant here.
+        scheduledAt: new Date(now.getTime() + 60_000),
       },
     ])
     await drizzleDb.insert(courseEnrollment).values({

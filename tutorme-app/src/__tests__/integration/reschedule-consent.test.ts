@@ -41,8 +41,14 @@ const T0 = new Date('2027-03-01T14:00:00.000Z')
 const proposedFor = (n: number) => new Date(Date.UTC(2027, 3, n, 16, 0, 0))
 
 let sc = 0
+// Each session gets its own base instant: the partial unique index
+// (tutorId, scheduledAt) forbids two open sessions at the same instant,
+// and sessions from earlier tests still exist while later ones are created.
+const baseOf = new Map<string, Date>()
 async function makeSession(): Promise<string> {
   const id = `rc_sess_${stamp}_${++sc}`
+  const base = new Date(T0.getTime() + sc * 3_600_000)
+  baseOf.set(id, base)
   await drizzleDb.insert(liveSession).values({
     sessionId: id,
     tutorId,
@@ -50,7 +56,7 @@ async function makeSession(): Promise<string> {
     title: 'Session',
     category: 'General',
     status: 'scheduled',
-    scheduledAt: T0,
+    scheduledAt: base,
     durationMinutes: 60,
   } as never)
   await drizzleDb.insert(calendarEvent).values({
@@ -59,8 +65,8 @@ async function makeSession(): Promise<string> {
     title: 'Session',
     type: 'LESSON',
     status: 'CONFIRMED',
-    startTime: T0,
-    endTime: new Date(T0.getTime() + 3_600_000),
+    startTime: base,
+    endTime: new Date(base.getTime() + 3_600_000),
     timezone: 'UTC',
     isAllDay: false,
     isRecurring: false,
@@ -87,10 +93,11 @@ const propStatus = (pid: string) =>
     .then(r => r[0]?.s)
 
 async function propose(sessionId: string, at: Date) {
+  const base = baseOf.get(sessionId) ?? T0
   const r = await proposeReschedule({
     session: { sessionId, courseId: COURSE, tutorId, title: 'Session' },
-    currentStart: T0,
-    currentEnd: new Date(T0.getTime() + 3_600_000),
+    currentStart: base,
+    currentEnd: new Date(base.getTime() + 3_600_000),
     proposedStart: at,
     proposedEnd: new Date(at.getTime() + 3_600_000),
   })
@@ -151,13 +158,13 @@ describe('reschedule consent gate', () => {
     const at = proposedFor(5)
     const pid = await propose(sess, at)
     expect(pid).toBeTruthy()
-    expect(await sessionTime(sess)).toBe(T0.toISOString()) // still old while pending
+    expect(await sessionTime(sess)).toBe(baseOf.get(sess)!.toISOString()) // still old while pending
 
     expect(
       (await respondToProposal({ proposalId: pid, studentId: s1, response: 'AGREE' })).status
     ).toBe('PENDING')
     await respondToProposal({ proposalId: pid, studentId: s2, response: 'AGREE' })
-    expect(await sessionTime(sess)).toBe(T0.toISOString()) // still old at 2/3
+    expect(await sessionTime(sess)).toBe(baseOf.get(sess)!.toISOString()) // still old at 2/3
 
     expect(
       (await respondToProposal({ proposalId: pid, studentId: s3, response: 'AGREE' })).status
@@ -173,7 +180,7 @@ describe('reschedule consent gate', () => {
     expect(
       (await respondToProposal({ proposalId: pid, studentId: s2, response: 'DISAGREE' })).status
     ).toBe('REJECTED')
-    expect(await sessionTime(sess)).toBe(T0.toISOString())
+    expect(await sessionTime(sess)).toBe(baseOf.get(sess)!.toISOString())
     expect(await propStatus(pid)).toBe('REJECTED')
     // A closed proposal rejects further votes.
     expect(
