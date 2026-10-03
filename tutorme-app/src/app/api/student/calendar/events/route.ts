@@ -29,12 +29,9 @@ export const GET = withAuth(
     const startParam = searchParams.get('start')
     const endParam = searchParams.get('end')
 
+    // Clients send explicit inclusive ISO start/end instants — use them as-is.
     const startDate = startParam ? new Date(startParam) : new Date()
     const endDate = endParam ? new Date(endParam) : new Date()
-
-    if (endParam) {
-      endDate.setHours(23, 59, 59, 999)
-    }
 
     // Find courses the student is enrolled in
     const enrollments = await drizzleDb
