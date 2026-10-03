@@ -26,6 +26,7 @@ export const GET = withAuth(
     const startParam = searchParams.get('start')
     const endParam = searchParams.get('end')
 
+    // Clients send explicit inclusive ISO start/end instants — use them as-is.
     const startDate = startParam ? new Date(startParam) : new Date()
     // `end` is already an explicit inclusive instant sent by the client (it
     // computes end-of-day in its display frame and sends the ISO string).
