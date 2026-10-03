@@ -3,285 +3,89 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
-import { Search, QrCode, Settings, X, Play, FileText } from 'lucide-react'
+import { Search, QrCode, Settings } from 'lucide-react'
 import { Navbar, LaunchCard, View } from './components/Layout'
 import { RegistrationPage } from './components/RegistrationPage'
 import { ProfilePage } from './components/ProfilePage'
 import { ContactModal } from './components/ContactModal'
-
-// Main App URL configuration
-const MAIN_APP_URL = import.meta.env.VITE_MAIN_APP_URL || 'http://localhost:3003'
+import { SearchResultsPanel } from './components/SearchResultsPanel'
 
 // Full-page background video on the landing page. When disabled, the hero uses the
 // tutor hero panel blue (#3B82F6) instead and the gradient overlay is not rendered.
 const SHOW_BACKGROUND_VIDEO = false
 
-const HOW_IT_WORKS_VIDEOS: Record<string, { id: string; title: string; description: string }[]> = {
-  Promo: [
-    {
-      // Previous id '_U8FwciBJxg' is no longer a live YouTube video. Put a real id here to
-      // surface the promo — placeholder ids stay hidden until then (see isRealVideo below).
-      id: 'PLACEHOLDER_PROMO',
-      title: 'Promo',
-      description: 'Watch the platform promo.',
-    },
-  ],
-  'Building Live Courses': [
-    {
-      id: 'PLACEHOLDER_1',
-      title: 'Creating a Course',
-      description: 'How to build your first live course.',
-    },
-    {
-      id: 'PLACEHOLDER_2',
-      title: 'Scheduling Sessions',
-      description: 'Set up live class schedules.',
-    },
-    {
-      id: 'PLACEHOLDER_3',
-      title: 'Publishing',
-      description: 'Publish and manage course variants.',
-    },
-  ],
-  Testimonials: [
-    {
-      id: 'PLACEHOLDER_4',
-      title: 'Maria S.',
-      description: '“This platform helped me reach students across the country.”',
-    },
-    {
-      id: 'PLACEHOLDER_5',
-      title: 'James L.',
-      description: '“Live sessions feel personal and my grades improved fast.”',
-    },
-    {
-      id: 'PLACEHOLDER_6',
-      title: 'Elena R.',
-      description: '“Booking a tutor took seconds and the AI tools are a game changer.”',
-    },
-  ],
-}
-
-const HOW_IT_WORKS_DOCUMENTS = [
-  {
-    id: 'pitch-deck',
-    title: 'Solocorn Pitch Deck',
-    url: 'https://storage.googleapis.com/YOUR_BUCKET/how-it-works/pdfs/solocorn-pitch-deck.pdf',
-    filename: 'solocorn-pitch-deck.pdf',
-  },
-  {
-    id: 'course-builder-guide',
-    title: 'Course Builder Guide',
-    url: 'https://storage.googleapis.com/YOUR_BUCKET/how-it-works/pdfs/course-builder-guide.pdf',
-    filename: 'solocorn-course-builder-guide.pdf',
-  },
-]
-
-// Only surface entries that point at real, published assets. Placeholder YouTube ids and
-// unconfigured storage buckets are hidden so the "How It Works" panel never shows dead
-// cards — drop in real ids/URLs above and they appear automatically.
-const isRealVideo = (v: { id: string }) => !!v.id && !v.id.startsWith('PLACEHOLDER')
-const isRealDoc = (d: { url: string }) => !!d.url && !d.url.includes('YOUR_BUCKET')
-
-const VISIBLE_HOW_IT_WORKS_VIDEOS = Object.entries(HOW_IT_WORKS_VIDEOS)
-  .map(([section, videos]) => [section, videos.filter(isRealVideo)] as const)
-  .filter(([, videos]) => videos.length > 0)
-
-const VISIBLE_HOW_IT_WORKS_DOCUMENTS = HOW_IT_WORKS_DOCUMENTS.filter(isRealDoc)
-
-function HowItWorksVideoCard({
-  video,
-}: {
-  video: { id: string; title: string; description: string }
-}) {
-  return (
-    <a
-      href={`https://www.youtube.com/watch?v=${video.id}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group block w-36 overflow-hidden rounded-lg border border-white/10 bg-white/5 transition-colors hover:bg-white/10"
-    >
-      <div className="relative aspect-video overflow-hidden">
-        <img
-          src={`https://img.youtube.com/vi/${video.id}/hqdefault.jpg`}
-          alt={video.title}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20 transition-colors group-hover:bg-black/30">
-          <Play className="h-5 w-5 fill-white text-white opacity-80 transition-opacity group-hover:opacity-100" />
-        </div>
-      </div>
-      <div className="p-1">
-        <h3 className="text-[10px] font-semibold text-white">{video.title}</h3>
-        {video.description && (
-          <p className="mt-0.5 text-[9px] leading-snug text-white/70">{video.description}</p>
-        )}
-      </div>
-    </a>
-  )
-}
-
-function HowItWorksDocumentCard({
-  doc,
-}: {
-  doc: { id: string; title: string; url: string; filename: string }
-}) {
-  return (
-    <a
-      href={doc.url}
-      download={doc.filename}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex w-40 items-center gap-3 overflow-hidden rounded-lg border border-blue-400/30 bg-gradient-to-br from-blue-500/25 to-blue-900/35 p-2 transition-colors hover:from-blue-500/35 hover:to-blue-900/45"
-    >
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
-        <FileText className="h-4 w-4 text-white/90" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="truncate text-[10px] font-semibold text-white">{doc.title}</h3>
-        <p className="mt-0.5 text-[9px] text-white/70">Download PDF</p>
-      </div>
-    </a>
-  )
-}
-
-function HowItWorksArrow({
-  direction,
-  disabled,
-  onClick,
-}: {
-  direction: 'left' | 'right'
-  disabled: boolean
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={[
-        'shrink-0 self-center transition-all duration-300',
-        'h-20 w-6',
-        disabled
-          ? 'cursor-not-allowed opacity-30 grayscale'
-          : 'cursor-pointer hover:-translate-y-[2px] hover:brightness-110',
-      ].join(' ')}
-      style={{
-        clipPath:
-          direction === 'left'
-            ? 'polygon(100% 0, 100% 100%, 0 50%)'
-            : 'polygon(0 0, 0 100%, 100% 50%)',
-        background:
-          'linear-gradient(135deg, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.55) 100%)',
-        filter:
-          'drop-shadow(0 8px 16px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(255,255,255,0.6)) drop-shadow(0 0 4px rgba(255,255,255,0.4))',
-      }}
-      aria-label={direction === 'left' ? 'Previous' : 'Next'}
-    />
-  )
-}
-
-function HowItWorksRow<T>({
-  title,
-  items,
-  renderItem,
-  itemsPerPage = 5,
-}: {
-  title: string
-  items: T[]
-  renderItem: (item: T) => React.ReactNode
-  itemsPerPage?: number
-}) {
-  const [page, setPage] = useState(0)
-  const totalPages = Math.max(1, Math.ceil(items.length / itemsPerPage))
-  const currentPage = Math.min(page, totalPages - 1)
-  const canPrev = currentPage > 0
-  const canNext = currentPage < totalPages - 1
-  const visible = items.slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage)
-
-  const trackWidth = `calc(${itemsPerPage} * 9rem + ${itemsPerPage - 1} * 0.5rem)`
-
-  return (
-    <div className="flex flex-col items-center">
-      <div style={{ width: trackWidth }}>
-        <h2 className="mb-1 text-left text-sm font-semibold text-white">{title}</h2>
-      </div>
-      <div className="flex items-center justify-center gap-3">
-        <HowItWorksArrow
-          direction="left"
-          disabled={!canPrev}
-          onClick={() => setPage(p => Math.max(p - 1, 0))}
-        />
-        <div
-          className="scrollbar-hide flex gap-2 overflow-x-auto py-1"
-          style={{ width: trackWidth }}
-        >
-          {visible.map((item, i) => (
-            <div key={i} className="shrink-0">
-              {renderItem(item)}
-            </div>
-          ))}
-        </div>
-        <HowItWorksArrow
-          direction="right"
-          disabled={!canNext}
-          onClick={() => setPage(p => Math.min(p + 1, totalPages - 1))}
-        />
-      </div>
-    </div>
-  )
-}
-
 export default function App() {
   const [view, setView] = useState<View>('home')
   const [userProfile, setUserProfile] = useState<any>(null)
   const [isContactOpen, setIsContactOpen] = useState(false)
-  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-
-  // Lock background scrolling while the How It Works panel is open
-  useEffect(() => {
-    if (isHowItWorksOpen) {
-      const originalBodyOverflow = document.body.style.overflow
-      const originalHtmlOverflow = document.documentElement.style.overflow
-      const originalBodyTouchAction = document.body.style.touchAction
-      document.body.style.overflow = 'hidden'
-      document.documentElement.style.overflow = 'hidden'
-      document.body.style.touchAction = 'none'
-      return () => {
-        document.body.style.overflow = originalBodyOverflow
-        document.documentElement.style.overflow = originalHtmlOverflow
-        document.body.style.touchAction = originalBodyTouchAction
-      }
-    }
-  }, [isHowItWorksOpen])
 
   const handleRegistration = (data: any) => {
     setUserProfile({ ...data, isVerified: true })
     setView('profile')
   }
 
+  const scrollToResults = () => {
+    document.getElementById('search-results-panel')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // Wheel-driven panel lock (stacked layout only): a wheel gesture while resting at the top
+  // of the hero snaps to the top of the search results panel, and vice versa. Scrolling
+  // past the results panel (to the launch card) is left to native scrolling, as is
+  // touch/trackpad momentum — CSS scroll-snap (snap-proximity on <main>) covers those.
+  const mainRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const main = mainRef.current
+    if (!main) return
+    let animating = false
+    const onWheel = (e: WheelEvent) => {
+      if (animating || window.matchMedia('(min-width: 1024px)').matches) return
+      const results = document.getElementById('search-results-panel')
+      if (!results) return
+      const resultsTop = results.offsetTop - 80 // clear the fixed navbar (scroll-pt-20)
+      const atHero = main.scrollTop < 40
+      const atResults = Math.abs(main.scrollTop - resultsTop) < 40
+      if (e.deltaY > 0 && atHero) {
+        e.preventDefault()
+        animating = true
+        main.scrollTo({ top: resultsTop, behavior: 'smooth' })
+      } else if (e.deltaY < 0 && atResults) {
+        e.preventDefault()
+        animating = true
+        main.scrollTo({ top: 0, behavior: 'smooth' })
+      } else {
+        return
+      }
+      window.setTimeout(() => {
+        animating = false
+      }, 600)
+    }
+    main.addEventListener('wheel', onWheel, { passive: false })
+    return () => main.removeEventListener('wheel', onWheel)
+  }, [view])
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-white">
+      {/* Background Video */}
       {SHOW_BACKGROUND_VIDEO && (
         <>
-          {/* Background Video */}
           <video
             autoPlay
             muted
             loop
             playsInline
-            className="absolute inset-0 h-full w-full object-cover"
+            className="fixed inset-0 h-full w-full object-cover"
           >
             <source src="/landing-bg-video.mp4" type="video/mp4" />
           </video>
 
           {/* Gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
+          <div className="fixed inset-0 bg-gradient-to-br from-blue-900/25 via-blue-800/30 to-blue-950/45" />
         </>
       )}
+      {!SHOW_BACKGROUND_VIDEO && <div className="fixed inset-0 bg-[#3B82F6]" />}
 
       <div className="relative z-10">
         <Navbar setView={setView} />
@@ -290,98 +94,120 @@ export default function App() {
           {view === 'home' && (
             <motion.main
               key="home"
+              ref={mainRef}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="relative flex min-h-screen flex-col bg-[#3B82F6]"
+              className={`relative flex h-screen snap-y snap-proximity flex-col overflow-y-auto scroll-pt-20 lg:h-screen lg:min-h-0 lg:snap-none lg:overflow-hidden ${
+                SHOW_BACKGROUND_VIDEO ? '' : 'bg-[#3B82F6]'
+              }`}
             >
-              {/* Top spacer: clears navbar and pushes hero toward vertical center */}
-              <div className="min-h-[100px] flex-1" />
-
-              {/* Hero Section */}
-              <section className="flex flex-col items-center px-6">
-                <motion.div
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2, duration: 0.6 }}
-                  className="mx-auto w-full max-w-3xl text-center"
-                >
-                  <h1 className="mb-10 font-sans text-3xl font-medium tracking-tight text-white md:text-5xl">
-                    Live AI-Augmented Instruction Platform
-                  </h1>
-
-                  {/* Search Bar */}
+              <div className="flex min-h-0 flex-1 flex-col pt-20 lg:flex-row">
+                {/* Panel 1 — Hero: headline, search, How It Works shortcut */}
+                <section className="flex min-h-[calc(100vh-5rem)] snap-start flex-col items-center justify-center border-white/10 px-6 py-12 lg:w-5/12 lg:overflow-y-auto lg:border-r">
                   <motion.div
-                    initial={{ y: 10, opacity: 0 }}
-                    animate={{ y: 0, opacity: isHowItWorksOpen ? 0 : 1 }}
-                    transition={{ delay: 0.35, duration: 0.2 }}
-                    className={`relative mx-auto mb-6 max-w-2xl ${isHowItWorksOpen ? 'pointer-events-none' : ''}`}
-                  >
-                    <div className="flex h-14 items-center rounded-full bg-white px-5 shadow-lg">
-                      <Search className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                      <input
-                        type="text"
-                        placeholder="Search tutors, courses, categories..."
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                        className="flex-1 border-none bg-transparent px-3 text-base text-gray-800 placeholder-gray-400 outline-none"
-                      />
-                      <QrCode className="h-5 w-5 flex-shrink-0 text-gray-400" />
-                    </div>
-                  </motion.div>
-
-                  {/* How It Works Button */}
-                  <motion.div
-                    initial={{ y: 10, opacity: 0 }}
+                    initial={{ y: 20, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.45, duration: 0.5 }}
+                    transition={{ delay: 0.2, duration: 0.6 }}
+                    className="mx-auto w-full max-w-3xl text-center"
+                  >
+                    <h1 className="mb-10 font-sans text-3xl font-medium tracking-tight text-white md:text-5xl">
+                      Live AI-Augmented Instruction Platform
+                    </h1>
+
+                    {/* Search Bar */}
+                    <motion.div
+                      initial={{ y: 10, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.35, duration: 0.2 }}
+                      className="relative mx-auto mb-6 max-w-2xl"
+                    >
+                      <div className="flex h-14 items-center rounded-full bg-white px-5 shadow-lg">
+                        <Search className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search tutors, courses, categories..."
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          className="flex-1 border-none bg-transparent px-3 text-base text-gray-800 placeholder-gray-400 outline-none"
+                        />
+                        <QrCode className="h-5 w-5 flex-shrink-0 text-gray-400" />
+                      </div>
+                    </motion.div>
+
+                    {/* How It Works Button */}
+                    <motion.div
+                      initial={{ y: 10, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.45, duration: 0.5 }}
+                    >
+                      <button
+                        onClick={scrollToResults}
+                        className="group relative min-w-[140px] overflow-hidden rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-blue-700 shadow-md transition-colors hover:bg-white/90"
+                      >
+                        <span className="block opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                          How It Works
+                        </span>
+                        <span className="absolute inset-0 flex items-center justify-center gap-0.5 transition-opacity duration-300 group-hover:opacity-0">
+                          <motion.span
+                            className="inline-flex h-5 w-5"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                          >
+                            <Settings className="h-full w-full" />
+                          </motion.span>
+                          <motion.span
+                            className="-ml-1 -mt-2 inline-flex h-3.5 w-3.5"
+                            animate={{ rotate: -360 }}
+                            transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
+                          >
+                            <Settings className="h-full w-full" />
+                          </motion.span>
+                        </span>
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                </section>
+
+                {/* Panel 2 — Search results: tutor + course strips */}
+                <section
+                  id="search-results-panel"
+                  className="flex min-h-[calc(100vh-5rem)] snap-start flex-col border-white/10 py-4 lg:w-4/12 lg:min-h-0 lg:border-r"
+                >
+                  <div className="min-h-0 flex-1">
+                    <SearchResultsPanel query={searchQuery} />
+                  </div>
+                </section>
+
+                {/* Panel 3 — Launch: countdown card + join actions */}
+                <aside className="flex flex-col items-center justify-center gap-6 px-6 py-12 lg:w-3/12 lg:overflow-y-auto">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5, duration: 0.6 }}
+                  >
+                    <LaunchCard />
+                  </motion.div>
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.6, duration: 0.6 }}
+                    className="flex w-[300px] flex-col gap-3 sm:w-[360px] md:w-[400px] lg:w-full lg:max-w-[280px]"
                   >
                     <button
-                      onClick={() => setIsHowItWorksOpen(true)}
-                      className="group relative min-w-[140px] overflow-hidden rounded-full bg-white px-6 py-2.5 text-sm font-semibold text-blue-700 shadow-md transition-colors hover:bg-white/90"
+                      onClick={() => setView('register')}
+                      className="w-full rounded-full bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-md transition-colors hover:bg-white/90"
                     >
-                      <span className="block opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                        How It Works
-                      </span>
-                      <span className="absolute inset-0 flex items-center justify-center gap-0.5 transition-opacity duration-300 group-hover:opacity-0">
-                        <motion.span
-                          className="inline-flex h-5 w-5"
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                        >
-                          <Settings className="h-full w-full" />
-                        </motion.span>
-                        <motion.span
-                          className="-ml-1 -mt-2 inline-flex h-3.5 w-3.5"
-                          animate={{ rotate: -360 }}
-                          transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
-                        >
-                          <Settings className="h-full w-full" />
-                        </motion.span>
-                      </span>
+                      JOIN
                     </button>
-                  </motion.div>
-                </motion.div>
-              </section>
-
-              {/* Guaranteed buffer: ensures persistent gap between hero and card */}
-              <div className="min-h-[160px] flex-1" />
-
-              {/* Launch Card — Bottom Right */}
-              <div className="flex flex-shrink-0 justify-end px-6 pb-10">
-                <AnimatePresence>
-                  {!isHowItWorksOpen && (
-                    <motion.div
-                      key="launch-card"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 20 }}
-                      transition={{ delay: 0.5, duration: 0.6 }}
+                    <a
+                      href={`${import.meta.env.VITE_MAIN_APP_URL || ''}/login`}
+                      className="w-full rounded-full border border-white/40 px-6 py-3 text-center text-sm font-semibold text-white transition-colors hover:bg-white/10"
                     >
-                      <LaunchCard />
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      Sign In
+                    </a>
+                  </motion.div>
+                </aside>
               </div>
             </motion.main>
           )}
@@ -407,108 +233,6 @@ export default function App() {
               className="min-h-screen"
             >
               <ProfilePage tutor={userProfile || {}} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* How It Works Modal */}
-        <AnimatePresence>
-          {isHowItWorksOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent px-6"
-              style={{ willChange: 'opacity' }}
-              onClick={() => setIsHowItWorksOpen(false)}
-              onWheel={e => {
-                // Prevent wheel events on the modal backdrop from scrolling the
-                // landing page behind it. The scrollable modal content stops
-                // propagation so it can still scroll.
-                e.preventDefault()
-                e.stopPropagation()
-              }}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
-                className="relative flex max-h-[90vh] min-h-[60vh] w-full max-w-5xl flex-col items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-[rgba(31,41,51,0.60)] p-4 shadow-lg backdrop-blur-xl md:min-h-[70vh] md:p-6"
-                style={{ willChange: 'transform, opacity' }}
-                onClick={e => e.stopPropagation()}
-              >
-                {/* Close button */}
-                <button
-                  onClick={() => setIsHowItWorksOpen(false)}
-                  className="absolute right-4 top-4 inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 transition-all duration-150 hover:bg-white/10 hover:text-white focus:outline-none disabled:pointer-events-none"
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-
-                <div className="flex w-full max-w-5xl flex-1 flex-col overflow-hidden">
-                  {/* Gear animation header */}
-                  <div className="flex flex-col items-center justify-center py-1">
-                    <div className="flex items-center justify-center gap-1">
-                      <motion.span
-                        className="inline-flex h-6 w-6 text-white"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                        style={{ willChange: 'transform' }}
-                      >
-                        <Settings className="h-full w-full" />
-                      </motion.span>
-                      <motion.span
-                        className="-ml-0.5 -mt-1.5 inline-flex h-6 w-6 text-white"
-                        animate={{ rotate: -360 }}
-                        transition={{ duration: 1.33, repeat: Infinity, ease: 'linear' }}
-                        style={{ willChange: 'transform' }}
-                      >
-                        <Settings className="h-full w-full" />
-                      </motion.span>
-                    </div>
-                  </div>
-
-                  {/* Scrollable rows */}
-                  <div
-                    className="scrollbar-hide w-full flex-1 overflow-y-auto px-1 py-1"
-                    style={{ overscrollBehaviorY: 'contain' }}
-                    onWheel={e => e.stopPropagation()}
-                  >
-                    {VISIBLE_HOW_IT_WORKS_VIDEOS.length === 0 &&
-                    VISIBLE_HOW_IT_WORKS_DOCUMENTS.length === 0 ? (
-                      <div className="flex h-40 items-center justify-center px-6 text-center text-sm text-white/70">
-                        Walkthroughs and resources are coming soon.
-                      </div>
-                    ) : (
-                      <>
-                        {VISIBLE_HOW_IT_WORKS_VIDEOS.map(([section, videos], sectionIndex) => (
-                          <div key={section}>
-                            <HowItWorksRow
-                              title={section}
-                              items={videos}
-                              renderItem={video => <HowItWorksVideoCard video={video} />}
-                            />
-                            {(sectionIndex < VISIBLE_HOW_IT_WORKS_VIDEOS.length - 1 ||
-                              VISIBLE_HOW_IT_WORKS_DOCUMENTS.length > 0) && (
-                              <div className="mx-2 my-2 h-px bg-white/20" />
-                            )}
-                          </div>
-                        ))}
-
-                        {VISIBLE_HOW_IT_WORKS_DOCUMENTS.length > 0 && (
-                          <HowItWorksRow
-                            title="Documents"
-                            items={VISIBLE_HOW_IT_WORKS_DOCUMENTS}
-                            renderItem={doc => <HowItWorksDocumentCard doc={doc} />}
-                          />
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
