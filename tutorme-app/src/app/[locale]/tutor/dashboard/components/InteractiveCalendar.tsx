@@ -157,6 +157,10 @@ interface InteractiveCalendarProps {
   /** Controlled view state */
   view?: CalendarView
   onViewChange?: (view: CalendarView) => void
+  /** Fired whenever the visible period changes (nav arrows / Today), with the
+   *  new anchor date. Hosts that fetch month-scoped data (student dashboard)
+   *  use it to refetch; the built-in tutor fetch is unaffected. */
+  onVisibleDateChange?: (date: Date) => void
 }
 
 const generateDemoEvents = (): CalendarEvent[] => {
@@ -386,6 +390,7 @@ export function InteractiveCalendar({
   onTimezoneChange,
   view: controlledView,
   onViewChange,
+  onVisibleDateChange,
 }: InteractiveCalendarProps) {
   const isStudent = mode === 'student'
   const router = useRouter()
@@ -771,19 +776,21 @@ export function InteractiveCalendar({
   }
 
   const navigatePeriod = (direction: number) => {
+    let next: Date
     if (view === 'week') {
-      setCurrentDate(addWeeks(currentDate, direction))
-      return
+      next = addWeeks(currentDate, direction)
+    } else if (view === 'day') {
+      next = addDays(currentDate, direction)
+    } else {
+      next = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1)
     }
-    if (view === 'day') {
-      setCurrentDate(addDays(currentDate, direction))
-      return
-    }
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1))
+    setCurrentDate(next)
+    onVisibleDateChange?.(next)
   }
 
   const goToToday = () => {
     setCurrentDate(new Date())
+    onVisibleDateChange?.(new Date())
   }
 
   const handleDateClick = (date: Date) => {

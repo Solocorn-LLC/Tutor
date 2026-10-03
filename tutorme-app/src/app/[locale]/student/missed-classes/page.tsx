@@ -132,7 +132,7 @@ export default function MissedClassesPage() {
                         <Calendar className="h-3.5 w-3.5" />
                         {formatDate(session.scheduledAt)}
                       </span>
-                      {session.duration && (
+                      {session.duration != null && session.duration > 0 && (
                         <span className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
                           {session.duration} min

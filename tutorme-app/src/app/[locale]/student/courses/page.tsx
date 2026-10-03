@@ -122,7 +122,7 @@ interface SessionItem {
   id: string
   title: string
   scheduledAt: string
-  status: 'scheduled' | 'active' | 'ended' | 'upcoming' | 'opening_soon'
+  status: 'scheduled' | 'active' | 'ended' | 'upcoming' | 'opening_soon' | 'cancelled'
   durationMinutes?: number
   tutorName?: string
   lessonTitle?: string | null
@@ -132,8 +132,13 @@ interface SessionItem {
 function getSessionStatus(scheduledAt: string, existingStatus?: string): SessionItem['status'] {
   const ui = getSessionUiState({ status: existingStatus, scheduledAt })
   if (ui.isUiLive) return 'active'
-  if (existingStatus === 'ended' || existingStatus === 'paused' || existingStatus === 'completed')
-    return 'ended'
+  if (existingStatus === 'ended' || existingStatus === 'paused' || existingStatus === 'completed') {
+    // A future 'ended' session is a tombstone (deliberately cancelled /
+    // rescheduled away), not a finished class — render it as cancelled. Only a
+    // PAST ended session is genuinely over (and replayable).
+    const scheduledMs = scheduledAt ? new Date(scheduledAt).getTime() : 0
+    return scheduledMs > 0 && scheduledMs <= Date.now() ? 'ended' : 'cancelled'
+  }
   return 'upcoming'
 }
 
@@ -147,10 +152,23 @@ function formatCountdown(ms: number): string {
   return `${s}s`
 }
 
+// Enrollment startDate is written two ways: the course-enroll flow sends
+// new Date('YYYY-MM-DD').toISOString() (an exact midnight-UTC instant = plain
+// date semantics), while the subjects flow stamps new Date() (a genuine
+// instant). Midnight-UTC values render as the UTC calendar date so the day
+// never shifts west for viewers behind UTC; genuine instants render locally.
+function formatEnrollmentDate(iso: string): string {
+  const d = new Date(iso)
+  const isUtcMidnight =
+    d.getTime() === Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+  return d.toLocaleDateString(undefined, isUtcMidnight ? { timeZone: 'UTC' } : undefined)
+}
+
 function SessionList({
   sessions,
   sessionsCourseName: _sessionsCourseName,
   sessionsTutorHandle: _sessionsTutorHandle,
+  timeZone,
   showAll,
   onToggleShowAll,
   onEnterSession,
@@ -160,6 +178,8 @@ function SessionList({
   sessions: any[]
   sessionsCourseName: string
   sessionsTutorHandle: string
+  /** Tutor's IANA timezone from the sessions API — session times render in it. */
+  timeZone?: string | null
   showAll: boolean
   onToggleShowAll: () => void
   onEnterSession: (sessionId: string) => void
@@ -179,12 +199,15 @@ function SessionList({
       {displayed.map(session => {
         const scheduledTime = session.scheduledAt ? new Date(session.scheduledAt).getTime() : now
         const status =
-          session.status === 'active' || session.status === 'ended'
+          session.status === 'active' || session.status === 'opening_soon'
             ? session.status
             : getSessionStatus(session.scheduledAt, session.status)
         const diff = scheduledTime - now
         const isPassedSession =
-          status !== 'ended' && status !== 'active' && scheduledTime + 2 * 60 * 60 * 1000 < now
+          status !== 'ended' &&
+          status !== 'active' &&
+          status !== 'cancelled' &&
+          scheduledTime + 2 * 60 * 60 * 1000 < now
         const canEnterLive = status === 'active' || status === 'opening_soon'
 
         const badgeClass =
@@ -192,9 +215,11 @@ function SessionList({
             ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
             : status === 'ended'
               ? 'bg-slate-100 text-slate-600 border-slate-200'
-              : status === 'opening_soon'
-                ? 'bg-amber-100 text-amber-700 border-amber-200'
-                : 'bg-sky-100 text-sky-700 border-sky-200'
+              : status === 'cancelled'
+                ? 'bg-rose-50 text-rose-500 border-rose-200'
+                : status === 'opening_soon'
+                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                  : 'bg-sky-100 text-sky-700 border-sky-200'
 
         return (
           <div
@@ -230,6 +255,7 @@ function SessionList({
                       day: 'numeric',
                       hour: 'numeric',
                       minute: '2-digit',
+                      timeZone: timeZone ?? undefined,
                     })}
                     {session.durationMinutes ? ` · ${session.durationMinutes} min` : ''}
                     {(status === 'upcoming' || status === 'opening_soon') && diff > 0
@@ -250,14 +276,17 @@ function SessionList({
                 onClick={() => onEnterSession(session.id)}
                 variant={canEnterLive ? 'default' : 'outline'}
                 className={canEnterLive ? 'bg-indigo-600 text-white hover:bg-indigo-700' : ''}
+                disabled={status === 'cancelled'}
               >
                 {status === 'active'
                   ? 'Join'
                   : status === 'ended'
                     ? 'Replay'
-                    : canEnterLive
-                      ? 'Enter Session'
-                      : 'Enter'}
+                    : status === 'cancelled'
+                      ? 'Cancelled'
+                      : canEnterLive
+                        ? 'Enter Session'
+                        : 'Enter'}
               </Button>
               {isPassedSession && (
                 <Button
@@ -297,6 +326,7 @@ function CoursePageInner() {
   const [sessionsCourseName, setSessionsCourseName] = useState<string>('')
   const [sessionsTutorHandle, setSessionsTutorHandle] = useState<string>('')
   const [courseSessions, setCourseSessions] = useState<any[]>([])
+  const [sessionsTimeZone, setSessionsTimeZone] = useState<string | null>(null)
   const [isLoadingSessions, setIsLoadingSessions] = useState(false)
   const [sessionLoadError, setSessionLoadError] = useState<string | null>(null)
   const [requestingSessionId, setRequestingSessionId] = useState<string | null>(null)
@@ -479,6 +509,9 @@ function CoursePageInner() {
         if (res.ok) {
           const data = await res.json()
           setCourseSessions(data.sessions || [])
+          // The API returns the tutor's IANA zone — session times render in it
+          // so the student sees the same wall clock the schedule was built in.
+          setSessionsTimeZone(typeof data.timeZone === 'string' ? data.timeZone : null)
         } else {
           const errorData = await res.json().catch(() => ({}))
           console.error('Session load failed:', errorData, res.status)
@@ -552,7 +585,7 @@ function CoursePageInner() {
                 <div className="rounded-lg bg-blue-50 p-4">
                   <p className="text-sm text-blue-700">
                     <span className="font-semibold">Commencement Date:</span>{' '}
-                    {new Date(detailCourse.enrollment.startDate).toLocaleDateString()}
+                    {formatEnrollmentDate(detailCourse.enrollment.startDate)}
                   </p>
                 </div>
               )}
@@ -820,6 +853,7 @@ function CoursePageInner() {
                   sessions={courseSessions}
                   sessionsCourseName={sessionsCourseName}
                   sessionsTutorHandle={sessionsTutorHandle}
+                  timeZone={sessionsTimeZone}
                   showAll={showAllSessions}
                   onToggleShowAll={() => setShowAllSessions(!showAllSessions)}
                   onEnterSession={(sessionId: string) => {
@@ -1117,7 +1151,7 @@ function CourseCard({
               <span className="truncate">
                 Commenced:{' '}
                 <span className="font-medium text-slate-100">
-                  {new Date(course.enrollment.startDate).toLocaleDateString()}
+                  {formatEnrollmentDate(course.enrollment.startDate)}
                 </span>
               </span>
             </div>

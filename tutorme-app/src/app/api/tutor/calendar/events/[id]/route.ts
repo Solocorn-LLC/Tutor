@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
-import { calendarEvent, liveSession } from '@/lib/db/schema'
+import { calendarEvent, liveSession, profile } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
@@ -57,6 +57,15 @@ export const PATCH = withCsrf(
       const { newStartTime, durationMinutes } = parsed.data
       const newStart = new Date(newStartTime)
 
+      // The tutor's profile buffer must apply to every conflict check (same as
+      // api/one-on-one/reschedule): a drag into the buffer zone is a conflict.
+      const [tutorProfile] = await drizzleDb
+        .select({ bufferMinutes: profile.bufferMinutes })
+        .from(profile)
+        .where(eq(profile.userId, tutorId))
+        .limit(1)
+      const bufferMinutes = tutorProfile?.bufferMinutes ?? 0
+
       const [calEvent] = await drizzleDb
         .select()
         .from(calendarEvent)
@@ -88,6 +97,7 @@ export const PATCH = withCsrf(
 
         const sessConflicts = await findConflicts(tutorId, newStart, sessEnd, {
           excludeSessionId: eventId,
+          bufferMinutes,
         })
         if (sessConflicts.length > 0) {
           const alternativeSlots = await findAlternativeSlots(tutorId, newStart, sessDuration, {
@@ -182,6 +192,7 @@ export const PATCH = withCsrf(
       const conflicts = await findConflicts(tutorId, newStart, newEnd, {
         excludeEventId: eventId,
         excludeSessionId: calEvent.externalId ?? undefined,
+        bufferMinutes,
       })
 
       if (conflicts.length > 0) {

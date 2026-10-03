@@ -477,6 +477,16 @@ export function DashboardCalendar({
             onTimezoneChange={setTimezone}
             view={calendarView}
             onViewChange={setCalendarView}
+            onVisibleDateChange={date => {
+              // Refetch the grid's month scope when the visible month actually
+              // changes; day/week navigation inside the same month must not.
+              if (
+                date.getFullYear() !== month.getFullYear() ||
+                date.getMonth() !== month.getMonth()
+              ) {
+                setMonth(date)
+              }
+            }}
           />
         </TabsContent>
 

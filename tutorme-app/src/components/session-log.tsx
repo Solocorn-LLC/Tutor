@@ -140,7 +140,9 @@ export default function SessionLog() {
   const [dialogLoading, setDialogLoading] = useState(false)
 
   useEffect(() => {
-    fetch('/api/tutor/classes', { credentials: 'include' })
+    // includeEnded=1 so the Completed tab has data — without it the API only
+    // returns upcoming sessions and the tab is permanently empty.
+    fetch('/api/tutor/classes?includeEnded=1', { credentials: 'include' })
       .then(res => {
         if (!res.ok) throw new Error('Failed to load sessions')
         return res.json()
