@@ -1,13 +1,6 @@
 import { NextResponse } from 'next/server'
 import { drizzleDb } from '@/lib/db/drizzle'
-import {
-  course,
-  courseLesson,
-  courseEnrollment,
-  courseProgress,
-  payment,
-  courseSchedule,
-} from '@/lib/db/schema'
+import { course, courseLesson, courseEnrollment, courseProgress, payment } from '@/lib/db/schema'
 import { eq, and, inArray, sql } from 'drizzle-orm'
 import { NotFoundError, ValidationError } from '@/lib/api/middleware'
 
@@ -94,6 +87,12 @@ export async function enrollStudentInCourse(
 
   let alreadyEnrolled = false
 
+  // Guard against garbage metadata: an unparseable startDate would insert an
+  // Invalid Date and abort a paid webhook enrollment permanently.
+  const parsedStartDate = startDate ? new Date(startDate) : null
+  const safeStartDate =
+    parsedStartDate && !isNaN(parsedStartDate.getTime()) ? parsedStartDate : new Date()
+
   await drizzleDb.transaction(async tx => {
     // Check for existing enrollment inside the transaction to prevent duplicate inserts
     const [existingEnrollment] = await tx
@@ -112,15 +111,26 @@ export async function enrollStudentInCourse(
     // Atomic capacity increment: only succeeds if enrolledCount < maxStudents.
     // This prevents race conditions where two concurrent requests both pass a
     // pre-transaction capacity check and both enroll, exceeding the limit.
+    let effectiveScheduleId = scheduleId
     if (scheduleId) {
       if (paymentConfirmed) {
-        // Paid student already committed — always grant the seat (never block a paid
-        // enrollment), even if it slightly exceeds the soft cap.
-        await tx.execute(
+        // Paid student already committed — always grant the seat (never block a
+        // paid enrollment), even if it slightly exceeds the soft cap. If the
+        // schedule vanished between payment and webhook (tutor deleted it),
+        // enroll without it rather than dropping a paid student on an FK
+        // violation and leaving the webhook retrying forever.
+        const updated = await tx.execute(
           sql`UPDATE "CourseSchedule"
               SET "enrolledCount" = "enrolledCount" + 1
-              WHERE id = ${scheduleId} AND "courseId" = ${courseId}`
+              WHERE id = ${scheduleId} AND "courseId" = ${courseId}
+              RETURNING id`
         )
+        if (!updated.rows.length) {
+          console.error(
+            `[enroll] paid enrollment: schedule ${scheduleId} of course ${courseId} no longer exists; enrolling without a schedule`
+          )
+          effectiveScheduleId = null
+        }
       } else {
         const updated = await tx.execute(
           sql`UPDATE "CourseSchedule"
@@ -140,8 +150,8 @@ export async function enrollStudentInCourse(
       enrollmentId,
       studentId,
       courseId,
-      scheduleId: scheduleId || undefined,
-      startDate: startDate ? new Date(startDate) : new Date(),
+      scheduleId: effectiveScheduleId || undefined,
+      startDate: safeStartDate,
       enrollmentSource: 'browse',
     })
 

@@ -3,7 +3,8 @@
  * GET: List all schedules for a course
  * POST: Create a new schedule
  * PUT: Update a schedule
- * DELETE: Remove a schedule (only if no enrollments)
+ * DELETE: Remove a schedule. Students enrolled in it are refunded
+ * (pro-rated) and unenrolled; in-flight payments for it are cancelled.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -13,6 +14,10 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { courseSchedule, course, calendarAvailability, courseVariant } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { notifyStudentsOfScheduleChange } from '@/lib/notifications/reschedule'
+import {
+  handleScheduleDeletion,
+  type ScheduleDeletionRefundResult,
+} from '@/lib/payments/refund-schedule-deletion'
 import {
   materializeScheduleSessions,
   clearFutureScheduleSessions,
@@ -471,12 +476,22 @@ export const DELETE = withCsrf(
           return NextResponse.json({ error: 'Schedule not found' }, { status: 404 })
         }
 
-        if (scheduleRow.enrolledCount > 0) {
-          return NextResponse.json(
-            { error: 'Cannot delete schedule with enrolled students' },
-            { status: 409 }
-          )
-        }
+        // Refund + unenroll affected students BEFORE deleting the row — the
+        // refund math and the seat release read the row. This runs even when
+        // enrolledCount is 0: a student who paid but hasn't been enrolled by
+        // the webhook yet has no seat counted, and their in-flight payment is
+        // cancelled here so the webhook never retries a failing enrollment.
+        const [courseRow] = await drizzleDb
+          .select({ name: course.name })
+          .from(course)
+          .where(eq(course.courseId, courseId))
+          .limit(1)
+        const deletionResult: ScheduleDeletionRefundResult = await handleScheduleDeletion({
+          courseId,
+          scheduleId,
+          courseName: courseRow?.name ?? courseId,
+          tutorId: userId,
+        })
 
         // Retire this schedule's upcoming sessions so they leave the calendar too
         // (not just the pattern row). Best-effort.
@@ -495,7 +510,7 @@ export const DELETE = withCsrf(
             and(eq(courseSchedule.scheduleId, scheduleId), eq(courseSchedule.courseId, courseId))
           )
 
-        return NextResponse.json({ success: true })
+        return NextResponse.json({ success: true, ...deletionResult })
       } catch (error: any) {
         console.error('[DELETE /api/tutor/courses/[id]/schedules] Error:', error)
         return NextResponse.json(
