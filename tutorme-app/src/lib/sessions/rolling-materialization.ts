@@ -47,6 +47,7 @@ import {
 } from '@/lib/db/schema'
 import {
   clearStaleScheduleSessions,
+  clampWeeksToSchedule,
   generateScheduleSessionDates,
   materializeScheduleSessions,
   type ScheduleSlotInput,
@@ -225,8 +226,10 @@ export async function runRollingScheduleMaterialization(
       // time, so courses published months ago would silently stop growing new
       // sessions. Generation yields at most weeksToSchedule occurrences per
       // slot and the duplicate guard keeps the live total at that ceiling, so
-      // the window slides forward without widening.
-      const weeksToSchedule = row.weeksToSchedule ?? 8
+      // the window slides forward without widening. Clamp like every writer —
+      // a raw out-of-range DB value would otherwise make this unattended job
+      // generate that many weeks of rows in one run.
+      const weeksToSchedule = clampWeeksToSchedule(row.weeksToSchedule)
       const referenceNowMs = opts.now?.getTime() ?? Date.now()
       const horizonEnd = new Date(referenceNowMs + weeksToSchedule * MS_PER_WEEK)
 

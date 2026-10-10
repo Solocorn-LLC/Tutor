@@ -256,7 +256,12 @@ export const GET = withAuth(
       const scheduleKey = schedId ? `${row.courseId}:${schedId}` : null
       const scheduleScopedCount = scheduleKey ? sessionCountBySchedule.get(scheduleKey) : undefined
       let sessionCount = scheduleScopedCount ?? sessionCountByCourse.get(row.courseId) ?? 0
-      if (sessionCount === 0) {
+      // Synthetic slots x weeks fallback ONLY for enrollments without a chosen
+      // schedule (pre-materialization). A chosen schedule's real count is
+      // authoritative even when it is 0 — otherwise sessions moved away by
+      // consent-reschedules (scheduleId nulled) would make the card report
+      // phantom remaining sessions and the course could never complete.
+      if (sessionCount === 0 && !schedId) {
         const slots = Array.isArray(chosen?.schedule)
           ? chosen!.schedule
           : Array.isArray(row.courseSchedule)
