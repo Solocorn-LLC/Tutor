@@ -10,11 +10,13 @@ import {
   oneOnOneBookingRequest,
   calendarAvailability,
   calendarException,
+  profile,
 } from '@/lib/db/schema'
 import { eq, and, or, gte, lte, lt, gt, isNull, inArray, ne } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import type * as schema from '@/lib/db/schema'
-import { bookingInstants } from '@/lib/one-on-one/time'
+import { bookingInstants, slotInstants } from '@/lib/one-on-one/time'
+import { formatInZone, zonedDateParts, zonedWallClockToUtc, zonedWeekday } from '@/lib/time/tz'
 
 export interface ConflictResult {
   type: 'live_session' | 'calendar_event' | 'one_on_one'
@@ -186,6 +188,10 @@ export async function findConflicts(
 /**
  * Find alternative time slots for a given duration, respecting tutor availability
  * and avoiding all conflicts (live sessions, calendar events, one-on-ones).
+ *
+ * Everything is computed in the TUTOR's timezone (per availability-row zone,
+ * profile timezone as fallback) — the previous server-local/UTC mix suggested
+ * times in the wrong frame on any host whose zone isn't the tutor's.
  */
 export async function findAlternativeSlots(
   tutorId: string,
@@ -209,120 +215,234 @@ export async function findAlternativeSlots(
     excludeOneOnOneId,
   } = options
 
-  const suggestions: AlternativeSlot[] = []
-  const durationMs = durationMinutes * 60000
+  const [tutorProfile] = await drizzleDb
+    .select({ timezone: profile.timezone })
+    .from(profile)
+    .where(eq(profile.userId, tutorId))
+    .limit(1)
+  const timeZone = tutorProfile?.timezone ?? 'UTC'
 
-  const searchStart = new Date(start)
-  searchStart.setDate(searchStart.getDate() - 1)
-  searchStart.setHours(0, 0, 0, 0)
-
-  const searchEnd = new Date(searchStart)
-  searchEnd.setDate(searchEnd.getDate() + searchDays)
-
-  // Get tutor availability
   const availabilityRows = await drizzleDb
-    .select()
+    .select({
+      dayOfWeek: calendarAvailability.dayOfWeek,
+      startTime: calendarAvailability.startTime,
+      endTime: calendarAvailability.endTime,
+      timezone: calendarAvailability.timezone,
+    })
     .from(calendarAvailability)
     .where(
       and(eq(calendarAvailability.tutorId, tutorId), eq(calendarAvailability.isAvailable, true))
     )
 
-  // Get exceptions in range
-  const exceptions = await drizzleDb
-    .select()
+  // Exceptions are stored as UTC midnights; fetch a window widened ±2 days
+  // around the search range so zone-local date matching can't miss DST edges.
+  const DAY_MS = 86_400_000
+  const windowStart = new Date(start.getTime() - 3 * DAY_MS)
+  const windowEnd = new Date(start.getTime() + (searchDays + 2) * DAY_MS)
+  const exceptionRows = await drizzleDb
+    .select({
+      date: calendarException.date,
+      isAvailable: calendarException.isAvailable,
+      startTime: calendarException.startTime,
+      endTime: calendarException.endTime,
+    })
     .from(calendarException)
     .where(
       and(
         eq(calendarException.tutorId, tutorId),
-        gte(calendarException.date, searchStart),
-        lte(calendarException.date, searchEnd)
+        gte(calendarException.date, windowStart),
+        lte(calendarException.date, windowEnd)
       )
     )
 
-  const cursor = new Date(searchStart)
-
-  while (cursor <= searchEnd && suggestions.length < maxSuggestions) {
-    const dateStr = cursor.toISOString().split('T')[0]
-    const dayOfWeek = cursor.getDay()
-
-    if (sameDayOfWeek && dayOfWeek !== start.getDay()) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
+  return suggestAlternativeSlots(
+    {
+      availability: availabilityRows,
+      exceptions: exceptionRows,
+      start,
+      durationMinutes,
+      maxSuggestions,
+      searchDays,
+      sameDayOfWeek,
+      timeZone,
+      now: new Date(),
+    },
+    async (candidateStart, candidateEnd) => {
+      const conflicts = await findConflicts(tutorId, candidateStart, candidateEnd, {
+        excludeEventId,
+        excludeSessionId,
+        excludeOneOnOneId,
+      })
+      if (conflicts.length === 0) return null
+      return conflicts.reduce(
+        (min, c) => (c.endTime.getTime() < min.getTime() ? c.endTime : min),
+        candidateEnd
+      )
     }
+  )
+}
 
-    // Check day-level exception
-    const dayException = exceptions.find(
-      e => e.date.toISOString().split('T')[0] === dateStr && !e.isAvailable
-    )
-    if (dayException) {
-      cursor.setDate(cursor.getDate() + 1)
-      continue
-    }
+export interface SuggestAvailabilityRow {
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  timezone?: string | null
+}
 
-    // Get availability for this day
-    const dayAvailability = availabilityRows.filter(a => a.dayOfWeek === dayOfWeek)
+export interface SuggestExceptionRow {
+  date: Date
+  isAvailable: boolean
+  startTime: string | null
+  endTime: string | null
+}
+
+export interface SuggestAlternativeSlotsCore {
+  /** Weekly availability blocks, wall-clock times in each row's own timezone. */
+  availability: SuggestAvailabilityRow[]
+  /** Date-specific exceptions (UTC-midnight dates). */
+  exceptions: SuggestExceptionRow[]
+  /** The original slot's UTC instant (used for the sameDayOfWeek filter and skip). */
+  start: Date
+  durationMinutes: number
+  maxSuggestions: number
+  searchDays: number
+  sameDayOfWeek: boolean
+  /** Fallback timezone for rows/blocks without their own zone. */
+  timeZone: string
+  now: Date
+}
+
+function hhmmOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
+  return aStart < bEnd && aEnd > bStart
+}
+
+/**
+ * Pure candidate-slot search, pinned to ONE frame: the tutor's timezone.
+ * Mirrors the day-walk of generateTutorAvailableSlots (tutor-available-slots.ts):
+ * UTC cursor in 24h steps, each day resolved to the tutor's wall calendar via
+ * the tz helpers; availability HH:MM strings are interpreted with slotInstants
+ * (DST-aware), so results are identical regardless of the host's timezone.
+ *
+ * `conflictEnd` must return the earliest conflicting commitment's end instant,
+ * or null when the candidate is free. Returns tutor-local wall-clock strings.
+ */
+export async function suggestAlternativeSlots(
+  core: SuggestAlternativeSlotsCore,
+  conflictEnd: (start: Date, end: Date) => Promise<Date | null>
+): Promise<AlternativeSlot[]> {
+  const {
+    availability,
+    exceptions,
+    start,
+    durationMinutes,
+    maxSuggestions,
+    searchDays,
+    sameDayOfWeek,
+    timeZone,
+    now,
+  } = core
+  const suggestions: AlternativeSlot[] = []
+  const durationMs = durationMinutes * 60000
+  const DAY_MS = 86_400_000
+
+  // Search starts the day before the original slot, at tutor-local midnight.
+  const firstDay = zonedDateParts(new Date(start.getTime() - DAY_MS), timeZone)
+  const searchStart = zonedWallClockToUtc(
+    firstDay.year,
+    firstDay.month,
+    firstDay.day,
+    0,
+    0,
+    timeZone
+  )
+  const searchEnd = new Date(searchStart.getTime() + searchDays * DAY_MS)
+  const targetWeekday = zonedWeekday(start, timeZone)
+
+  for (
+    let cursor = searchStart;
+    cursor <= searchEnd;
+    cursor = new Date(cursor.getTime() + DAY_MS)
+  ) {
+    if (suggestions.length >= maxSuggestions) break
+
+    const dateStr = formatInZone(cursor, timeZone).date
+    const dayOfWeek = zonedWeekday(cursor, timeZone)
+
+    if (sameDayOfWeek && dayOfWeek !== targetWeekday) continue
+
+    const dayExceptions = exceptions.filter(e => formatInZone(e.date, timeZone).date === dateStr)
+
+    // Whole-day block exception
+    if (dayExceptions.some(e => !e.isAvailable && !e.startTime && !e.endTime)) continue
+
+    const dayAvailability = availability.filter(a => a.dayOfWeek === dayOfWeek)
 
     for (const slot of dayAvailability) {
       if (suggestions.length >= maxSuggestions) break
 
-      const slotStart = new Date(`${dateStr}T${slot.startTime}`)
-      const slotEnd = new Date(`${dateStr}T${slot.endTime}`)
+      // The block's wall-clock times live in its own zone; output strings are
+      // formatted in that same zone so they mean what the tutor reads.
+      const blockZone = slot.timezone ?? timeZone
+      const { start: slotStartUtc, end: slotEndUtc } = slotInstants(
+        dateStr,
+        slot.startTime,
+        slot.endTime,
+        blockZone
+      )
 
-      // Skip past slots
-      if (slotEnd <= new Date()) continue
+      // Skip blocks fully in the past
+      if (slotEndUtc <= now) continue
 
-      // Check time-level exception
-      const timeException = exceptions.find(e => {
-        if (e.date.toISOString().split('T')[0] !== dateStr) return false
-        if (!e.startTime || !e.endTime) return false
-        const exStart = new Date(`${dateStr}T${e.startTime}`)
-        const exEnd = new Date(`${dateStr}T${e.endTime}`)
-        return slotStart < exEnd && slotEnd > exStart
-      })
-      if (timeException) continue
-
-      // Try to fit the requested duration within this availability slot
-      let tryStart = new Date(slotStart)
-      while (tryStart.getTime() + durationMs <= slotEnd.getTime()) {
+      let tryStart = new Date(slotStartUtc)
+      while (tryStart.getTime() + durationMs <= slotEndUtc.getTime()) {
         if (suggestions.length >= maxSuggestions) break
 
         const tryEnd = new Date(tryStart.getTime() + durationMs)
+
+        // Never suggest a slot that has already passed
+        if (tryEnd <= now) {
+          tryStart = new Date(tryStart.getTime() + 30 * 60000)
+          continue
+        }
 
         // Skip the original time
         if (
           Math.abs(tryStart.getTime() - start.getTime()) < 60000 &&
           Math.abs(tryEnd.getTime() - (start.getTime() + durationMs)) < 60000
         ) {
-          tryStart.setMinutes(tryStart.getMinutes() + 30)
+          tryStart = new Date(tryStart.getTime() + 30 * 60000)
           continue
         }
 
-        // Check for conflicts
-        const conflicts = await findConflicts(tutorId, tryStart, tryEnd, {
-          excludeEventId,
-          excludeSessionId,
-          excludeOneOnOneId,
-        })
+        // Time-level block exception (wall-clock comparison in the block zone)
+        const tryStartHhmm = formatInZone(tryStart, blockZone).time
+        const tryEndHhmm = formatInZone(tryEnd, blockZone).time
+        const timeBlocked = dayExceptions.some(
+          e =>
+            !e.isAvailable &&
+            !!e.startTime &&
+            !!e.endTime &&
+            hhmmOverlap(tryStartHhmm, tryEndHhmm, e.startTime, e.endTime)
+        )
+        if (timeBlocked) {
+          tryStart = new Date(tryStart.getTime() + 30 * 60000)
+          continue
+        }
 
-        if (conflicts.length === 0) {
+        const conflictEndAt = await conflictEnd(tryStart, tryEnd)
+        if (conflictEndAt === null) {
           suggestions.push({
-            date: dateStr,
-            startTime: tryStart.toTimeString().slice(0, 5),
-            endTime: tryEnd.toTimeString().slice(0, 5),
+            date: formatInZone(tryStart, blockZone).date,
+            startTime: formatInZone(tryStart, blockZone).time,
+            endTime: formatInZone(tryEnd, blockZone).time,
           })
           break
         }
 
-        // Advance past the conflict
-        const earliestConflictEnd = conflicts.reduce(
-          (min, c) => (c.endTime.getTime() < min.getTime() ? c.endTime : min),
-          tryEnd
-        )
-        tryStart = new Date(earliestConflictEnd)
+        // Advance past the conflict, always making forward progress
+        tryStart = new Date(Math.max(conflictEndAt.getTime(), tryStart.getTime() + 30 * 60000))
       }
     }
-
-    cursor.setDate(cursor.getDate() + 1)
   }
 
   return suggestions

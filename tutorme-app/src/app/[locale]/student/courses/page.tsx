@@ -54,15 +54,6 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { CountryFlag } from '@/components/country-flag'
 
-function stringToColor(str: string): string {
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  const c = (hash & 0x00ffffff).toString(16).toUpperCase()
-  return '#' + '00000'.substring(0, 6 - c.length) + c
-}
-
 interface Course {
   id: string
   name: string
@@ -1089,12 +1080,6 @@ function CourseCard({
                 : course.tutorImage
                   ? resolvePublicUrl(course.tutorImage)
                   : null
-              const initials = course.tutorHandle
-                ? course.tutorHandle.slice(1, 3).toUpperCase()
-                : course.tutorName
-                  ? course.tutorName.slice(0, 2).toUpperCase()
-                  : 'T'
-              const bgColor = stringToColor(course.tutorHandle || course.tutorName || 'tutor')
               return (
                 <div className="relative h-16 w-16">
                   {tutorImageUrl && (
@@ -1110,12 +1095,11 @@ function CourseCard({
                   )}
                   <div
                     className={cn(
-                      'flex h-full w-full items-center justify-center rounded-xl border border-[rgba(255,255,255,0.15)]',
+                      'flex h-full w-full items-center justify-center rounded-xl border border-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.1)]',
                       tutorImageUrl ? 'hidden' : 'flex'
                     )}
-                    style={{ backgroundColor: bgColor }}
                   >
-                    <span className="text-sm font-bold text-white">{initials}</span>
+                    <User className="h-6 w-6 text-slate-300" />
                   </div>
                 </div>
               )

@@ -274,8 +274,13 @@ export async function refreshKeptSessionAttributes(
   const patch: Partial<typeof liveSession.$inferInsert> = {}
   if (row.title !== attrs.title) patch.title = attrs.title
   if (row.category !== attrs.category) patch.category = attrs.category
+  // Patch description only when the caller provides one — a caller that omits
+  // it (e.g. the rolling materialization job) must not blank existing text or
+  // tombstone markers on kept sessions.
   const newDesc = attrs.description ?? null
-  if ((row.description ?? null) !== newDesc) patch.description = newDesc
+  if (attrs.description !== undefined && (row.description ?? null) !== newDesc) {
+    patch.description = newDesc
+  }
   if ((row.maxStudents ?? null) !== attrs.maxStudents) patch.maxStudents = attrs.maxStudents
 
   if (Object.keys(patch).length === 0) return false
