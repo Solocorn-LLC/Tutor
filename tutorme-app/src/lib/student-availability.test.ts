@@ -34,11 +34,27 @@ describe('slotOverlapsBlockedHours — parent-blocked hours', () => {
 })
 
 describe('slotOverlapsBlockedHours — invalid ranges are treated as unbookable', () => {
-  it('rejects an end <= start', () => {
+  it('rejects a zero-length range', () => {
     expect(slotOverlapsBlockedHours(new Set(), MON, '15:00', '15:00')).toBe(true)
-    expect(slotOverlapsBlockedHours(new Set(), MON, '16:00', '15:00')).toBe(true)
   })
   it('rejects an unparseable time', () => {
     expect(slotOverlapsBlockedHours(new Set(), MON, 'oops', '15:00')).toBe(true)
+  })
+})
+
+describe('slotOverlapsBlockedHours — overnight slots cross midnight', () => {
+  const blocked = new Set(['2-00:00']) // Tuesday 00:00–01:00 blocked
+  const MON_EVE = '2026-06-15' // Monday evening
+
+  it('checks the following weekday past midnight', () => {
+    // Mon 23:00 → Tue 01:00 overlaps Tuesday's blocked hour.
+    expect(slotOverlapsBlockedHours(blocked, MON_EVE, '23:00', '01:00')).toBe(true)
+    // Mon 22:00 → Mon 23:00 stays on Monday — untouched by the Tuesday block.
+    expect(slotOverlapsBlockedHours(blocked, MON_EVE, '22:00', '23:00')).toBe(false)
+  })
+
+  it('treats an inverted range as overnight (consistent with slotInstants)', () => {
+    expect(slotOverlapsBlockedHours(new Set(), MON_EVE, '16:00', '15:00')).toBe(false)
+    expect(slotOverlapsBlockedHours(blocked, MON_EVE, '23:30', '00:30')).toBe(true)
   })
 })
