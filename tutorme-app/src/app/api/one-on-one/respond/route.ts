@@ -146,6 +146,14 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
           req.timezone
         )
 
+        if (eventStart.getTime() <= Date.now()) {
+          const which = isSeries ? ` for the ${slotDate} session` : ''
+          return NextResponse.json(
+            { error: `That time${which} is in the past. Accept a future slot instead.` },
+            { status: 400 }
+          )
+        }
+
         // Unified conflict detector, expanded by the tutor's buffer. Earlier
         // siblings aren't yet persisted, so weeks in the same series don't
         // false-conflict with each other (they're on different dates anyway).

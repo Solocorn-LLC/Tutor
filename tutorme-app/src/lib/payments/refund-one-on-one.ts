@@ -1,10 +1,14 @@
 /**
  * Automated refund for a cancelled, paid 1-on-1 booking.
  *
- * Policy: a cancellation is refundable at any time, minus a fixed 15% fee (the
- * student receives 85% of what they paid; the platform/tutor keeps 15%). The
- * refund is issued through the SAME gateway the student paid with, recorded in
- * the `refund` table, and flips the `payment` to REFUNDED on success.
+ * Policy: refunds are PRORATED by sessions delivered — the student gets back
+ * (undelivered sessions ÷ total sessions) × what they paid. A session counts as
+ * delivered once its scheduled start time has passed. There is no cancellation
+ * fee, and the policy is the same whether the student or the tutor cancels. The
+ * caller computes the refundable fraction and passes it via `options`.
+ *
+ * The refund is issued through the SAME gateway the student paid with, recorded
+ * in the `refund` table, and flips the `payment` to REFUNDED on success.
  */
 
 import { and, eq, sql } from 'drizzle-orm'
@@ -13,30 +17,40 @@ import { drizzleDb } from '@/lib/db/drizzle'
 import { payment, refund } from '@/lib/db/schema'
 import { getPaymentGateway, type GatewayName } from './factory'
 
-/** Fee retained on any 1-on-1 cancellation refund. */
-export const ONE_ON_ONE_CANCELLATION_FEE_RATE = 0.15
-
 export interface RefundOutcome {
   refunded: boolean
-  /** Amount returned to the student (paid − 15%). */
+  /** Amount returned to the student (paid × refundableFraction). */
   amount?: number
-  /** Fee retained (15% of what was paid). */
+  /** Portion of the payment retained (paid − amount). */
   fee?: number
   currency?: string
   error?: string
 }
 
+export interface OneOnOneRefundOptions {
+  /**
+   * Portion of the payment to return, 0–1. Defaults to 1 (full refund), e.g. for
+   * a hold that expired before any session happened.
+   */
+  refundableFraction?: number
+}
+
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-/** Split a paid amount into the 85% refund and the 15% fee. */
-export function computeOneOnOneRefund(paidAmount: number): { amount: number; fee: number } {
-  const fee = round2(paidAmount * ONE_ON_ONE_CANCELLATION_FEE_RATE)
-  return { amount: round2(paidAmount - fee), fee }
+/** Split a paid amount into the refunded portion and the retained remainder. */
+export function computeOneOnOneRefund(
+  paidAmount: number,
+  refundableFraction = 1
+): { amount: number; fee: number } {
+  const clamped = Math.min(1, Math.max(0, refundableFraction))
+  const amount = round2(paidAmount * clamped)
+  return { amount, fee: round2(paidAmount - amount) }
 }
 
 export async function refundPaidOneOnOne(
   requestId: string,
-  reason?: string
+  reason?: string,
+  options: OneOnOneRefundOptions = {}
 ): Promise<RefundOutcome> {
   const [pay] = await drizzleDb
     .select()
@@ -54,12 +68,20 @@ export async function refundPaidOneOnOne(
     return { refunded: false, error: `Automated refunds aren't supported for ${pay.gateway}.` }
   }
 
-  const { amount, fee } = computeOneOnOneRefund(pay.amount)
+  const { amount, fee } = computeOneOnOneRefund(pay.amount, options.refundableFraction)
+
+  // Airwallex refunds require the payment_attempt_id, not the payment-intent id
+  // stored in gatewayPaymentId (see api/payments/refund/route.ts).
+  const metadata = pay.metadata as { payment_attempt_id?: string } | null
+  const refundReference =
+    pay.gateway === 'AIRWALLEX' && metadata?.payment_attempt_id
+      ? metadata.payment_attempt_id
+      : pay.gatewayPaymentId
 
   let result: { refundId: string; status: string; amountRefunded?: number; error?: string }
   try {
     result = await getPaymentGateway(pay.gateway as GatewayName).refundPayment(
-      pay.gatewayPaymentId,
+      refundReference,
       amount
     )
   } catch (err) {
@@ -75,7 +97,7 @@ export async function refundPaidOneOnOne(
     refundId: nanoid(),
     paymentId: pay.paymentId,
     amount,
-    reason: reason ?? '1-on-1 cancellation (15% fee retained)',
+    reason: reason ?? '1-on-1 cancellation (prorated refund)',
     status: ok ? 'COMPLETED' : 'FAILED',
     gatewayRefundId: result.refundId || null,
     processedAt: ok ? new Date() : null,
