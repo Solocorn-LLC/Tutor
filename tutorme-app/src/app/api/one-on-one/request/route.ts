@@ -151,6 +151,15 @@ export const POST = withCsrf(
         const which = isSeriesRequest ? `The ${slot.date} session in your series` : 'That time'
         throw new ValidationError(`${which} is in the past. Please pick a future time.`)
       }
+      // The slot must run for the requested duration — cost is quoted from
+      // `duration`, so a mismatch would bill the wrong amount.
+      const slotMinutes = (slotEnd.getTime() - slotStart.getTime()) / 60000
+      if (Math.abs(slotMinutes - validated.duration) > 0.5) {
+        const which = isSeriesRequest ? `The ${slot.date} session in your series` : 'That time'
+        throw new ValidationError(
+          `${which} runs ${Math.round(slotMinutes)} minutes, but you requested a ${validated.duration}-minute session. Please make the times match.`
+        )
+      }
       const conflicts = await findConflicts(validated.tutorId, slotStart, slotEnd, {
         bufferMinutes: tutorBuffer,
       })

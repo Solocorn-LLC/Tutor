@@ -261,6 +261,25 @@ export const POST = withCsrf(
         throw new ValidationError('Invalid payment amount')
       }
 
+      // The payment metadata must key a series to its HEAD request: the cancel
+      // refund and webhook lookups resolve the single series payment via the
+      // head's requestId, so keying it to whichever session initiated checkout
+      // would leave those lookups empty.
+      let paymentRequestId = oneOnOneRequestId
+      if (seriesId) {
+        const [head] = await drizzleDb
+          .select({ requestId: oneOnOneBookingRequest.requestId })
+          .from(oneOnOneBookingRequest)
+          .where(
+            and(
+              eq(oneOnOneBookingRequest.seriesId, seriesId),
+              eq(oneOnOneBookingRequest.seriesIndex, 0)
+            )
+          )
+          .limit(1)
+        if (head) paymentRequestId = head.requestId
+      }
+
       const currency = requestRow.tutorCurrency || 'USD'
 
       const [payerUser] = await drizzleDb
@@ -314,7 +333,7 @@ export const POST = withCsrf(
         description: '1-on-1 tutoring session',
         metadata: {
           type: 'one-on-one',
-          requestId: oneOnOneRequestId,
+          requestId: paymentRequestId,
           seriesId: seriesId ?? undefined,
           tutorId: requestRow.request.tutorId,
           studentId: payerStudentId,
@@ -322,10 +341,10 @@ export const POST = withCsrf(
           payerRole: session.user.role,
         },
         successUrl: `${baseUrl}/payment/success?type=one-on-one&requestId=${encodeURIComponent(
-          oneOnOneRequestId
+          paymentRequestId
         )}`,
         cancelUrl: `${baseUrl}/payment/cancel?type=one-on-one&requestId=${encodeURIComponent(
-          oneOnOneRequestId
+          paymentRequestId
         )}`,
       })
 
@@ -343,7 +362,7 @@ export const POST = withCsrf(
           gatewayCheckoutUrl: paymentResponse.checkoutUrl,
           metadata: {
             type: 'one-on-one',
-            requestId: oneOnOneRequestId,
+            requestId: paymentRequestId,
             seriesId: seriesId ?? undefined,
             tutorId: requestRow.request.tutorId,
             studentId: payerStudentId,

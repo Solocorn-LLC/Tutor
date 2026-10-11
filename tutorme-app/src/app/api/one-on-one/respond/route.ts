@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 import { isSlotWithinTutorAvailability } from '@/lib/schedule/tutor-available-slots'
-import { slotInstants } from '@/lib/one-on-one/time'
+import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 
@@ -96,7 +96,13 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
       // Resolve + validate EVERY session up front (availability + conflicts) with
       // no writes, so a series is accepted all-or-nothing. A lone request may pick
       // a specific time via selectedSlot; series sessions use their stored times.
-      const prepared: { req: (typeof siblings)[number]; eventStart: Date; eventEnd: Date }[] = []
+      const prepared: {
+        req: (typeof siblings)[number]
+        eventStart: Date
+        eventEnd: Date
+        useSelected: boolean
+        selectedSlot?: typeof validated.selectedSlot & object
+      }[] = []
       for (const req of siblings) {
         const useSelected = !isSeries && validated.selectedSlot
         const slotDate = useSelected
@@ -154,6 +160,18 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
           )
         }
 
+        // The selected slot must run for the requested duration — the cost was
+        // quoted from it, so a shorter/longer slot would bill the wrong amount.
+        const slotMinutes = (eventEnd.getTime() - eventStart.getTime()) / 60000
+        if (useSelected && Math.abs(slotMinutes - (req.durationMinutes || 60)) > 0.5) {
+          return NextResponse.json(
+            {
+              error: `The selected slot runs ${Math.round(slotMinutes)} minutes, but the request is for ${req.durationMinutes} minutes. Accept the proposed time instead.`,
+            },
+            { status: 400 }
+          )
+        }
+
         // Unified conflict detector, expanded by the tutor's buffer. Earlier
         // siblings aren't yet persisted, so weeks in the same series don't
         // false-conflict with each other (they're on different dates anyway).
@@ -188,7 +206,13 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
           )
         }
 
-        prepared.push({ req, eventStart, eventEnd })
+        prepared.push({
+          req,
+          eventStart,
+          eventEnd,
+          useSelected: !!useSelected,
+          selectedSlot: useSelected ? validated.selectedSlot : undefined,
+        })
       }
 
       // Create the Daily.co rooms up front (external calls, kept out of the tx).
@@ -293,6 +317,17 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
                 tutorResponseAt: new Date(),
                 paymentDueAt: isFree ? null : new Date(Date.now() + 48 * 60 * 60 * 1000),
                 calendarEventId: newEvent!.eventId,
+                // When the tutor accepted via selectedSlot, persist the agreed
+                // time on the booking row — otherwise the row still shows the
+                // student's original proposal and every later lookup (payment,
+                // reschedule, prorated-refund math) disagrees with the event.
+                ...(p.useSelected
+                  ? {
+                      requestedDate: requestedDateFromString(p.selectedSlot!.date),
+                      startTime: p.selectedSlot!.startTime,
+                      endTime: p.selectedSlot!.endTime,
+                    }
+                  : {}),
                 updatedAt: new Date(),
               })
               .where(eq(oneOnOneBookingRequest.requestId, p.req.requestId))
@@ -360,9 +395,12 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
         sessionCount: count,
       })
     } else {
-      // Reject every PENDING session in the series (or the single request).
+      // Reject every PENDING session in the series (or the single request). The
+      // update is conditional on still-PENDING status and the result is checked:
+      // if a concurrent accept committed first, the rows no longer match and the
+      // tutor gets a 409 instead of overwriting an ACCEPTED/PAID booking.
       const ids = siblings.map(s => s.requestId)
-      const updatedRequest = await drizzleDb
+      const rejected = await drizzleDb
         .update(oneOnOneBookingRequest)
         .set({
           status: 'REJECTED',
@@ -370,8 +408,20 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
           tutorResponseAt: new Date(),
           updatedAt: new Date(),
         })
-        .where(inArray(oneOnOneBookingRequest.requestId, ids))
+        .where(
+          and(
+            inArray(oneOnOneBookingRequest.requestId, ids),
+            inArray(oneOnOneBookingRequest.status, ['PENDING'])
+          )
+        )
         .returning(CORE_BOOKING_RETURNING)
+
+      if (!rejected.some(r => r.requestId === existingRequest.requestId)) {
+        return NextResponse.json(
+          { error: 'This request was just responded to by another action. Refresh and try again.' },
+          { status: 409 }
+        )
+      }
 
       // Send notification to student that the request was rejected (once).
       notify({
@@ -389,8 +439,7 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
 
       return NextResponse.json({
         success: true,
-        request:
-          updatedRequest.find(r => r.requestId === existingRequest.requestId) ?? updatedRequest[0],
+        request: rejected.find(r => r.requestId === existingRequest.requestId) ?? rejected[0],
       })
     }
   } catch (error) {
