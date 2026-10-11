@@ -147,6 +147,10 @@ export const POST = withCsrf(
         slot.endTime,
         tutorTimezone
       )
+      if (slotStart.getTime() <= Date.now()) {
+        const which = isSeriesRequest ? `The ${slot.date} session in your series` : 'That time'
+        throw new ValidationError(`${which} is in the past. Please pick a future time.`)
+      }
       const conflicts = await findConflicts(validated.tutorId, slotStart, slotEnd, {
         bufferMinutes: tutorBuffer,
       })

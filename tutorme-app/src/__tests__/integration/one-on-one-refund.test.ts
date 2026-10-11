@@ -2,8 +2,9 @@
  * Integration test: series refund is a single, correct refund.
  *
  * A recurring series is paid in ONE transaction (amount = Σ costPerSession) keyed
- * to the head request. Cancelling refunds that one payment once — 85% (a 15% fee
- * retained) — and a second attempt refunds nothing (no over-refund).
+ * to the head request. Cancelling refunds that one payment once — prorated to the
+ * undelivered sessions (here 1 of 3 sessions delivered → 2/3 back) — and a second
+ * attempt refunds nothing (no over-refund).
  *
  * The payment gateway is mocked; the DB is real. Requires DATABASE_URL (setup.ts).
  */
@@ -67,10 +68,13 @@ describe('series refund', () => {
     await drizzleDb.delete(user).where(inArray(user.userId, userIds))
   })
 
-  it('refunds the whole series once (85%), then nothing on a repeat', async () => {
-    const expected = computeOneOnOneRefund(SERIES_TOTAL) // { amount: 114.75, fee: 20.25 }
+  it('refunds the whole series once (prorated), then nothing on a repeat', async () => {
+    // 1 of 3 sessions delivered → refundableFraction 2/3.
+    const expected = computeOneOnOneRefund(SERIES_TOTAL, 2 / 3) // { amount: 90, fee: 45 }
 
-    const first = await refundPaidOneOnOne(headRequestId, 'Cancelled by student')
+    const first = await refundPaidOneOnOne(headRequestId, 'Cancelled by student', {
+      refundableFraction: 2 / 3,
+    })
     expect(first.refunded).toBe(true)
     expect(first.amount).toBe(expected.amount)
     expect(first.fee).toBe(expected.fee)

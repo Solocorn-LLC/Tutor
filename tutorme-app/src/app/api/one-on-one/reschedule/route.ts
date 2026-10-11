@@ -94,6 +94,7 @@ async function validateSlot(
     endTime,
     booking.timezone
   )
+  if (eventStart.getTime() <= Date.now()) return 'That time is in the past — pick a future slot.'
 
   const [tutorProfile] = await drizzleDb
     .select({ bufferMinutes: profile.bufferMinutes })

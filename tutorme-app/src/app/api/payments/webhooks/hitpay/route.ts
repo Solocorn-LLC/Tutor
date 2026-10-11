@@ -24,6 +24,7 @@ import { sendPaymentConfirmation } from '@/lib/notifications/payment-email'
 import { notify } from '@/lib/notifications/notify'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { admitPaidSeat } from '@/lib/group-session/seats'
+import { refundPaidOneOnOne } from '@/lib/payments/refund-one-on-one'
 import { eq, and, or, sql } from 'drizzle-orm'
 
 export async function POST(req: NextRequest) {
@@ -181,8 +182,11 @@ export async function POST(req: NextRequest) {
         } else if (meta?.type === 'one-on-one' && typeof meta.requestId === 'string') {
           // A recurring booking is paid in one transaction covering the whole
           // series — mark every accepted session in it paid, not just the head.
+          // Only ACCEPTED rows may be flipped: if the expiry sweep already killed
+          // the hold, the update matches nothing and the payment is refunded
+          // below instead of resurrecting a dead booking.
           const seriesId = typeof meta.seriesId === 'string' ? meta.seriesId : null
-          await drizzleDb
+          const confirmed = await drizzleDb
             .update(oneOnOneBookingRequest)
             .set({ status: 'PAID', paidAt: new Date() })
             .where(
@@ -191,47 +195,87 @@ export async function POST(req: NextRequest) {
                     eq(oneOnOneBookingRequest.seriesId, seriesId),
                     eq(oneOnOneBookingRequest.status, 'ACCEPTED')
                   )
-                : eq(oneOnOneBookingRequest.requestId, meta.requestId as string)
+                : and(
+                    eq(oneOnOneBookingRequest.requestId, meta.requestId as string),
+                    eq(oneOnOneBookingRequest.status, 'ACCEPTED')
+                  )
             )
+            .returning({ requestId: oneOnOneBookingRequest.requestId })
 
-          const [requestRow] = await drizzleDb
-            .select({
-              studentId: oneOnOneBookingRequest.studentId,
-              tutorId: oneOnOneBookingRequest.tutorId,
-            })
-            .from(oneOnOneBookingRequest)
-            .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
-            .limit(1)
-
-          if (requestRow) {
-            const [userRow] = await drizzleDb
-              .select({ email: user.email, name: profile.name })
-              .from(user)
-              .leftJoin(profile, eq(profile.userId, user.userId))
-              .where(eq(user.userId, requestRow.studentId))
+          if (confirmed.length === 0) {
+            // The booking expired (or was cancelled) before this payment cleared.
+            // Refund it in full — no session ever happened — and skip the usual
+            // paid-and-confirmed notifications. The refund helper is a no-op when
+            // the payment isn't COMPLETED, so retried webhooks stay safe.
+            const refundResult = await refundPaidOneOnOne(
+              meta.requestId as string,
+              'Payment received after booking expiry — full refund'
+            )
+            const [requestRow] = await drizzleDb
+              .select({ studentId: oneOnOneBookingRequest.studentId })
+              .from(oneOnOneBookingRequest)
+              .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
               .limit(1)
-            if (userRow?.email) {
-              sendPaymentConfirmation({
-                paymentId: paymentRow.paymentId,
-                studentEmail: userRow.email,
-                studentName: userRow.name ?? undefined,
-                amount: paymentRow.amount,
-                currency: paymentRow.currency,
-                description: '1-on-1 tutoring session',
+            if (requestRow) {
+              notify({
+                userId: requestRow.studentId,
+                type: 'class',
+                title: refundResult.refunded
+                  ? '1-on-1 booking expired — payment refunded'
+                  : '1-on-1 booking expired — refund pending',
+                message: refundResult.refunded
+                  ? 'Your booking hold expired before your payment cleared, so the session was not booked. The full amount has been refunded.'
+                  : 'Your booking hold expired before your payment cleared, so the session was not booked. Our team has been asked to refund your payment manually.',
+                data: { requestId: meta.requestId as string, type: 'one-on-one-expired-refund' },
+                actionUrl: '/student/dashboard',
               }).catch(() => {})
             }
-            // Notify the tutor that the booking is now paid & confirmed.
-            notify({
-              userId: requestRow.tutorId,
-              type: 'class',
-              title: '1-on-1 payment received',
-              message: 'The student has paid — the 1-on-1 session is confirmed.',
-              data: { requestId: meta.requestId as string, type: 'one-on-one-paid' },
-              actionUrl: '/tutor/dashboard',
-            }).catch(() => {})
-            // Open a direct-message thread so the student and tutor now appear in
-            // each other's chat list on the communications page.
-            getOrCreateConversation(requestRow.studentId, requestRow.tutorId).catch(() => {})
+            if (!refundResult.refunded) {
+              console.error(
+                '[HitPay Webhook] Refund for expired 1-on-1 booking failed:',
+                refundResult.error
+              )
+            }
+          } else {
+            const [requestRow] = await drizzleDb
+              .select({
+                studentId: oneOnOneBookingRequest.studentId,
+                tutorId: oneOnOneBookingRequest.tutorId,
+              })
+              .from(oneOnOneBookingRequest)
+              .where(eq(oneOnOneBookingRequest.requestId, meta.requestId as string))
+              .limit(1)
+
+            if (requestRow) {
+              const [userRow] = await drizzleDb
+                .select({ email: user.email, name: profile.name })
+                .from(user)
+                .leftJoin(profile, eq(profile.userId, user.userId))
+                .where(eq(user.userId, requestRow.studentId))
+                .limit(1)
+              if (userRow?.email) {
+                sendPaymentConfirmation({
+                  paymentId: paymentRow.paymentId,
+                  studentEmail: userRow.email,
+                  studentName: userRow.name ?? undefined,
+                  amount: paymentRow.amount,
+                  currency: paymentRow.currency,
+                  description: '1-on-1 tutoring session',
+                }).catch(() => {})
+              }
+              // Notify the tutor that the booking is now paid & confirmed.
+              notify({
+                userId: requestRow.tutorId,
+                type: 'class',
+                title: '1-on-1 payment received',
+                message: 'The student has paid — the 1-on-1 session is confirmed.',
+                data: { requestId: meta.requestId as string, type: 'one-on-one-paid' },
+                actionUrl: '/tutor/dashboard',
+              }).catch(() => {})
+              // Open a direct-message thread so the student and tutor now appear in
+              // each other's chat list on the communications page.
+              getOrCreateConversation(requestRow.studentId, requestRow.tutorId).catch(() => {})
+            }
           }
         } else if (meta?.type === 'group-session' && typeof meta.participantId === 'string') {
           // Confirm the seat: flip it to PAID, admit the student to the shared

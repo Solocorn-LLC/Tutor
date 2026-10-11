@@ -13,6 +13,9 @@ import { payment, refund } from '@/lib/db/schema'
 import { getPaymentGateway, type GatewayName } from './factory'
 import { computeOneOnOneRefund, type RefundOutcome } from './refund-one-on-one'
 
+/** Fee retained on a group-session seat cancellation refund (flat, not prorated). */
+const GROUP_SESSION_CANCELLATION_FEE_RATE = 0.15
+
 /**
  * Refund a single paid group-session seat by its participant id. Best-effort:
  * returns `{ refunded: false, error }` rather than throwing so a cancellation
@@ -41,12 +44,20 @@ export async function refundGroupSeat(
     return { refunded: false, error: `Automated refunds aren't supported for ${pay.gateway}.` }
   }
 
-  const { amount, fee } = computeOneOnOneRefund(pay.amount)
+  const { amount, fee } = computeOneOnOneRefund(pay.amount, 1 - GROUP_SESSION_CANCELLATION_FEE_RATE)
+
+  // Airwallex refunds require the payment_attempt_id, not the payment-intent id
+  // stored in gatewayPaymentId (see api/payments/refund/route.ts).
+  const metadata = pay.metadata as { payment_attempt_id?: string } | null
+  const refundReference =
+    pay.gateway === 'AIRWALLEX' && metadata?.payment_attempt_id
+      ? metadata.payment_attempt_id
+      : pay.gatewayPaymentId
 
   let result: { refundId: string; status: string; amountRefunded?: number; error?: string }
   try {
     result = await getPaymentGateway(pay.gateway as GatewayName).refundPayment(
-      pay.gatewayPaymentId,
+      refundReference,
       amount
     )
   } catch (err) {
