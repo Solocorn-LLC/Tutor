@@ -46,9 +46,45 @@ export async function POST(req: NextRequest) {
     }
 
     const body = payload as { id?: string; status?: string; payment_request_id?: string }
+    // Dedup on whichever id the payload carries: some HitPay redeliveries only
+    // include payment_request_id, and without the fallback the dedup check is
+    // skipped entirely on every redelivery.
     const gatewayPaymentId = body?.id ?? body?.payment_request_id ?? ''
-    const eventId = body?.id
+    const eventId = body?.id ?? body?.payment_request_id
 
+    // Serialize deliveries of the same event. The processed-check + insert +
+    // process + processed=true update are not atomic, so two concurrent
+    // redeliveries could both pass the check and double-send emails and
+    // notifications. The session lock is held for the whole handler; a
+    // duplicate then waits, sees processed=true, and returns without
+    // reprocessing.
+    const dedupKey = eventId ?? gatewayPaymentId
+    const lockKey = dedupKey ? `hitpay-webhook:${dedupKey}` : null
+    if (lockKey) {
+      await drizzleDb.execute(sql`SELECT pg_advisory_lock(hashtextextended(${lockKey}, 0))`)
+    }
+    try {
+      return await processHitpayWebhook(gateway, payload, body, gatewayPaymentId, eventId)
+    } finally {
+      if (lockKey) {
+        await drizzleDb
+          .execute(sql`SELECT pg_advisory_unlock(hashtextextended(${lockKey}, 0))`)
+          .catch(() => {})
+      }
+    }
+  } catch (error) {
+    return handleApiError(error, 'Webhook failed', 'api/payments/webhooks/hitpay/route.ts')
+  }
+}
+
+async function processHitpayWebhook(
+  gateway: HitpayGateway,
+  payload: unknown,
+  body: { id?: string; status?: string; payment_request_id?: string },
+  gatewayPaymentId: string,
+  eventId: string | undefined
+): Promise<NextResponse> {
+  try {
     if (eventId) {
       const [existing] = await drizzleDb
         .select()
@@ -57,7 +93,13 @@ export async function POST(req: NextRequest) {
           and(
             eq(webhookEvent.gateway, 'HITPAY'),
             eq(webhookEvent.processed, true),
-            sql`${webhookEvent.payload}->>'id' = ${eventId}`
+            // Match the id under either json key — the original delivery may
+            // have stored it as 'id' while a redelivery only sends
+            // 'payment_request_id' (or vice versa).
+            or(
+              sql`${webhookEvent.payload}->>'id' = ${eventId}`,
+              sql`${webhookEvent.payload}->>'payment_request_id' = ${eventId}`
+            )
           )
         )
         .limit(1)

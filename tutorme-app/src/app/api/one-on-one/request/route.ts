@@ -13,7 +13,7 @@ import {
   NotFoundError,
 } from '@/lib/api/middleware'
 import { parseJson } from '@/lib/api/parse'
-import { requestedDateFromString, slotInstants } from '@/lib/one-on-one/time'
+import { requestedDateFromString, slotInstants, hhmmSchema } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 import { findConflicts } from '@/lib/schedule/conflicts'
@@ -29,8 +29,8 @@ const requestSchema = z.object({
     .array(
       z.object({
         date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // YYYY-MM-DD
-        startTime: z.string().regex(/^\d{2}:\d{2}$/), // HH:mm
-        endTime: z.string().regex(/^\d{2}:\d{2}$/), // HH:mm
+        startTime: hhmmSchema,
+        endTime: hhmmSchema,
       })
     )
     .min(1)
@@ -108,6 +108,18 @@ export const POST = withCsrf(
     const tutorTimezone = tutorProfile.timezone || 'UTC'
     const tutorBuffer = tutorProfile.bufferMinutes ?? 0
     const isSeriesRequest = validated.proposedSlots.length > 1
+
+    // Duplicate slots within one proposal can never be honored (the second
+    // instance conflicts with the first at accept time), so reject them up
+    // front instead of failing the whole series with a confusing 409 later.
+    const uniqueSlots = new Set(
+      validated.proposedSlots.map(s => `${s.date}|${s.startTime}|${s.endTime}`)
+    )
+    if (uniqueSlots.size !== validated.proposedSlots.length) {
+      throw new ValidationError(
+        'Your request contains duplicate sessions — each proposed time must be different.'
+      )
+    }
 
     // Every proposed time must (a) not fall on an hour the parent has BLOCKED and
     // (b) not clash with the tutor's already-confirmed schedule. The tutor-conflict

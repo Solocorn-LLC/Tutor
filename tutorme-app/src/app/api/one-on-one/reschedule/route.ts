@@ -18,13 +18,13 @@ import { oneOnOneBookingRequest, calendarEvent, liveSession, profile } from '@/l
 import { findConflicts } from '@/lib/schedule/conflicts'
 import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 import { notify } from '@/lib/notifications/notify'
-import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
+import { slotInstants, requestedDateFromString, hhmmSchema } from '@/lib/one-on-one/time'
 
 const proposeSchema = z.object({
   requestId: z.string().min(1),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  startTime: z.string().regex(/^\d{2}:\d{2}$/),
-  endTime: z.string().regex(/^\d{2}:\d{2}$/),
+  startTime: hhmmSchema,
+  endTime: hhmmSchema,
 })
 const respondSchema = z.object({
   requestId: z.string().min(1),

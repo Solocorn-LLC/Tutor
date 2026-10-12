@@ -56,6 +56,47 @@ export async function POST(req: NextRequest) {
     const paymentAttemptId = body?.data?.payment_attempt_id
     const eventId = body?.id
 
+    // Serialize deliveries of the same event. The processed-check + insert +
+    // process + processed=true update are not atomic, so two concurrent
+    // redeliveries could both pass the check and double-send emails and
+    // notifications. The session lock is held for the whole handler; a
+    // duplicate then waits, sees processed=true, and returns without
+    // reprocessing.
+    const dedupKey = eventId ?? gatewayPaymentId ?? paymentAttemptId
+    const lockKey = dedupKey ? `airwallex-webhook:${dedupKey}` : null
+    if (lockKey) {
+      await drizzleDb.execute(sql`SELECT pg_advisory_lock(hashtextextended(${lockKey}, 0))`)
+    }
+    try {
+      return await processAirwallexWebhook(
+        gateway,
+        payload,
+        eventName,
+        gatewayPaymentId,
+        paymentAttemptId,
+        eventId
+      )
+    } finally {
+      if (lockKey) {
+        await drizzleDb
+          .execute(sql`SELECT pg_advisory_unlock(hashtextextended(${lockKey}, 0))`)
+          .catch(() => {})
+      }
+    }
+  } catch (error) {
+    return handleApiError(error, 'Webhook failed', 'api/payments/webhooks/airwallex/route.ts')
+  }
+}
+
+async function processAirwallexWebhook(
+  gateway: AirwallexGateway,
+  payload: unknown,
+  eventName: string,
+  gatewayPaymentId: string | undefined,
+  paymentAttemptId: string | undefined,
+  eventId: string | undefined
+): Promise<NextResponse> {
+  try {
     if (eventId) {
       const [existing] = await drizzleDb
         .select()
