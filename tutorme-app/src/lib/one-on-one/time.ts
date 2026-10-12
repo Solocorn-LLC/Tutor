@@ -11,9 +11,26 @@
  * own zone so conflict math is done on true UTC instants.
  */
 
+import { z } from 'zod'
 import { zonedWallClockToUtc } from '@/lib/time/tz'
 
 const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Wall-clock "HH:mm" with real range validation. Zod's bare /^\d{2}:\d{2}$/
+ * regex accepts "99:99", which hhmm()/zonedWallClockToUtc would then silently
+ * normalize into a different instant instead of rejecting.
+ */
+export const hhmmSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/)
+  .refine(
+    t => {
+      const [h, m] = t.split(':').map(Number)
+      return h >= 0 && h <= 23 && m >= 0 && m <= 59
+    },
+    { message: 'Invalid time of day' }
+  )
 
 function hhmm(time: string): [number, number] {
   const [h, m] = time.split(':').map(Number)

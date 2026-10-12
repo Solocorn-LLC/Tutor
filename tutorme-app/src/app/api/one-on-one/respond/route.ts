@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { findConflicts, findAlternativeSlots } from '@/lib/schedule/conflicts'
 import { isSlotWithinStudentAvailability } from '@/lib/student-availability'
 import { isSlotWithinTutorAvailability } from '@/lib/schedule/tutor-available-slots'
-import { slotInstants, requestedDateFromString } from '@/lib/one-on-one/time'
+import { slotInstants, requestedDateFromString, hhmmSchema } from '@/lib/one-on-one/time'
 import { CORE_BOOKING_COLUMNS, CORE_BOOKING_RETURNING } from '@/lib/one-on-one/columns'
 import { getOrCreateConversation } from '@/lib/messaging/conversation'
 
@@ -21,8 +21,8 @@ const respondSchema = z.object({
   selectedSlot: z
     .object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      startTime: z.string().regex(/^\d{2}:\d{2}$/),
-      endTime: z.string().regex(/^\d{2}:\d{2}$/),
+      startTime: hhmmSchema,
+      endTime: hhmmSchema,
     })
     .optional(),
   tutorNotes: z.string().max(1000).optional(),
@@ -338,13 +338,16 @@ export const PATCH = withCsrf(async (request: NextRequest) => {
           return out
         })
       } catch (txError) {
-        const slotConflictBody = (txError as { slotConflictBody?: unknown })?.slotConflictBody
-        if (!slotConflictBody) throw txError
-        // The post-lock conflict re-check failed and aborted the accept —
-        // free the Daily rooms minted for it (nothing was persisted).
+        // Free the Daily rooms minted for this accept no matter WHY the tx
+        // aborted — a non-conflict failure (DB hiccup mid-series) would
+        // otherwise leak them on Daily.co.
         for (const p of withRooms) {
           dailyProvider.deleteRoom(p.room.id).catch(() => {})
         }
+        const slotConflictBody = (txError as { slotConflictBody?: unknown })?.slotConflictBody
+        if (!slotConflictBody) throw txError
+        // The post-lock conflict re-check failed and aborted the accept
+        // (nothing was persisted).
         return NextResponse.json(slotConflictBody, { status: 409 })
       }
 

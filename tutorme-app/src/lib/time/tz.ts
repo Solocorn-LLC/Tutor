@@ -53,6 +53,12 @@ function offsetMsAt(date: Date, timeZone: string): number {
 /**
  * Build the UTC Date for a wall-clock time (`year`, 1-based `month`, `day`,
  * `hour`, `minute`) in `timeZone`. DST-aware (re-checks the offset at the result).
+ *
+ * Known limitation (documented, not fixable without a timezone database):
+ * spring-forward GAP times (e.g. 02:30 where 02:00–03:00 doesn't exist) and
+ * fall-back AMBIGUOUS times resolve silently to SOME valid instant — typically
+ * shifted by an hour. Callers validating user-supplied slots should treat such
+ * wall times with suspicion; the booking flow only guards range, not DST edges.
  */
 export function zonedWallClockToUtc(
   year: number,
