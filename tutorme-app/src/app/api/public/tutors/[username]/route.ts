@@ -32,7 +32,7 @@ export async function GET(
     }
 
     // Find tutor by username (from profile)
-    let profileData = await drizzleDb
+    const profileData = await drizzleDb
       .select({
         userId: profile.userId,
         name: profile.name,
@@ -47,25 +47,6 @@ export async function GET(
       .where(eq(profile.username, normalizedUsername))
       .limit(1)
       .then(rows => rows[0] || null)
-
-    // If not found by username, try by userId
-    if (!profileData) {
-      profileData = await drizzleDb
-        .select({
-          userId: profile.userId,
-          name: profile.name,
-          username: profile.username,
-          bio: profile.bio,
-          avatarUrl: profile.avatarUrl,
-          hourlyRate: profile.hourlyRate,
-          oneOnOneEnabled: profile.oneOnOneEnabled,
-          credentials: profile.credentials,
-        })
-        .from(profile)
-        .where(eq(profile.userId, normalizedUsername))
-        .limit(1)
-        .then(rows => rows[0] || null)
-    }
 
     if (!profileData) {
       return NextResponse.json({ error: 'Tutor not found' }, { status: 404 })
@@ -357,10 +338,8 @@ export async function GET(
       createdAt: row.createdAt?.toISOString() ?? null,
       durationMinutes: row.durationMinutes,
       maxStudents: row.maxStudents,
-      roomUrl: row.roomUrl || null,
       courseId: row.courseId || null,
       category: row.category || null,
-      demoVideoContentId: row.demoVideoContentId || null,
     }))
 
     return NextResponse.json({

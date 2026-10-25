@@ -226,6 +226,8 @@ function MyCoursesSection() {
       if (res.ok) {
         const data = await res.json()
         setCourses(data.courses || [])
+      } else {
+        toast.error('Failed to load courses')
       }
     } catch {
       toast.error('Failed to load courses')
@@ -245,6 +247,8 @@ function MyCoursesSection() {
         setDemoClasses(
           (data.classes || []).filter((c: DemoClass) => c.sessionType === 'GO_LIVE_DEMO')
         )
+      } else {
+        toast.error('Failed to load demo classes')
       }
     } catch {
       toast.error('Failed to load demo classes')
@@ -511,9 +515,14 @@ function MyCoursesSection() {
   return (
     <div ref={coursesScrollRef}>
       <Card className="relative border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-        <div
+        <button
+          type="button"
           onClick={() => setIsExpanded(prev => !prev)}
-          className={cn(charcoalHeaderClass, 'panel-header-hover cursor-pointer justify-between')}
+          aria-expanded={isExpanded}
+          className={cn(
+            charcoalHeaderClass,
+            'panel-header-hover w-full cursor-pointer justify-between text-left'
+          )}
         >
           <div className="flex items-center gap-3">
             <BookOpen className="h-5 w-5" />
@@ -524,7 +533,7 @@ function MyCoursesSection() {
           ) : (
             <ChevronDown className="h-5 w-5 text-white/70" />
           )}
-        </div>
+        </button>
         <CardContent spacing="none" className="space-y-4 px-5 pb-5">
           {/* Tabs */}
           <div className="flex gap-2 border-b border-[#E2E8F0] bg-white">
@@ -593,9 +602,11 @@ function MyCoursesSection() {
             )}
           </div>
 
-          {/* Hidden measurement lists to keep panel height stable across tabs */}
+          {/* Hidden measurement lists to keep panel height stable across tabs.
+              visibility:hidden (not opacity-0) keeps the layout measurable while
+              removing the duplicated buttons from keyboard tab order. */}
           <div
-            className="pointer-events-none absolute left-0 top-0 -z-10 opacity-0"
+            className="pointer-events-none invisible absolute left-0 top-0 -z-10"
             aria-hidden="true"
           >
             <div className="px-5 pb-5">
@@ -628,6 +639,7 @@ export default function TutorMyPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [username, setUsername] = useState('')
+  const [profileUpdatedAt, setProfileUpdatedAt] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState('')
   const [bio, setBio] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
@@ -745,6 +757,7 @@ export default function TutorMyPage() {
         if (!active) return
         setDisplayName(data?.profile?.name || '')
         setUsername(data?.profile?.username || '')
+        setProfileUpdatedAt(data?.profile?.updatedAt || null)
         setBio(data?.profile?.bio || '')
         setAvatarUrl(data?.profile?.avatarUrl || null)
         setTutorSince(
@@ -845,6 +858,8 @@ export default function TutorMyPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
+          username: normalizedUsername,
+          expectedUpdatedAt: profileUpdatedAt,
           bio: sanitizeHtmlWithMax(trimmedBio, 800),
           socialLinks: {
             instagram: socialAccounts.instagram.trim().replace(/^@+/, ''),
@@ -862,6 +877,7 @@ export default function TutorMyPage() {
         return
       }
       setUsername(data?.profile?.username || username)
+      setProfileUpdatedAt(data?.profile?.updatedAt || profileUpdatedAt)
       setBio(data?.profile?.bio || bio)
       if (Array.isArray(data?.profile?.categories)) {
         setProfileCategories(data.profile.categories)
@@ -1284,12 +1300,14 @@ export default function TutorMyPage() {
 
         <div ref={profileScrollRef}>
           <Card className="border border-[#E2E8F0] bg-white shadow-[0_14px_45px_rgba(0,0,0,0.12)]">
-            <div
+            <button
+              type="button"
+              onClick={() => setProfileSettingsOpen(prev => !prev)}
+              aria-expanded={profileSettingsOpen}
               className={cn(
                 charcoalHeaderClass,
-                'panel-header-hover cursor-pointer select-none justify-between'
+                'panel-header-hover w-full cursor-pointer select-none justify-between text-left'
               )}
-              onClick={() => setProfileSettingsOpen(prev => !prev)}
             >
               <div className="flex items-center gap-3">
                 <Settings className="h-5 w-5" />
@@ -1300,7 +1318,7 @@ export default function TutorMyPage() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-white/70" />
               )}
-            </div>
+            </button>
             <AnimatePresence initial={false}>
               {profileSettingsOpen && (
                 <motion.div
@@ -1311,6 +1329,24 @@ export default function TutorMyPage() {
                   className="overflow-hidden"
                 >
                   <CardContent spacing="none" className="space-y-4 bg-white px-6 py-4">
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm text-[#1F2933]">Public username</Label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="inline-flex items-center text-[#64748B]">@</span>
+                        <Input
+                          placeholder="yourname"
+                          value={username}
+                          onChange={e => setUsername(e.target.value.replace(/^@+/, ''))}
+                          disabled={loading || saving}
+                          maxLength={30}
+                          className="max-w-xs border-[#E2E8F0] focus-visible:ring-[#3B82F6]"
+                        />
+                        <span className="text-xs text-slate-400">
+                          Letters, numbers, dots and underscores (3+ characters). Saved with the
+                          Save button below.
+                        </span>
+                      </div>
+                    </div>
                     <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
                       <div className="flex min-h-[380px] flex-col gap-2 lg:min-h-0">
                         <Label className="text-sm text-[#1F2933]">Bio</Label>
