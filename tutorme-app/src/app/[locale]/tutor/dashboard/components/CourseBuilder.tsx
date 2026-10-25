@@ -5283,7 +5283,7 @@ export const CourseBuilder = forwardRef<CourseBuilderRef, CourseBuilderProps>(
             ? [cat, ...liveCourseCategories.slice(1).filter(c => c !== cat)]
             : [cat]
         try {
-          await fetch(`/api/tutor/courses/${courseId}`, {
+          await fetchWithCsrf(`/api/tutor/courses/${courseId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',

@@ -89,14 +89,19 @@ export const DELETE = withCsrf(
           .where(eq(profile.userId, session.user.id))
           .limit(1)
 
-        if (existing[0]?.avatarUrl) {
-          await deleteAvatar(existing[0].avatarUrl)
-        }
-
+        // Null the DB reference FIRST and only then remove the stored object —
+        // the opposite order would leave the profile pointing at a 404 image
+        // if the DB update failed (mirrors the POST route's "never delete old
+        // before the new is ready" rule).
+        const previousAvatarUrl = existing[0]?.avatarUrl
         await drizzleDb
           .update(profile)
           .set({ avatarUrl: null })
           .where(eq(profile.userId, session.user.id))
+
+        if (previousAvatarUrl) {
+          await deleteAvatar(previousAvatarUrl)
+        }
 
         // Invalidate cached user/profile data
         await cache.delete(`user:${session.user.id}`).catch(() => {})

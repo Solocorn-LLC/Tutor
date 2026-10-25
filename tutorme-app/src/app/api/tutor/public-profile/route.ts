@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, ne, desc } from 'drizzle-orm'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, withCsrf, ValidationError } from '@/lib/api/middleware'
 import { drizzleDb } from '@/lib/db/drizzle'
 import { user, profile, course, tutorApplication } from '@/lib/db/schema'
-import { nanoid } from 'nanoid'
 
 function normalizeUsername(value: string): string {
   return value
@@ -14,22 +13,6 @@ function normalizeUsername(value: string): string {
     .replace(/\.+/g, '.')
     .replace(/^\.|\.$/g, '')
     .slice(0, 30)
-}
-
-async function generateUniqueUsername(preferredSeed: string, tutorId: string): Promise<string> {
-  const seed = normalizeUsername(preferredSeed) || `tutor${nanoid(6).toLowerCase()}`
-  const base = seed.slice(0, 24)
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    const suffix = attempt === 0 ? '' : String(Math.floor(Math.random() * 9000) + 1000)
-    const candidate = `${base}${suffix}`.slice(0, 30)
-    const [existing] = await drizzleDb
-      .select({ profileId: profile.profileId })
-      .from(profile)
-      .where(and(eq(profile.username, candidate), ne(profile.userId, tutorId)))
-      .limit(1)
-    if (!existing) return candidate
-  }
-  return `tutor${nanoid(8).toLowerCase()}`
 }
 
 export const GET = withAuth(
@@ -55,6 +38,7 @@ export const GET = withAuth(
         credentials: profile.credentials,
         hourlyRate: profile.hourlyRate,
         createdAt: profile.createdAt,
+        updatedAt: profile.updatedAt,
       })
       .from(profile)
       .where(eq(profile.userId, tutorId))
@@ -96,8 +80,8 @@ export const GET = withAuth(
         credentials: prof?.credentials ?? '',
         hourlyRate: prof?.hourlyRate ?? null,
         createdAt: application?.createdAt ?? prof?.createdAt ?? null,
+        updatedAt: prof?.updatedAt ?? null,
         country: application?.countryOfResidence ?? null,
-        categories: derivedSpecialties,
         socialLinks: application?.socialLinks ?? null,
         activeCourses: courses.length,
       },
@@ -107,114 +91,174 @@ export const GET = withAuth(
   { role: 'TUTOR' }
 )
 
-export const PATCH = withAuth(
-  async (req: NextRequest, session) => {
-    const tutorId = session.user.id
-    const body = await req.json().catch(() => ({}))
-    const requestedUsername = typeof body?.username === 'string' ? body.username : ''
-    const bio = typeof body?.bio === 'string' ? body.bio.trim().slice(0, 500) : undefined
-    const socialLinks =
-      body?.socialLinks && typeof body.socialLinks === 'object' ? body.socialLinks : undefined
-    const categories = Array.isArray(body?.categories)
-      ? body.categories.filter((c: unknown) => typeof c === 'string')
-      : undefined
-    const specialties = Array.isArray(body?.specialties)
-      ? body.specialties
-          .filter((c: unknown) => typeof c === 'string')
-          .map((s: string) => s.trim())
-          .filter(Boolean)
-          .slice(0, 40)
-      : undefined
-    const credentials =
-      typeof body?.credentials === 'string' ? body.credentials.trim().slice(0, 5000) : undefined
-    let normalized = normalizeUsername(requestedUsername)
+export const PATCH = withCsrf(
+  withAuth(
+    async (req: NextRequest, session) => {
+      const tutorId = session.user.id
+      const body = await req.json().catch(() => ({}))
+      const requestedUsername = typeof body?.username === 'string' ? body.username : ''
 
-    const [prof] = await drizzleDb
-      .select({
-        profileId: profile.profileId,
-        userId: profile.userId,
-        name: profile.name,
-        username: profile.username,
-      })
-      .from(profile)
-      .where(eq(profile.userId, tutorId))
-      .limit(1)
+      // Bio limit matches the editor's maxLength/counter (800 chars) — reject
+      // instead of silently truncating so the tutor knows what was stored.
+      const rawBio = typeof body?.bio === 'string' ? body.bio.trim() : undefined
+      if (rawBio !== undefined && rawBio.length > 800) {
+        throw new ValidationError('Bio must be 800 characters or fewer.')
+      }
+      const bio = rawBio
 
-    if (!prof) {
-      return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
-    }
+      // socialLinks is stored as jsonb and rendered on the public page — bound
+      // its shape and size instead of accepting arbitrary blobs.
+      let socialLinks: Record<string, string> | undefined
+      if (body?.socialLinks !== undefined && body?.socialLinks !== null) {
+        if (
+          typeof body.socialLinks !== 'object' ||
+          Array.isArray(body.socialLinks) ||
+          Object.keys(body.socialLinks).length > 10
+        ) {
+          throw new ValidationError('Invalid social links (max 10 platforms).')
+        }
+        socialLinks = {}
+        for (const [key, value] of Object.entries(body.socialLinks as Record<string, unknown>)) {
+          if (typeof value !== 'string') {
+            throw new ValidationError('Invalid social link value.')
+          }
+          socialLinks[String(key).slice(0, 30)] = value.trim().slice(0, 300)
+        }
+        if (JSON.stringify(socialLinks).length > 4000) {
+          throw new ValidationError('Social links are too long.')
+        }
+      }
 
-    if (requestedUsername) {
-      if (!normalized || normalized.length < 3) {
-        normalized = await generateUniqueUsername(
-          prof.name || session.user.email || 'tutor',
-          tutorId
+      const specialties = Array.isArray(body?.specialties)
+        ? body.specialties
+            .filter((c: unknown) => typeof c === 'string')
+            .map((s: string) => s.trim())
+            .filter(Boolean)
+            .slice(0, 40)
+        : undefined
+      const credentials =
+        typeof body?.credentials === 'string' ? body.credentials.trim().slice(0, 5000) : undefined
+      const normalized = normalizeUsername(requestedUsername)
+
+      const [prof] = await drizzleDb
+        .select({
+          profileId: profile.profileId,
+          userId: profile.userId,
+          name: profile.name,
+          username: profile.username,
+          updatedAt: profile.updatedAt,
+        })
+        .from(profile)
+        .where(eq(profile.userId, tutorId))
+        .limit(1)
+
+      if (!prof) {
+        return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+      }
+
+      // Stale-write guard: the client sends the updatedAt it loaded; if another
+      // save landed in between, refuse so one editor's changes aren't silently
+      // overwritten by an older form state.
+      const expectedUpdatedAt =
+        typeof body?.expectedUpdatedAt === 'string' ? body.expectedUpdatedAt : null
+      if (
+        expectedUpdatedAt &&
+        prof.updatedAt &&
+        expectedUpdatedAt !== prof.updatedAt.toISOString()
+      ) {
+        return NextResponse.json(
+          { error: 'Your profile changed since you loaded it. Refresh and try again.' },
+          { status: 409 }
         )
       }
 
-      const [existing] = await drizzleDb
-        .select({ profileId: profile.profileId })
-        .from(profile)
-        .where(and(eq(profile.username, normalized), ne(profile.userId, tutorId)))
-        .limit(1)
-
-      if (existing) {
-        return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
+      if (requestedUsername && (!normalized || normalized.length < 3)) {
+        return NextResponse.json(
+          {
+            error: 'Username must be at least 3 characters (letters, numbers, dots, underscores).',
+          },
+          { status: 400 }
+        )
       }
-    }
 
-    const setPayload: { username?: string; bio?: string } = {}
-    if (requestedUsername) setPayload.username = normalized
-    if (bio !== undefined) setPayload.bio = bio
+      if (requestedUsername && normalized !== prof.username) {
+        const [existing] = await drizzleDb
+          .select({ profileId: profile.profileId })
+          .from(profile)
+          .where(and(eq(profile.username, normalized), ne(profile.userId, tutorId)))
+          .limit(1)
+        if (existing) {
+          return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
+        }
+      }
 
-    let updated: { username: string | null; bio: string | null } | undefined
-    if (Object.keys(setPayload).length > 0) {
-      const [row] = await drizzleDb
-        .update(profile)
-        .set(setPayload)
-        .where(eq(profile.userId, tutorId))
-        .returning()
-      updated = row
-    }
+      const setPayload: { username?: string; bio?: string } = {}
+      if (requestedUsername) setPayload.username = normalized
+      if (bio !== undefined) setPayload.bio = bio
 
-    if (socialLinks || categories) {
-      await drizzleDb
-        .update(tutorApplication)
-        .set({
-          ...(socialLinks ? { socialLinks } : {}),
-          ...(categories ? { categories } : {}),
-        })
-        .where(eq(tutorApplication.userId, tutorId))
-    }
+      let updated: { username: string | null; bio: string | null; updatedAt: Date } | undefined
+      if (Object.keys(setPayload).length > 0) {
+        try {
+          const [row] = await drizzleDb
+            .update(profile)
+            .set(setPayload)
+            .where(eq(profile.userId, tutorId))
+            .returning()
+          updated = row
+        } catch (err) {
+          // A concurrent request may grab the same username between our check
+          // and the write — the unique constraint converts that into a clean
+          // 409 instead of an unhandled 500.
+          if (
+            typeof err === 'object' &&
+            err !== null &&
+            (err as { code?: string }).code === '23505'
+          ) {
+            return NextResponse.json({ error: 'Username already taken' }, { status: 409 })
+          }
+          throw err
+        }
+      }
 
-    if (specialties !== undefined || credentials !== undefined) {
-      await drizzleDb
-        .update(profile)
-        .set({
+      if (socialLinks !== undefined) {
+        // The row-count is checked so a tutor without an application row gets a
+        // real error instead of a success toast that persisted nothing.
+        const [appRow] = await drizzleDb
+          .update(tutorApplication)
+          .set({ socialLinks })
+          .where(eq(tutorApplication.userId, tutorId))
+          .returning({ userId: tutorApplication.userId })
+        if (!appRow) {
+          return NextResponse.json(
+            { error: 'No tutor application on file — social links cannot be saved.' },
+            { status: 400 }
+          )
+        }
+      }
+
+      if (specialties !== undefined || credentials !== undefined) {
+        await drizzleDb
+          .update(profile)
+          .set({
+            ...(specialties !== undefined ? { specialties } : {}),
+            ...(credentials !== undefined ? { credentials } : {}),
+          })
+          .where(eq(profile.userId, tutorId))
+      }
+
+      return NextResponse.json({
+        success: true,
+        profile: {
+          username: updated?.username ?? prof.username,
+          bio: updated?.bio ?? bio ?? null,
+          // Echo the row's new updatedAt so the client can keep sending the
+          // stale-write guard on subsequent saves.
+          updatedAt: updated?.updatedAt ? updated.updatedAt.toISOString() : null,
           ...(specialties !== undefined ? { specialties } : {}),
           ...(credentials !== undefined ? { credentials } : {}),
-        })
-        .where(eq(profile.userId, tutorId))
-    }
-
-    return NextResponse.json({
-      success: true,
-      profile: updated
-        ? {
-            username: updated.username,
-            bio: updated.bio,
-            categories,
-            ...(specialties !== undefined ? { specialties } : {}),
-            ...(credentials !== undefined ? { credentials } : {}),
-          }
-        : {
-            username: prof?.username ?? normalized,
-            bio: bio ?? null,
-            categories,
-            ...(specialties !== undefined ? { specialties } : {}),
-            ...(credentials !== undefined ? { credentials } : {}),
-          },
-    })
-  },
-  { role: 'TUTOR' }
+        },
+      })
+    },
+    { role: 'TUTOR' }
+  )
 )

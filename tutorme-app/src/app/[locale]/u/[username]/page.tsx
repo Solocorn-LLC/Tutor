@@ -120,10 +120,8 @@ interface PublicTutorResponse {
     createdAt?: string | null
     durationMinutes?: number | null
     maxStudents?: number | null
-    roomUrl?: string | null
     courseId?: string | null
     category?: string | null
-    demoVideoContentId?: string | null
   }>
 }
 
@@ -265,6 +263,7 @@ export default function PublicTutorPage() {
 
   const [data, setData] = useState<PublicTutorResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [launchingCourseId, setLaunchingCourseId] = useState<string | null>(null)
   const [studentJoiningCourseId, setStudentJoiningCourseId] = useState<string | null>(null)
   const [followState, setFollowState] = useState({
@@ -379,13 +378,18 @@ export default function PublicTutorPage() {
 
   const loadTutorData = async () => {
     setLoading(true)
+    setLoadError(false)
     try {
       const normalized = username.replace(/^@+/, '').toLowerCase()
       const res = await fetch(`/api/public/tutors/${encodeURIComponent(normalized)}`, {
         cache: 'no-store',
       })
 
-      if (!res.ok) throw new Error('Not found')
+      if (res.status === 404) {
+        setData(null)
+        return
+      }
+      if (!res.ok) throw new Error('Failed to load tutor')
 
       const tutorData = await res.json()
 
@@ -400,7 +404,9 @@ export default function PublicTutorPage() {
         })),
       })
     } catch {
-      // Handle error
+      // Distinguish a server failure from a genuine 404 so a transient API
+      // error doesn't masquerade as "Tutor not found".
+      setLoadError(true)
     } finally {
       setLoading(false)
     }
@@ -539,6 +545,24 @@ export default function PublicTutorPage() {
           <CardHeader>
             <div className="bg-muted h-8 w-1/3 rounded" />
           </CardHeader>
+        </Card>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="w-full p-4 sm:p-6">
+        <Card>
+          <CardContent className="py-12 text-center">
+            <h2 className="text-xl font-bold">This page could not be loaded</h2>
+            <p className="text-muted-foreground mt-2 text-sm">
+              Something went wrong on our side. Please try again.
+            </p>
+            <Button className="mt-4" onClick={() => loadTutorData()}>
+              Try again
+            </Button>
+          </CardContent>
         </Card>
       </div>
     )

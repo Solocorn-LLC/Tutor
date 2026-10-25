@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/api/middleware'
+import { withAuth, withCsrf } from '@/lib/api/middleware'
 import { verifyCourseOwnership } from '@/lib/api/course-helpers'
 import { drizzleDb } from '@/lib/db/drizzle'
 import {
@@ -141,246 +141,256 @@ export const GET = withAuth(
 )
 
 // PATCH /api/tutor/courses/[id] - Update course details
-export const PATCH = withAuth(
-  async (req: NextRequest, session, context) => {
-    try {
-      const params = await context.params
-      const id = params.id as string
-      const userId = session.user.id
-
-      let body: unknown
+export const PATCH = withCsrf(
+  withAuth(
+    async (req: NextRequest, session, context) => {
       try {
-        body = await req.json()
-      } catch {
-        return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-      }
+        const params = await context.params
+        const id = params.id as string
+        const userId = session.user.id
 
-      const parseResult = patchCourseSchema.safeParse(body)
-      if (!parseResult.success) {
-        return NextResponse.json(
-          { error: parseResult.error.issues.map(i => i.message).join(', ') },
-          { status: 400 }
-        )
-      }
+        let body: unknown
+        try {
+          body = await req.json()
+        } catch {
+          return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+        }
 
-      const parsedBody = parseResult.data
+        const parseResult = patchCourseSchema.safeParse(body)
+        if (!parseResult.success) {
+          return NextResponse.json(
+            { error: parseResult.error.issues.map(i => i.message).join(', ') },
+            { status: 400 }
+          )
+        }
 
-      // Verify ownership
-      const isOwner = await verifyCourseOwnership(id, userId)
-      if (!isOwner) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-      }
+        const parsedBody = parseResult.data
 
-      const [currentCourseRow] = await drizzleDb
-        .select({ isPublished: course.isPublished, categories: course.categories })
-        .from(course)
-        .where(eq(course.courseId, id))
-        .limit(1)
+        // Verify ownership
+        const isOwner = await verifyCourseOwnership(id, userId)
+        if (!isOwner) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        }
 
-      if (!currentCourseRow) {
-        return NextResponse.json({ error: 'Course not found' }, { status: 404 })
-      }
+        const [currentCourseRow] = await drizzleDb
+          .select({ isPublished: course.isPublished, categories: course.categories })
+          .from(course)
+          .where(eq(course.courseId, id))
+          .limit(1)
 
-      // Category has its own explicit guard so callers can show a specific message.
-      if (parsedBody.categories !== undefined && currentCourseRow.isPublished) {
-        return NextResponse.json(
-          { error: 'Category cannot be changed for a published course' },
-          { status: 400 }
-        )
-      }
+        if (!currentCourseRow) {
+          return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+        }
 
-      // One-way publish: templates may be published, but published courses can
-      // never be unpublished again.
-      if (parsedBody.isPublished === false) {
-        return NextResponse.json({ error: 'Unpublishing a course is not allowed' }, { status: 400 })
-      }
-      if (parsedBody.isPublished === true && currentCourseRow.isPublished) {
-        return NextResponse.json({ error: 'Course is already published' }, { status: 400 })
-      }
+        // Category has its own explicit guard so callers can show a specific message.
+        if (parsedBody.categories !== undefined && currentCourseRow.isPublished) {
+          return NextResponse.json(
+            { error: 'Category cannot be changed for a published course' },
+            { status: 400 }
+          )
+        }
 
-      // Published courses are immutable except for content (lessons/tasks), which
-      // is propagated through the publish route.
-      if (
-        currentCourseRow.isPublished &&
-        (parsedBody.name !== undefined ||
-          parsedBody.description !== undefined ||
-          parsedBody.languageOfInstruction !== undefined ||
-          parsedBody.price !== undefined ||
-          parsedBody.currency !== undefined ||
-          parsedBody.isFree !== undefined ||
-          parsedBody.categories !== undefined ||
-          parsedBody.schedule !== undefined)
-      ) {
-        return NextResponse.json(
-          { error: 'Published course details cannot be edited' },
-          { status: 400 }
-        )
-      }
+        // One-way publish: templates may be published, but published courses can
+        // never be unpublished again.
+        if (parsedBody.isPublished === false) {
+          return NextResponse.json(
+            { error: 'Unpublishing a course is not allowed' },
+            { status: 400 }
+          )
+        }
+        if (parsedBody.isPublished === true && currentCourseRow.isPublished) {
+          return NextResponse.json({ error: 'Course is already published' }, { status: 400 })
+        }
 
-      // Build update object with only provided fields
-      const updateData: Record<string, unknown> = {}
+        // Published courses are immutable except for content (lessons/tasks), which
+        // is propagated through the publish route.
+        if (
+          currentCourseRow.isPublished &&
+          (parsedBody.name !== undefined ||
+            parsedBody.description !== undefined ||
+            parsedBody.languageOfInstruction !== undefined ||
+            parsedBody.price !== undefined ||
+            parsedBody.currency !== undefined ||
+            parsedBody.isFree !== undefined ||
+            parsedBody.categories !== undefined ||
+            parsedBody.schedule !== undefined)
+        ) {
+          return NextResponse.json(
+            { error: 'Published course details cannot be edited' },
+            { status: 400 }
+          )
+        }
 
-      if (parsedBody.name !== undefined) updateData.name = parsedBody.name.trim()
-      if (parsedBody.description !== undefined) updateData.description = parsedBody.description
-      if (parsedBody.languageOfInstruction !== undefined)
-        updateData.languageOfInstruction = parsedBody.languageOfInstruction
-      if (parsedBody.price !== undefined) updateData.price = parsedBody.price
-      if (parsedBody.currency !== undefined) updateData.currency = parsedBody.currency
-      if (parsedBody.isFree !== undefined) updateData.isFree = parsedBody.isFree
-      if (parsedBody.isPublished !== undefined) updateData.isPublished = parsedBody.isPublished
-      if (parsedBody.categories !== undefined) updateData.categories = parsedBody.categories
-      if (parsedBody.schedule !== undefined) updateData.schedule = parsedBody.schedule
+        // Build update object with only provided fields
+        const updateData: Record<string, unknown> = {}
 
-      // Update the course
-      await drizzleDb.update(course).set(updateData).where(eq(course.courseId, id))
+        if (parsedBody.name !== undefined) updateData.name = parsedBody.name.trim()
+        if (parsedBody.description !== undefined) updateData.description = parsedBody.description
+        if (parsedBody.languageOfInstruction !== undefined)
+          updateData.languageOfInstruction = parsedBody.languageOfInstruction
+        if (parsedBody.price !== undefined) updateData.price = parsedBody.price
+        if (parsedBody.currency !== undefined) updateData.currency = parsedBody.currency
+        if (parsedBody.isFree !== undefined) updateData.isFree = parsedBody.isFree
+        if (parsedBody.isPublished !== undefined) updateData.isPublished = parsedBody.isPublished
+        if (parsedBody.categories !== undefined) updateData.categories = parsedBody.categories
+        if (parsedBody.schedule !== undefined) updateData.schedule = parsedBody.schedule
 
-      // Fetch updated course
-      const updatedCourse = await drizzleDb
-        .select({
-          courseId: course.courseId,
-          name: course.name,
-          description: course.description,
-          isPublished: course.isPublished,
-          languageOfInstruction: course.languageOfInstruction,
-          price: course.price,
-          currency: course.currency,
-          isFree: course.isFree,
-          schedule: course.schedule,
-          categories: course.categories,
+        // Update the course
+        await drizzleDb.update(course).set(updateData).where(eq(course.courseId, id))
+
+        // Fetch updated course
+        const updatedCourse = await drizzleDb
+          .select({
+            courseId: course.courseId,
+            name: course.name,
+            description: course.description,
+            isPublished: course.isPublished,
+            languageOfInstruction: course.languageOfInstruction,
+            price: course.price,
+            currency: course.currency,
+            isFree: course.isFree,
+            schedule: course.schedule,
+            categories: course.categories,
+          })
+          .from(course)
+          .where(eq(course.courseId, id))
+          .limit(1)
+
+        return NextResponse.json({
+          message: 'Course updated successfully',
+          course: updatedCourse[0],
         })
-        .from(course)
-        .where(eq(course.courseId, id))
-        .limit(1)
-
-      return NextResponse.json({
-        message: 'Course updated successfully',
-        course: updatedCourse[0],
-      })
-    } catch (error) {
-      console.error('[PATCH /api/tutor/courses/[id]] Error:', error)
-      return NextResponse.json({ error: 'Failed to update course' }, { status: 500 })
-    }
-  },
-  { role: 'TUTOR' }
+      } catch (error) {
+        console.error('[PATCH /api/tutor/courses/[id]] Error:', error)
+        return NextResponse.json({ error: 'Failed to update course' }, { status: 500 })
+      }
+    },
+    { role: 'TUTOR' }
+  )
 )
 
 // DELETE /api/tutor/courses/[id] - Delete a course
-export const DELETE = withAuth(
-  async (req: NextRequest, session, context) => {
-    try {
-      const params = await context.params
-      const id = params.id as string
-      const userId = session.user.id
+export const DELETE = withCsrf(
+  withAuth(
+    async (req: NextRequest, session, context) => {
+      try {
+        const params = await context.params
+        const id = params.id as string
+        const userId = session.user.id
 
-      // Verify ownership
-      const isOwner = await verifyCourseOwnership(id, userId)
-      if (!isOwner) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
-      }
+        // Verify ownership
+        const isOwner = await verifyCourseOwnership(id, userId)
+        if (!isOwner) {
+          return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+        }
 
-      // Fetch course details needed for deletion logic
-      const [courseRow] = await drizzleDb
-        .select({
-          courseId: course.courseId,
-          name: course.name,
-          isPublished: course.isPublished,
-        })
-        .from(course)
-        .where(eq(course.courseId, id))
-        .limit(1)
+        // Fetch course details needed for deletion logic
+        const [courseRow] = await drizzleDb
+          .select({
+            courseId: course.courseId,
+            name: course.name,
+            isPublished: course.isPublished,
+          })
+          .from(course)
+          .where(eq(course.courseId, id))
+          .limit(1)
 
-      if (!courseRow) {
-        return NextResponse.json({ error: 'Course not found' }, { status: 404 })
-      }
+        if (!courseRow) {
+          return NextResponse.json({ error: 'Course not found' }, { status: 404 })
+        }
 
-      const enrolled = await drizzleDb
-        .select({ studentId: courseEnrollment.studentId })
-        .from(courseEnrollment)
-        .where(eq(courseEnrollment.courseId, id))
-      const enrolledStudentIds = enrolled.map(e => e.studentId).filter(Boolean)
+        const enrolled = await drizzleDb
+          .select({ studentId: courseEnrollment.studentId })
+          .from(courseEnrollment)
+          .where(eq(courseEnrollment.courseId, id))
+        const enrolledStudentIds = enrolled.map(e => e.studentId).filter(Boolean)
 
-      if (enrolledStudentIds.length > 0) {
-        return NextResponse.json(
-          {
-            error: 'Cannot delete a course with enrolled students.',
-            enrolledCount: enrolledStudentIds.length,
-            courseName: courseRow.name,
-          },
-          { status: 409 }
-        )
-      }
+        if (enrolledStudentIds.length > 0) {
+          return NextResponse.json(
+            {
+              error: 'Cannot delete a course with enrolled students.',
+              enrolledCount: enrolledStudentIds.length,
+              courseName: courseRow.name,
+            },
+            { status: 409 }
+          )
+        }
 
-      // A course that has delivered (or is delivering) sessions must not be deleted:
-      // doing so would wipe attendance, chat, recordings, and replay artifacts.
-      // "Delivered" means ended, currently active, or scheduled in the past.
-      const now = new Date()
-      const deliveredSession = await drizzleDb
-        .select({ sessionId: liveSession.sessionId })
-        .from(liveSession)
-        .where(
-          and(
-            eq(liveSession.courseId, id),
-            or(
-              eq(liveSession.status, 'ended'),
-              eq(liveSession.status, 'active'),
-              and(eq(liveSession.status, 'scheduled'), lte(liveSession.scheduledAt, now))
+        // A course that has delivered (or is delivering) sessions must not be deleted:
+        // doing so would wipe attendance, chat, recordings, and replay artifacts.
+        // "Delivered" means ended, currently active, or scheduled in the past.
+        const now = new Date()
+        const deliveredSession = await drizzleDb
+          .select({ sessionId: liveSession.sessionId })
+          .from(liveSession)
+          .where(
+            and(
+              eq(liveSession.courseId, id),
+              or(
+                eq(liveSession.status, 'ended'),
+                eq(liveSession.status, 'active'),
+                and(eq(liveSession.status, 'scheduled'), lte(liveSession.scheduledAt, now))
+              )
             )
           )
-        )
-        .limit(1)
+          .limit(1)
 
-      if (deliveredSession.length > 0) {
-        return NextResponse.json(
-          {
-            error:
-              'Cannot delete a course that has delivered or active sessions. Archive it instead.',
-            courseName: courseRow.name,
-          },
-          { status: 409 }
-        )
-      }
+        if (deliveredSession.length > 0) {
+          return NextResponse.json(
+            {
+              error:
+                'Cannot delete a course that has delivered or active sessions. Archive it instead.',
+              courseName: courseRow.name,
+            },
+            { status: 409 }
+          )
+        }
 
-      // Delete all calendar events linked to this course (including recurring instances)
-      const courseEvents = await drizzleDb
-        .select({ eventId: calendarEvent.eventId })
-        .from(calendarEvent)
-        .where(eq(calendarEvent.courseId, id))
-      const eventIds = courseEvents.map(e => e.eventId)
+        // Delete all calendar events linked to this course (including recurring instances)
+        const courseEvents = await drizzleDb
+          .select({ eventId: calendarEvent.eventId })
+          .from(calendarEvent)
+          .where(eq(calendarEvent.courseId, id))
+        const eventIds = courseEvents.map(e => e.eventId)
 
-      if (eventIds.length > 0) {
-        // Delete recurring instances whose parent is linked to this course
+        if (eventIds.length > 0) {
+          // Delete recurring instances whose parent is linked to this course
+          await drizzleDb
+            .delete(calendarEvent)
+            .where(inArray(calendarEvent.recurringEventId, eventIds))
+        }
+
+        // Delete all events directly linked to this course
+        await drizzleDb.delete(calendarEvent).where(eq(calendarEvent.courseId, id))
+
+        // Cancel any open live sessions associated with this course so they no longer
+        // block time slots in the scheduler (orphaned sessions from deleted courses
+        // would otherwise remain as 'scheduled' and show as unavailable).
         await drizzleDb
-          .delete(calendarEvent)
-          .where(inArray(calendarEvent.recurringEventId, eventIds))
+          .update(liveSession)
+          .set({ status: 'ended', endedAt: new Date() })
+          .where(
+            and(
+              eq(liveSession.courseId, id),
+              inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES)
+            )
+          )
+
+        // Clean up GCS files referenced in lesson builderData before deleting the course
+        await CourseBuilderService.cleanupCourseFiles(id)
+
+        // Delete the course (cascade will handle lessons)
+        await drizzleDb.delete(course).where(eq(course.courseId, id))
+
+        return NextResponse.json({
+          message: 'Course deleted successfully',
+          enrolledCount: enrolledStudentIds.length,
+        })
+      } catch (error) {
+        console.error('[DELETE /api/tutor/courses/[id]] Error:', error)
+        return NextResponse.json({ error: 'Failed to delete course' }, { status: 500 })
       }
-
-      // Delete all events directly linked to this course
-      await drizzleDb.delete(calendarEvent).where(eq(calendarEvent.courseId, id))
-
-      // Cancel any open live sessions associated with this course so they no longer
-      // block time slots in the scheduler (orphaned sessions from deleted courses
-      // would otherwise remain as 'scheduled' and show as unavailable).
-      await drizzleDb
-        .update(liveSession)
-        .set({ status: 'ended', endedAt: new Date() })
-        .where(
-          and(eq(liveSession.courseId, id), inArray(liveSession.status, LIVE_SESSION_OPEN_STATUSES))
-        )
-
-      // Clean up GCS files referenced in lesson builderData before deleting the course
-      await CourseBuilderService.cleanupCourseFiles(id)
-
-      // Delete the course (cascade will handle lessons)
-      await drizzleDb.delete(course).where(eq(course.courseId, id))
-
-      return NextResponse.json({
-        message: 'Course deleted successfully',
-        enrolledCount: enrolledStudentIds.length,
-      })
-    } catch (error) {
-      console.error('[DELETE /api/tutor/courses/[id]] Error:', error)
-      return NextResponse.json({ error: 'Failed to delete course' }, { status: 500 })
-    }
-  },
-  { role: 'TUTOR' }
+    },
+    { role: 'TUTOR' }
+  )
 )
